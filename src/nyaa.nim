@@ -17,37 +17,13 @@
 # along with Kreato Linux.  If not, see <https://www.gnu.org/licenses/>.
 import cligen
 import sequtils
-include dephandler
+include cmd/build
+include cmd/install
+include cmd/update
+include cmd/upgrade
+include cmd/remove
+include cmd/info
+
 clCfg.version = "nyaa v3.0.0-alpha"
-
-proc install(packages: seq[string]): string =
-  ## Fast and efficient package manager
-  echo packages
-
-proc build(repo="/etc/nyaa", packages: seq[string]): int =
-  ## Build and install packages
-  var deps: seq[string]
-  var res: string
-  for i in packages:
-    deps = deduplicate(dephandler(i, repo).split(" "))
-    res = res & deps.join(" ") & " " & i
-  echo res
-  result = 0
-
-proc remove(packages: seq[string]): string = 
-  ## Remove packages
-  return ""
-
-proc info(packages: seq[string]): string = 
-  ## Get information about packages
-  return ""
-
-proc update(repo="/etc/nyaa"): string =
-  ## Update repositories
-  return ""
-
-proc upgrade(packages="all"): string =
-  ## Upgrade packages
-  return ""
 
 dispatchMulti([build, help={"repo": "The nyaa repository", "packages": "The package names"}, short = { "repo": 'R'}], [install], [info],[remove], [update], [upgrade])
