@@ -3,7 +3,8 @@
 all: main
 
 main:
-				nim c -o=nyaa src/nyaa.nim
+		mkdir out
+		nim c -d:release -o=out/nyaa src/nyaa.nim
 
 clean:
 				rm -f nyaa 

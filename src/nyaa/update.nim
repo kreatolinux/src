@@ -1,5 +1,3 @@
-import osproc
-
 proc update(repo="https://github.com/kreatolinux/nyaa-repo.git", path="/etc/nyaa"): string =
   ## Update repositories
   if dirExists(path):

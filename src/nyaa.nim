@@ -17,12 +17,12 @@
 # along with Kreato Linux.  If not, see <https://www.gnu.org/licenses/>.
 import cligen
 import sequtils
-include cmd/build
-include cmd/install
-include cmd/update
-include cmd/upgrade
-include cmd/remove
-include cmd/info
+include nyaa/build
+include nyaa/install
+include nyaa/update
+include nyaa/upgrade
+include nyaa/remove
+include nyaa/info
 
 clCfg.version = "nyaa v3.0.0-alpha"
 
