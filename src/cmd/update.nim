@@ -1,3 +1,11 @@
-proc update(repo="/etc/nyaa"): string =
+import os
+import osproc
+
+proc update(repo="https://github.com/kreatolinux/nyaa-repo.git", path="/etc/nyaa"): string =
   ## Update repositories
-  return ""
+  if dirExists(path):
+    discard execProcess("git pull", path)
+  else:
+    discard execProcess("git clone "&repo, path)
+  
+  result = "Updated all repositories."
