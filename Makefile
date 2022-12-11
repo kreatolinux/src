@@ -6,4 +6,4 @@ main:
 				nim c -o=nyaa src/nyaa.nim
 
 clean:
-				rm -f depper
+				rm -f nyaa 
