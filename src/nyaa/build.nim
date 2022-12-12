@@ -4,11 +4,13 @@ import strutils
 import libsha/sha256
 import puppy
 include modules/dephandler
+include modules/runparser
+include install
 
-proc builder(path: string, root="/tmp/nyaa_build", srcdir="/tmp/nyaa_srcdir"): string =
+proc builder(repo: string, path: string, destdir: string, root="/tmp/nyaa_build", srcdir="/tmp/nyaa_srcdir"): string =
   ## Builds the packages.
   
-  const lockfile = "nyaa.lock"
+  const lockfile = "/tmp/nyaa.lock"
   
   if fileExists(lockfile):
     echo "error: lockfile exists, will not proceed"
@@ -16,7 +18,7 @@ proc builder(path: string, root="/tmp/nyaa_build", srcdir="/tmp/nyaa_srcdir"): s
   else:
     echo "nyaa: starting build"
     
-    #writeFile(lockfile, "") # Create lockfile
+    writeFile(lockfile, "") # Create lockfile
     
     # Actual building start here
     
@@ -24,6 +26,9 @@ proc builder(path: string, root="/tmp/nyaa_build", srcdir="/tmp/nyaa_srcdir"): s
     removeDir(root)
     removeDir(srcdir)
 
+    # Create tarball directory if it doesn't exist
+    discard existsOrCreateDir("/etc/nyaa.tarballs")
+  
     # Create required directories
     createDir(root) 
     createDir(srcdir)
@@ -31,26 +36,7 @@ proc builder(path: string, root="/tmp/nyaa_build", srcdir="/tmp/nyaa_srcdir"): s
     # Enter into the source directory
     setCurrentDir(srcdir)
     
-    var vars: seq[string]
-    var pkg: string
-    var sources: string
-    var version: string
-    var sha256sum: string
-    
-    for i in lines path&"/run":
-      vars = i.split("=")
-      case vars[0]:
-        of "NAME":
-          pkg = vars[1].replace("\"", "")
-        of "SOURCES":
-          sources = vars[1].replace("\"", "")
-        of "VERSION":
-          version = vars[1].replace("\"", "")
-        of "SHA256SUM":
-          sha256sum = vars[1].replace("\"", "")
-      
-      if "()" in vars[0]:
-        break
+    discard parse_runfile(path) 
     
     var filename: string
     var existsPrepare = execShellCmd(". "&path&"/run"&" && command -v prepare")
@@ -68,11 +54,22 @@ proc builder(path: string, root="/tmp/nyaa_build", srcdir="/tmp/nyaa_srcdir"): s
       assert execShellCmd(". "&path&"/run"&" && prepare") == 0, "prepare failed"
     
     assert execShellCmd(". "&path&"/run"&" && export DESTDIR="&root&" && export ROOT=$DESTDIR && build") == 0, "build failed"
+    var tarball: string
+    
+    when declared(epoch):
+      tarball = "/etc/nyaa.tarballs/nyaa-tarball-"&pkg&"-"&version&"-"&release&"-"&epoch&".tar.gz"
+    else:
+      tarball = "/etc/nyaa.tarballs/nyaa-tarball-"&pkg&"-"&version&"-"&release&".tar.gz"
+    
+    discard execProcess("tar -czvf "&tarball&" -C "&root&" .")
 
-    #removeFile(lockfile)
+    discard install_pkg(repo, pkg, destdir)
+
+    removeFile(lockfile)
+     
     return "nyaa: build complete"
 
-proc build(repo="/etc/nyaa", no=false, yes=false, packages: seq[string]): string =
+proc build(repo="/etc/nyaa", no=false, yes=false, destdir="/", packages: seq[string]): string =
   ## Build and install packages
   var deps: seq[string]
   var res: string
@@ -93,7 +90,7 @@ proc build(repo="/etc/nyaa", no=false, yes=false, packages: seq[string]): string
 
   if yes == true:
     for i in packages:
-      return builder(repo&"/"&i)
+      return builder(repo, repo&"/"&i, destdir)
   elif no == true:
     return "nyaa: exiting"
   else:
@@ -101,8 +98,7 @@ proc build(repo="/etc/nyaa", no=false, yes=false, packages: seq[string]): string
     var output = readLine(stdin)
     if output == "y" or output == "Y":
       for i in packages:
-        return builder(repo&"/"&i)
+        return builder(repo, repo&"/"&i, destdir)
     else:
       return "nyaa: exiting"
 
-  # 

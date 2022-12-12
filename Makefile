@@ -3,7 +3,9 @@
 all: main
 
 main:
-		mkdir out
+		if [ ! -d "out" ]; then \
+        mkdir out; \
+    fi
 		nim c -d:release -o=out/nyaa src/nyaa.nim
 
 clean:

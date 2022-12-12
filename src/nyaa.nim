@@ -18,7 +18,6 @@
 import cligen
 import sequtils
 include nyaa/build
-include nyaa/install
 include nyaa/update
 include nyaa/upgrade
 include nyaa/remove
