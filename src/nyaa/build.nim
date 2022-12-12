@@ -36,7 +36,7 @@ proc builder(repo: string, path: string, destdir: string, root="/tmp/nyaa_build"
     # Enter into the source directory
     setCurrentDir(srcdir)
     
-    discard parse_runfile(path) 
+    parse_runfile(path) 
     
     var filename: string
     var existsPrepare = execShellCmd(". "&path&"/run"&" && command -v prepare")
@@ -63,7 +63,7 @@ proc builder(repo: string, path: string, destdir: string, root="/tmp/nyaa_build"
     
     discard execProcess("tar -czvf "&tarball&" -C "&root&" .")
 
-    discard install_pkg(repo, pkg, destdir)
+    install_pkg(repo, pkg, destdir)
 
     removeFile(lockfile)
      

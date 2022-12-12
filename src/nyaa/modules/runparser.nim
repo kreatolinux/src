@@ -5,7 +5,7 @@ var version: string
 var release: string
 var sha256sum: string
 
-proc parse_runfile(path: string): bool =
+proc parse_runfile(path: string) =
   ## Parse an runfile.
   
   for i in lines path&"/run":

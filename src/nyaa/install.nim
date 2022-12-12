@@ -1,7 +1,7 @@
-proc install_pkg(repo: string , package: string, root: string): string =
+proc install_pkg(repo: string , package: string, root: string) =
   ## Installs an package.
   setCurrentDir("/etc/nyaa.tarballs")
-  discard parse_runfile(repo&"/"&package)
+  parse_runfile(repo&"/"&package)
     
   discard existsOrCreateDir("/etc/nyaa.installed")
   removeDir("/etc/nyaa.installed/"&package)

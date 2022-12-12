@@ -1,6 +1,6 @@
 proc info(repo="/etc/nyaa", package: seq[string]): string = 
   ## Get information about packages
-  discard parse_runfile(repo&"/"&package[0])
+  parse_runfile(repo&"/"&package[0])
   echo "package name: "&pkg
   echo "package version: "&version
   echo "package release: "&release
