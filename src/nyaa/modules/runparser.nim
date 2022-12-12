@@ -12,17 +12,17 @@ proc parse_runfile(path: string) =
       vars = i.split("=")
       case vars[0]:
         of "NAME":
-          pkg = vars[1].replace("\"", "")
+          pkg = vars[1].replace("\"", "").replace("'", "")
         of "SOURCES":
-          sources = vars[1].replace("\"", "")
+          sources = vars[1].replace("\"", "").replace("'", "")
         of "VERSION":
-          version = vars[1].replace("\"", "")
+          version = vars[1].replace("\"", "").replace("'", "")
         of "RELEASE":
-          release = vars[1].replace("\"", "")
+          release = vars[1].replace("\"", "").replace("'", "")
         of "EPOCH":
-          var epoch = vars[1].replace("\"", "")
+          var epoch = vars[1].replace("\"", "").replace("'", "")
         of "SHA256SUM":
-          sha256sum = vars[1].replace("\"", "")
-      
+          sha256sum = vars[1].replace("\"", "").replace("'", "")
+
       if "()" in vars[0]:
         break
