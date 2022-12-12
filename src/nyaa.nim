@@ -25,4 +25,4 @@ include nyaa/info
 
 clCfg.version = "nyaa v3.0.0-alpha"
 
-dispatchMulti([build, help={"repo": "The nyaa repository", "packages": "The package names"}, short = { "repo": 'R'}], [install], [info], [info, cmdName="I"] ,[remove], [update], [upgrade])
+dispatchMulti([build, help={"repo": "The nyaa repository", "packages": "The package names"}, short = { "repo": 'R'}], [install], [info], [remove], [update], [upgrade])
