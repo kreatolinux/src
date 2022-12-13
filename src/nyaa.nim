@@ -1,4 +1,4 @@
-# depper - dependency handler for nyaa
+# nyaa3 - Simple, efficient and fast package manager
 # Copyright 2022 Kreato
 #
 # This file is part of Kreato Linux.
@@ -23,6 +23,6 @@ include nyaa/upgrade
 include nyaa/remove
 include nyaa/info
 
-clCfg.version = "nyaa v3.0.0-rc1"
+clCfg.version = "nyaa v3.0.0-rc2"
 
 dispatchMulti([build, help={"repo": "The nyaa repository", "packages": "The package names"}, short = { "repo": 'R'}], [install], [info], [remove], [update], [upgrade])
