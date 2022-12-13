@@ -15,4 +15,4 @@ proc remove(packages: seq[string], destdir=""): string =
        # TODO: replace this with a Nim implementation
        discard execShellCmd("rm -f "&destdir&"/"&line&" 2>/dev/null")
        discard execShellCmd("[ -z \"$(ls -A "&destdir&"/"&line&" 2>/dev/null)\" ] && rm -rf "&destdir&"/"&line&" 2>/dev/null")
-      echo "Package "&i&" removed."
+      return "Package "&i&" removed."
