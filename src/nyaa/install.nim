@@ -28,7 +28,7 @@ proc install_pkg(repo: string , package: string, root: string, binary=false) =
   writeFile("/etc/nyaa.installed/"&package&"/list_files", execProcess("tar -xvf"&tarball&" -C "&root))
   
 proc install(packages: seq[string], root="/", yes=false, no=false, binrepo="mirror.kreato.dev", repo="/etc/nyaa-bin"): string =
-  ## Fast and efficient package manager
+  ## Download and install a package through a binary repository
   if packages.len == 0:
     err("please enter a package name", false)
     quit(1)
