@@ -33,7 +33,7 @@ proc install(packages: seq[string], root="/", yes=false, no=false, binrepo="mirr
     err("please enter a package name", false)
     quit(1)
 
- if isAdmin() == false:
+  if isAdmin() == false:
     err "you have to be root for this action."
 
   var deps: seq[string]
