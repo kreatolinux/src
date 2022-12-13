@@ -2,7 +2,6 @@ import os
 import osproc
 import strutils
 import libsha/sha256
-import puppy
 include modules/dephandler
 include modules/runparser
 include modules/errorhandling
@@ -52,9 +51,11 @@ proc builder(repo: string, path: string, destdir: string, root="/tmp/nyaa_build"
     var filename: string
     var existsPrepare = execShellCmd(". "&path&"/run"&" && command -v prepare")
     
+    var client = newHttpClient()
+
     for i in sources.split(";"):
       filename = extractFilename(i.replace("$VERSION", version))
-      writeFile(filename, fetch(i.replace("$VERSION", version)))
+      writeFile(filename, client.getContent(i.replace("$VERSION", version)))
       if sha256hexdigest(readAll(open(filename)))&"  "&filename != sha256sum:
         err "sha256sum doesn't match"
       if existsPrepare != 0:

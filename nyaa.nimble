@@ -7,7 +7,6 @@ bin = @["nyaa"]
 binDir = "out/"
 
 requires "nim"
-requires "puppy"
 requires "cligen"
 requires "libsha"
 requires "nimarchive"

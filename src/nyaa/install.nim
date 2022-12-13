@@ -1,3 +1,5 @@
+import std/httpclient
+
 proc install_pkg(repo: string , package: string, root: string, binary=false) =
   ## Installs an package.
   
@@ -64,9 +66,10 @@ proc install(packages: seq[string], root="/", yes=false, no=false, binrepo="mirr
       let chksum = tarball&".sum"
       setCurrentDir("/etc/nyaa.tarballs")
       echo "Downloading tarball"
-      writeFile(tarball, fetch("https://"&binrepo&"/"&tarball))
+      var client = newHttpClient()
+      writeFile(tarball, client.getContent("https://"&binrepo&"/"&tarball))
       echo "Downloading tarball checksum"
-      writeFile(chksum, fetch("https://"&binrepo&"/"&chksum))
+      writeFile(chksum, client.getContent("https://"&binrepo&"/"&chksum))
       install_pkg(repo, i, root, true)
       return "Installation for "&i&" complete"
   else:
