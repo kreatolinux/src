@@ -1,6 +1,14 @@
 proc info(repo="/etc/nyaa", package: seq[string]): string = 
   ## Get information about packages
-  parse_runfile(repo&"/"&package[0])
+  
+  if package.len == 0:
+    err("Please enter a package name", false)
+  
+  if dirExists(repo&"/"&package[0]):
+    parse_runfile(repo&"/"&package[0])
+  else:
+    err("Package "&pkg&" doesn't exist", false)
+  
   echo "package name: "&pkg
   echo "package version: "&version
   echo "package release: "&release
