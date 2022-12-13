@@ -6,8 +6,7 @@ proc upgrade(repo="/etc/nyaa", packages="all", destdir="/"): string =
         try:
           parse_runfile(i.path)
         except Exception:
-          echo "error: package on "&i.path&" doesn't have a runfile, possibly broken package"
-          quit(1)
+          err("package on "&i.path&" doesn't have a runfile, possibly broken package", false)
 
         let version_local = version
         let release_local = release

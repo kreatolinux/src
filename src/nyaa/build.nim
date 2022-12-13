@@ -5,21 +5,32 @@ import libsha/sha256
 import puppy
 include modules/dephandler
 include modules/runparser
+include modules/errorhandling
 include install
+
+const lockfile = "/tmp/nyaa.lock"
+
+proc cleanUp() {.noconv.} =
+  ## Cleans up.
+  echo "nyaa: removing lockfile"
+  removeFile(lockfile)
+  quit(0)
 
 proc builder(repo: string, path: string, destdir: string, root="/tmp/nyaa_build", srcdir="/tmp/nyaa_srcdir"): string =
   ## Builds the packages.
-  
-  const lockfile = "/tmp/nyaa.lock"
-  
+
+  if isAdmin() == false:
+    err "you have to be root for this action."
+ 
   if fileExists(lockfile):
-    echo "error: lockfile exists, will not proceed"
-    quit(1)
+    err("lockfile exists, will not proceed", false)
   else:
     echo "nyaa: starting build"
     
     writeFile(lockfile, "") # Create lockfile
     
+    setControlCHook(cleanUp)
+
     # Actual building start here
     
     # Remove directories if they exist
@@ -45,8 +56,7 @@ proc builder(repo: string, path: string, destdir: string, root="/tmp/nyaa_build"
       filename = extractFilename(i.replace("$VERSION", version))
       writeFile(filename, fetch(i.replace("$VERSION", version)))
       if sha256hexdigest(readAll(open(filename)))&"  "&filename != sha256sum:
-        echo "error: sha256sum doesn't match"
-        quit(1)
+        err "sha256sum doesn't match"
       if existsPrepare != 0:
         discard execProcess("bsdtar -xvf "&filename)
 
@@ -67,7 +77,10 @@ proc builder(repo: string, path: string, destdir: string, root="/tmp/nyaa_build"
     
     install_pkg(repo, pkg, destdir)
 
-    removeFile(lockfile)
+    cleanUp()
+
+    removeDir(srcdir)
+    removeDir(root)
      
     return "nyaa: build complete"
 
@@ -77,13 +90,11 @@ proc build(repo="/etc/nyaa", no=false, yes=false, destdir="/", packages: seq[str
   var res: string
 
   if packages.len == 0:
-    echo "error: please enter a package name"
-    quit(1)
+    err("please enter a package name", false)
 
   for i in packages:
     if not dirExists(repo&"/"&i):
-      echo "error: package `"&i&"` does not exist"
-      quit(1)
+      err("package `"&i&"` does not exist", false)
     else:
       deps = deduplicate(dephandler(i, repo).split(" "))
       res = res & deps.join(" ") & " " & i

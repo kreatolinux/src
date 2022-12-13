@@ -8,8 +8,7 @@ proc install_pkg(repo: string , package: string, root: string, binary=false) =
     tarball = "/etc/nyaa.tarballs/nyaa-tarball-"&pkg&"-"&version&"-"&release&".tar.gz"
 
   if sha256hexdigest(readAll(open(tarball)))&"  "&tarball != readAll(open(tarball&".sum")):
-    echo "error: sha256sum doesn't match"
-    quit(1)
+    err("sha256sum doesn't match", false)
 
   setCurrentDir("/etc/nyaa.tarballs")
 
@@ -27,7 +26,7 @@ proc install_pkg(repo: string , package: string, root: string, binary=false) =
 proc install(packages: seq[string], root="/", yes=false, no=false, binrepo="mirror.kreato.dev", repo="/etc/nyaa-bin"): string =
   ## Fast and efficient package manager
   if packages.len == 0:
-    echo "error: please enter a package name"
+    err("please enter a package name", false)
     quit(1)
 
   var deps: seq[string]
@@ -35,7 +34,7 @@ proc install(packages: seq[string], root="/", yes=false, no=false, binrepo="mirr
 
   for i in packages:
     if not dirExists(repo&"/"&i&"-bin"):
-      echo "error: package `"&i&"` does not exist"
+      err("package `"&i&"` does not exist", false)
       quit(1)
     else:
       deps = deduplicate(dephandler(i, repo).split(" "))
