@@ -63,6 +63,8 @@ proc builder(repo: string, path: string, destdir: string, root="/tmp/nyaa_build"
     
     discard execProcess("tar -czvf "&tarball&" -C "&root&" .")
 
+    writeFile(tarball&".sum", sha256hexdigest(readAll(open(tarball)))&"  "&tarball)
+    
     install_pkg(repo, pkg, destdir)
 
     removeFile(lockfile)
