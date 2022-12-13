@@ -6,7 +6,7 @@ main:
 		if [ ! -d "out" ]; then \
         mkdir out; \
     fi
-		nim c -d:release -o=out/nyaa src/nyaa.nim
+		nim c -d:release -d:ssl -o=out/nyaa src/nyaa.nim
 
 install:
 	cp -f out/nyaa /bin
