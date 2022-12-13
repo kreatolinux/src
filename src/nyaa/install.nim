@@ -1,5 +1,9 @@
 proc install_pkg(repo: string , package: string, root: string, binary=false) =
   ## Installs an package.
+  
+  if isAdmin() == false:
+    err "you have to be root for this action."
+
   var tarball: string
   
   when declared(epoch):
