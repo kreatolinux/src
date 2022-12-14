@@ -58,7 +58,7 @@ proc install(packages: seq[string], root="/", yes=false, no=false, binrepo="mirr
     stdout.write "Do you want to continue? (y/N) "
     output = readLine(stdin)
 
-  if output == "y" or output == "Y" or yes == true:
+  if output.toLower() == "y" or yes == true:
     for i in packages:
       parse_runfile(repo&"/"&i&"-bin")
       discard existsOrCreateDir("/etc/nyaa.tarballs")

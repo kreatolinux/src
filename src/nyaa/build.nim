@@ -110,7 +110,7 @@ proc build(repo="/etc/nyaa", no=false, yes=false, destdir="/", packages: seq[str
   else:
     stdout.write "Do you want to continue? (y/N) "
     var output = readLine(stdin)
-    if output == "y" or output == "Y":
+    if output.toLower() == "y":
       for i in packages:
         return builder(repo, repo&"/"&i, destdir)
     else:

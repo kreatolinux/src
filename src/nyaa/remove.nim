@@ -12,7 +12,7 @@ proc remove(packages: seq[string], yes=false, destdir=""): string =
     stdout.write "Do you want to continue? (y/N) "
     output = readLine(stdin)
 
-  if output == "y" or output == "Y" or yes == true:
+  if output.toLower() == "y" or yes == true:
     for i in packages:
       if not fileExists("/etc/nyaa.installed/"&i&"/list_files"):
         err("package "&i&" is not installed", false)
