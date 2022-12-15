@@ -11,12 +11,10 @@ const lockfile = "/tmp/nyaa.lock"
 
 proc cleanUp() {.noconv.} =
     ## Cleans up.
-    echo "nyaa: removing lockfile"
     removeFile(lockfile)
-    quit(0)
 
 proc builder(repo: string, path: string, destdir: string,
-    root = "/tmp/nyaa_build", srcdir = "/tmp/nyaa_srcdir"): string =
+    root = "/tmp/nyaa_build", srcdir = "/tmp/nyaa_srcdir") =
     ## Builds the packages.
 
     if isAdmin() == false:
@@ -87,9 +85,6 @@ proc builder(repo: string, path: string, destdir: string,
     removeDir(srcdir)
     removeDir(root)
 
-    return "nyaa: build complete"
-
-
 proc build(repo = "/etc/nyaa", no = false, yes = false, destdir = "/",
     packages: seq[string]): string =
     ## Build and install packages
@@ -121,8 +116,9 @@ proc build(repo = "/etc/nyaa", no = false, yes = false, destdir = "/",
         for i in packages:
             try:
                 builder(repo, repo&"/"&i, destdir)
+                echo("nyaa: built "&i&" successfully")
             except:
                 raise
-
-    return "nyaa: exiting"
-
+        return "nyaa: built all packages successfully"
+    else:
+      return "nyaa: exiting"
