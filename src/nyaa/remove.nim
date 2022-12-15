@@ -23,6 +23,7 @@ proc remove(packages: seq[string], yes = false, root = ""): string =
                 # TODO: replace this with a Nim implementation
                 discard execShellCmd("rm -f "&root&"/"&line&" 2>/dev/null")
                 discard execShellCmd("[ -z \"$(ls -A "&root&"/"&line&" 2>/dev/null)\" ] && rm -rf "&root&"/"&line&" 2>/dev/null")
+            removeDir("/etc/nyaa.installed/"&i)
             return "Package "&i&" removed."
 
     return "Exiting."
