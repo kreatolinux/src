@@ -32,6 +32,6 @@ proc upgrade(repo = "/etc/nyaa", packages = "all", destdir = "/",
                             i.path)&" from "&version_local&"-"&release_local&" to "&version_upstream&"-"&release_upstream
 
 
-                    discard builder(repo, repo&"/"&lastPathPart(i.path), destdir)
+                    builder(repo, repo&"/"&lastPathPart(i.path), destdir)
 
     return "done"
