@@ -10,6 +10,9 @@ requires "nim"
 requires "cligen"
 requires "libsha"
 
+task prettify, "Run nimpretty":
+  exec "nimpretty "&srcDir&"/*/*/*"
+
 task ssl, "Build with SSL support":
   exec "nim c -d:release -d:ssl -o="&binDir&" "&srcDir&"/nyaa.nim"
 
