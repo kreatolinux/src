@@ -1,5 +1,3 @@
-import std/strutils
-
 proc upgrade(repo = "/etc/nyaa", packages = "all", destdir = "/",
         root = "/tmp/nyaa_build", srcdir = "/tmp/nyaa_srcdir"): string =
     ## Upgrade packages
