@@ -85,7 +85,7 @@ proc builder(repo: string, path: string, destdir: string,
     removeDir(srcdir)
     removeDir(root)
 
-proc build(repo = "/etc/nyaa", no = false, yes = false, destdir = "/",
+proc build(repo = "/etc/nyaa", no = false, yes = false, root = "/",
     packages: seq[string]): string =
     ## Build and install packages
     var deps: seq[string]
@@ -115,7 +115,7 @@ proc build(repo = "/etc/nyaa", no = false, yes = false, destdir = "/",
     if output.toLower() == "y":
         for i in packages:
             try:
-                builder(repo, repo&"/"&i, destdir)
+                builder(repo, repo&"/"&i, root)
                 echo("nyaa: built "&i&" successfully")
             except:
                 raise
