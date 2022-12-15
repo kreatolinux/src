@@ -8,7 +8,7 @@ proc install_pkg(repo: string, package: string, root: string, binary = false) =
 
     var tarball: string
 
-    when declared(epoch):
+    if epoch != "":
         tarball = "/etc/nyaa.tarballs/nyaa-tarball-"&pkg&"-"&version&"-"&release&"-"&epoch&".tar.gz"
     else:
         tarball = "/etc/nyaa.tarballs/nyaa-tarball-"&pkg&"-"&version&"-"&release&".tar.gz"

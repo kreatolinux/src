@@ -4,6 +4,7 @@ var sources: string
 var version: string
 var release: string
 var sha256sum: string
+var epoch: string
 
 proc parse_runfile(path: string) =
     ## Parse an runfile.
@@ -20,7 +21,7 @@ proc parse_runfile(path: string) =
             of "RELEASE":
                 release = vars[1].replace("\"", "").replace("'", "")
             of "EPOCH":
-                var epoch = vars[1].replace("\"", "").replace("'", "")
+                epoch = parseInt(vars[1].replace("\"", "").replace("'", ""))
             of "SHA256SUM":
                 sha256sum = vars[1].replace("\"", "").replace("'", "")
 
