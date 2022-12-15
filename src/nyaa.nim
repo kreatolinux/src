@@ -25,6 +25,55 @@ include nyaa/info
 
 clCfg.version = "nyaa v3.0.0-rc2"
 
-dispatchMulti([build, help = {"repo": "The nyaa repository",
-    "packages": "The package names"}, short = {"repo": 'R'}], [install], [info],
-    [remove], [update], [upgrade])
+dispatchMulti(
+  [
+  build, help = {
+    "repo": "Set nyaa repository",
+    "packages": "The package names", 
+    "root": "The directory the package is gonna be installed to", 
+    "yes": "Automatically say 'yes' to every question", 
+    "no": "Automatically say 'no' to every question"
+    }, short = {
+      "repo": 'R'
+    }
+  ], 
+  
+  [
+  install, help = {
+    "root": "The directory the package is gonna be installed to",
+    "yes": "Automatically say 'yes' to every question",
+    "no": "Automatically say 'no' to every question",
+    "repo": "The nyaa binary repository",
+    "binrepo": "The nyaa binary mirror",
+    }
+  ], 
+  
+  [
+  info, help = {
+    "repo": "Set nyaa repository" 
+    }
+  ],
+  
+  [
+  remove, help = {
+    "yes": "Automatically say 'yes' to every question",
+    "root": "The directory the package is gonna be removed from"
+    }
+  ], 
+  
+  [
+  update, help = {
+    "repo": "The nyaa repository Git URL",
+    "path": "The nyaa repository path"
+    }
+  ], 
+  
+  [
+  upgrade, help = {
+    "repo": "Set nyaa repository",
+    "root": "The directory the packages are gonna be upgraded on",
+    "builddir": "Set a custom build directory",
+    "srcdir": "Set a custom source directory"
+    }
+  ]
+)
