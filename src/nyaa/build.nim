@@ -4,7 +4,7 @@ import strutils
 import libsha/sha256
 include modules/dephandler
 include modules/runparser
-include modules/errorhandling
+include modules/logger
 include install
 
 const lockfile = "/tmp/nyaa.lock"
