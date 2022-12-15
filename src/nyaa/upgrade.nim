@@ -1,5 +1,5 @@
 proc upgrade(repo = "/etc/nyaa", packages = "all", root = "/",
-        root = "/tmp/nyaa_build", srcdir = "/tmp/nyaa_srcdir"): string =
+        builddir = "/tmp/nyaa_build", srcdir = "/tmp/nyaa_srcdir"): string =
     ## Upgrade packages
     if packages == "all":
         for i in walkDir("/etc/nyaa.installed"):
