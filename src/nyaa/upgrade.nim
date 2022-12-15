@@ -1,4 +1,4 @@
-proc upgrade(repo = "/etc/nyaa", packages = "all", destdir = "/",
+proc upgrade(repo = "/etc/nyaa", packages = "all", root = "/",
         root = "/tmp/nyaa_build", srcdir = "/tmp/nyaa_srcdir"): string =
     ## Upgrade packages
     if packages == "all":
@@ -32,6 +32,6 @@ proc upgrade(repo = "/etc/nyaa", packages = "all", destdir = "/",
                             i.path)&" from "&version_local&"-"&release_local&" to "&version_upstream&"-"&release_upstream
 
 
-                    builder(repo, repo&"/"&lastPathPart(i.path), destdir)
+                    builder(repo, repo&"/"&lastPathPart(i.path), root)
 
     return "done"
