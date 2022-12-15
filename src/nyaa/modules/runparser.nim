@@ -21,7 +21,7 @@ proc parse_runfile(path: string) =
             of "RELEASE":
                 release = vars[1].replace("\"", "").replace("'", "")
             of "EPOCH":
-                epoch = parseInt(vars[1].replace("\"", "").replace("'", ""))
+                epoch = vars[1].replace("\"", "").replace("'", "")
             of "SHA256SUM":
                 sha256sum = vars[1].replace("\"", "").replace("'", "")
 
