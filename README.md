@@ -9,7 +9,8 @@ nyaa3 will be compatible with nyaa2, through a script.
 
 # Building and installation
 You can build through `nimble`.
-Run `nimble build` to build, and `nimble install` to install.
+We recommend using the ssl task to build since repositories that nyaa3 is configured with need SSL.
+Run `nimble ssl` to build, and `nimble install` to install.
 
 # License
 Licensed under GPLv3. Check LICENSE file for details
