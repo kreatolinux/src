@@ -20,7 +20,7 @@ proc builder(repo: string, path: string, destdir: string,
     ## Builds the packages.
 
     if isAdmin() == false:
-        err "you have to be root for this action."
+        err("you have to be root for this action.", false)
 
     if fileExists(lockfile):
         err("lockfile exists, will not proceed", false)
@@ -65,8 +65,9 @@ proc builder(repo: string, path: string, destdir: string,
     if existsPrepare == 0:
         assert execShellCmd(". "&path&"/run"&" && prepare") == 0, "prepare failed"
 
-    assert execShellCmd(". "&path&"/run"&" && export DESTDIR="&root&" && export ROOT=$DESTDIR && build") ==
-        0, "build failed"
+    if execShellCmd(". "&path&"/run"&" && export DESTDIR="&root&" && export ROOT=$DESTDIR && build") != 0:
+      err("build failed")
+
     var tarball: string
 
     when declared(epoch):
