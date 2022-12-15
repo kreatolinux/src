@@ -36,7 +36,6 @@ proc install(packages: seq[string], root = "/", yes = false, no = false,
     ## Download and install a package through a binary repository
     if packages.len == 0:
         err("please enter a package name", false)
-        quit(1)
 
     if isAdmin() == false:
         err "you have to be root for this action."
@@ -47,7 +46,6 @@ proc install(packages: seq[string], root = "/", yes = false, no = false,
     for i in packages:
         if not dirExists(repo&"/"&i&"-bin"):
             err("package `"&i&"` does not exist", false)
-            quit(1)
 
         deps = deduplicate(dephandler(i, repo).split(" "))
         res = res & deps.join(" ") & " " & i
