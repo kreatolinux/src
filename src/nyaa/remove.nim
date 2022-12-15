@@ -1,5 +1,3 @@
-#import modules/chkroot
-
 proc remove(packages: seq[string], yes = false, destdir = ""): string =
     ## Remove packages
     if packages.len == 0:
@@ -13,6 +11,10 @@ proc remove(packages: seq[string], yes = false, destdir = ""): string =
         output = readLine(stdin)
 
     if output.toLower() == "y" or yes == true:
+
+        if isAdmin() == false:
+          err("you have to be root for this action.", false)
+
         for i in packages:
             if not fileExists("/etc/nyaa.installed/"&i&"/list_files"):
                 err("package "&i&" is not installed", false)
