@@ -12,6 +12,7 @@ const lockfile = "/tmp/nyaa.lock"
 proc cleanUp() {.noconv.} =
     ## Cleans up.
     removeFile(lockfile)
+    quit(0)
 
 proc builder(repo: string, path: string, destdir: string,
     root = "/tmp/nyaa_build", srcdir = "/tmp/nyaa_srcdir") =
@@ -80,7 +81,7 @@ proc builder(repo: string, path: string, destdir: string,
 
     install_pkg(repo, pkg, destdir)
 
-    cleanUp()
+    removeFile(lockfile)
 
     removeDir(srcdir)
     removeDir(root)
