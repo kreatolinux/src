@@ -8,9 +8,8 @@ Speed, code readability and efficiency get harder and harder on shell and i cons
 nyaa3 will be compatible with nyaa2, through a script.
 
 # Building and installation
-Building through nimble is preferred, but a simple Makefile is also included.
+You can build through `nimble`.
 Run `nimble build` to build, and `nimble install` to install.
-Or you can run `make` to build, and `make install` to install.
 
 # License
 Licensed under GPLv3. Check LICENSE file for details
