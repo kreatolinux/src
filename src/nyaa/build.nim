@@ -68,7 +68,7 @@ proc builder(repo: string, path: string, destdir: string,
 
     var tarball: string
 
-    when declared(epoch):
+    if epoch != "":
         tarball = "/etc/nyaa.tarballs/nyaa-tarball-"&pkg&"-"&version&"-"&release&"-"&epoch&".tar.gz"
     else:
         tarball = "/etc/nyaa.tarballs/nyaa-tarball-"&pkg&"-"&version&"-"&release&".tar.gz"
@@ -89,7 +89,7 @@ proc build(repo = "/etc/nyaa", no = false, yes = false, root = "/",
     packages: seq[string]): string =
     ## Build and install packages
     var deps: seq[string]
-    var res: string
+    var res: seq[string]
 
     if packages.len == 0:
         err("please enter a package name", false)
@@ -98,9 +98,9 @@ proc build(repo = "/etc/nyaa", no = false, yes = false, root = "/",
         if not dirExists(repo&"/"&i):
             err("package `"&i&"` does not exist", false)
         deps = deduplicate(dephandler(i, repo).split(" "))
-        res = res & deps.join(" ") & " " & i
+        res = res & deps.filterit(it.len != 0) & i
 
-    echo "Packages:"&res
+    echo "Packages: "&res.join(" ")
 
     var output = ""
     if yes:
@@ -113,10 +113,13 @@ proc build(repo = "/etc/nyaa", no = false, yes = false, root = "/",
         output = readLine(stdin)
 
     if output.toLower() == "y":
-        for i in packages:
+        for i in res:
             try:
-                builder(repo, repo&"/"&i, root)
-                echo("nyaa: built "&i&" successfully")
+                if dirExists("/etc/nyaa.installed/"&i):
+                  discard
+                else:
+                  builder(repo, repo&"/"&i, root)
+                  echo("nyaa: built "&i&" successfully")
             except:
                 raise
         return "nyaa: built all packages successfully"
