@@ -34,8 +34,7 @@ proc upgrade(root = "/",
               echo "Upgrading "&lastPathPart(i.path)&" from "&version_local&"-"&release_local&" to "&version_upstream&"-"&release_upstream
 
             discard removeInternal(lastPathPart(i.path), root)
-            let conf = loadConfig("/etc/nyaa.conf")
-            if conf.getSectionValue("Upgrade", "buildByDefault") == "yes":
+            if getConfigValue("Upgrade", "buildByDefault") == "yes":
               builder(repo, repo&"/"&lastPathPart(i.path), root)
             else:
               var pkg: seq[string]

@@ -5,8 +5,10 @@ proc update(repo = "https://github.com/kreatolinux/nyaa-repo.git",
         discard execProcess("git -C "&path&"pull")
     else:
         discard execProcess("git clone "&repo&" "&path)
-        if repo in getConfigValue("Repositories", "RepoLinks") == false and path in getConfigValue("Repositories", "RepoDirs") == false:
-          setConfigValue("Repositories", "RepoLinks", getConfigValue("Repositories", "RepoLinks")&" "&repo)
-          setConfigValue("Repositories", "RepoDirs", getConfigValue("Repositories", "RepoDirs")&" "&path)
+        let repolinks = getConfigValue("Repositories", "RepoLinks")
+        let repodirs = getConfigValue("Repositories", "RepoDirs")
+        if repo in repolinks == false and path in repodirs == false:
+          setConfigValue("Repositories", "RepoLinks", repolinks&" "&repo)
+          setConfigValue("Repositories", "RepoDirs", repodirs&" "&path)
 
     result = "Updated all repositories."
