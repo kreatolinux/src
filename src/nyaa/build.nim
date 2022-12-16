@@ -1,10 +1,8 @@
-import os
 import osproc
 import strutils
 import libsha/sha256
 include modules/dephandler
 include modules/runparser
-include modules/logger
 include install
 
 const lockfile = "/tmp/nyaa.lock"
@@ -86,16 +84,18 @@ proc builder(repo: string, path: string, destdir: string,
     removeDir(srcdir)
     removeDir(root)
 
-proc build(repo = "/etc/nyaa", no = false, yes = false, root = "/",
+proc build(no = false, yes = false, root = "/",
     packages: seq[string]): string =
     ## Build and install packages
     var deps: seq[string]
     var res: seq[string]
+    var repo: string
 
     if packages.len == 0:
         err("please enter a package name", false)
 
     for i in packages:
+        repo = findPkgRepo(i)
         if not dirExists(repo&"/"&i):
             err("package `"&i&"` does not exist", false)
         deps = filterit(deps&deduplicate(dephandler(i, repo).split(" ")), it.len != 0)
@@ -125,7 +125,8 @@ proc build(repo = "/etc/nyaa", no = false, yes = false, root = "/",
                 raise
         
         for i in packages:
-          try:              
+          try:            
+            repo = findPkgRepo(i)
             builder(repo, repo&"/"&i, root)
             echo("nyaa: built "&i&" successfully")
           except:

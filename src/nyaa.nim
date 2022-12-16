@@ -17,6 +17,10 @@
 # along with Kreato Linux.  If not, see <https://www.gnu.org/licenses/>.
 import cligen
 import sequtils
+import parsecfg
+import os
+include nyaa/modules/logger
+include nyaa/modules/config
 include nyaa/build
 include nyaa/update
 include nyaa/upgrade
@@ -25,16 +29,17 @@ include nyaa/info
 
 clCfg.version = "nyaa v3.0.0-rc3"
 
+
+if fileExists("/etc/nyaa.conf") == false:
+  initializeConfig()
+
 dispatchMulti(
   [
   build, help = {
-    "repo": "Set nyaa repository",
     "packages": "The package names", 
     "root": "The directory the package is gonna be installed to", 
     "yes": "Automatically say 'yes' to every question", 
     "no": "Automatically say 'no' to every question"
-    }, short = {
-      "repo": 'R'
     }
   ], 
   
