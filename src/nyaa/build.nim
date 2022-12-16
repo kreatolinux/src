@@ -95,7 +95,6 @@ proc build(no = false, yes = false, root = "/",
         err("please enter a package name", false)
 
     for i in packages:
-        checkIfPackageExists(i)
         deps = filterit(deps&deduplicate(dephandler(i, repo).split(" ")), it.len != 0)
         res = res & deps & i
 
@@ -124,7 +123,7 @@ proc build(no = false, yes = false, root = "/",
         
         for i in packages:
           try:            
-            repo = findPkgRepo(i)
+            repo = checkIfPackageExists(i)
             builder(repo, repo&"/"&i, root)
             echo("nyaa: built "&i&" successfully")
           except:

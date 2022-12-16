@@ -41,10 +41,12 @@ proc findPkgRepo(package: string, conf = "/etc/nyaa.conf"): string =
 
 proc checkIfPackageExists(package: string, binary = false): string =
   ## Checks if the package exists.
+  var repo: string
+
   if binary == true:
-    let repo = findPkgRepo(package&"-bin")
+    repo = findPkgRepo(package&"-bin")
   else:
-    let repo = findPkgRepo(package)
+    repo = findPkgRepo(package)
 
   if repo != "":
     return repo

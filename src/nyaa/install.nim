@@ -45,7 +45,6 @@ proc install(packages: seq[string], root = "/", yes = false, no = false,
     var repo: string  
     
     for i in packages:
-        checkIfPackageExists(i, true)
         deps = deduplicate(dephandler(i, repo).split(" "))
         res = res & deps.join(" ") & " " & i
 
@@ -62,7 +61,7 @@ proc install(packages: seq[string], root = "/", yes = false, no = false,
         return "nyaa: exiting"
 
     for i in packages:
-        repo = findPkgRepo(i&"-bin")
+        repo = checkIfPackageExists(i, true)
         parse_runfile(repo&"/"&i&"-bin")
         discard existsOrCreateDir("/etc/nyaa.tarballs")
         let tarball = "nyaa-tarball-"&i&"-"&version&"-"&release&".tar.gz"
