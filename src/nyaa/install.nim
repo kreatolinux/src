@@ -3,9 +3,6 @@ import std/httpclient
 proc install_pkg(repo: string, package: string, root: string, binary = false) =
     ## Installs an package.
 
-    if isAdmin() == false:
-        err "you have to be root for this action."
-
     var tarball: string
 
     if epoch != "":
@@ -31,6 +28,23 @@ proc install_pkg(repo: string, package: string, root: string, binary = false) =
     writeFile("/etc/nyaa.installed/"&package&"/list_files", execProcess(
         "tar -xvf"&tarball&" -C "&root))
 
+proc install_bin(package: string, binrepo: string, root: string): string =
+  ## Downloads and installs a binary.
+  var repo = findPkgRepo(package&"-bin")
+  parse_runfile(repo&"/"&package&"-bin")
+  discard existsOrCreateDir("/etc/nyaa.tarballs")
+  let tarball = "nyaa-tarball-"&package&"-"&version&"-"&release&".tar.gz"
+  let chksum = tarball&".sum"
+  setCurrentDir("/etc/nyaa.tarballs")
+  echo "Downloading tarball"
+  var client = newHttpClient()
+  writeFile(tarball, client.getContent("https://"&binrepo&"/"&tarball))
+  echo "Downloading tarball checksum"
+  writeFile(chksum, client.getContent("https://"&binrepo&"/"&chksum))
+  install_pkg(repo, package, root, true)
+  return "Installation for "&package&" complete"
+
+
 proc install(packages: seq[string], root = "/", yes = false, no = false,
     binrepo = "mirror.kreato.dev"): string =
     ## Download and install a package through a binary repository
@@ -38,14 +52,17 @@ proc install(packages: seq[string], root = "/", yes = false, no = false,
         err("please enter a package name", false)
 
     if isAdmin() == false:
-        err "you have to be root for this action."
+        err("you have to be root for this action.", false)
 
     var deps: seq[string]
     var res: string
     var repo: string  
     
     for i in packages:
-        deps = deduplicate(dephandler(i, repo).split(" "))
+        repo = findPkgRepo(i&"-bin")
+        if repo == "":
+          err("package "&i&" doesn't exist", false)
+        deps = deduplicate(deps&dephandler(i&"-bin", repo).split(" "))
         res = res & deps.join(" ") & " " & i
 
 
@@ -59,20 +76,14 @@ proc install(packages: seq[string], root = "/", yes = false, no = false,
 
     if output.toLower() != "y" and yes != true:
         return "nyaa: exiting"
+    
+    for i in deps:
+      if dirExists("/etc/nyaa.installed/"&i):
+        discard
+      else:
+        echo install_bin(i, binrepo, root)
 
     for i in packages:
-        repo = checkIfPackageExists(i, true)
-        parse_runfile(repo&"/"&i&"-bin")
-        discard existsOrCreateDir("/etc/nyaa.tarballs")
-        let tarball = "nyaa-tarball-"&i&"-"&version&"-"&release&".tar.gz"
-        let chksum = tarball&".sum"
-        setCurrentDir("/etc/nyaa.tarballs")
-        echo "Downloading tarball"
-        var client = newHttpClient()
-        writeFile(tarball, client.getContent("https://"&binrepo&"/"&tarball))
-        echo "Downloading tarball checksum"
-        writeFile(chksum, client.getContent("https://"&binrepo&"/"&chksum))
-        install_pkg(repo, i, root, true)
-        echo "Installation for "&i&" complete"
+      echo install_bin(i, binrepo, root)
 
     echo "nyaa: done"

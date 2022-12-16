@@ -95,6 +95,9 @@ proc build(no = false, yes = false, root = "/",
         err("please enter a package name", false)
 
     for i in packages:
+        repo = findPkgRepo(i)
+        if repo == "":
+          err("package "&i&" doesn't exist", false)
         deps = filterit(deps&deduplicate(dephandler(i, repo).split(" ")), it.len != 0)
         res = res & deps & i
 
@@ -113,6 +116,7 @@ proc build(no = false, yes = false, root = "/",
     if output.toLower() == "y":
         for i in deps:
             try:
+                repo = findPkgRepo(i)
                 if dirExists("/etc/nyaa.installed/"&i):
                   discard
                 else:
@@ -123,7 +127,7 @@ proc build(no = false, yes = false, root = "/",
         
         for i in packages:
           try:            
-            repo = checkIfPackageExists(i)
+            repo = findPkgRepo(i)
             builder(repo, repo&"/"&i, root)
             echo("nyaa: built "&i&" successfully")
           except:

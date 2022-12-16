@@ -38,18 +38,3 @@ proc findPkgRepo(package: string, conf = "/etc/nyaa.conf"): string =
   for i in getConfigValue("Repositories", "RepoDirs").split(" "):
     if dirExists(i&"/"&package):
       return i
-
-proc checkIfPackageExists(package: string, binary = false): string =
-  ## Checks if the package exists.
-  var repo: string
-
-  if binary == true:
-    repo = findPkgRepo(package&"-bin")
-  else:
-    repo = findPkgRepo(package)
-
-  if repo != "":
-    return repo
-  else:
-    err("Package "&package&" doesn't exist!", false)
-
