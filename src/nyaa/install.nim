@@ -32,7 +32,7 @@ proc install_pkg(repo: string, package: string, root: string, binary = false) =
         "tar -xvf"&tarball&" -C "&root))
 
 proc install(packages: seq[string], root = "/", yes = false, no = false,
-    binrepo = "mirror.kreato.dev", repo = "/etc/nyaa-bin"): string =
+    binrepo = "mirror.kreato.dev"): string =
     ## Download and install a package through a binary repository
     if packages.len == 0:
         err("please enter a package name", false)
@@ -42,8 +42,10 @@ proc install(packages: seq[string], root = "/", yes = false, no = false,
 
     var deps: seq[string]
     var res: string
-
+    var repo: string  
+    
     for i in packages:
+        repo = findPkgRepo(i&"-bin")
         if not dirExists(repo&"/"&i&"-bin"):
             err("package `"&i&"` does not exist", false)
 
@@ -63,6 +65,7 @@ proc install(packages: seq[string], root = "/", yes = false, no = false,
         return "nyaa: exiting"
 
     for i in packages:
+        repo = findPkgRepo(i&"-bin")
         parse_runfile(repo&"/"&i&"-bin")
         discard existsOrCreateDir("/etc/nyaa.tarballs")
         let tarball = "nyaa-tarball-"&i&"-"&version&"-"&release&".tar.gz"

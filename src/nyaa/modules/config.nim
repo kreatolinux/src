@@ -12,9 +12,9 @@ proc initializeConfig(configpath = "/etc/nyaa.conf") =
   dict.setSectionKey("Options", "cc", "gcc") # GCC works the best right now
   
   # [Repositories]
-  dict.setSectionKey("Repositories", "RepoDirs", "/etc/nyaa") # Seperate by space
+  dict.setSectionKey("Repositories", "RepoDirs", "/etc/nyaa /etc/nyaa-bin") # Seperate by space
   dict.setSectionKey("Repositories", "RepoLinks",
-      "https://github.com/kreatolinux/nyaa-repo.git") # Seperate by space, must match RepoDirs
+      "https://github.com/kreatolinux/nyaa-repo.git https://github.com/kreatolinux/nyaa-repo-bin.git") # Seperate by space, must match RepoDirs
 
   # [Upgrade]
   dict.setSectionKey("Upgrade", "buildByDefault", "yes") # Build packages by default

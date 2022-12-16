@@ -48,7 +48,6 @@ dispatchMulti(
     "root": "The directory the package is gonna be installed to",
     "yes": "Automatically say 'yes' to every question",
     "no": "Automatically say 'no' to every question",
-    "repo": "The nyaa binary repository",
     "binrepo": "The nyaa binary mirror",
     }
   ], 
@@ -75,7 +74,6 @@ dispatchMulti(
   
   [
   upgrade, help = {
-    "repo": "Set nyaa repository",
     "root": "The directory the packages are gonna be upgraded on",
     "builddir": "Set a custom build directory",
     "srcdir": "Set a custom source directory"

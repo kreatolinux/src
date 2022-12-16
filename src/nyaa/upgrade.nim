@@ -1,8 +1,9 @@
 include modules/removeInternal
 
-proc upgrade(repo = "/etc/nyaa", root = "/",
+proc upgrade(root = "/",
         builddir = "/tmp/nyaa_build", srcdir = "/tmp/nyaa_srcdir"): string =
     ## Upgrade packages
+    var repo: string
     for i in walkDir("/etc/nyaa.installed"):
       if i.kind == pcDir:
         let epoch = ""
@@ -15,6 +16,8 @@ proc upgrade(repo = "/etc/nyaa", root = "/",
         let release_local = release
         when declared(epoch):
           let epoch_local = epoch
+        
+        repo = findPkgRepo(lastPathPart(i.path))
 
         parse_runfile(repo&"/"&lastPathPart(i.path))
 
