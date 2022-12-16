@@ -46,7 +46,7 @@ proc checkIfPackageExists(package: string, binary = false): string =
   else:
     let repo = findPkgRepo(package)
 
-  if repo != ""
+  if repo != "":
     return repo
   else:
     err("Package "&package&" doesn't exist!", false)
