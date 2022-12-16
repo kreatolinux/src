@@ -31,10 +31,11 @@ proc upgrade(repo = "/etc/nyaa", root = "/",
               echo "Upgrading "&lastPathPart(i.path)&" from "&version_local&"-"&release_local&" to "&version_upstream&"-"&release_upstream
 
             discard removeInternal(lastPathPart(i.path), root)
-            var conf = loadConfig("/etc/nyaa.conf")
+            let conf = loadConfig("/etc/nyaa.conf")
             if conf.getSectionValue("Upgrade", "buildByDefault") == "yes":
               builder(repo, repo&"/"&lastPathPart(i.path), root)
             else:
-              discard # WIP
+              var pkg: seq[string]
+              discard install(pkg&lastPathPart(i.path), root, true)
 
     return "done"
