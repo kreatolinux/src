@@ -45,10 +45,7 @@ proc install(packages: seq[string], root = "/", yes = false, no = false,
     var repo: string  
     
     for i in packages:
-        repo = findPkgRepo(i&"-bin")
-        if not dirExists(repo&"/"&i&"-bin"):
-            err("package `"&i&"` does not exist", false)
-
+        checkIfPackageExists(i, true)
         deps = deduplicate(dephandler(i, repo).split(" "))
         res = res & deps.join(" ") & " " & i
 

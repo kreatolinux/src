@@ -95,9 +95,7 @@ proc build(no = false, yes = false, root = "/",
         err("please enter a package name", false)
 
     for i in packages:
-        repo = findPkgRepo(i)
-        if not dirExists(repo&"/"&i):
-            err("package `"&i&"` does not exist", false)
+        checkIfPackageExists(i)
         deps = filterit(deps&deduplicate(dephandler(i, repo).split(" ")), it.len != 0)
         res = res & deps & i
 

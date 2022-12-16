@@ -22,9 +22,32 @@ proc initializeConfig(configpath = "/etc/nyaa.conf") =
 
   dict.writeConfig(configpath)
 
+proc getConfigValue(section: string, key: string, configpath = "/etc/nyaa.conf"): string =
+  ## Reads the configuration file and returns value of section.
+  let dict = loadConfig(configpath)
+  return dict.getSectionValue(section, key)
+
+proc setConfigValue(section: string, key: string, value: string, configpath = "/etc/nyaa.conf") =
+  ## Writes a section to the configuration file.
+  var dict = loadConfig(configpath)
+  dict.setSectionKey(section, key, value)
+  dict.writeConfig(configpath)
+  
 proc findPkgRepo(package: string, conf = "/etc/nyaa.conf"): string =
   ## finds the package repository.
-  let dict = loadConfig(conf)
-  for i in dict.getSectionValue("Repositories", "RepoDirs").split(" "):
+  for i in getConfigValue("Repositories", "RepoDirs").split(" "):
     if dirExists(i&"/"&package):
       return i
+
+proc checkIfPackageExists(package: string, binary = false): string =
+  ## Checks if the package exists.
+  if binary == true:
+    let repo = findPkgRepo(package&"-bin")
+  else:
+    let repo = findPkgRepo(package)
+
+  if repo != ""
+    return repo
+  else:
+    err("Package "&package&" doesn't exist!", false)
+
