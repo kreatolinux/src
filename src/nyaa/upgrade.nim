@@ -1,3 +1,5 @@
+include modules/removeInternal
+
 proc upgrade(repo = "/etc/nyaa", root = "/",
         builddir = "/tmp/nyaa_build", srcdir = "/tmp/nyaa_srcdir"): string =
     ## Upgrade packages
@@ -28,7 +30,7 @@ proc upgrade(repo = "/etc/nyaa", root = "/",
             else:
               echo "Upgrading "&lastPathPart(i.path)&" from "&version_local&"-"&release_local&" to "&version_upstream&"-"&release_upstream
 
-
+            discard removeInternal(lastPathPart(i.path), root)
             builder(repo, repo&"/"&lastPathPart(i.path), root)
 
     return "done"
