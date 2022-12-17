@@ -10,7 +10,7 @@ proc upgrade(root = "/",
         try:
           parse_runfile(i.path)
         except Exception:
-          err("package on "&i.path&" doesn't have a runfile, possibly broken package", false)
+          err("nyaa: package on "&i.path&" doesn't have a runfile, possibly broken package", false)
 
         let pkg = lastPathPart(i.path)
 
@@ -45,4 +45,4 @@ proc upgrade(root = "/",
               var other_pkg: seq[string]
               discard install(other_pkg&pkg, root, true)
 
-    return "done"
+    return "nyaa: done"

@@ -3,10 +3,10 @@ proc remove(packages: seq[string], yes = false, root = ""): string =
 
     ### bail early if user isn't admin
     if isAdmin() == false:
-       err("you have to be root for this action.", false)
+       err("nyaa: you have to be root for this action.", false)
 
     if packages.len == 0:
-        err("please enter a package name", false)
+        err("nyaa: please enter a package name", false)
 
     var output: string
 
@@ -22,4 +22,4 @@ proc remove(packages: seq[string], yes = false, root = ""): string =
           echo removeInternal(i, root)
         return "nyaa: done!"
 
-    return "Exiting."
+    return "nyaa: exiting"

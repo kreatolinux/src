@@ -63,7 +63,7 @@ proc builder(repo: string, path: string, destdir: string,
         assert execShellCmd(". "&path&"/run"&" && prepare") == 0, "prepare failed"
 
     if execShellCmd(". "&path&"/run"&" && export DESTDIR="&root&" && export ROOT=$DESTDIR && build") != 0:
-      err("build failed")
+      err("nyaa: build failed")
 
     var tarball: string
 
@@ -92,7 +92,7 @@ proc build(no = false, yes = false, root = "/",
     var repo: string
 
     if packages.len == 0:
-        err("please enter a package name", false)
+        err("nyaa: please enter a package name", false)
 
     for i in packages:
         repo = findPkgRepo(i)
@@ -133,5 +133,4 @@ proc build(no = false, yes = false, root = "/",
           except:
             raise
         return "nyaa: built all packages successfully"
-    else:
-      return "nyaa: exiting"
+    return "nyaa: exiting"

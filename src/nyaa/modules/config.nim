@@ -5,7 +5,7 @@ proc initializeConfig(configpath = "/etc/nyaa.conf") =
     discard
 
   if isAdmin() == false:
-    err("Please be root to initialize config", false)
+    err("nyaa: please be root to initialize config", false)
 
   var dict = newConfig()
   # [Options]
