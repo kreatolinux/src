@@ -36,13 +36,13 @@ if fileExists("/etc/nyaa.conf") == false:
 dispatchMulti(
   [
   build, help = {
-    "packages": "The package names", 
-    "root": "The directory the package is gonna be installed to", 
-    "yes": "Automatically say 'yes' to every question", 
+    "packages": "The package names",
+    "root": "The directory the package is gonna be installed to",
+    "yes": "Automatically say 'yes' to every question",
     "no": "Automatically say 'no' to every question"
     }
-  ], 
-  
+  ],
+
   [
   install, help = {
     "root": "The directory the package is gonna be installed to",
@@ -50,28 +50,28 @@ dispatchMulti(
     "no": "Automatically say 'no' to every question",
     "binrepo": "The nyaa binary mirror",
     }
-  ], 
-  
+  ],
+
   [
   info, help = {
-    "repo": "Set nyaa repository" 
+    "repo": "Set nyaa repository"
     }
   ],
-  
+
   [
   remove, help = {
     "yes": "Automatically say 'yes' to every question",
     "root": "The directory the package is gonna be removed from"
     }
-  ], 
-  
+  ],
+
   [
   update, help = {
     "repo": "The nyaa repository Git URL",
     "path": "The nyaa repository path"
     }
-  ], 
-  
+  ],
+
   [
   upgrade, help = {
     "root": "The directory the packages are gonna be upgraded on",

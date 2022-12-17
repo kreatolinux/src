@@ -10,7 +10,7 @@ proc update(repo = "https://github.com/kreatolinux/nyaa-repo.git",
         let repolinks = getConfigValue("Repositories", "RepoLinks")
         let repodirs = getConfigValue("Repositories", "RepoDirs")
         if not (repo in repolinks and path in repodirs):
-          setConfigValue("Repositories", "RepoLinks", repolinks&" "&repo)
-          setConfigValue("Repositories", "RepoDirs", repodirs&" "&path)
+            setConfigValue("Repositories", "RepoLinks", repolinks&" "&repo)
+            setConfigValue("Repositories", "RepoDirs", repodirs&" "&path)
 
     return "nyaa: updated all repositories"
