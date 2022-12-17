@@ -24,3 +24,14 @@ jobs:
         with:
           nim-version: 'stable' # default is 'stable'
       - run: nimble build -Y
+      - uses: actions/upload-artifact@v3
+        with:
+          name: nyaa3-withoutssl
+          path: ${{ github.workspace }}/out/*
+      - run: rm -rf out/ && nimble ssl -Y
+      - uses: actions/upload-artifact@v3
+        with:
+          name: nyaa3-withssl
+          path: ${{ github.workspace }}/out/*
+        
+
