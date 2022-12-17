@@ -2,7 +2,8 @@ proc update(repo = "https://github.com/kreatolinux/nyaa-repo.git",
     path = "/etc/nyaa"): string =
     ## Update repositories
     if dirExists(path):
-        discard execProcess("git -C "&path&"pull")
+        if execProcess("git -C "&path&"pull") != 0:
+            err("nyaa: failed to update repositories!", false)
     else:
         discard execProcess("git clone "&repo&" "&path)
         let repolinks = getConfigValue("Repositories", "RepoLinks")
