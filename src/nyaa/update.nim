@@ -7,7 +7,7 @@ proc update(repo = "https://github.com/kreatolinux/nyaa-repo.git",
         discard execProcess("git clone "&repo&" "&path)
         let repolinks = getConfigValue("Repositories", "RepoLinks")
         let repodirs = getConfigValue("Repositories", "RepoDirs")
-        if repo in repolinks == false and path in repodirs == false:
+        if not (repo in repolinks and path in repodirs):
           setConfigValue("Repositories", "RepoLinks", repolinks&" "&repo)
           setConfigValue("Repositories", "RepoDirs", repodirs&" "&path)
 

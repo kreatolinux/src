@@ -16,7 +16,7 @@ proc install_pkg(repo: string, package: string, root: string, binary = false) =
 
     setCurrentDir("/etc/nyaa.tarballs")
 
-    if binary == true:
+    if binary:
         parse_runfile(repo&"/"&package&"-bin")
     else:
         parse_runfile(repo&"/"&package)

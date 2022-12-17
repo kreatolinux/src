@@ -38,3 +38,5 @@ proc findPkgRepo(package: string, conf = "/etc/nyaa.conf"): string =
   for i in getConfigValue("Repositories", "RepoDirs").split(" "):
     if dirExists(i&"/"&package):
       return i
+  # return blank line if not found
+  return ""

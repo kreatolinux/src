@@ -12,14 +12,19 @@ proc upgrade(root = "/",
         except Exception:
           err("package on "&i.path&" doesn't have a runfile, possibly broken package", false)
 
+        let pkg = lastPathPart(i.path)
+
         let version_local = version
         let release_local = release
         when declared(epoch):
           let epoch_local = epoch
         
-        repo = findPkgRepo(lastPathPart(i.path))
+        repo = findPkgRepo(pkg)
+        if isEmptyOrWhitespace(repo):
+          echo "skipping "&pkg&": not found in available repositories"
+          continue
 
-        parse_runfile(repo&"/"&lastPathPart(i.path))
+        parse_runfile(repo&"/"&pkg)
 
         let version_upstream = version
         let release_upstream = release
@@ -29,15 +34,15 @@ proc upgrade(root = "/",
           when declared(epoch):
             let epoch_upstream = epoch
             if epoch_local < epoch_upstream:
-              echo "Upgrading "&lastPathPart(i.path)&" from "&version_local&"-"&release_local&"-"&epoch_local&" to "&version_upstream&"-"&release_upstream&"-"&epoch_upstream
+              echo "Upgrading "&pkg&" from "&version_local&"-"&release_local&"-"&epoch_local&" to "&version_upstream&"-"&release_upstream&"-"&epoch_upstream
             else:
-              echo "Upgrading "&lastPathPart(i.path)&" from "&version_local&"-"&release_local&" to "&version_upstream&"-"&release_upstream
+              echo "Upgrading "&pkg&" from "&version_local&"-"&release_local&" to "&version_upstream&"-"&release_upstream
 
-            discard removeInternal(lastPathPart(i.path), root)
+            discard removeInternal(pkg, root)
             if getConfigValue("Upgrade", "buildByDefault") == "yes":
               builder(repo, repo&"/"&lastPathPart(i.path), root)
             else:
-              var pkg: seq[string]
-              discard install(pkg&lastPathPart(i.path), root, true)
+              var other_pkg: seq[string]
+              discard install(other_pkg&pkg, root, true)
 
     return "done"
