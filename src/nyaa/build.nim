@@ -63,7 +63,7 @@ proc builder(repo: string, path: string, destdir: string,
         assert execShellCmd(". "&path&"/run"&" && prepare") == 0, "prepare failed"
 
     if execShellCmd(". "&path&"/run"&" && export DESTDIR="&root&" && export ROOT=$DESTDIR && build") != 0:
-      err("build failed")
+        err("nyaa: build failed")
 
     var tarball: string
 
@@ -92,13 +92,14 @@ proc build(no = false, yes = false, root = "/",
     var repo: string
 
     if packages.len == 0:
-        err("please enter a package name", false)
+        err("nyaa: please enter a package name", false)
 
     for i in packages:
         repo = findPkgRepo(i)
         if repo == "":
-          err("package "&i&" doesn't exist", false)
-        deps = filterit(deps&deduplicate(dephandler(i, repo).split(" ")), it.len != 0)
+            err("package "&i&" doesn't exist", false)
+        deps = filterit(deps&deduplicate(dephandler(i, repo).split(" ")),
+                it.len != 0)
         res = res & deps & i
 
     echo "Packages: "&res.join(" ")
@@ -118,20 +119,19 @@ proc build(no = false, yes = false, root = "/",
             try:
                 repo = findPkgRepo(i)
                 if dirExists("/etc/nyaa.installed/"&i):
-                  discard
+                    discard
                 else:
-                  builder(repo, repo&"/"&i, root)
-                  echo("nyaa: built "&i&" successfully")
+                    builder(repo, repo&"/"&i, root)
+                    echo("nyaa: built "&i&" successfully")
             except:
                 raise
-        
+
         for i in packages:
-          try:            
-            repo = findPkgRepo(i)
-            builder(repo, repo&"/"&i, root)
-            echo("nyaa: built "&i&" successfully")
-          except:
-            raise
+            try:
+                repo = findPkgRepo(i)
+                builder(repo, repo&"/"&i, root)
+                echo("nyaa: built "&i&" successfully")
+            except:
+                raise
         return "nyaa: built all packages successfully"
-    else:
-      return "nyaa: exiting"
+    return "nyaa: exiting"

@@ -1,21 +1,25 @@
 proc remove(packages: seq[string], yes = false, root = ""): string =
     ## Remove packages
+
+    ### bail early if user isn't admin
+    if isAdmin() == false:
+        err("nyaa: you have to be root for this action.", false)
+
     if packages.len == 0:
-        err("please enter a package name", false)
+        err("nyaa: please enter a package name", false)
 
     var output: string
 
-    if yes != true:
+    if not yes:
         echo "Removing: "&packages.join(" ")
         stdout.write "Do you want to continue? (y/N) "
         output = readLine(stdin)
-
-    if output.toLower() == "y" or yes == true:
-
-        if isAdmin() == false:
-          err("you have to be root for this action.", false)
-        
-        for i in packages:
-          echo removeInternal(i, root)
     else:
-      return "Exiting."
+        output = "y"
+
+    if output.toLower() == "y":
+        for i in packages:
+            echo removeInternal(i, root)
+        return "nyaa: done!"
+
+    return "nyaa: exiting"
