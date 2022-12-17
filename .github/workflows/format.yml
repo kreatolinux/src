@@ -17,8 +17,8 @@ jobs:
       - name: Setup Nim
         uses: jiro4989/setup-nim-action@v1
       - name: Run nimpretty
-        uses: juancarlospaco/nimpretty-action@main
-      - name: Commit Nimpretty Fixes
+        run: cd "$GITHUB_WORKSPACE" && nimpretty $(find . -type f -name '*.nim')
+      - name: Commit nimpretty Fixes
         uses: EndBug/add-and-commit@v5
         env:
          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
