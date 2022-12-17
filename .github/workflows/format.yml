@@ -4,9 +4,6 @@ on:
   push:
     paths:
       - '**.nim'
-  pull_request:
-    paths:
-      - '**.nim'
 
 jobs:
   format:
