@@ -30,7 +30,7 @@ include nyaa/info
 clCfg.version = "nyaa v3.0.0-rc5"
 
 
-if fileExists("/etc/nyaa.conf") == false:
+if not fileExists("/etc/nyaa.conf"):
   initializeConfig()
 
 dispatchMulti(

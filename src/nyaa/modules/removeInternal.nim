@@ -1,6 +1,6 @@
 proc removeInternal(package: string, root = ""): string =
     if not fileExists(root&"/etc/nyaa.installed/"&package&"/list_files"):
-        err("nyaa: package "&package&" is not installed", false)
+        err("package "&package&" is not installed", false)
 
     for line in lines root&"/etc/nyaa.installed/"&package&"/list_files":
         # TODO: replace this with a Nim implementation

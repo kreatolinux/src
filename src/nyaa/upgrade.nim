@@ -10,7 +10,7 @@ proc upgrade(root = "/",
             try:
                 parse_runfile(i.path)
             except Exception:
-                err("nyaa: package on "&i.path&" doesn't have a runfile, possibly broken package", false)
+                err("package on "&i.path&" doesn't have a runfile, possibly broken package", false)
 
             let pkg = lastPathPart(i.path)
 
@@ -40,9 +40,9 @@ proc upgrade(root = "/",
 
                     discard removeInternal(pkg, root)
                     if getConfigValue("Upgrade", "buildByDefault") == "yes":
-                        builder(repo, repo&"/"&lastPathPart(i.path), root)
+                        builder(repo, repo&"/"&pkg, root)
                     else:
-                        var other_pkg: seq[string]
-                        discard install(other_pkg&pkg, root, true)
+                        # why does nim make me do this again? - getchoo
+                        discard install(@[pkg], root, true)
 
     return "nyaa: done"

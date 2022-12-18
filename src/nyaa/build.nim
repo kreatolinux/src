@@ -52,9 +52,12 @@ proc builder(repo: string, path: string, destdir: string,
 
     for i in sources.split(";"):
         filename = extractFilename(i.replace("$VERSION", version))
-        waitFor download(i.replace("$VERSION", version), filename)
+        try:
+            waitFor download(i.replace("$VERSION", version), filename)
+        except:
+            raise
         if sha256hexdigest(readAll(open(filename)))&"  "&filename != sha256sum:
-            err "sha256sum doesn't match"
+            err "sha256sum doesn't match for "&i
         if existsPrepare != 0:
             discard execProcess("bsdtar -xvf "&filename)
 
@@ -62,7 +65,7 @@ proc builder(repo: string, path: string, destdir: string,
         assert execShellCmd(". "&path&"/run"&" && prepare") == 0, "prepare failed"
 
     if execShellCmd(". "&path&"/run"&" && export DESTDIR="&root&" && export ROOT=$DESTDIR && build") != 0:
-        err("nyaa: build failed")
+        err("build failed")
 
     var tarball: string
 
@@ -87,21 +90,17 @@ proc build(no = false, yes = false, root = "/",
     packages: seq[string]): string =
     ## Build and install packages
     var deps: seq[string]
-    var res: seq[string]
     var repo: string
 
     if packages.len == 0:
-        err("nyaa: please enter a package name", false)
+        err("please enter a package name", false)
 
-    for i in packages:
-        repo = findPkgRepo(i)
-        if repo == "":
-            err("package "&i&" doesn't exist", false)
-        deps = filterit(deps&deduplicate(dephandler(i, repo).split(" ")),
-                it.len != 0)
-        res = res & deps & i
+    try:
+        deps = dephandler(packages)
+    except:
+        raise
 
-    echo "Packages: "&res.join(" ")
+    echo "Packages: "&deps.join(" ")&" "&packages.join(" ")
 
     var output = ""
     if yes:
@@ -116,10 +115,10 @@ proc build(no = false, yes = false, root = "/",
     if output.toLower() == "y":
         for i in deps:
             try:
-                repo = findPkgRepo(i)
                 if dirExists("/etc/nyaa.installed/"&i):
                     discard
                 else:
+                    repo = findPkgRepo(i)
                     builder(repo, repo&"/"&i, root)
                     echo("nyaa: built "&i&" successfully")
             except:
