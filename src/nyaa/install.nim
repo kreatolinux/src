@@ -72,7 +72,7 @@ proc install(promptPackages: seq[string], root = "/", yes: bool = false,
         packages[i] = promptPackages[i]&"-bin"
 
     try:
-        deps = dephandler(packages, repo)
+        deps = dephandler(packages)
     except:
         raise
 

@@ -94,7 +94,7 @@ proc build(no = false, yes = false, root = "/",
         err("please enter a package name", false)
 
     try:
-        deps = dephandler(packages, repo)
+        deps = dephandler(packages)
     except:
         raise
 
