@@ -1,3 +1,5 @@
+import threadpool
+
 proc install_pkg(repo: string, package: string, root: string, binary = false) =
     ## Installs an package.
 
@@ -26,21 +28,30 @@ proc install_pkg(repo: string, package: string, root: string, binary = false) =
     writeFile("/etc/nyaa.installed/"&package&"/list_files", execProcess(
         "tar -xvf"&tarball&" -C "&root))
 
-proc install_bin(package: string, binrepo: string, root: string): string =
-    ## Downloads and installs a binary.
-    var repo = findPkgRepo(package&"-bin")
-    parse_runfile(repo&"/"&package&"-bin")
+proc install_bin(packages: seq[string], binrepo: string, root: string) =
+    ## Downloads and installs binaries.
+    
     discard existsOrCreateDir("/etc/nyaa.tarballs")
-    let tarball = "nyaa-tarball-"&package&"-"&version&"-"&release&".tar.gz"
-    let chksum = tarball&".sum"
     setCurrentDir("/etc/nyaa.tarballs")
-    echo "Downloading tarball"
-    waitFor download("https://"&binrepo&"/"&tarball, tarball)
-    echo "Downloading tarball checksum"
-    waitFor download("https://"&binrepo&"/"&chksum, chksum)
-    install_pkg(repo, package, root, true)
-    return "Installation for "&package&" complete"
 
+    var repo: string 
+
+    for i in packages:
+      repo = findPkgRepo(i&"-bin")
+      parse_runfile(repo&"/"&i&"-bin")
+      let tarball = "nyaa-tarball-"&i&"-"&version&"-"&release&".tar.gz"
+      let chksum = tarball&".sum"
+      echo "Downloading tarball"
+      discard spawn download("https://"&binrepo&"/"&tarball, tarball)
+      echo "Downloading tarball checksum"
+      discard spawn download("https://"&binrepo&"/"&chksum, chksum)
+
+    sync()
+
+    for i in packages:
+      repo = findPkgRepo(i&"-bin")
+      install_pkg(repo, i, root, true)
+      echo "Installation for "&i&" complete"
 
 proc install(packages: seq[string], root = "/", yes = false, no = false,
     binrepo = "mirror.kreato.dev"): string =
@@ -74,13 +85,18 @@ proc install(packages: seq[string], root = "/", yes = false, no = false,
     if output.toLower() != "y" and yes != true:
         return "nyaa: exiting"
 
+    var depsDelete: string
+
     for i in deps:
         if dirExists("/etc/nyaa.installed/"&i):
-            discard
-        else:
-            echo install_bin(i, binrepo, root)
+            depsDelete = depsDelete&" "&i
+            
+    for i in depsDelete.split(" ").filterit(it.len != 0):
+      deps.delete(deps.find(i))
+   
+    if deps.len != 0 and deps != @[""]:
+      install_bin(deps, binrepo, root)
 
-    for i in packages:
-        echo install_bin(i, binrepo, root)
+    install_bin(packages, binrepo, root)
 
-    echo "nyaa: done"
+    return "nyaa: done"
