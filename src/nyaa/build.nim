@@ -93,15 +93,12 @@ proc build(no = false, yes = false, root = "/",
     if packages.len == 0:
         err("nyaa: please enter a package name", false)
 
-    for i in packages:
-        repo = findPkgRepo(i)
-        if repo == "":
-            err("package "&i&" doesn't exist", false)
-        deps = filterit(deps&deduplicate(dephandler(i, repo).split(" ")),
-                it.len != 0)
-        res = res & deps & i
+    try:
+        deps = dephandler(packages, repo)
+    except:
+        raise
 
-    echo "Packages: "&res.join(" ")
+    echo "Packages: "&deps.join(" ")&" "&packages.join(" ")
 
     var output = ""
     if yes:

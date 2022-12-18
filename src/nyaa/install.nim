@@ -53,29 +53,31 @@ proc install_bin(packages: seq[string], binrepo: string, root: string) =
         install_pkg(repo, i, root, true)
         echo "Installation for "&i&" complete"
 
-proc install(packages: seq[string], root = "/", yes: bool = false,
+proc install(promptPackages: seq[string], root = "/", yes: bool = false,
         no: bool = false,
     binrepo = "mirror.kreato.dev"): string =
     ## Download and install a package through a binary repository
-    if packages.len == 0:
+    if promptPackages.len == 0:
         err("please enter a package name", false)
 
     if not isAdmin():
         err("you have to be root for this action.", false)
 
     var deps: seq[string]
-    var res: string
     var repo: string
 
-    for i in packages:
-        repo = findPkgRepo(i&"-bin")
-        if repo == "":
-            err("package "&i&" doesn't exist", false)
-        deps = deduplicate(deps&dephandler(i&"-bin", repo).split(" "))
-        res = res & deps.join(" ") & " " & i
+    var packages = promptPackages
+    # append bin suffix to packages
+    for i, _ in promptPackages:
+        packages[i] = promptPackages[i]&"-bin"
+
+    try:
+        deps = dephandler(packages, repo)
+    except:
+        raise
 
 
-    echo "Packages:"&res
+    echo "Packages: "&deps.join(" ")&" "&packages.join(" ")
 
     var output: string
     if yes:
@@ -98,7 +100,7 @@ proc install(packages: seq[string], root = "/", yes: bool = false,
     for i in depsDelete.split(" ").filterit(it.len != 0):
         deps.delete(deps.find(i))
 
-    if deps.len != 0 and deps != @[""]:
+    if not (deps.len == 0 and deps == @[""]):
         install_bin(deps, binrepo, root)
 
     install_bin(packages, binrepo, root)

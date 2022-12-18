@@ -42,7 +42,8 @@ proc upgrade(root = "/",
                     if getConfigValue("Upgrade", "buildByDefault") == "yes":
                         builder(repo, repo&"/"&lastPathPart(i.path), root)
                     else:
-                        var other_pkg: seq[string]
-                        discard install(other_pkg&pkg, root, true)
+                        # why does nim make me do this again? - getchoo
+                        var other_pkg = @[pkg]
+                        discard install(other_pkg, root, true)
 
     return "nyaa: done"
