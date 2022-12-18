@@ -1,5 +1,3 @@
-import std/streams
-
 ## takes in a seq of packages and returns what to install
 proc dephandler(pkgs: seq[string]): seq[string] =
     var deps: seq[string]
@@ -10,11 +8,11 @@ proc dephandler(pkgs: seq[string]): seq[string] =
                 err("Package "&pkg&" doesn't exist", false)
 
             if fileExists(repo&"/"&pkg&"/deps"):
-                for dep in openFileStream(repo&"/"&pkg&"/deps", fmRead).lines():
-                    if dep in deps or dep in pkgs:
+                for dep in lines repo&"/"&pkg&"/deps":
+                    if dep in pkgs:
                         continue
                     deps.add(dephandler(@[dep]))
                     deps.add(dep)
-                return deps
+        return deduplicate(deps)
     except Exception:
         raise
