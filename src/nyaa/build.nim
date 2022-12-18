@@ -52,9 +52,12 @@ proc builder(repo: string, path: string, destdir: string,
 
     for i in sources.split(";"):
         filename = extractFilename(i.replace("$VERSION", version))
-        waitFor download(i.replace("$VERSION", version), filename)
+        try:
+          waitFor download(i.replace("$VERSION", version), filename)
+        except:
+          raise
         if sha256hexdigest(readAll(open(filename)))&"  "&filename != sha256sum:
-            err "sha256sum doesn't match"
+            err "sha256sum doesn't match for "&i
         if existsPrepare != 0:
             discard execProcess("bsdtar -xvf "&filename)
 

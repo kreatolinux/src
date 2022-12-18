@@ -12,7 +12,7 @@ proc install_pkg(repo: string, package: string, root: string, binary = false) =
 
     if sha256hexdigest(readAll(open(tarball)))&"  "&tarball != readAll(open(
         tarball&".sum")):
-        err("sha256sum doesn't match", false)
+        err("sha256sum doesn't match for"&pkg, false)
 
     setCurrentDir("/etc/nyaa.tarballs")
 
@@ -42,9 +42,12 @@ proc install_bin(packages: seq[string], binrepo: string, root: string) =
         let tarball = "nyaa-tarball-"&i&"-"&version&"-"&release&".tar.gz"
         let chksum = tarball&".sum"
         echo "Downloading tarball for "&i
-        discard spawn download("https://"&binrepo&"/"&tarball, tarball)
-        echo "Downloading tarball checksum for "&i
-        discard spawn download("https://"&binrepo&"/"&chksum, chksum)
+        try:
+          discard spawn download("https://"&binrepo&"/"&tarball, tarball)
+          echo "Downloading tarball checksum for "&i
+          discard spawn download("https://"&binrepo&"/"&chksum, chksum)
+        except:
+          raise
 
     sync()
 
