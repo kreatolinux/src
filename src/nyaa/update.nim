@@ -5,7 +5,7 @@ proc update(repo = "https://github.com/kreatolinux/nyaa-repo.git",
         if execShellCmd("git -C "&path&"pull") != 0:
             err("nyaa: failed to update repositories!", false)
     else:
-        echo "repositories not found! cloning them now..."
+        echo "nyaa: repositories not found, cloning them now..."
         discard execProcess("git clone "&repo&" "&path)
         let repolinks = getConfigValue("Repositories", "RepoLinks")
         let repodirs = getConfigValue("Repositories", "RepoDirs")

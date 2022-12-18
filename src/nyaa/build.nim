@@ -3,6 +3,7 @@ import strutils
 import libsha/sha256
 include modules/dephandler
 include modules/runparser
+include modules/downloader
 include install
 
 const lockfile = "/tmp/nyaa.lock"
@@ -49,11 +50,9 @@ proc builder(repo: string, path: string, destdir: string,
     var filename: string
     var existsPrepare = execShellCmd(". "&path&"/run"&" && command -v prepare")
 
-    var client = newHttpClient()
-
     for i in sources.split(";"):
         filename = extractFilename(i.replace("$VERSION", version))
-        writeFile(filename, client.getContent(i.replace("$VERSION", version)))
+        waitFor download(i.replace("$VERSION", version), filename)
         if sha256hexdigest(readAll(open(filename)))&"  "&filename != sha256sum:
             err "sha256sum doesn't match"
         if existsPrepare != 0:
