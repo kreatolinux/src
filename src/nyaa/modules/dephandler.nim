@@ -5,11 +5,11 @@ proc dephandler(pkgs: seq[string]): seq[string] =
     var deps: seq[string]
     try:
         for pkg in pkgs:
-            var repo = findPkgRepo(pkg)
+            let repo = findPkgRepo(pkg)
             if repo == "":
                 err("Package "&pkg&" doesn't exist", false)
             for dep in openFileStream(repo&"/"&pkg&"/deps", fmRead).lines():
-                if pkg in deps:
+                if dep in deps or dep in pkgs:
                     continue
                 deps.add(dephandler(@[dep]))
                 deps.add(dep)
