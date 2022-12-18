@@ -1,7 +1,7 @@
 proc remove(packages: seq[string], yes = false, root = ""): string =
     ## Remove packages
 
-    ### bail early if user isn't admin
+    # bail early if user isn't admin
     if not isAdmin():
         err("you have to be root for this action.", false)
 

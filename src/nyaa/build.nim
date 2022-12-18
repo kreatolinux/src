@@ -90,7 +90,6 @@ proc build(no = false, yes = false, root = "/",
     packages: seq[string]): string =
     ## Build and install packages
     var deps: seq[string]
-    var res: seq[string]
     var repo: string
 
     if packages.len == 0:

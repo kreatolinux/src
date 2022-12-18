@@ -67,7 +67,6 @@ proc install(promptPackages: seq[string], root = "/", yes: bool = false,
         err("you have to be root for this action.", false)
 
     var deps: seq[string]
-    var repo: string
 
     var packages = promptPackages
     # append bin suffix to packages
