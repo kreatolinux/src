@@ -23,7 +23,7 @@ jobs:
       - uses: jiro4989/setup-nim-action@v1
         with:
           nim-version: 'stable' # default is 'stable'
-      - run: nimble build -Y
+      - run: nimble build --threads:on -Y
       - uses: actions/upload-artifact@v3
         with:
           name: nyaa3-withoutssl
