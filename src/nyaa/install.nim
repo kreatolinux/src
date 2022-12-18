@@ -43,11 +43,11 @@ proc install_bin(packages: seq[string], binrepo: string, root: string) =
         let chksum = tarball&".sum"
         echo "Downloading tarball for "&i
         try:
-          discard spawn download("https://"&binrepo&"/"&tarball, tarball)
-          echo "Downloading tarball checksum for "&i
-          discard spawn download("https://"&binrepo&"/"&chksum, chksum)
+            discard spawn download("https://"&binrepo&"/"&tarball, tarball)
+            echo "Downloading tarball checksum for "&i
+            discard spawn download("https://"&binrepo&"/"&chksum, chksum)
         except:
-          raise
+            raise
 
     sync()
 

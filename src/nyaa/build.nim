@@ -53,9 +53,9 @@ proc builder(repo: string, path: string, destdir: string,
     for i in sources.split(";"):
         filename = extractFilename(i.replace("$VERSION", version))
         try:
-          waitFor download(i.replace("$VERSION", version), filename)
+            waitFor download(i.replace("$VERSION", version), filename)
         except:
-          raise
+            raise
         if sha256hexdigest(readAll(open(filename)))&"  "&filename != sha256sum:
             err "sha256sum doesn't match for "&i
         if existsPrepare != 0:
