@@ -62,7 +62,7 @@ proc builder(repo: string, path: string, destdir: string,
         assert execShellCmd(". "&path&"/run"&" && prepare") == 0, "prepare failed"
 
     if execShellCmd(". "&path&"/run"&" && export DESTDIR="&root&" && export ROOT=$DESTDIR && build") != 0:
-        err("nyaa: build failed")
+        err("build failed")
 
     var tarball: string
 
@@ -91,7 +91,7 @@ proc build(no = false, yes = false, root = "/",
     var repo: string
 
     if packages.len == 0:
-        err("nyaa: please enter a package name", false)
+        err("please enter a package name", false)
 
     try:
         deps = dephandler(packages, repo)

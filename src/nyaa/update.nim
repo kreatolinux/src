@@ -3,7 +3,7 @@ proc update(repo = "https://github.com/kreatolinux/nyaa-repo.git",
     ## Update repositories
     if dirExists(path):
         if execShellCmd("git -C "&path&"pull") != 0:
-            err("nyaa: failed to update repositories!", false)
+            err("failed to update repositories!", false)
     else:
         echo "nyaa: repositories not found, cloning them now..."
         discard execProcess("git clone "&repo&" "&path)

@@ -10,7 +10,7 @@ proc upgrade(root = "/",
             try:
                 parse_runfile(i.path)
             except Exception:
-                err("nyaa: package on "&i.path&" doesn't have a runfile, possibly broken package", false)
+                err("package on "&i.path&" doesn't have a runfile, possibly broken package", false)
 
             let pkg = lastPathPart(i.path)
 
