@@ -30,28 +30,28 @@ proc install_pkg(repo: string, package: string, root: string, binary = false) =
 
 proc install_bin(packages: seq[string], binrepo: string, root: string) =
     ## Downloads and installs binaries.
-    
+
     discard existsOrCreateDir("/etc/nyaa.tarballs")
     setCurrentDir("/etc/nyaa.tarballs")
 
-    var repo: string 
+    var repo: string
 
     for i in packages:
-      repo = findPkgRepo(i&"-bin")
-      parse_runfile(repo&"/"&i&"-bin")
-      let tarball = "nyaa-tarball-"&i&"-"&version&"-"&release&".tar.gz"
-      let chksum = tarball&".sum"
-      echo "Downloading tarball"
-      discard spawn download("https://"&binrepo&"/"&tarball, tarball)
-      echo "Downloading tarball checksum"
-      discard spawn download("https://"&binrepo&"/"&chksum, chksum)
+        repo = findPkgRepo(i&"-bin")
+        parse_runfile(repo&"/"&i&"-bin")
+        let tarball = "nyaa-tarball-"&i&"-"&version&"-"&release&".tar.gz"
+        let chksum = tarball&".sum"
+        echo "Downloading tarball"
+        discard spawn download("https://"&binrepo&"/"&tarball, tarball)
+        echo "Downloading tarball checksum"
+        discard spawn download("https://"&binrepo&"/"&chksum, chksum)
 
     sync()
 
     for i in packages:
-      repo = findPkgRepo(i&"-bin")
-      install_pkg(repo, i, root, true)
-      echo "Installation for "&i&" complete"
+        repo = findPkgRepo(i&"-bin")
+        install_pkg(repo, i, root, true)
+        echo "Installation for "&i&" complete"
 
 proc install(packages: seq[string], root = "/", yes = false, no = false,
     binrepo = "mirror.kreato.dev"): string =
@@ -90,12 +90,12 @@ proc install(packages: seq[string], root = "/", yes = false, no = false,
     for i in deps:
         if dirExists("/etc/nyaa.installed/"&i):
             depsDelete = depsDelete&" "&i
-            
+
     for i in depsDelete.split(" ").filterit(it.len != 0):
-      deps.delete(deps.find(i))
-   
+        deps.delete(deps.find(i))
+
     if deps.len != 0 and deps != @[""]:
-      install_bin(deps, binrepo, root)
+        install_bin(deps, binrepo, root)
 
     install_bin(packages, binrepo, root)
 
