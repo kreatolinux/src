@@ -41,9 +41,9 @@ proc install_bin(packages: seq[string], binrepo: string, root: string) =
         parse_runfile(repo&"/"&i&"-bin")
         let tarball = "nyaa-tarball-"&i&"-"&version&"-"&release&".tar.gz"
         let chksum = tarball&".sum"
-        echo "Downloading tarball"
+        echo "Downloading tarball for "&i
         discard spawn download("https://"&binrepo&"/"&tarball, tarball)
-        echo "Downloading tarball checksum"
+        echo "Downloading tarball checksum for "&i
         discard spawn download("https://"&binrepo&"/"&chksum, chksum)
 
     sync()
