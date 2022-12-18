@@ -43,7 +43,6 @@ proc upgrade(root = "/",
                         builder(repo, repo&"/"&pkg, root)
                     else:
                         # why does nim make me do this again? - getchoo
-                        var other_pkg = @[pkg]
-                        discard install(other_pkg, root, true)
+                        discard install(@[pkg], root, true)
 
     return "nyaa: done"
