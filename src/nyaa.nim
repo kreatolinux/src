@@ -27,7 +27,7 @@ include nyaa/upgrade
 include nyaa/remove
 include nyaa/info
 
-clCfg.version = "nyaa v3.0.0-rc4"
+clCfg.version = "nyaa v3.0.0-rc5"
 
 
 if fileExists("/etc/nyaa.conf") == false:
