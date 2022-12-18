@@ -53,13 +53,14 @@ proc install_bin(packages: seq[string], binrepo: string, root: string) =
         install_pkg(repo, i, root, true)
         echo "Installation for "&i&" complete"
 
-proc install(packages: seq[string], root = "/", yes = false, no = false,
+proc install(packages: seq[string], root = "/", yes: bool = false,
+        no: bool = false,
     binrepo = "mirror.kreato.dev"): string =
     ## Download and install a package through a binary repository
     if packages.len == 0:
         err("please enter a package name", false)
 
-    if isAdmin() == false:
+    if not isAdmin():
         err("you have to be root for this action.", false)
 
     var deps: seq[string]
@@ -77,12 +78,15 @@ proc install(packages: seq[string], root = "/", yes = false, no = false,
     echo "Packages:"&res
 
     var output: string
-
-    if yes != true and no != true:
+    if yes:
+        output = "y"
+    elif no:
+        output = "n"
+    else:
         stdout.write "Do you want to continue? (y/N) "
         output = readLine(stdin)
 
-    if output.toLower() != "y" and yes != true:
+    if output.toLower() != "y":
         return "nyaa: exiting"
 
     var depsDelete: string

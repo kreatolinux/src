@@ -16,5 +16,6 @@ proc info(repo = "/etc/nyaa", package: seq[string]): string =
         echo "package epoch: "&epoch
     if dirExists("/etc/nyaa.installed/"&package[0]):
         return "installed: yes"
-    return "installed: no"
+    # return err if package isn't installed (for scripting :p)
+    err("installed: no", false)
 
