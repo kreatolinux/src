@@ -40,7 +40,7 @@ proc upgrade(root = "/",
 
                     discard removeInternal(pkg, root)
                     if getConfigValue("Upgrade", "buildByDefault") == "yes":
-                        builder(repo, repo&"/"&lastPathPart(i.path), root)
+                        builder(repo, repo&"/"&pkg, root)
                     else:
                         # why does nim make me do this again? - getchoo
                         var other_pkg = @[pkg]
