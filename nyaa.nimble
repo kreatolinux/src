@@ -1,4 +1,4 @@
-version = "3.0.0"
+version = "3.0.1"
 author = "Kreato"
 description = "Efficient package manager"
 license = "GPLv3"
