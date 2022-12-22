@@ -115,7 +115,7 @@ proc build(no = false, yes = false, root = "/",
     if output.toLower() == "y":
         for i in deps:
             try:
-                if dirExists("/etc/nyaa.installed/"&i):
+                if dirExists(root&"/etc/nyaa.installed/"&i):
                     discard
                 else:
                     repo = findPkgRepo(i)
