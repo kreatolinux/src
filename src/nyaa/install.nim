@@ -3,29 +3,29 @@ import threadpool
 proc install_pkg(repo: string, package: string, root: string, binary = false) =
     ## Installs an package.
 
-    var tarball: string
+    var pkg: runFile
+    try:
+        if binary:
+            pkg = parse_runfile(repo&"/"&package&"-bin")
+        else:
+            pkg = parse_runfile(repo&"/"&package)
+    except:
+        raise
 
-    if epoch != "":
-        tarball = "/etc/nyaa.tarballs/nyaa-tarball-"&pkg&"-"&version&"-"&release&"-"&epoch&".tar.gz"
-    else:
-        tarball = "/etc/nyaa.tarballs/nyaa-tarball-"&pkg&"-"&version&"-"&release&".tar.gz"
+    let tarball = "/etc/nyaa.tarballs/nyaa-tarball-"&pkg.pkg&"-"&pkg.versionString&".tar.gz"
 
     if sha256hexdigest(readAll(open(tarball)))&"  "&tarball != readAll(open(
         tarball&".sum")):
-        err("sha256sum doesn't match for"&pkg, false)
+        err("sha256sum doesn't match for"&pkg.pkg, false)
 
     setCurrentDir("/etc/nyaa.tarballs")
 
-    if binary:
-        parse_runfile(repo&"/"&package&"-bin")
-    else:
-        parse_runfile(repo&"/"&package)
 
     discard existsOrCreateDir("/etc/nyaa.installed")
-    removeDir("/etc/nyaa.installed/"&package)
-    copyDir(repo&"/"&package, "/etc/nyaa.installed/"&package)
+    removeDir("/etc/nyaa.installed/"&pkg.pkg)
+    copyDir(repo&"/"&pkg.pkg, "/etc/nyaa.installed/"&pkg.pkg)
 
-    writeFile("/etc/nyaa.installed/"&package&"/list_files", execProcess(
+    writeFile("/etc/nyaa.installed/"&pkg.pkg&"/list_files", execProcess(
         "tar -xvf"&tarball&" -C "&root))
 
 proc install_bin(packages: seq[string], binrepo: string, root: string) =
@@ -38,8 +38,12 @@ proc install_bin(packages: seq[string], binrepo: string, root: string) =
 
     for i in packages:
         repo = findPkgRepo(i&"-bin")
-        parse_runfile(repo&"/"&i&"-bin")
-        let tarball = "nyaa-tarball-"&i&"-"&version&"-"&release&".tar.gz"
+        var pkg: runFile
+        try:
+            pkg = parse_runfile(repo&"/"&i&"-bin")
+        except:
+            raise
+        let tarball = "nyaa-tarball-"&pkg.versionString&".tar.gz"
         let chksum = tarball&".sum"
         echo "Downloading tarball for "&i
         try:

@@ -5,17 +5,20 @@ proc info(repo = "/etc/nyaa", package: seq[string]): string =
         err("Please enter a package name", false)
 
     if not dirExists(repo&"/"&package[0]):
-        err("Package "&pkg&" doesn't exist", false)
+        err("Package "&package[0]&" doesn't exist", false)
 
-    parse_runfile(repo&"/"&package[0])
+    var pkg: runFile
+    try:
+        pkg = parse_runfile(repo&"/"&package[0])
+    except:
+        raise
 
-    echo "package name: "&pkg
-    echo "package version: "&version
-    echo "package release: "&release
-    when declared(epoch):
-        echo "package epoch: "&epoch
-    if dirExists("/etc/nyaa.installed/"&package[0]):
+    echo "package name: "&pkg.pkg
+    echo "package version: "&pkg.version
+    echo "package release: "&pkg.release
+    when declared(pkg.epoch):
+        echo "package epoch: "&pkg.epoch
+    if dirExists("/etc/nyaa.installed/"&pkg.pkg):
         return "installed: yes"
     # return err if package isn't installed (for scripting :p)
     err("installed: no", false)
-
