@@ -23,7 +23,7 @@ proc builder(package: string, destdir: string,
     if fileExists(lockfile):
         err("lockfile exists, will not proceed", false)
 
-    echo "nyaa: starting build"
+    echo "nyaa: starting build for "&package
 
     writeFile(lockfile, "") # Create lockfile
 
