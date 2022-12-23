@@ -57,7 +57,7 @@ proc builder(package: string, destdir: string,
 
     var filename: string
     var existsPrepare = execShellCmd(". "&path&"/run"&" && command -v prepare")
-    
+
     for i in pkg.sources.split(";"):
         filename = extractFilename(i.replace("$VERSION", pkg.version))
         try:

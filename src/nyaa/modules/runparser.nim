@@ -48,7 +48,7 @@ proc parse_runfile(path: string): runFile =
                     ("'", "")
                     )
             if "()" in vars[0]:
-              break
+                break
     except:
         err(path&" doesn't seem to have a runfile. possibly a broken package?")
 
