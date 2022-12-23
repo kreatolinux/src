@@ -6,7 +6,6 @@ proc upgrade(root = "/",
     var repo: string
     for i in walkDir("/etc/nyaa.installed"):
         if i.kind == pcDir:
-            let epoch = ""
             try:
                 parse_runfile(i.path)
             except Exception:
@@ -30,7 +29,7 @@ proc upgrade(root = "/",
             let release_upstream = release
 
             if version_local < version_upstream or release_local <
-              release_upstream or isEmptyOrWhitespace(epoch) == false:
+              release_upstream:
                 when declared(epoch):
                     let epoch_upstream = epoch
                     if epoch_local < epoch_upstream:
