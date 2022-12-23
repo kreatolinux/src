@@ -49,18 +49,22 @@ proc builder(package: string, destdir: string,
     # Enter into the source directory
     setCurrentDir(srcdir)
 
-    parse_runfile(path)
+    var pkg: runFile
+    try:
+        parse_runfile(path)
+    except:
+        raise
 
     var filename: string
     var existsPrepare = execShellCmd(". "&path&"/run"&" && command -v prepare")
 
-    for i in sources.split(";"):
-        filename = extractFilename(i.replace("$VERSION", version))
+    for i in pkg.sources.split(";"):
+        filename = extractFilename(i.replace("$VERSION", pkg.version))
         try:
-            waitFor download(i.replace("$VERSION", version), filename)
+            waitFor download(i.replace("$VERSION", pkg.version), filename)
         except:
             raise
-        if sha256hexdigest(readAll(open(filename)))&"  "&filename != sha256sum:
+        if sha256hexdigest(readAll(open(filename)))&"  "&filename != pkg.sha256sum:
             err "sha256sum doesn't match for "&i
         if existsPrepare != 0:
             discard execProcess("bsdtar -xvf "&filename)
@@ -71,12 +75,7 @@ proc builder(package: string, destdir: string,
     if execShellCmd(". "&path&"/run"&" && export DESTDIR="&root&" && export ROOT=$DESTDIR && build") != 0:
         err("build failed")
 
-    var tarball: string
-
-    if epoch != "":
-        tarball = "/etc/nyaa.tarballs/nyaa-tarball-"&pkg&"-"&version&"-"&release&"-"&epoch&".tar.gz"
-    else:
-        tarball = "/etc/nyaa.tarballs/nyaa-tarball-"&pkg&"-"&version&"-"&release&".tar.gz"
+    let tarball = "/etc/nyaa.tarballs/nyaa-tarball-"&pkg.pkg&"-"&pkg.versionString&".tar.gz"
 
     discard execProcess("tar -czvf "&tarball&" -C "&root&" .")
 

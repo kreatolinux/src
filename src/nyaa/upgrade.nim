@@ -6,41 +6,36 @@ proc upgrade(root = "/",
     var repo: string
     for i in walkDir("/etc/nyaa.installed"):
         if i.kind == pcDir:
+            var localPkg: runFile
             try:
-                parse_runfile(i.path)
+                localPkg = parse_runfile(i.path)
             except Exception:
-                err("package on "&i.path&" doesn't have a runfile, possibly broken package", false)
+                raise
 
-            let pkg = lastPathPart(i.path)
-
-            let version_local = version
-            let release_local = release
-            when declared(epoch):
+            when declared(localPkg.epoch):
                 let epoch_local = epoch
 
-            repo = findPkgRepo(pkg)
+            repo = findPkgRepo(localPkg.pkg)
             if isEmptyOrWhitespace(repo):
-                echo "skipping "&pkg&": not found in available repositories"
+                echo "skipping "&localPkg.pkg&": not found in available repositories"
                 continue
 
-            parse_runfile(repo&"/"&pkg)
+            var upstreamPkg: runFile
+            try:
+                upstreamPkg = parse_runfile(repo&"/"&localPkg.pkg)
+            except:
+                raise
 
-            let version_upstream = version
-            let release_upstream = release
+            if localPkg.version < upstreamPkg.version or localPkg.release <
+              upstreamPkg.release or (localPkg.epoch != "no" and
+                      localPkg.epoch < upstreamPkg.epoch):
 
-            if version_local < version_upstream or release_local <
-              release_upstream:
-                when declared(epoch):
-                    let epoch_upstream = epoch
-                    if epoch_local < epoch_upstream:
-                        echo "Upgrading "&pkg&" from "&version_local&"-"&release_local&"-"&epoch_local&" to "&version_upstream&"-"&release_upstream&"-"&epoch_upstream
-                    else:
-                        echo "Upgrading "&pkg&" from "&version_local&"-"&release_local&" to "&version_upstream&"-"&release_upstream
+                echo "Upgrading "&localPkg.pkg&" from "&localPkg.versionString&" to "&upstreamPkg.versionString
 
-                    discard removeInternal(pkg, root)
-                    if getConfigValue("Upgrade", "buildByDefault") == "yes":
-                        builder(pkg, root)
-                    else:
-                        discard install(@[pkg], root, true)
+                discard removeInternal(localPkg.pkg, root)
+                if getConfigValue("Upgrade", "buildByDefault") == "yes":
+                    builder(localPkg.pkg, root)
+                else:
+                    discard install(@[localPkg.pkg], root, true)
 
     return "nyaa: done"
