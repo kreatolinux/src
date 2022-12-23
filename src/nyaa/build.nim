@@ -13,7 +13,7 @@ proc cleanUp() {.noconv.} =
     removeFile(lockfile)
     quit(0)
 
-proc builder(repo: string, path: string, destdir: string,
+proc builder(package: string, destdir: string,
     root = "/tmp/nyaa_build", srcdir = "/tmp/nyaa_srcdir") =
     ## Builds the packages.
 
@@ -30,6 +30,10 @@ proc builder(repo: string, path: string, destdir: string,
     setControlCHook(cleanUp)
 
     # Actual building start here
+
+    var repo = findPkgRepo(package)
+
+    var path = repo&"/"&package
 
     # Remove directories if they exist
     removeDir(root)
@@ -70,16 +74,16 @@ proc builder(repo: string, path: string, destdir: string,
     var tarball: string
 
     if epoch != "":
-        tarball = "/etc/nyaa.tarballs/nyaa-tarball-"&pkg&"-"&version&"-"&release&"-"&epoch&".tar.gz"
+        tarball = "/etc/nyaa.tarballs/nyaa-tarball-"&package&"-"&version&"-"&release&"-"&epoch&".tar.gz"
     else:
-        tarball = "/etc/nyaa.tarballs/nyaa-tarball-"&pkg&"-"&version&"-"&release&".tar.gz"
+        tarball = "/etc/nyaa.tarballs/nyaa-tarball-"&package&"-"&version&"-"&release&".tar.gz"
 
     discard execProcess("tar -czvf "&tarball&" -C "&root&" .")
 
     writeFile(tarball&".sum", sha256hexdigest(readAll(open(
         tarball)))&"  "&tarball)
 
-    install_pkg(repo, pkg, destdir)
+    install_pkg(repo, package, destdir)
 
     removeFile(lockfile)
 
@@ -90,7 +94,6 @@ proc build(no = false, yes = false, root = "/",
     packages: seq[string]): string =
     ## Build and install packages
     var deps: seq[string]
-    var repo: string
 
     if packages.len == 0:
         err("please enter a package name", false)
@@ -118,16 +121,14 @@ proc build(no = false, yes = false, root = "/",
                 if dirExists(root&"/etc/nyaa.installed/"&i):
                     discard
                 else:
-                    repo = findPkgRepo(i)
-                    builder(repo, repo&"/"&i, root)
+                    builder(i, root)
                     echo("nyaa: built "&i&" successfully")
             except:
                 raise
 
         for i in packages:
             try:
-                repo = findPkgRepo(i)
-                builder(repo, repo&"/"&i, root)
+                builder(i, root)
                 echo("nyaa: built "&i&" successfully")
             except:
                 raise
