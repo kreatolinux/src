@@ -40,9 +40,8 @@ proc upgrade(root = "/",
 
                     discard removeInternal(pkg, root)
                     if getConfigValue("Upgrade", "buildByDefault") == "yes":
-                        builder(repo, repo&"/"&pkg, root)
+                        builder(pkg, root)
                     else:
-                        # why does nim make me do this again? - getchoo
                         discard install(@[pkg], root, true)
 
     return "nyaa: done"

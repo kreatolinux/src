@@ -74,9 +74,9 @@ proc builder(package: string, destdir: string,
     var tarball: string
 
     if epoch != "":
-        tarball = "/etc/nyaa.tarballs/nyaa-tarball-"&package&"-"&version&"-"&release&"-"&epoch&".tar.gz"
+        tarball = "/etc/nyaa.tarballs/nyaa-tarball-"&pkg&"-"&version&"-"&release&"-"&epoch&".tar.gz"
     else:
-        tarball = "/etc/nyaa.tarballs/nyaa-tarball-"&package&"-"&version&"-"&release&".tar.gz"
+        tarball = "/etc/nyaa.tarballs/nyaa-tarball-"&pkg&"-"&version&"-"&release&".tar.gz"
 
     discard execProcess("tar -czvf "&tarball&" -C "&root&" .")
 
