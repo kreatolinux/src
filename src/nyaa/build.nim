@@ -51,13 +51,13 @@ proc builder(package: string, destdir: string,
 
     var pkg: runFile
     try:
-        parse_runfile(path)
+        pkg = parse_runfile(path)
     except:
         raise
 
     var filename: string
     var existsPrepare = execShellCmd(". "&path&"/run"&" && command -v prepare")
-
+    
     for i in pkg.sources.split(";"):
         filename = extractFilename(i.replace("$VERSION", pkg.version))
         try:
