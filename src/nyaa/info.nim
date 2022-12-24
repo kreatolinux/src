@@ -5,10 +5,10 @@ proc info(package: seq[string]): string =
         err("Please enter a package name", false)
 
     let repo = findPkgRepo(package[0])
-    
+
     if not dirExists(repo&"/"&package[0]):
         err("Package "&package[0]&" doesn't exist", false)
-    
+
     var pkg: runFile
     try:
         pkg = parse_runfile(repo&"/"&package[0])
