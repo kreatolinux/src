@@ -53,13 +53,6 @@ dispatchMulti(
     "offline": "Offline mode, errors out if tarball is attempted to get downloaded off binrepo",
     }
   ],
-
-  [
-  info, help = {
-    "repo": "Set nyaa repository"
-    }
-  ],
-
   [
   remove, help = {
     "yes": "Automatically say 'yes' to every question",
