@@ -13,6 +13,6 @@ proc dephandler(pkgs: seq[string]): seq[string] =
                         continue
                     deps.add(dephandler(@[dep]))
                     deps.add(dep)
-        return deduplicate(deps)
+        return deduplicate(deps).filterit(it.len != 0)
     except Exception:
         raise
