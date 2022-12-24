@@ -11,18 +11,22 @@ proc upgrade(root = "/",
                 localPkg = parse_runfile(i.path)
             except Exception:
                 raise
+            
+            if localPkg.pkg in getConfigValue("Upgrade", "dontUpgrade").split(" "):
+                echo "skipping "&localPkg.pkg&": selected to not upgrade in nyaa.conf"
+                continue
 
             when declared(localPkg.epoch):
                 let epoch_local = epoch
 
-            repo = findPkgRepo(localPkg.pkg)
+            repo = findPkgRepo(lastPathPart(i.path))
             if isEmptyOrWhitespace(repo):
                 echo "skipping "&localPkg.pkg&": not found in available repositories"
                 continue
 
             var upstreamPkg: runFile
             try:
-                upstreamPkg = parse_runfile(repo&"/"&localPkg.pkg)
+                upstreamPkg = parse_runfile(repo&"/"&lastPathpart(i.path))
             except:
                 raise
 
