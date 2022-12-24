@@ -5,10 +5,7 @@ proc install_pkg(repo: string, package: string, root: string, binary = false) =
 
     var pkg: runFile
     try:
-        if binary:
-            pkg = parse_runfile(repo&"/"&package&"-bin")
-        else:
-            pkg = parse_runfile(repo&"/"&package)
+        pkg = parse_runfile(repo&"/"&package)
     except:
         raise
 
@@ -37,26 +34,32 @@ proc install_bin(packages: seq[string], binrepo: string, root: string) =
     var repo: string
 
     for i in packages:
-        repo = findPkgRepo(i&"-bin")
+        repo = findPkgRepo(i)
         var pkg: runFile
+        
         try:
-            pkg = parse_runfile(repo&"/"&i&"-bin")
-        except:
-            raise
-        let tarball = "nyaa-tarball-"&pkg.versionString&".tar.gz"
-        let chksum = tarball&".sum"
-        echo "Downloading tarball for "&i
-        try:
-            discard spawn download("https://"&binrepo&"/"&tarball, tarball)
-            echo "Downloading tarball checksum for "&i
-            discard spawn download("https://"&binrepo&"/"&chksum, chksum)
+            pkg = parse_runfile(repo&"/"&i)
         except:
             raise
 
-    sync()
+        let tarball = "nyaa-tarball-"&pkg.pkg&"-"&pkg.versionString&".tar.gz"
+        let chksum = tarball&".sum"
+        
+        if fileExists("/etc/nyaa.tarballs/"&tarball) and fileExists("/etc/nyaa.tarballs/"&chksum):
+          echo "Tarball already exists, not gonna download again"
+        else:
+          echo "Downloading tarball for "&i
+          try:
+              discard spawn download("https://"&binrepo&"/"&tarball, tarball)
+              echo "Downloading tarball checksum for "&i
+              discard spawn download("https://"&binrepo&"/"&chksum, chksum)
+          except:
+              raise
+
+          sync()
 
     for i in packages:
-        repo = findPkgRepo(i&"-bin")
+        repo = findPkgRepo(i)
         install_pkg(repo, i, root, true)
         echo "Installation for "&i&" complete"
 
@@ -75,7 +78,7 @@ proc install(promptPackages: seq[string], root = "/", yes: bool = false,
     var packages = promptPackages
     # append bin suffix to packages
     for i, _ in promptPackages:
-        packages[i] = promptPackages[i]&"-bin"
+        packages[i] = promptPackages[i]
 
     try:
         deps = dephandler(packages)
