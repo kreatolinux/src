@@ -36,7 +36,7 @@ proc install_bin(packages: seq[string], binrepo: string, root: string) =
     for i in packages:
         repo = findPkgRepo(i)
         var pkg: runFile
-        
+
         try:
             pkg = parse_runfile(repo&"/"&i)
         except:
@@ -44,19 +44,20 @@ proc install_bin(packages: seq[string], binrepo: string, root: string) =
 
         let tarball = "nyaa-tarball-"&pkg.pkg&"-"&pkg.versionString&".tar.gz"
         let chksum = tarball&".sum"
-        
-        if fileExists("/etc/nyaa.tarballs/"&tarball) and fileExists("/etc/nyaa.tarballs/"&chksum):
-          echo "Tarball already exists, not gonna download again"
-        else:
-          echo "Downloading tarball for "&i
-          try:
-              discard spawn download("https://"&binrepo&"/"&tarball, tarball)
-              echo "Downloading tarball checksum for "&i
-              discard spawn download("https://"&binrepo&"/"&chksum, chksum)
-          except:
-              raise
 
-          sync()
+        if fileExists("/etc/nyaa.tarballs/"&tarball) and fileExists(
+                "/etc/nyaa.tarballs/"&chksum):
+            echo "Tarball already exists, not gonna download again"
+        else:
+            echo "Downloading tarball for "&i
+            try:
+                discard spawn download("https://"&binrepo&"/"&tarball, tarball)
+                echo "Downloading tarball checksum for "&i
+                discard spawn download("https://"&binrepo&"/"&chksum, chksum)
+            except:
+                raise
+
+            sync()
 
     for i in packages:
         repo = findPkgRepo(i)
