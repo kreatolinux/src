@@ -19,10 +19,10 @@ proc install_pkg(repo: string, package: string, root: string, binary = false) =
 
 
     discard existsOrCreateDir(root&"/etc/nyaa.installed")
-    removeDir(root&"/etc/nyaa.installed/"&pkg.pkg)
-    copyDir(repo&"/"&pkg.pkg, root&"/etc/nyaa.installed/"&pkg.pkg)
+    removeDir(root&"/etc/nyaa.installed/"&package)
+    copyDir(repo&"/"&package, root&"/etc/nyaa.installed/"&package)
 
-    writeFile(root&"/etc/nyaa.installed/"&pkg.pkg&"/list_files", execProcess(
+    writeFile(root&"/etc/nyaa.installed/"&package&"/list_files", execProcess(
         "tar -xvf"&tarball&" -C "&root))
 
 proc install_bin(packages: seq[string], binrepo: string, root: string,
