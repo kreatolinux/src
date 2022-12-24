@@ -83,10 +83,10 @@ proc builder(package: string, destdir: string,
         tarball)))&"  "&tarball)
 
 
-    # Install package to root aswell so dependency errors doesnt happen 
+    # Install package to root aswell so dependency errors doesnt happen
     # because the dep is installed to destdir but not root.
     if destdir != "/" and not dirExists("/etc/nyaa.installed/"&package):
-      install_pkg(repo, package, "/")
+        install_pkg(repo, package, "/")
 
     install_pkg(repo, package, destdir)
 
