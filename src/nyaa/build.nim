@@ -72,7 +72,8 @@ proc builder(package: string, destdir: string,
     if existsPrepare == 0:
         assert execShellCmd(". "&path&"/run"&" && prepare") == 0, "prepare failed"
 
-    if execShellCmd(". "&path&"/run"&" && export CC="&getConfigValue("Options","cc")&" && export DESTDIR="&root&" && export ROOT=$DESTDIR && build") != 0:
+    if execShellCmd(". "&path&"/run"&" && export CC="&getConfigValue("Options",
+            "cc")&" && export DESTDIR="&root&" && export ROOT=$DESTDIR && build") != 0:
         err("build failed")
 
     let tarball = "/etc/nyaa.tarballs/nyaa-tarball-"&pkg.pkg&"-"&pkg.versionString&".tar.gz"
