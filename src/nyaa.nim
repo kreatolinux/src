@@ -49,6 +49,7 @@ dispatchMulti(
     "yes": "Automatically say 'yes' to every question",
     "no": "Automatically say 'no' to every question",
     "binrepo": "The nyaa binary mirror",
+    "offline": "Offline mode, errors out if tarball is attempted to get downloaded off binrepo",
     }
   ],
 
