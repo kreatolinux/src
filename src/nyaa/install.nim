@@ -104,7 +104,7 @@ proc install(promptPackages: seq[string], root = "/", yes: bool = false,
     var depsDelete: string
 
     for i in deps:
-        if dirExists("/etc/nyaa.installed/"&i):
+        if dirExists(root&"/etc/nyaa.installed/"&i):
             depsDelete = depsDelete&" "&i
 
     for i in depsDelete.split(" ").filterit(it.len != 0):
