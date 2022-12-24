@@ -14,7 +14,7 @@ proc cleanUp() {.noconv.} =
     quit(0)
 
 proc builder(package: string, destdir: string,
-    root = "/tmp/nyaa_build", srcdir = "/tmp/nyaa_srcdir", offline=true) =
+    root = "/tmp/nyaa_build", srcdir = "/tmp/nyaa_srcdir", offline = true) =
     ## Builds the packages.
 
     if isAdmin() == false:
@@ -74,12 +74,15 @@ proc builder(package: string, destdir: string,
 
     var cmd: string
     if offline == true:
-      cmd = "unshare -n /bin/sh -c '. "&path&"/run"&" && export CC="&getConfigValue("Options","cc")&" && export DESTDIR="&root&" && export ROOT=$DESTDIR && build'"
+        cmd = "unshare -n /bin/sh -c '. "&path&"/run"&" && export CC="&getConfigValue(
+                "Options",
+                "cc")&" && export DESTDIR="&root&" && export ROOT=$DESTDIR && build'"
     else:
-      cmd = ". "&path&"/run"&" && export CC="&getConfigValue("Options","cc")&" && export DESTDIR="&root&" && export ROOT=$DESTDIR && build"
- 
+        cmd = ". "&path&"/run"&" && export CC="&getConfigValue("Options",
+                "cc")&" && export DESTDIR="&root&" && export ROOT=$DESTDIR && build"
+
     if execShellCmd(cmd) != 0:
-      err("build failed")
+        err("build failed")
 
     let tarball = "/etc/nyaa.tarballs/nyaa-tarball-"&pkg.pkg&"-"&pkg.versionString&".tar.gz"
 
@@ -132,14 +135,14 @@ proc build(no = false, yes = false, root = "/",
                 if dirExists(root&"/etc/nyaa.installed/"&i):
                     discard
                 else:
-                    builder(i, root, offline=offline)
+                    builder(i, root, offline = offline)
                     echo("nyaa: built "&i&" successfully")
             except:
                 raise
 
         for i in packages:
             try:
-                builder(i, root, offline=offline)
+                builder(i, root, offline = offline)
                 echo("nyaa: built "&i&" successfully")
             except:
                 raise
