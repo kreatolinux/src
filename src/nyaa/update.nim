@@ -4,12 +4,13 @@ proc update(repo = "",
 
     if isAdmin() == false:
         err("you have to be root for this action.", false)
-    
+
     let repodirs = getConfigValue("Repositories", "RepoDirs")
     let repolinks = getConfigValue("Repositories", "RepoLinks")
 
-    let repoList: seq[tuple[dir: string, link: string]] = zip(repodirs.split(" "), repolinks.split(" "))
-    
+    let repoList: seq[tuple[dir: string, link: string]] = zip(repodirs.split(
+            " "), repolinks.split(" "))
+
     for i in repoList:
         if dirExists(i.dir):
             if execShellCmd("git -C "&i.dir&" pull") != 0:
