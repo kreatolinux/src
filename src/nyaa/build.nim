@@ -14,7 +14,7 @@ proc cleanUp() {.noconv.} =
     quit(0)
 
 proc builder(package: string, destdir: string,
-    root = "/tmp/nyaa_build", srcdir = "/tmp/nyaa_srcdir") =
+    root = "/tmp/nyaa_build", srcdir = "/tmp/nyaa_srcdir", offline=true) =
     ## Builds the packages.
 
     if isAdmin() == false:
@@ -72,9 +72,14 @@ proc builder(package: string, destdir: string,
     if existsPrepare == 0:
         assert execShellCmd(". "&path&"/run"&" && prepare") == 0, "prepare failed"
 
-    if execShellCmd(". "&path&"/run"&" && export CC="&getConfigValue("Options",
-            "cc")&" && export DESTDIR="&root&" && export ROOT=$DESTDIR && build") != 0:
-        err("build failed")
+    var cmd: string
+    if offline == true:
+      cmd = "unshare -n /bin/sh -c '. "&path&"/run"&" && export CC="&getConfigValue("Options","cc")&" && export DESTDIR="&root&" && export ROOT=$DESTDIR && build'"
+    else:
+      cmd = ". "&path&"/run"&" && export CC="&getConfigValue("Options","cc")&" && export DESTDIR="&root&" && export ROOT=$DESTDIR && build"
+ 
+    if execShellCmd(cmd) != 0:
+      err("build failed")
 
     let tarball = "/etc/nyaa.tarballs/nyaa-tarball-"&pkg.pkg&"-"&pkg.versionString&".tar.gz"
 
@@ -97,7 +102,7 @@ proc builder(package: string, destdir: string,
     removeDir(root)
 
 proc build(no = false, yes = false, root = "/",
-    packages: seq[string]): string =
+    packages: seq[string], offline = true): string =
     ## Build and install packages
     var deps: seq[string]
 
@@ -127,14 +132,14 @@ proc build(no = false, yes = false, root = "/",
                 if dirExists(root&"/etc/nyaa.installed/"&i):
                     discard
                 else:
-                    builder(i, root)
+                    builder(i, root, offline=offline)
                     echo("nyaa: built "&i&" successfully")
             except:
                 raise
 
         for i in packages:
             try:
-                builder(i, root)
+                builder(i, root, offline=offline)
                 echo("nyaa: built "&i&" successfully")
             except:
                 raise
