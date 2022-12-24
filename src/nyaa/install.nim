@@ -25,7 +25,8 @@ proc install_pkg(repo: string, package: string, root: string, binary = false) =
     writeFile(root&"/etc/nyaa.installed/"&pkg.pkg&"/list_files", execProcess(
         "tar -xvf"&tarball&" -C "&root))
 
-proc install_bin(packages: seq[string], binrepo: string, root: string, offline: bool) =
+proc install_bin(packages: seq[string], binrepo: string, root: string,
+        offline: bool) =
     ## Downloads and installs binaries.
 
     discard existsOrCreateDir("/etc/nyaa.tarballs")
@@ -59,7 +60,7 @@ proc install_bin(packages: seq[string], binrepo: string, root: string, offline: 
 
             sync()
         else:
-          err("attempted to download tarball from binary repository in offline mode", false)
+            err("attempted to download tarball from binary repository in offline mode", false)
 
     for i in packages:
         repo = findPkgRepo(i)
