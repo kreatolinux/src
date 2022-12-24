@@ -11,7 +11,7 @@ proc upgrade(root = "/",
                 localPkg = parse_runfile(i.path)
             except Exception:
                 raise
-            
+
             if localPkg.pkg in getConfigValue("Upgrade", "dontUpgrade").split(" "):
                 echo "skipping "&localPkg.pkg&": selected to not upgrade in nyaa.conf"
                 continue
