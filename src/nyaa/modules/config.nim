@@ -1,45 +1,47 @@
-proc initializeConfig(configpath = "/etc/nyaa.conf") =
-  ## Initializes the configuration file
+const configPath = "/etc/nyaa.conf"
 
-  if fileExists(configpath):
-    discard
+var config: Config
+
+proc initializeConfig(): Config =
+  ## Initializes the configuration file
 
   if isAdmin() == false:
     err("please be root to initialize config", false)
 
-  var dict = newConfig()
+  var config = newConfig()
   # [Options]
-  dict.setSectionKey("Options", "cc", "gcc") # GCC works the best right now
+  config.setSectionKey("Options", "cc", "gcc") # GCC works the best right now
   
   # [Repositories]
-  dict.setSectionKey("Repositories", "RepoDirs",
+  config.setSectionKey("Repositories", "RepoDirs",
       "/etc/nyaa /etc/nyaa-bin") # Seperate by space
-  dict.setSectionKey("Repositories", "RepoLinks",
+  config.setSectionKey("Repositories", "RepoLinks",
       "https://github.com/kreatolinux/nyaa-repo.git https://github.com/kreatolinux/nyaa-repo-bin.git") # Seperate by space, must match RepoDirs
 
   # [Upgrade]
-  dict.setSectionKey("Upgrade", "buildByDefault", "yes") # Build packages by default
-  #dict.setSectionKey("Upgrade, "dontUpgrade", "") # Nyaa wont touch this package, seperate by space
+  config.setSectionKey("Upgrade", "buildByDefault", "yes") # Build packages by default
+  # config.setSectionKey("Upgrade, "dontUpgrade", "") # Nyaa wont touch this package, seperate by space
 
-  dict.writeConfig(configpath)
+  config.writeConfig(configPath)
 
-proc getConfigValue(section: string, key: string,
-    configpath = "/etc/nyaa.conf"): string =
+proc getConfigValue(section: string, key: string): string =
   ## Reads the configuration file and returns value of section.
-  let dict = loadConfig(configpath)
-  return dict.getSectionValue(section, key)
+  return config.getSectionValue(section, key)
 
-proc setConfigValue(section: string, key: string, value: string,
-    configpath = "/etc/nyaa.conf") =
+proc setConfigValue(section: string, key: string, value: string) =
   ## Writes a section to the configuration file.
-  var dict = loadConfig(configpath)
-  dict.setSectionKey(section, key, value)
-  dict.writeConfig(configpath)
+  config.setSectionKey(section, key, value)
+  config.writeConfig(configPath)
 
-proc findPkgRepo(package: string, conf = "/etc/nyaa.conf"): string =
+proc findPkgRepo(package: string): string =
   ## finds the package repository.
   for i in getConfigValue("Repositories", "RepoDirs").split(" "):
     if dirExists(i&"/"&package):
       return i
   # return blank line if not found
   return ""
+
+if not fileExists(configPath):
+  config = initializeConfig()
+else:
+  config = loadConfig(configPath)
