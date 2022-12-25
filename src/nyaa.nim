@@ -29,10 +29,6 @@ include nyaa/info
 
 clCfg.version = "nyaa v3.1.0"
 
-
-if not fileExists("/etc/nyaa.conf"):
-  initializeConfig()
-
 dispatchMulti(
   [
   build, help = {
