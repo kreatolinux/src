@@ -6,6 +6,7 @@ type runFile = object
     sha256sum: string
     epoch: string
     versionString: string
+    alternativeTo: string
 
 proc parse_runfile(path: string): runFile =
     ## Parse an runfile.
@@ -19,6 +20,11 @@ proc parse_runfile(path: string): runFile =
             case vars[0]:
                 of "NAME":
                     ret.pkg = vars[1].multiReplace(
+                    ("\"", ""),
+                    ("'", "")
+                    )
+                of "ALTERNATIVE_TO":
+                    ret.alternativeTo = vars[1].multiReplace(
                     ("\"", ""),
                     ("'", "")
                     )
