@@ -18,7 +18,7 @@ proc get_alternative(package: string) =
   else:
     echo "This package can't be used/set as a alternative to anything."
 
-proc alternative(set=false, get=false, package: seq[string]) =
+proc alternative(set = false, get = false, package: seq[string]) =
   ## Allows you to manage alternatives.
   if get == true:
     get_alternative(package[0])

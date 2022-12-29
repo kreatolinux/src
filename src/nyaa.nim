@@ -71,7 +71,7 @@ dispatchMulti(
     "srcdir": "Set a custom source directory"
     }
   ],
-  
+
   [
   info
   ],
