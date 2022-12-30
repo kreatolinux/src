@@ -1,12 +1,17 @@
-proc set_alternative(package: string, to: string): string =
+proc set_alternative(package: string, to: string, runFile: runFile): string =
   ## Sets an alternative.
   ## The way of setting an alternative is defined on repo/package/altFile .
   ## See nyaa_alternative(8) for how to write an altFile.
-  let altFile = findPkgRepo(package)&"/"&package&"/"&"altFile"
-  if execShellCmd(". "&altFile&" && "&to) != 0:
-    err("alternative script failed", false)
+  let pkg = findPkgRepo(package)&"/"&package
+
+  if dirExists("/etc/nyaa.installed/"&runFile.pkg):
+    if execShellCmd(". "&pkg&"/altFile && "&to) != 0:
+        err("alternative script failed", false)
+    else:
+        createSymlink("/etc/nyaa.installed/"&runFile.pkg, "/etc/nyaa.installed/"&to)
+        return "nyaa: set "&package&" to "&to
   else:
-    return "nyaa: set "&package&" to "&to
+    err("package is not installed", false)
 
 proc get_alternative(package: runFile, actualPkgName: string) =
   ## Gets alternatives.
@@ -19,12 +24,18 @@ proc get_alternative(package: runFile, actualPkgName: string) =
 
 proc alternative(set = false, get = false, package: seq[string]) =
   ## Allows you to manage alternatives.
+  var pkg: runFile
+
+  try:
+    pkg = parse_runfile(findPkgRepo(package[0])&"/"&package[0], false)
+  except Exception:
+    err("not enough arguments (see nyaa alternative --help)", false)
+
   if get == true:
-    let pkg = parse_runfile(findPkgRepo(package[0])&"/"&package[0], false)
     get_alternative(pkg, package[0])
   elif set == true:
     try:
-      echo set_alternative(package[0], package[1])
+      echo set_alternative(package[0], package[1], pkg)
     except Exception:
       err("--set requires 2 arguments (eg. nyaa alternative --set coreutils busybox)", false)
   else:

@@ -22,7 +22,6 @@ import os
 include nyaa/modules/logger
 include nyaa/modules/config
 include nyaa/build
-include nyaa/alternative
 include nyaa/update
 include nyaa/upgrade
 include nyaa/remove
