@@ -8,20 +8,20 @@ proc set_alternative(package: string, to: string): string =
   else:
     return "nyaa: set "&package&" to "&to
 
-proc get_alternative(package: string) =
+proc get_alternative(package: runFile, actualPkgName: string) =
   ## Gets alternatives.
-  let pkg = parse_runfile(findPkgRepo(package)&"/"&package)
-  if pkg.alternativeTo != "":
-    echo "Package "&package&" can used for alternatives to;"
-    echo pkg.alternativeTo
-    echo "You can do 'nyaa --set "&package&" alternativeName' to set it as one."
+  if package.alternativeTo != "":
+    echo "Package "&package.pkg&" can used for alternatives to;"
+    echo package.alternativeTo
+    echo "You can do 'nyaa --set "&actualPkgName&" alternativeName' to set it as one."
   else:
     echo "This package can't be used/set as a alternative to anything."
 
 proc alternative(set = false, get = false, package: seq[string]) =
   ## Allows you to manage alternatives.
   if get == true:
-    get_alternative(package[0])
+    let pkg = parse_runfile(findPkgRepo(package[0])&"/"&package[0], false)
+    get_alternative(pkg, package[0])
   elif set == true:
     try:
       echo set_alternative(package[0], package[1])
