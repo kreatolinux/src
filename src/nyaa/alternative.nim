@@ -6,10 +6,11 @@ proc set_alternative(package: string, to: string, runFile: runFile): string =
 
   if dirExists("/etc/nyaa.installed/"&runFile.pkg):
     if execShellCmd(". "&pkg&"/altFile && "&to) != 0:
-        err("alternative script failed", false)
+      err("alternative script failed", false)
     else:
-        createSymlink("/etc/nyaa.installed/"&runFile.pkg, "/etc/nyaa.installed/"&to)
-        return "nyaa: set "&package&" to "&to
+      createSymlink("/etc/nyaa.installed/"&runFile.pkg,
+          "/etc/nyaa.installed/"&to)
+      return "nyaa: set "&package&" to "&to
   else:
     err("package is not installed", false)
 
