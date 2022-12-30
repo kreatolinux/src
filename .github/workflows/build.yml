@@ -35,5 +35,5 @@ jobs:
           path: ${{ github.workspace }}/out/*
         
       - run: |
-        nimble tests
-        sudo ./out/purr
+          nimble tests
+          sudo ./out/purr
