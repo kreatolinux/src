@@ -12,10 +12,10 @@ include ../src/nyaa/remove
 include ../src/nyaa/info
 
 proc ok(message: string) =
-    styledEcho "[", styleBright, fgGreen, " OK ", resetStyle, "] "&message 
+    styledEcho "[", styleBright, fgGreen, " OK ", resetStyle, "] "&message
 
 proc warn(message: string) =
-    styledEcho "[", styleBright, fgYellow, " WARN ", resetStyle, "] "&message 
+    styledEcho "[", styleBright, fgYellow, " WARN ", resetStyle, "] "&message
 
 proc error(message: string) =
     styledEcho "[", styleBright, fgRed, " ERROR ", resetStyle, "] "&message
@@ -28,14 +28,14 @@ proc genFiles(tmpdir: string) =
     discard existsOrCreateDir(tmpdir&"/root")
     discard existsOrCreateDir(tmpdir&"/root/etc")
 
-proc purr(tests="all", tmpdir="/tmp/purr") =
+proc purr(tests = "all", tmpdir = "/tmp/purr") =
     ## nyaa3's testing utility.
-    
+
     if not isAdmin():
         error("You have to be root to run the tests.")
 
     removeDir("/tmp/purr")
-    genFiles(tmpdir)    
+    genFiles(tmpdir)
 
     # Test update
     # TODO: remove repo from config when successful
@@ -46,14 +46,16 @@ proc purr(tests="all", tmpdir="/tmp/purr") =
         error("update test failed")
 
     # Test build
-    discard build(yes=true, root=tmpdir&"/root", packages=toSeq(["purr"]), offline = true)
+    discard build(yes = true, root = tmpdir&"/root", packages = toSeq(["purr"]),
+            offline = true)
     if fileExists("/testfile"):
         ok("build test completed successfully")
     else:
         error("build test failed")
 
     # Test remove
-    discard remove(packages=toSeq(["purr"]), yes = true, root = "/tmp/purr/root")
+    discard remove(packages = toSeq(["purr"]), yes = true,
+            root = "/tmp/purr/root")
     if not fileExists(tmpdir&"root/testfile"):
         ok("remove test completed succesfully")
     else:
