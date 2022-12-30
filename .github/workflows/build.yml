@@ -34,4 +34,4 @@ jobs:
           name: nyaa3-withssl
           path: ${{ github.workspace }}/out/*
         
-
+      - run: nimble tests
