@@ -8,7 +8,7 @@ type runFile = object
     versionString: string
     alternativeTo: string
 
-proc parse_runfile(path: string): runFile =
+proc parse_runfile(path: string, removeLockfileWhenErr = true): runFile =
     ## Parse an runfile.
 
     var vars: seq[string]
@@ -56,7 +56,7 @@ proc parse_runfile(path: string): runFile =
             if "()" in vars[0]:
                 break
     except:
-        err(path&" doesn't seem to have a runfile. possibly a broken package?")
+        err(path&" doesn't seem to have a runfile. possibly a broken package?", removeLockfileWhenErr)
 
     when declared(ret.epoch):
         ret.versionString = ret.version&"-"&ret.release&"-"&ret.epoch
