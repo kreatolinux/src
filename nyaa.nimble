@@ -13,9 +13,8 @@ requires "libsha"
 task prettify, "Run nimpretty":
   exec "nimpretty "&srcDir&"/*/*/*"
 
-task tests, "Run tests":
+task tests, "Build tests":
   exec "nim c -d:release --threads:on -d:ssl -o="&binDir&" purr/purr.nim"
-  exec "./"&binDir&"/purr"
 
 task ssl, "Build with SSL support":
   exec "nim c -d:release --threads:on -d:ssl -o="&binDir&" "&srcDir&"/nyaa.nim"
