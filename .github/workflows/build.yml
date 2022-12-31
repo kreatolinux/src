@@ -34,4 +34,7 @@ jobs:
           name: nyaa3-withssl
           path: ${{ github.workspace }}/out/*
         
-
+      - run: |
+          nimble tests
+          sudo ./out/nyaa # This is done to generate the config, purr cant seem to generate them by itself for now
+          sudo ./out/purr
