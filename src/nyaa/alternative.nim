@@ -15,31 +15,32 @@ proc set_alternative(package: string, to: string, runFile: runFile): string =
           "/etc/nyaa.installed/"&to)
       discard existsOrCreateDir("/etc/nyaa.alternatives/")
       createDir("/etc/nyaa.alternatives/"&package)
-      writeFile("/etc/nyaa.alternatives/"&package&"/altTo", to) 
+      writeFile("/etc/nyaa.alternatives/"&package&"/altTo", to)
       return "nyaa: set "&package&" to "&to
   else:
     err("package is not installed", false)
 
 proc unset_alternative(package: string, runFile: runFile): string =
-    ## Unsets an alternative.
-    let pkg = findPkgRepo(package)&"/"&package
-    let altTo = readAll(open("/etc/nyaa.alternatives/"&package&"/altTo"))
-    if dirExists("/etc/nyaa.installed/"&altTo):
-        removeDir("/etc/nyaa.installed/"&altTo) # TODO: FIX THIS
-        removeDir("/etc/nyaa.alternatives/"&package)
-        return "nyaa: unset "&package
-    else:
-        err("package isn't set to any alternative", false)
-    
+  ## Unsets an alternative.
+  let pkg = findPkgRepo(package)&"/"&package
+  let altTo = readAll(open("/etc/nyaa.alternatives/"&package&"/altTo"))
+  if dirExists("/etc/nyaa.installed/"&altTo):
+    removeDir("/etc/nyaa.installed/"&altTo) # TODO: FIX THIS
+    removeDir("/etc/nyaa.alternatives/"&package)
+    return "nyaa: unset "&package
+  else:
+    err("package isn't set to any alternative", false)
+
 proc get_alternative(package: runFile, actualPkgName: string) =
   ## Gets alternatives.
   if package.alternativeTo != "":
     echo "Package "&package.pkg&" can used for alternatives to;"
     echo package.alternativeTo
     echo "You can do 'nyaa --set "&actualPkgName&" alternativeName' to set it as one."
-    
+
     if fileExists("/etc/nyaa.alternatives/"&actualPkgName&"/altTo"):
-        echo "Package "&package.pkg&" is currently set as a alternative to "&readAll(open("/etc/nyaa.alternatives/"&actualPkgname&"/altTo"))
+      echo "Package "&package.pkg&" is currently set as a alternative to "&readAll(
+          open("/etc/nyaa.alternatives/"&actualPkgname&"/altTo"))
   else:
     echo "This package can't be used/set as a alternative to anything."
 
