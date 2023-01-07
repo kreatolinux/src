@@ -58,14 +58,20 @@ proc builder(package: string, destdir: string,
     var filename: string
     var existsPrepare = execShellCmd(". "&path&"/run"&" && command -v prepare")
 
+    var int = 0
+
     for i in pkg.sources.split(";"):
         filename = extractFilename(i.replace("$VERSION", pkg.version))
         try:
             waitFor download(i.replace("$VERSION", pkg.version), filename)
         except:
             raise
-        if sha256hexdigest(readAll(open(filename)))&"  "&filename != pkg.sha256sum:
+        
+        if sha256hexdigest(readAll(open(filename)))&"  "&filename != pkg.sha256sum.split(";")[int]:
             err "sha256sum doesn't match for "&i
+        
+        int = int+1
+
         if existsPrepare != 0:
             discard execProcess("bsdtar -xvf "&filename)
 
