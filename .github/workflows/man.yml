@@ -1,0 +1,29 @@
+name: Build manpages
+
+on:
+  push:
+    paths:
+      - 'man/*.md'
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@master
+        
+      - name: Install pandoc
+        run: |
+          apt update
+          apt install pandoc --yes
+          
+      - name: Build manpages
+        run: |
+          for i in man/*.md; do
+            pandoc --standalone --to man "$i" -o man/"$(basename $1 .md)"
+          done
+        
+      - name: Commit manpages
+        uses: EndBug/add-and-commit@v5
+        env:
+         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
