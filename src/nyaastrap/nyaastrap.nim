@@ -42,19 +42,18 @@ proc nyaastrap_install(package: string, installWithBinaries: bool,
         buildDir: string) =
     # Install a package.
     info_msg "Installing package '"&package&"'"
-    if fileExists("/etc/nyaa.tarballs/nyaa-tarball-"&package&"*.tar.gz") and
-            fileExists("/etc/nyaa.tarballs/nyaa-tarball-"&package&"*.tar.gz"):
-        debug "Package "&package&" tarball already available, gonna use that"
-        discard install(toSeq([package]), buildDir, true, offline = true)
-    else:
+    if fileExists("/etc/nyaa.tarballs/nyaa-tarball-"&package&"*.tar.gz") == false and
+            fileExists("/etc/nyaa.tarballs/nyaa-tarball-"&package&"*.tar.gz") == false:
         if installWithBinaries == true:
             debug "Installing package as a binary"
-            discard install(toSeq([package]), buildDir, true)
+            discard install(toSeq([package]), buildDir, true, downloadOnly = true)
         else:
             debug "Building package from source"
             # Turning offline to false for now because current offline mode implementation doesnt work on Docker containers.
-            discard build(yes = true, root = buildDir, packages = toSeq([
+            discard build(yes = true, packages = toSeq([
                     package]), offline = false)
+    
+    discard install(toSeq([package]), buildDir, true, offline = true)
 
     ok("Package "&package&" installed successfully")
 
