@@ -27,7 +27,7 @@ include nyaa/upgrade
 include nyaa/remove
 include nyaa/info
 
-clCfg.version = "nyaa v3.3.0-rc1"
+clCfg.version = "nyaa v3.3.0-rc2"
 
 dispatchMulti(
   [
