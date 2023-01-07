@@ -1,25 +1,4 @@
-import cligen
-import sequtils
-import parsecfg
-import os
-import options
-include ../src/nyaa/modules/logger
-include ../src/nyaa/modules/config
-include ../src/nyaa/build
-include ../src/nyaa/update
-include ../src/nyaa/upgrade
-include ../src/nyaa/remove
-include ../src/nyaa/info
-
-proc ok(message: string) =
-    styledEcho "[", styleBright, fgGreen, " OK ", resetStyle, "] "&message
-
-proc warn(message: string) =
-    styledEcho "[", styleBright, fgYellow, " WARN ", resetStyle, "] "&message
-
-proc error(message: string) =
-    styledEcho "[", styleBright, fgRed, " ERROR ", resetStyle, "] "&message
-    quit(1)
+include common
 
 proc genFiles(tmpdir: string) =
     ## Generates files required for the utility to function.

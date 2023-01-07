@@ -1,0 +1,6 @@
+# Kreato Linux /etc/profile
+
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/lib:/usr/local/lib:/usr/lib64:/lib64:/lib
+umask 022
+PATH=$PATH:/usr/local/sbin:/usr/local/bin:/usr/bin:/bin
+export PATH
