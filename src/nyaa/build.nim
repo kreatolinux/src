@@ -14,7 +14,7 @@ proc cleanUp() {.noconv.} =
     quit(0)
 
 proc builder(package: string, destdir: string,
-    root = "/tmp/nyaa_build", srcdir = "/tmp/nyaa_srcdir", offline = true) =
+    root = "/tmp/nyaa_build", srcdir = "/tmp/nyaa_srcdir", offline = true, dontInstall = false) =
     ## Builds the packages.
 
     if isAdmin() == false:
@@ -101,10 +101,11 @@ proc builder(package: string, destdir: string,
 
     # Install package to root aswell so dependency errors doesnt happen
     # because the dep is installed to destdir but not root.
-    if destdir != "/" and not dirExists("/etc/nyaa.installed/"&package):
+    if destdir != "/" and not dirExists("/etc/nyaa.installed/"&package) and dontInstall == false:
         install_pkg(repo, package, "/")
-
-    install_pkg(repo, package, destdir)
+    
+    if dontInstall == false:
+        install_pkg(repo, package, destdir)
 
     removeFile(lockfile)
 

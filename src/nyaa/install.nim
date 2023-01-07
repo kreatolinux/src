@@ -29,7 +29,7 @@ proc install_pkg(repo: string, package: string, root: string, binary = false) =
     get_alternative(pkg, package)
 
 proc install_bin(packages: seq[string], binrepo: string, root: string,
-        offline: bool) =
+        offline: bool, downloadOnly = false) =
     ## Downloads and installs binaries.
 
     discard existsOrCreateDir("/etc/nyaa.tarballs")
@@ -65,14 +65,15 @@ proc install_bin(packages: seq[string], binrepo: string, root: string,
         else:
             err("attempted to download tarball from binary repository in offline mode", false)
 
-    for i in packages:
-        repo = findPkgRepo(i)
-        install_pkg(repo, i, root, true)
-        echo "Installation for "&i&" complete"
+    if downloadOnly == false:
+        for i in packages:
+            repo = findPkgRepo(i)
+            install_pkg(repo, i, root, true)
+            echo "Installation for "&i&" complete"
 
 proc install(promptPackages: seq[string], root = "/", yes: bool = false,
         no: bool = false,
-    binrepo = "mirror.kreato.dev", offline = false): string =
+    binrepo = "mirror.kreato.dev", offline = false, downloadOnly = false): string =
     ## Download and install a package through a binary repository
     if promptPackages.len == 0:
         err("please enter a package name", false)
@@ -118,8 +119,8 @@ proc install(promptPackages: seq[string], root = "/", yes: bool = false,
         deps.delete(deps.find(i))
 
     if not (deps.len == 0 and deps == @[""]):
-        install_bin(deps, binrepo, root, offline)
+        install_bin(deps, binrepo, root, offline, downloadOnly = downloadOnly)
 
-    install_bin(packages, binrepo, root, offline)
+    install_bin(packages, binrepo, root, offline, downloadOnly = downloadOnly)
 
     return "nyaa: done"

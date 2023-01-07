@@ -36,10 +36,12 @@ proc upgrade(root = "/",
 
                 echo "Upgrading "&localPkg.pkg&" from "&localPkg.versionString&" to "&upstreamPkg.versionString
 
-                discard removeInternal(localPkg.pkg, root)
                 if getConfigValue("Upgrade", "buildByDefault") == "yes":
-                    builder(localPkg.pkg, root)
+                    builder(localPkg.pkg, root, dontInstall = true)
                 else:
-                    discard install(@[localPkg.pkg], root, true)
+                    discard install(@[localPkg.pkg], root, true, downloadOnly = true)
+                
+                discard removeInternal(localPkg.pkg, root)
+                discard install(@[localPkg.pkg], root, true, offline = true)
 
     return "nyaa: done"
