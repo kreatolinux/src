@@ -8,7 +8,10 @@ nyaa3 - package manager
 
 # DESCRIPTION
 Nyaa3 is a package manager written in Nim. It is under 700> LOC and is meant to be used with Kreato Linux.
-Nyaa uses simple build scripts called runfiles, similar to PKGBUILDs found in the pacman package manager.
+
+Nyaa uses simple build scripts called runfiles, similar to PKGBUILDs found in the pacman package manager. You can learn more about runfiles in nyaa_run(8).
+
+# COMMANDS
 
 **h**
     Output help
