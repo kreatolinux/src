@@ -39,8 +39,9 @@ proc upgrade(root = "/",
                 if getConfigValue("Upgrade", "buildByDefault") == "yes":
                     builder(localPkg.pkg, root, dontInstall = true)
                 else:
-                    discard install(@[localPkg.pkg], root, true, downloadOnly = true)
-                
+                    discard install(@[localPkg.pkg], root, true,
+                            downloadOnly = true)
+
                 discard removeInternal(localPkg.pkg, root)
                 discard install(@[localPkg.pkg], root, true, offline = true)
 

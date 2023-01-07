@@ -73,7 +73,8 @@ proc install_bin(packages: seq[string], binrepo: string, root: string,
 
 proc install(promptPackages: seq[string], root = "/", yes: bool = false,
         no: bool = false,
-    binrepo = "mirror.kreato.dev", offline = false, downloadOnly = false): string =
+    binrepo = "mirror.kreato.dev", offline = false,
+            downloadOnly = false): string =
     ## Download and install a package through a binary repository
     if promptPackages.len == 0:
         err("please enter a package name", false)
