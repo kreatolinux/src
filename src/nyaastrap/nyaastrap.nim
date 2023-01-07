@@ -178,7 +178,7 @@ proc nyaastrap(buildType = "builder", arch = "amd64") =
         # Generate certdata here
         info_msg "Generating CA certificates"
 
-        download("https://hg.mozilla.org/releases/mozilla-release/raw-file/default/security/nss/lib/ckfw/builtins/certdata.txt",
+        discard download("https://hg.mozilla.org/releases/mozilla-release/raw-file/default/security/nss/lib/ckfw/builtins/certdata.txt",
                 buildDir&"/certdata.txt")
 
         if execCmdEx("chroot "&buildDir&" /bin/sh -c '. /etc/profile && cd / && /usr/sbin/make-ca -C certdata.txt'").exitcode != 0:
