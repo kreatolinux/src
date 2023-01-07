@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - 'man/*.md'
+  workflow_dispatch:
 
 jobs:
   format:
@@ -14,8 +15,8 @@ jobs:
         
       - name: Install pandoc
         run: |
-          apt update
-          apt install pandoc --yes
+          sudo apt-get update
+          sudo apt-get install pandoc --yes
           
       - name: Build manpages
         run: |
