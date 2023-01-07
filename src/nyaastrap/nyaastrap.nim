@@ -43,9 +43,7 @@ proc nyaastrap_install(package: string, installWithBinaries: bool,
     # Install a package.
     info_msg "Installing package '"&package&"'"
     if fileExists("/etc/nyaa.tarballs/nyaa-tarball-"&package&"*.tar.gz") ==
-            false and
-
-fileExists("/etc/nyaa.tarballs/nyaa-tarball-"&package&"*.tar.gz") == false:
+            false and fileExists("/etc/nyaa.tarballs/nyaa-tarball-"&package&"*.tar.gz") == false:
         if installWithBinaries == true:
             debug "Installing package as a binary"
             discard install(toSeq([package]), buildDir, true,
