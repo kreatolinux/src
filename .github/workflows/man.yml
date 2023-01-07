@@ -21,7 +21,7 @@ jobs:
       - name: Build manpages
         run: |
           for i in man/*.md; do
-            pandoc --standalone --to man "$i" -o man/"$(basename $1 .md)"
+            pandoc --standalone --to man "$i" -o man/"$(basename $i .md)"
           done
         
       - name: Commit manpages
