@@ -12,8 +12,6 @@ proc initDirectories(buildDirectory: string, arch: string) =
     createDir(buildDirectory)
     createDir(buildDirectory&"/etc")
     createDir(buildDirectory&"/var")
-    createDir(buildDirectory&"/lib")
-    createDir(buildDirectory&"/bin")
     createDir(buildDirectory&"/usr")
     createDir(buildDirectory&"/usr/bin")
     createDir(buildDirectory&"/usr/lib")
@@ -30,11 +28,13 @@ proc initDirectories(buildDirectory: string, arch: string) =
     createDir(buildDirectory&"/run")
 
     if arch == "amd64":
-        createSymlink("bin", buildDirectory&"/usr/sbin")
         createSymlink("usr/lib", buildDirectory&"/lib64")
         createSymlink("lib", buildDirectory&"/usr/lib64")
 
     createSymlink("usr/bin", buildDirectory&"/sbin")
+    createSymlink("bin", buildDirectory&"/usr/sbin")
+    createSymlink("usr/bin", buildDirectory&"/bin")
+    createSymlink("usr/lib", buildDirectory&"/lib")
 
     info_msg "Root directory structure created."
 
