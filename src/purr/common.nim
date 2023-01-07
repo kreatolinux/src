@@ -13,7 +13,8 @@ include ../nyaa/info
 
 proc debug(message: string) =
     when not defined(release):
-        styledEcho "[", styleBlinkRapid, styleBright, fgYellow, " DEBUG ", resetStyle, "] "&message
+        styledEcho "[", styleBlinkRapid, styleBright, fgYellow, " DEBUG ",
+                resetStyle, "] "&message
 
 proc info_msg(message: string) =
     styledEcho "[", styleBright, fgBlue, " INFO ", resetStyle, "] "&message
