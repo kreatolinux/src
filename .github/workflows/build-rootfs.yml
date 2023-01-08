@@ -22,10 +22,9 @@ jobs:
           
       - name: Cache built packages
         uses: actions/cache@v3
-        env:
-          cache-name: cache-nyaa-tarballs
         with:
           path: /etc/nyaa.tarballs
+          key: cache-nyaa-tarballs
 
       - name: Build nocc rootfs tarball
         run: |
