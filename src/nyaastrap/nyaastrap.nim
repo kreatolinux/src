@@ -68,7 +68,7 @@ proc nyaastrap(buildType = "builder", arch = "amd64") =
     else:
         error("Config "&buildType&" does not exist!")
 
-    info_msg "nyaastrap v3.0.0-alpha"
+    info_msg "nyaastrap v3.0.0"
 
     discard update()
 

@@ -27,11 +27,7 @@ jobs:
           ln -s /out /nyaa/out
           cd /nyaa
           nimble install --depsOnly -Y
-          nimble ssl
           nimble nyaastrap
-          mv out/nyaa /bin/nyaa
-          chmod +x /bin/nyaa          
-          nyaa update
           /nyaa/src/nyaastrap/nyaastrap --buildType=nocc
           cd /out
           tar -czvf /nyaa/kreato-linux-nocc-"$(date +%d-%m-%Y)".tar.gz *
