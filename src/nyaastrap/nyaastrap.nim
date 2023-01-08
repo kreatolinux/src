@@ -3,9 +3,9 @@ include ../purr/common
 proc initDirectories(buildDirectory: string, arch: string) =
     # Initializes directories.
 
-    if dirExists(buildDirectory):
-        info_msg "rootfs directory exist, removing"
-        removeDir(buildDirectory)
+    #if dirExists(buildDirectory):
+    #    info_msg "rootfs directory exist, removing"
+    #    removeDir(buildDirectory)
 
     debug "Making initial rootfs directories"
 
@@ -25,6 +25,7 @@ proc initDirectories(buildDirectory: string, arch: string) =
     createDir(buildDirectory&"/proc")
     createDir(buildDirectory&"/sys")
     createDir(buildDirectory&"/tmp")
+    createDir(buildDirectory&"/etc/nyaa.installed")
     createDir(buildDirectory&"/run")
 
     if arch == "amd64":
@@ -42,19 +43,14 @@ proc nyaastrap_install(package: string, installWithBinaries: bool,
         buildDir: string) =
     # Install a package.
     info_msg "Installing package '"&package&"'"
-    if fileExists("/etc/nyaa.tarballs/nyaa-tarball-"&package&"*.tar.gz") ==
-            false and fileExists("/etc/nyaa.tarballs/nyaa-tarball-"&package&"*.tar.gz") == false:
-        if installWithBinaries == true:
-            debug "Installing package as a binary"
-            discard install(toSeq([package]), buildDir, true,
-                    downloadOnly = true)
-        else:
-            debug "Building package from source"
-            # Turning offline to false for now because current offline mode implementation doesnt work on Docker containers.
-            discard build(yes = true, packages = toSeq([
-                    package]), offline = false)
-
-    discard install(toSeq([package]), buildDir, true, offline = true)
+    if installWithBinaries == true:
+        debug "Installing package as a binary"
+        discard install(toSeq([package]), buildDir, true)
+    else:
+        debug "Building package from source"
+        # Turning offline to false for now because current offline mode implementation doesnt work on Docker containers.
+        discard build(yes = true, root = buildDir, packages = toSeq([
+                package]), offline = false, useCacheIfAvailable = true)
 
     ok("Package "&package&" installed successfully")
 
@@ -178,13 +174,16 @@ proc nyaastrap(buildType = "builder", arch = "amd64") =
         # Generate certdata here
         info_msg "Generating CA certificates"
 
-        discard download("https://hg.mozilla.org/releases/mozilla-release/raw-file/default/security/nss/lib/ckfw/builtins/certdata.txt",
-                buildDir&"/certdata.txt")
+        setCurrentDir(buildDir)
+
+        waitFor download("https://hg.mozilla.org/releases/mozilla-release/raw-file/default/security/nss/lib/ckfw/builtins/certdata.txt",
+                "certdata.txt")
 
         if execCmdEx("chroot "&buildDir&" /bin/sh -c '. /etc/profile && cd / && /usr/sbin/make-ca -C certdata.txt'").exitcode != 0:
             error "Generating CA certificates failed"
         else:
             ok "Generated CA certificates"
+
         removeFile(buildDir&"/certdata.txt")
 
         if conf.getSectionValue("Extras", "ExtraPackages") != "":
