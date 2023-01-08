@@ -14,12 +14,19 @@ jobs:
     container: kreato/builder:latest
     
     steps:
-      
+
       - name: Checkout
         uses: actions/checkout@v3
         with:
           submodules: 'true'
           
+      - name: Cache built packages
+        uses: actions/cache@v3
+        env:
+          cache-name: cache-nyaa-tarballs
+        with:
+          path: /etc/nyaa.tarballs
+
       - name: Build nocc rootfs tarball
         run: |
           ln -s $GITHUB_WORKSPACE /nyaa
