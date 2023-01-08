@@ -23,8 +23,8 @@ include nyaa/modules/logger
 include nyaa/modules/config
 include nyaa/build
 include nyaa/update
-include nyaa/upgrade
 include nyaa/remove
+include nyaa/upgrade
 include nyaa/info
 
 clCfg.version = "nyaa v3.3.0-rc2"
@@ -73,9 +73,5 @@ dispatchMulti(
 
   [
   info
-  ],
-
-  [
-  alternative
   ]
 )

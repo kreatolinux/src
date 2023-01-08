@@ -1,5 +1,3 @@
-include modules/removeInternal
-
 proc upgrade(root = "/",
         builddir = "/tmp/nyaa_build", srcdir = "/tmp/nyaa_srcdir"): string =
     ## Upgrade packages

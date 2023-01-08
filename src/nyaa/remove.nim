@@ -1,3 +1,4 @@
+include modules/removeInternal
 proc remove(packages: seq[string], yes = false, root = ""): string =
     ## Remove packages
 
