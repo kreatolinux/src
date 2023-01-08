@@ -56,10 +56,10 @@ proc nyaastrap_install(package: string, installWithBinaries: bool,
 
 proc set_default_cc(buildDir: string, cc: string) =
     ## Sets the default compiler.
-    let files = [ "/bin/cc", "/bin/c99", "/bin/g++", "/bin/c++" ]
+    let files = ["/bin/cc", "/bin/c99", "/bin/g++", "/bin/c++"]
     var file: string
     for i in files:
-        file = buildDir&i 
+        file = buildDir&i
         if not fileExists(file):
             createSymlink(cc, file)
 
@@ -138,7 +138,7 @@ proc nyaastrap(buildType = "builder", arch = "amd64") =
             of "gcc":
                 info_msg "Installing GCC as Compiler"
                 nyaastrap_install("gcc", installWithBinaries, buildDir)
-                set_default_cc(buildDir, "gcc") 
+                set_default_cc(buildDir, "gcc")
             of "clang":
                 info_msg "Installing clang as Compiler"
                 nyaastrap_install("llvm", installWithBinaries, buildDir)

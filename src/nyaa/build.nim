@@ -158,7 +158,8 @@ proc build(no = false, yes = false, root = "/",
                 if dirExists(root&"/etc/nyaa.installed/"&i):
                     discard
                 else:
-                    builderOutput = builder(i, root, offline = offline, useCacheIfAvailable = useCacheIfAvailable)
+                    builderOutput = builder(i, root, offline = offline,
+                            useCacheIfAvailable = useCacheIfAvailable)
 
                     if isEmptyOrWhitespace($cacheAvailable):
                         cacheAvailable = builderOutput
