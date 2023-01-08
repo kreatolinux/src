@@ -15,7 +15,7 @@ proc cleanUp() {.noconv.} =
 
 proc builder(package: string, destdir: string,
     root = "/tmp/nyaa_build", srcdir = "/tmp/nyaa_srcdir", offline = true,
-            dontInstall = false, useCacheIfAvailable = false) =
+            dontInstall = false, useCacheIfAvailable = false): bool =
     ## Builds the packages.
 
     if isAdmin() == false:
@@ -62,7 +62,7 @@ proc builder(package: string, destdir: string,
             useCacheIfAvailable == true and dontInstall == false:
         install_pkg(repo, package, destdir)
         removeFile(lockfile)
-        return
+        return true
 
     var filename: string
     var existsPrepare = execShellCmd(". "&path&"/run"&" && command -v prepare")
@@ -122,6 +122,8 @@ proc builder(package: string, destdir: string,
     removeDir(srcdir)
     removeDir(root)
 
+    return false
+
 proc build(no = false, yes = false, root = "/",
     packages: seq[string], offline = true,
             useCacheIfAvailable = false): string =
@@ -149,21 +151,26 @@ proc build(no = false, yes = false, root = "/",
         output = readLine(stdin)
 
     if output.toLower() == "y":
+        var cacheAvailable: bool
+        var builderOutput: bool
         for i in deps:
             try:
                 if dirExists(root&"/etc/nyaa.installed/"&i):
                     discard
                 else:
-                    builder(i, root, offline = offline,
-                            useCacheIfAvailable = useCacheIfAvailable)
+                    builderOutput = builder(i, root, offline = offline, useCacheIfAvailable = useCacheIfAvailable)
+
+                    if isEmptyOrWhitespace($cacheAvailable):
+                        cacheAvailable = builderOutput
+
                     echo("nyaa: installed "&i&" successfully")
             except:
                 raise
 
         for i in packages:
             try:
-                builder(i, root, offline = offline,
-                        useCacheIfAvailable = useCacheIfAvailable)
+                discard builder(i, root, offline = offline,
+                            useCacheIfAvailable = cacheAvailable)
                 echo("nyaa: installed "&i&" successfully")
 
             except:
