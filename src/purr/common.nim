@@ -7,9 +7,6 @@ include ../nyaa/modules/logger
 include ../nyaa/modules/config
 include ../nyaa/build
 include ../nyaa/update
-include ../nyaa/upgrade
-include ../nyaa/remove
-include ../nyaa/info
 
 proc debug(message: string) =
     when not defined(release):

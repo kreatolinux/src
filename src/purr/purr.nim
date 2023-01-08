@@ -1,4 +1,7 @@
 include common
+include ../nyaa/info
+include ../nyaa/remove
+include ../nyaa/upgrade
 
 proc genFiles(tmpdir: string) =
     ## Generates files required for the utility to function.
