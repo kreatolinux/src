@@ -130,9 +130,17 @@ proc nyaastrap(buildType = "builder", arch = "amd64") =
             of "gcc":
                 info_msg "Installing GCC as Compiler"
                 nyaastrap_install("gcc", installWithBinaries, buildDir)
+                createSymlink("gcc", buildDir&"/bin/cc") 
+                createSymlink("gcc", buildDir&"/bin/c99") 
+                createSymlink("gcc", buildDir&"/bin/c++") 
+                createSymlink("gcc", buildDir&"/bin/g++") 
             of "clang":
                 info_msg "Installing clang as Compiler"
                 nyaastrap_install("llvm", installWithBinaries, buildDir)
+                createSymlink("/usr/bin/clang", buildDir&"/bin/cc") 
+                createSymlink("/usr/bin/clang", buildDir&"/bin/c99") 
+                createSymlink("/usr/bin/clang++", buildDir&"/bin/c++") 
+                createSymlink("/usr/bin/clang++", buildDir&"/bin/g++") 
             of "no":
                 warn "Skipping compiler installation"
             else:
