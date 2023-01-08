@@ -70,6 +70,8 @@ proc nyaastrap(buildType = "builder", arch = "amd64") =
 
     info_msg "nyaastrap v3.0.0-alpha"
 
+    discard update()
+
     debug "Architecture is set as "&arch
     debug "Build type is "&buildType
 
