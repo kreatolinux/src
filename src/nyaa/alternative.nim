@@ -22,7 +22,6 @@ proc set_alternative(package: string, to: string, runFile: runFile): string =
 
 proc unset_alternative(package: string, runFile: runFile): string =
   ## Unsets an alternative.
-  let pkg = findPkgRepo(package)&"/"&package
   let altTo = readAll(open("/etc/nyaa.alternatives/"&package&"/altTo"))
   if dirExists("/etc/nyaa.installed/"&altTo):
     removeDir("/etc/nyaa.installed/"&altTo) # TODO: FIX THIS
