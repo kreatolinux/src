@@ -36,6 +36,7 @@ jobs:
           nimble nyaastrap
           /nyaa/src/nyaastrap/nyaastrap --buildType=nocc
           cd /out
+          [ ! -d "/etc/nyaa.installed/gtar"] && nyaa build gtar -y
           tar -czvf /nyaa/kreato-linux-nocc-"$(date +%d-%m-%Y)".tar.gz *
        
       
