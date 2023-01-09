@@ -168,7 +168,7 @@ proc build(no = false, yes = false, root = "/",
 
             except:
                 raise
-        
+
         if isEmptyOrWhitespace($cacheAvailable):
             cacheAvailable = true
 
