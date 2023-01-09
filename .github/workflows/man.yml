@@ -3,7 +3,7 @@ name: Build manpages
 on:
   push:
     paths:
-      - 'man/*.md'
+      - 'src/man/*.md'
   workflow_dispatch:
 
 jobs:
@@ -20,7 +20,8 @@ jobs:
           
       - name: Build manpages
         run: |
-          for i in man/*.md; do
+          [ ! -d "man" ] && mkdir man
+          for i in src/man/*.md; do
             pandoc --standalone --to man "$i" -o man/"$(basename $i .md)"
           done
         

@@ -18,6 +18,17 @@ Please note that using `nyaa3` in a environment other than Kreato Linux is not s
 We recommend using the ssl task to build since repositories that nyaa3 is configured with need SSL.
 Run `nimble ssl` to build, and `nimble install` to install.
 
+nyaa3 also includes optional utilities in its source tree. These are use nyaa3's library functions which is why they are on nyaa3's source tree.
+
+You can find how to build/use them below.
+
+## nyaastrap
+nyaa3 also includes nyaastrap v3, a rootfs building utility.
+You can build it by running `nimble nyaastrap`. The binary will be located on `src/nyaastrap/nyaastrap`.
+
+## purr
+purr is nyaa3's testing utility. You can build it by running `nimble tests`. The binary will be located on the usual `out` folder.
+
 # License
 Licensed under GPLv3. Check LICENSE file for details
 

@@ -24,6 +24,9 @@ proc initializeConfig(): Config =
 
   config.writeConfig(configPath)
 
+  return config
+
+
 proc getConfigValue(section: string, key: string): string =
   ## Reads the configuration file and returns value of section.
   return config.getSectionValue(section, key)

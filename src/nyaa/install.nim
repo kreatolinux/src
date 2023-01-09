@@ -1,4 +1,3 @@
-include alternative
 import threadpool
 
 proc install_pkg(repo: string, package: string, root: string, binary = false) =
@@ -25,8 +24,6 @@ proc install_pkg(repo: string, package: string, root: string, binary = false) =
 
     writeFile(root&"/etc/nyaa.installed/"&package&"/list_files", execProcess(
         "tar -xvf"&tarball&" -C "&root))
-
-    get_alternative(pkg, package)
 
 proc install_bin(packages: seq[string], binrepo: string, root: string,
         offline: bool, downloadOnly = false) =

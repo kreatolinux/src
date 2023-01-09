@@ -15,7 +15,7 @@ proc cleanUp() {.noconv.} =
 
 proc builder(package: string, destdir: string,
     root = "/tmp/nyaa_build", srcdir = "/tmp/nyaa_srcdir", offline = true,
-            dontInstall = false) =
+            dontInstall = false, useCacheIfAvailable = false): bool =
     ## Builds the packages.
 
     if isAdmin() == false:
@@ -55,6 +55,14 @@ proc builder(package: string, destdir: string,
         pkg = parse_runfile(path)
     except:
         raise
+
+    if fileExists("/etc/nyaa.tarballs/nyaa-tarball-"&pkg.pkg&"-"&pkg.versionString&".tar.gz") and
+            fileExists(
+            "/etc/nyaa.tarballs/nyaa-tarball-"&pkg.pkg&"-"&pkg.versionString&".tar.gz.sum") and
+            useCacheIfAvailable == true and dontInstall == false:
+        install_pkg(repo, package, destdir)
+        removeFile(lockfile)
+        return true
 
     var filename: string
     var existsPrepare = execShellCmd(". "&path&"/run"&" && command -v prepare")
@@ -114,8 +122,11 @@ proc builder(package: string, destdir: string,
     removeDir(srcdir)
     removeDir(root)
 
+    return false
+
 proc build(no = false, yes = false, root = "/",
-    packages: seq[string], offline = true): string =
+    packages: seq[string], offline = true,
+            useCacheIfAvailable = false): string =
     ## Build and install packages
     var deps: seq[string]
 
@@ -140,20 +151,33 @@ proc build(no = false, yes = false, root = "/",
         output = readLine(stdin)
 
     if output.toLower() == "y":
+        var cacheAvailable: bool
+        var builderOutput: bool
         for i in deps:
             try:
                 if dirExists(root&"/etc/nyaa.installed/"&i):
                     discard
                 else:
-                    builder(i, root, offline = offline)
-                    echo("nyaa: built "&i&" successfully")
+                    builderOutput = builder(i, root, offline = offline,
+                            useCacheIfAvailable = useCacheIfAvailable)
+
+                    if builderOutput == false:
+                        cacheAvailable = builderOutput
+
+                    echo("nyaa: installed "&i&" successfully")
+
             except:
                 raise
 
+        if isEmptyOrWhitespace($cacheAvailable):
+            cacheAvailable = true
+
         for i in packages:
             try:
-                builder(i, root, offline = offline)
-                echo("nyaa: built "&i&" successfully")
+                discard builder(i, root, offline = offline,
+                            useCacheIfAvailable = cacheAvailable)
+                echo("nyaa: installed "&i&" successfully")
+
             except:
                 raise
         return "nyaa: built all packages successfully"
