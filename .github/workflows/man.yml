@@ -20,6 +20,7 @@ jobs:
           
       - name: Build manpages
         run: |
+          [ ! -d "man" ] && mkdir man
           for i in src/man/*.md; do
             pandoc --standalone --to man "$i" -o man/"$(basename $i .md)"
           done
