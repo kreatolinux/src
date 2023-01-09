@@ -165,12 +165,12 @@ proc build(no = false, yes = false, root = "/",
                         cacheAvailable = builderOutput
 
                     echo("nyaa: installed "&i&" successfully")
-        
-        if isEmptyOrWhitespace($cacheAvailable):
-            cacheAvailable = true
 
             except:
                 raise
+        
+        if isEmptyOrWhitespace($cacheAvailable):
+            cacheAvailable = true
 
         for i in packages:
             try:
