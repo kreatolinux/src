@@ -171,7 +171,7 @@ proc build(no = false, yes = false, root = "/",
 
         if isEmptyOrWhitespace(cacheAvailable):
             cacheAvailable = "true"
-        
+
         for i in packages:
             try:
                 discard builder(i, root, offline = offline,
