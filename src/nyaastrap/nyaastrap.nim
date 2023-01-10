@@ -192,7 +192,7 @@ proc nyaastrap(buildType = "builder", arch = "amd64") =
                 "certdata.txt")
 
         let caCertCmd = execCmdEx("chroot "&buildDir&" /bin/sh -c '. /etc/profile && cd / && /usr/sbin/make-ca -C certdata.txt'")
-        
+
         caCertCmd.exitcode != 0:
             error "Generating CA certificates failed"
             debug "CA certification generation output: "&caCertCmd.output
