@@ -34,10 +34,9 @@ jobs:
           cd /nyaa
           nimble install --depsOnly -Y
           nimble nyaastrap
-          /nyaa/src/nyaastrap/nyaastrap --buildType=nocc
+          /nyaa/src/nyaastrap/nyaastrap --buildType=nocc --arch=amd64
           cd /out
-          [ ! -d "/etc/nyaa.installed/gtar"] && nyaa build gtar -y
-          tar -czvf /nyaa/kreato-linux-nocc-"$(date +%d-%m-%Y)".tar.gz *
+          tar -czvf /nyaa/kreato-linux-nocc-"$(date +%d-%m-%Y)"-amd64.tar.gz *
        
       
       - name: Upload Source Rootfs
@@ -54,9 +53,9 @@ jobs:
         run: |
           rm -rf /out/*
           cd /nyaa
-          /nyaa/src/nyaastrap/nyaastrap --buildType=builder
+          /nyaa/src/nyaastrap/nyaastrap --buildType=builder --arch=amd64
           cd /out
-          tar -czvf /nyaa/kreato-linux-builder-"$(date +%d-%m-%Y)".tar.gz *
+          tar -czvf /nyaa/kreato-linux-builder-"$(date +%d-%m-%Y)"-amd64.tar.gz *
     
       - name: Upload Builder Rootfs
         uses: actions/upload-artifact@v3.1.1
