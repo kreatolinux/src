@@ -151,7 +151,7 @@ proc build(no = false, yes = false, root = "/",
         output = readLine(stdin)
 
     if output.toLower() == "y":
-        var cacheAvailable: bool
+        var cacheAvailable: string
         var builderOutput: bool
         for i in deps:
             try:
@@ -161,21 +161,21 @@ proc build(no = false, yes = false, root = "/",
                     builderOutput = builder(i, root, offline = offline,
                             useCacheIfAvailable = useCacheIfAvailable)
 
-                    if builderOutput == false and not isEmptyOrWhitespace(i):
-                        cacheAvailable = builderOutput
+                    if builderOutput == false:
+                        cacheAvailable = "false"
 
                     echo("nyaa: installed "&i&" successfully")
 
             except:
                 raise
 
-        if isEmptyOrWhitespace($cacheAvailable):
-            cacheAvailable = true
-
+        if isEmptyOrWhitespace(cacheAvailable):
+            cacheAvailable = "true"
+        
         for i in packages:
             try:
                 discard builder(i, root, offline = offline,
-                            useCacheIfAvailable = cacheAvailable)
+                            useCacheIfAvailable = parseBool(cacheAvailable))
                 echo("nyaa: installed "&i&" successfully")
 
             except:
