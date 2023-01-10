@@ -191,8 +191,11 @@ proc nyaastrap(buildType = "builder", arch = "amd64") =
         waitFor download("https://hg.mozilla.org/releases/mozilla-release/raw-file/default/security/nss/lib/ckfw/builtins/certdata.txt",
                 "certdata.txt")
 
-        if execCmdEx("chroot "&buildDir&" /bin/sh -c '. /etc/profile && cd / && /usr/sbin/make-ca -C certdata.txt'").exitcode != 0:
+        let caCertCmd = execCmdEx("chroot "&buildDir&" /bin/sh -c '. /etc/profile && cd / && /usr/sbin/make-ca -C certdata.txt'")
+        
+        caCertCmd.exitcode != 0:
             error "Generating CA certificates failed"
+            debug "CA certification generation output: "&caCertCmd.output
         else:
             ok "Generated CA certificates"
 
