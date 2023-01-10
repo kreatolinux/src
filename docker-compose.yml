@@ -1,0 +1,10 @@
+# This file is a part of nyaastrap
+# Licensed under GPLv3
+version: "2"
+services:
+  build-rootfs:
+    image: kreato/builder:latest
+    volumes:
+      - ./:/nyaa
+      - ./out:/out
+      - ./packages:/etc/nyaa.tarballs
