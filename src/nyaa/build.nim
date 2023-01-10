@@ -161,7 +161,7 @@ proc build(no = false, yes = false, root = "/",
                     builderOutput = builder(i, root, offline = offline,
                             useCacheIfAvailable = useCacheIfAvailable)
 
-                    if builderOutput == false:
+                    if builderOutput == false and not isEmptyOrWhitespace(i):
                         cacheAvailable = builderOutput
 
                     echo("nyaa: installed "&i&" successfully")
