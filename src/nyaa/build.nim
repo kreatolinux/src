@@ -75,8 +75,9 @@ proc builder(package: string, destdir: string,
             waitFor download(i.replace("$VERSION", pkg.version), filename)
         except:
             raise
-        
-        var actualDigest = sha256hexdigest(readAll(open(filename)))&"  "&filename
+
+        var actualDigest = sha256hexdigest(readAll(open(
+                filename)))&"  "&filename
         var expectedDigest = pkg.sha256sum.split(";")[int]
         if expectedDigest != actualDigest:
             err "sha256sum doesn't match for "&i&"\nExpected: "&expectedDigest&"\nActual: "&actualDigest
