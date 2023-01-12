@@ -4,7 +4,8 @@
 nyaastrap - rootfs builder
 
 # SYNOPSIS
-**nyaastrap** [--buildType] [BUILDTYPE] [--arch] [ARCHITECTURE] 
+**nyaastrap** [--buildType] [BUILDTYPE] [--arch] [ARCHITECTURE] [--useCacheIfPossible] [true/false]
+
 # DESCRIPTION
 Nyaastrap is a rootfs builder written in Nim. It is currently used for generating rootfs' for Kreato Linux.
 
