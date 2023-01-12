@@ -50,7 +50,8 @@ proc nyaastrap_install(package: string, installWithBinaries: bool,
         debug "Building package from source"
         # Turning offline to false for now because current offline mode implementation doesnt work on Docker containers.
         discard build(yes = true, root = buildDir, packages = toSeq([
-                package]), offline = false, useCacheIfAvailable = useCacheIfPossible)
+                package]), offline = false,
+                useCacheIfAvailable = useCacheIfPossible)
 
     ok("Package "&package&" installed successfully")
 
@@ -63,7 +64,8 @@ proc set_default_cc(buildDir: string, cc: string) =
         if not fileExists(file):
             createSymlink(cc, file)
 
-proc nyaastrap(buildType = "builder", arch = "amd64", useCacheIfPossible = true) =
+proc nyaastrap(buildType = "builder", arch = "amd64",
+        useCacheIfPossible = true) =
     ## Kreato Linux's build tool.
 
     if not isAdmin():
@@ -172,7 +174,8 @@ proc nyaastrap(buildType = "builder", arch = "amd64", useCacheIfPossible = true)
 
             of "gnu":
                 info_msg "Installing GNU Coreutils as Coreutils"
-                nyaastrap_install("gnu-coreutils", installWithBinaries, buildDir, useCacheIfPossible)
+                nyaastrap_install("gnu-coreutils", installWithBinaries,
+                        buildDir, useCacheIfPossible)
             else:
                 error conf.getSectionValue("Core",
                         "Coreutils")&" is not available as a Coreutils option."
