@@ -8,7 +8,8 @@ services:
       - ./:/nyaa
       - ./out:/out
       - ./packages:/etc/nyaa.tarballs
-  
+    command: /nyaa/src/nyaastrap/nyaastrap rootfs
+
   build-packages:
     image: ghcr.io/kreatolinux/builder:latest
     volumes:
