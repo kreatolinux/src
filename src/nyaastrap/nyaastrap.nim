@@ -1,5 +1,7 @@
 include ../purr/common
 
+## Kreato Linux's build tools.
+
 proc initDirectories(buildDirectory: string, arch: string) =
     # Initializes directories.
 
@@ -64,9 +66,9 @@ proc set_default_cc(buildDir: string, cc: string) =
         if not fileExists(file):
             createSymlink(cc, file)
 
-proc nyaastrap(buildType = "builder", arch = "amd64",
+proc rootfs(buildType = "builder", arch = "amd64",
         useCacheIfPossible = true) =
-    ## Kreato Linux's build tool.
+    ## Build a rootfs.
 
     if not isAdmin():
         error "You have to be root to continue."
@@ -210,4 +212,13 @@ proc nyaastrap(buildType = "builder", arch = "amd64",
                 nyaastrap_install(i, installWithBinaries, buildDir, useCacheIfPossible)
 
 
-dispatch(nyaastrap)
+dispatchMulti(
+    [
+    rootfs,
+    help={
+            "buildType": "Specify the build type",
+            "arch": "Specify the architecture",
+            "useCacheIfPossible": "Use already built packages if possible",
+    }
+    ]
+)
