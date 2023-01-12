@@ -41,7 +41,7 @@ proc initDirectories(buildDirectory: string, arch: string) =
 
     info_msg "Root directory structure created."
 
-proc nyaastrap_install(package: string, installWithBinaries: bool,
+proc nyaastrapInstall(package: string, installWithBinaries: bool,
         buildDir: string, useCacheIfPossible = true) =
     # Install a package.
     info_msg "Installing package '"&package&"'"
@@ -129,10 +129,10 @@ proc rootfs(buildType = "builder", arch = "amd64",
         case conf.getSectionValue("Core", "TlsLibrary").normalize():
             of "openssl":
                 info_msg "Installing OpenSSL as TLS Library"
-                nyaastrap_install("openssl", installWithBinaries, buildDir, useCacheIfPossible)
+                nyaastrapInstall("openssl", installWithBinaries, buildDir, useCacheIfPossible)
             of "libressl":
                 info_msg "Installing LibreSSL as TLS library"
-                nyaastrap_install("libressl", installWithBinaries, buildDir, useCacheIfPossible)
+                nyaastrapInstall("libressl", installWithBinaries, buildDir, useCacheIfPossible)
             else:
                 error conf.getSectionValue("Core",
                         "TlsLibrary")&" is not available as a TLS library option."
@@ -141,11 +141,11 @@ proc rootfs(buildType = "builder", arch = "amd64",
         case conf.getSectionValue("Core", "Compiler").normalize():
             of "gcc":
                 info_msg "Installing GCC as Compiler"
-                nyaastrap_install("gcc", installWithBinaries, buildDir, useCacheIfPossible)
+                nyaastrapInstall("gcc", installWithBinaries, buildDir, useCacheIfPossible)
                 set_default_cc(buildDir, "gcc")
             of "clang":
                 info_msg "Installing clang as Compiler"
-                nyaastrap_install("llvm", installWithBinaries, buildDir, useCacheIfPossible)
+                nyaastrapInstall("llvm", installWithBinaries, buildDir, useCacheIfPossible)
                 set_default_cc(buildDir, "clang")
             of "no":
                 warn "Skipping compiler installation"
@@ -157,10 +157,10 @@ proc rootfs(buildType = "builder", arch = "amd64",
         case conf.getSectionValue("Core", "Libc").normalize():
             of "glibc":
                 info_msg "Installing glibc as libc"
-                nyaastrap_install("glibc", installWithBinaries, buildDir, useCacheIfPossible)
+                nyaastrapInstall("glibc", installWithBinaries, buildDir, useCacheIfPossible)
             of "musl":
                 info_msg "Installing musl as libc"
-                nyaastrap_install("musl", installWithBinaries, buildDir, useCacheIfPossible)
+                nyaastrapInstall("musl", installWithBinaries, buildDir, useCacheIfPossible)
             else:
                 error conf.getSectionValue("Core",
                         "Libc")&" is not available as a Libc option."
@@ -169,23 +169,23 @@ proc rootfs(buildType = "builder", arch = "amd64",
         case conf.getSectionValue("Core", "Coreutils").normalize():
             of "busybox":
                 info_msg "Installing BusyBox as Coreutils"
-                nyaastrap_install("busybox", installWithBinaries, buildDir, useCacheIfPossible)
+                nyaastrapInstall("busybox", installWithBinaries, buildDir, useCacheIfPossible)
 
                 if execCmdEx("chroot "&buildDir&" /bin/busybox --install").exitcode != 0:
                     error "Installing busybox failed"
 
             of "gnu":
                 info_msg "Installing GNU Coreutils as Coreutils"
-                nyaastrap_install("gnu-coreutils", installWithBinaries,
+                nyaastrapInstall("gnu-coreutils", installWithBinaries,
                         buildDir, useCacheIfPossible)
             else:
                 error conf.getSectionValue("Core",
                         "Coreutils")&" is not available as a Coreutils option."
 
         # Install nyaa, p11-kit and make-ca here
-        nyaastrap_install("nyaa", installWithBinaries, buildDir, useCacheIfPossible)
-        nyaastrap_install("p11-kit", installWithBinaries, buildDir, useCacheIfPossible)
-        nyaastrap_install("make-ca", installWithBinaries, buildDir, useCacheIfPossible)
+        nyaastrapInstall("nyaa", installWithBinaries, buildDir, useCacheIfPossible)
+        nyaastrapInstall("p11-kit", installWithBinaries, buildDir, useCacheIfPossible)
+        nyaastrapInstall("make-ca", installWithBinaries, buildDir, useCacheIfPossible)
 
 
         # Generate certdata here
@@ -209,7 +209,7 @@ proc rootfs(buildType = "builder", arch = "amd64",
         if conf.getSectionValue("Extras", "ExtraPackages") != "":
             info_msg "Installing extra packages"
             for i in conf.getSectionValue("Extras", "ExtraPackages").split(" "):
-                nyaastrap_install(i, installWithBinaries, buildDir, useCacheIfPossible)
+                nyaastrapInstall(i, installWithBinaries, buildDir, useCacheIfPossible)
 
 
 dispatchMulti(
