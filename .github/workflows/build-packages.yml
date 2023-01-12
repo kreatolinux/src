@@ -6,6 +6,9 @@ on:
 jobs:
   build:
     runs-on: self-hosted 
+    image: ghcr.io/kreatolinux/builder:latest
+    volumes:
+      - /etc/nyaa.tarballs:/etc/nyaa.tarballs 
 
     steps:
       - name: Checkout
@@ -23,4 +26,4 @@ jobs:
         run: |
           nimble install --depsOnly -Y
           nimble nyaastrap
-          docker-compose up buildPackages 
+
