@@ -1,0 +1,26 @@
+name: Build packages
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: self-hosted 
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          submodules: 'true'
+          
+      - name: Cache built packages
+        uses: actions/cache@v3
+        with:
+          path: /etc/nyaa.tarballs
+          key: cache-nyaa-tarballs
+
+      - name: Build packages
+        run: |
+          nimble install --depsOnly -Y
+          nimble nyaastrap
+          docker-compose up buildPackages 
