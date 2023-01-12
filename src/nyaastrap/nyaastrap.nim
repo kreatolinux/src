@@ -221,12 +221,12 @@ proc buildPackages(useCacheIfPossible = true, repo = "/etc/nyaa") =
             of pcDir:
                 info_msg "Now building "&lastPathPart(path)
                 debug "Full path: "&path
-                nyaastrapInstall(lastPathPart(path), false, "/", repo)
+                nyaastrapInstall(lastPathPart(path), false, "/", useCacheIfPossible)
             of pcLinkToDir:
                 warn "nyaa3 doesn't support symlinks properly. Issues may occur"
                 info_msg "Now building "&lastPathPart(path)
                 debug "Full path: "&path
-                nyaastrapInstall(lastPathPart(path), false, "/", repo)
+                nyaastrapInstall(lastPathPart(path), false, "/", useCacheIfPossible)
             else:
                 discard
 
