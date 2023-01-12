@@ -213,7 +213,7 @@ proc rootfs(buildType = "builder", arch = "amd64",
 
 proc buildPackages(useCacheIfPossible = true, repo = "/etc/nyaa") =
     ## Build all packages available.
-    
+
     discard update()
 
     for kind, path in walkDir(repo):
@@ -233,16 +233,16 @@ proc buildPackages(useCacheIfPossible = true, repo = "/etc/nyaa") =
 dispatchMulti(
     [
     rootfs,
-    help={
+    help = {
             "buildType": "Specify the build type",
             "arch": "Specify the architecture",
             "useCacheIfPossible": "Use already built packages if possible",
     }
     ],
-    
+
     [
     buildPackages,
-    help= {
+    help = {
         "useCacheIfPossible": "Use already built packages if possible",
         "repo": "Specify repository",
     }
