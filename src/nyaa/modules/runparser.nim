@@ -6,7 +6,6 @@ type runFile = object
     sha256sum: string
     epoch: string
     versionString: string
-    alternativeTo: string
 
 proc parse_runfile(path: string, removeLockfileWhenErr = true): runFile =
     ## Parse an runfile.
@@ -23,16 +22,8 @@ proc parse_runfile(path: string, removeLockfileWhenErr = true): runFile =
                     ("\"", ""),
                     ("'", "")
                     )
-                of "ALTERNATIVE_TO":
-                    ret.alternativeTo = vars[1].multiReplace(
-                    ("\"", ""),
-                    ("'", "")
-                    )
                 of "SOURCES":
-                    ret.sources = vars[1].multiReplace(
-                    ("\"", ""),
-                    ("'", "")
-                    )
+                    ret.sources = vars[1]
                 of "VERSION":
                     ret.version = vars[1].multiReplace(
                     ("\"", ""),
@@ -49,10 +40,7 @@ proc parse_runfile(path: string, removeLockfileWhenErr = true): runFile =
                     ("'", "")
                     )
                 of "SHA256SUM":
-                    ret.sha256sum = vars[1].multiReplace(
-                    ("\"", ""),
-                    ("'", "")
-                    )
+                    ret.sha256sum = vars[1]
             if "()" in vars[0]:
                 break
     except:
@@ -63,5 +51,25 @@ proc parse_runfile(path: string, removeLockfileWhenErr = true): runFile =
     else:
         ret.versionString = ret.version&"-"&ret.release
         ret.epoch = "no"
+
+    ret.sources = ret.sources.multiReplace(
+    ("$NAME", ret.pkg),
+    ("$VERSION"  , ret.version),
+    ("$RELEASE"  , ret.release),
+    ("$EPOCH"    ,   ret.epoch),
+    ("$SHA256SUM", ret.sha256sum),
+    ("\"", ""),
+    ("'", "")
+    )
+
+    ret.sha256sum = ret.sha256sum.multiReplace(
+    ("$NAME", ret.pkg),
+    ("$VERSION"  , ret.version),
+    ("$RELEASE"  , ret.release),
+    ("$EPOCH"    ,   ret.epoch),
+    ("$SHA256SUM", ret.sha256sum),
+    ("\"", ""),
+    ("'", "")
+    )
 
     return ret
