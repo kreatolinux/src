@@ -171,8 +171,10 @@ proc build(no = false, yes = false, root = "/",
             except:
                 raise
 
-        if isEmptyOrWhitespace(cacheAvailable):
+        if isEmptyOrWhitespace(cacheAvailable) and useCacheIfAvailable == true:
             cacheAvailable = "true"
+        else:
+            cacheAvailable = "false"
 
         for i in packages:
             try:
