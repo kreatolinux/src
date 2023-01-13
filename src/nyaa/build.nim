@@ -70,7 +70,7 @@ proc builder(package: string, destdir: string,
     var int = 0
 
     for i in pkg.sources.split(";"):
-        filename = extractFilename(i.replace("$VERSION", pkg.version))
+        filename = extractFilename(i.replace("$VERSION", pkg.version)).strip()
         try:
             waitFor download(i.replace("$VERSION", pkg.version), filename)
         except:
