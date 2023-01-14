@@ -25,8 +25,12 @@ proc initDirectories(buildDirectory: string, arch: string) =
     createDir(buildDirectory&"/dev")
     createDir(buildDirectory&"/opt")
     createDir(buildDirectory&"/proc")
-    createDir(buildDirectory&"/sys")
+    createDir(buildDirectory&"/sys") 
     createDir(buildDirectory&"/tmp")
+
+    # Set permissions for /tmp
+    setFilePermissions(buildDirectory&"/tmp", {fpUserExec, fpUserWrite, fpUserRead, fpGroupExec, fpGroupWrite, fpGroupRead, fpOthersExec, fpOthersWrite, fpOthersRead})
+
     createDir(buildDirectory&"/etc/nyaa.installed")
     createDir(buildDirectory&"/run")
 
@@ -185,6 +189,7 @@ proc rootfs(buildType = "builder", arch = "amd64",
         # Install shadow, and enable it
         nyaastrapInstall("shadow", installWithBinaries, buildDir, useCacheIfPossible)
         execCmdEx("chroot "&buildDir&" /usr/sbin/pwconv")
+        addUser("_nyaa", buildDir)
 
         # Install nyaa, p11-kit and make-ca here
         nyaastrapInstall("nyaa", installWithBinaries, buildDir, useCacheIfPossible)
