@@ -1,13 +1,13 @@
 proc addUser(name: string, path = "/"): bool =
     ## Adds an user.
-    var cmd: string
+    var cmd = "useradd -M -r -s /bin/nologin "&name
+    var cmdPasswd = "passwd -d "&name
 
-    if path == "/":
-        cmd = "useradd -M -r -s /bin/nologin "&name
-    else:
-        cmd = "chroot "&path&" /usr/sbin/useradd -M -r -s /bin/nologin "&name
+    if path != "/":
+        cmd = "chroot "&path&" /usr/sbin/"&cmd
+        cmdPasswd = "chroot "&path&" /usr/sbin/"&cmdPasswd
 
-    if execShellCmd(cmd) == 0 and execShellCmd("passwd -d "&name) == 0:
+    if execShellCmd(cmd) == 0 and execShellCmd(cmdPasswd) == 0:
         return true
     else:
         return false
