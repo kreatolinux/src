@@ -57,7 +57,7 @@ proc nyaastrapInstall(package: string, installWithBinaries: bool,
     else:
         debug "Building package from source"
         discard build(yes = true, root = buildDir, packages = toSeq([
-                package]), 
+                package]),
                 useCacheIfAvailable = useCacheIfPossible)
 
     ok("Package "&package&" installed successfully")
