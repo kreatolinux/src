@@ -1,9 +1,9 @@
-proc addUser(name: string, path="/"): bool =
+proc addUser(name: string, path = "/"): bool =
     ## Adds an user.
     var cmd: string
 
     if path == "/":
-        cmd = "useradd -M -r -s /bin/nologin "&name 
+        cmd = "useradd -M -r -s /bin/nologin "&name
     else:
         cmd = "chroot "&path&" /usr/sbin/useradd -M -r -s /bin/nologin "&name
 

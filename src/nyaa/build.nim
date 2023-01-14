@@ -92,7 +92,9 @@ proc builder(package: string, destdir: string,
     if existsPrepare == 0:
         assert execShellCmd(". "&path&"/run"&" && prepare") == 0, "prepare failed"
 
-    var cmd = "su _nyaa -c '. "&path&"/run"&" && export CC="&getConfigValue("Options","cc")&" && export DESTDIR="&root&" && export ROOT=$DESTDIR && build'"
+    var cmd = "su _nyaa -c '. "&path&"/run"&" && export CC="&getConfigValue(
+            "Options",
+            "cc")&" && export DESTDIR="&root&" && export ROOT=$DESTDIR && build'"
 
     if offline == true:
         cmd = "unshare -n /bin/sh -c '"&cmd&"'"

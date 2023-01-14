@@ -25,11 +25,11 @@ proc initializeConfig(): Config =
   # config.setSectionKey("Upgrade, "dontUpgrade", "") # Nyaa wont touch this package, seperate by space
 
   config.writeConfig(configPath)
- 
+
   # Add an _nyaa user if it doesn't exist
   if not existsUser("_nyaa"):
     if addUser("_nyaa") == false:
-        err("adding user _nyaa failed!")
+      err("adding user _nyaa failed!")
 
   return config
 

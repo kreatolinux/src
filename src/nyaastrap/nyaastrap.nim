@@ -25,11 +25,13 @@ proc initDirectories(buildDirectory: string, arch: string) =
     createDir(buildDirectory&"/dev")
     createDir(buildDirectory&"/opt")
     createDir(buildDirectory&"/proc")
-    createDir(buildDirectory&"/sys") 
+    createDir(buildDirectory&"/sys")
     createDir(buildDirectory&"/tmp")
 
     # Set permissions for /tmp
-    setFilePermissions(buildDirectory&"/tmp", {fpUserExec, fpUserWrite, fpUserRead, fpGroupExec, fpGroupWrite, fpGroupRead, fpOthersExec, fpOthersWrite, fpOthersRead})
+    setFilePermissions(buildDirectory&"/tmp", {fpUserExec, fpUserWrite,
+            fpUserRead, fpGroupExec, fpGroupWrite, fpGroupRead, fpOthersExec,
+            fpOthersWrite, fpOthersRead})
 
     createDir(buildDirectory&"/etc/nyaa.installed")
     createDir(buildDirectory&"/run")
