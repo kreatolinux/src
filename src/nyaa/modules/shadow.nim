@@ -5,7 +5,7 @@ proc addUser(name: string, path="/"): bool =
     if path == "/":
         cmd = "useradd -M -r -s /bin/nologin "&name 
     else:
-        cmd = "chroot "&path&" /usr/sbin/useradd -M -r -s /bin/nologin "&name"
+        cmd = "chroot "&path&" /usr/sbin/useradd -M -r -s /bin/nologin "&name
 
     if execShellCmd(cmd) == 0:
         return true
