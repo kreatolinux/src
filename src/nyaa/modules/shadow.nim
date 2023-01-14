@@ -3,7 +3,7 @@ proc addUser(name: string, path = "/"): bool =
     var cmd = "useradd -M -r -s /bin/nologin "&name
     var cmdPasswd = "passwd -d "&name
     var cmdChroot = "chroot "&path&" /bin/sh -c '. /etc/profile && /usr/sbin/"
-    
+
     if path != "/":
         cmd = cmdChroot&cmd&"'"
         cmdPasswd = cmdChroot&cmdPasswd&"'"
