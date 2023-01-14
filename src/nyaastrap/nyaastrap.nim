@@ -193,7 +193,7 @@ proc rootfs(buildType = "builder", arch = "amd64",
 
         if execCmdEx("chroot "&buildDir&" /usr/sbin/pwconv").exitcode != 0:
             error "Enabling shadow failed"
-        
+
         if addUser("_nyaa", buildDir) == false:
             error "Adding _nyaa user failed!"
 
