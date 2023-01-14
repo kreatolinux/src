@@ -182,6 +182,10 @@ proc rootfs(buildType = "builder", arch = "amd64",
                 error conf.getSectionValue("Core",
                         "Coreutils")&" is not available as a Coreutils option."
 
+        # Install shadow, and enable it
+        nyaastrapInstall("shadow", installWithBinaries, buildDir, useCacheIfPossible)
+        execCmdEx("chroot "&buildDir&" /usr/sbin/pwconv")
+        
         # Install nyaa, p11-kit and make-ca here
         nyaastrapInstall("nyaa", installWithBinaries, buildDir, useCacheIfPossible)
         nyaastrapInstall("p11-kit", installWithBinaries, buildDir, useCacheIfPossible)
