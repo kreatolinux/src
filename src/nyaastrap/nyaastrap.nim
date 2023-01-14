@@ -191,10 +191,11 @@ proc rootfs(buildType = "builder", arch = "amd64",
         # Install shadow, and enable it
         nyaastrapInstall("shadow", installWithBinaries, buildDir, useCacheIfPossible)
 
-        if execCmdEx("chroot "&buildDir&" /usr/sbin/pwconv") != 0:
+        if execCmdEx("chroot "&buildDir&" /usr/sbin/pwconv").exitcode != 0:
             error "Enabling shadow failed"
-
-        addUser("_nyaa", buildDir)
+        
+        if addUser("_nyaa", buildDir) == false:
+            error "Adding _nyaa user failed!"
 
         # Install nyaa, p11-kit and make-ca here
         nyaastrapInstall("nyaa", installWithBinaries, buildDir, useCacheIfPossible)
