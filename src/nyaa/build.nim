@@ -92,8 +92,6 @@ proc builder(package: string, destdir: string,
     if existsPrepare == 0:
         assert execShellCmd(". "&path&"/run"&" && prepare") == 0, "prepare failed"
 
-su -s /bin/sh -c "echo lol" _nyaa
-
     var cmd = "su -s /bin/sh -c '. "&path&"/run"&" && export CC="&getConfigValue(
             "Options",
             "cc")&" && export DESTDIR="&root&" && export ROOT=$DESTDIR && build' _nyaa"
