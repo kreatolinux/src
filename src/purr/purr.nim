@@ -28,8 +28,7 @@ proc purr(tests = "all", tmpdir = "/tmp/purr") =
         error("update test failed")
 
     # Test build
-    discard build(yes = true, root = tmpdir&"/root", packages = toSeq(["purr"]),
-            offline = true)
+    discard build(yes = true, root = tmpdir&"/root", packages = toSeq(["purr"]))
     if fileExists("/testfile"):
         ok("build test completed successfully")
     else:

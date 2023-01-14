@@ -1,4 +1,3 @@
-import osproc
 import strutils
 import libsha/sha256
 include modules/dephandler
@@ -47,6 +46,9 @@ proc builder(package: string, destdir: string,
     createDir(root)
     createDir(srcdir)
 
+    setFilePermissions(root, {fpOthersWrite, fpOthersRead, fpOthersExec})
+    setFilePermissions(srcdir, {fpOthersWrite, fpOthersRead, fpOthersExec})
+
     # Enter into the source directory
     setCurrentDir(srcdir)
 
@@ -92,9 +94,9 @@ proc builder(package: string, destdir: string,
     if existsPrepare == 0:
         assert execShellCmd(". "&path&"/run"&" && prepare") == 0, "prepare failed"
 
-    var cmd = "su -s /bin/sh -c '. "&path&"/run"&" && export CC="&getConfigValue(
+    var cmd = "su -s /bin/sh _nyaa -c '. "&path&"/run"&" && export CC="&getConfigValue(
             "Options",
-            "cc")&" && export DESTDIR="&root&" && export ROOT=$DESTDIR && build' _nyaa"
+            "cc")&" && export DESTDIR="&root&" && export ROOT=$DESTDIR && build'"
 
     if offline == true:
         cmd = "unshare -n /bin/sh -c '"&cmd&"'"
@@ -127,7 +129,7 @@ proc builder(package: string, destdir: string,
     return false
 
 proc build(no = false, yes = false, root = "/",
-    packages: seq[string], offline = true,
+    packages: seq[string],
             useCacheIfAvailable = false): string =
     ## Build and install packages
     var deps: seq[string]
@@ -160,7 +162,7 @@ proc build(no = false, yes = false, root = "/",
                 if dirExists(root&"/etc/nyaa.installed/"&i):
                     discard
                 else:
-                    builderOutput = builder(i, root, offline = offline,
+                    builderOutput = builder(i, root, offline = false,
                             useCacheIfAvailable = useCacheIfAvailable)
 
                     if builderOutput == false:
@@ -178,7 +180,7 @@ proc build(no = false, yes = false, root = "/",
 
         for i in packages:
             try:
-                discard builder(i, root, offline = offline,
+                discard builder(i, root, offline = false,
                             useCacheIfAvailable = parseBool(cacheAvailable))
                 echo("nyaa: installed "&i&" successfully")
 

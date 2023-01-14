@@ -56,9 +56,8 @@ proc nyaastrapInstall(package: string, installWithBinaries: bool,
         discard install(toSeq([package]), buildDir, true)
     else:
         debug "Building package from source"
-        # Turning offline to false for now because current offline mode implementation doesnt work on Docker containers.
         discard build(yes = true, root = buildDir, packages = toSeq([
-                package]), offline = false,
+                package]), 
                 useCacheIfAvailable = useCacheIfPossible)
 
     ok("Package "&package&" installed successfully")

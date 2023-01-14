@@ -1,3 +1,5 @@
+import osproc
+
 proc addUser(name: string, path = "/"): bool =
     ## Adds an user.
     var cmd = "useradd -M -r -s /bin/nologin "&name
@@ -8,7 +10,7 @@ proc addUser(name: string, path = "/"): bool =
         cmd = cmdChroot&cmd&"'"
         cmdPasswd = cmdChroot&cmdPasswd&"'"
 
-    if execShellCmd(cmd) == 0 and execShellCmd(cmdPasswd) == 0:
+    if execCmdEx(cmd).exitcode == 0 and execCmdEx(cmdPasswd).exitcode == 0:
         return true
     else:
         return false
@@ -16,7 +18,7 @@ proc addUser(name: string, path = "/"): bool =
 
 proc existsUser(name: string): bool =
     ## Checks if an user exists.
-    if execShellCmd("id "&name) == 0:
+    if execCmdEx("id "&name).exitcode == 0:
         return true
     else:
         return false

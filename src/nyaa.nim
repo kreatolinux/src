@@ -36,7 +36,6 @@ dispatchMulti(
     "root": "The directory the package is gonna be installed to",
     "yes": "Automatically say 'yes' to every question",
     "no": "Automatically say 'no' to every question",
-    "offline": "Offline mode, cuts off internet at build-time to improve reproducability",
     }
   ],
 
