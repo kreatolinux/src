@@ -76,17 +76,23 @@ proc builder(package: string, destdir: string,
             continue
         filename = extractFilename(i.replace("$VERSION", pkg.version)).strip()
         try:
-            waitFor download(i.replace("$VERSION", pkg.version), filename)
+            if i.startsWith("git::"):
+                if execShellCmd("git clone "&i.split("::")[1]&" && cd "&lastPathPart(i.split("::")[1])&" && git branch -C "&i.split("::")[2]) != 0:
+                    err("Cloning repository failed!")
+            else:
+                waitFor download(i.replace("$VERSION", pkg.version), filename)
         except:
             raise
+        
+        # git cloning doesn't support sha256sum checking
+        if not i.startsWith("git::"):
+            var actualDigest = sha256hexdigest(readAll(open(
+                    filename)))&"  "&filename
+            var expectedDigest = pkg.sha256sum.split(";")[int]
+            if expectedDigest != actualDigest:
+                err "sha256sum doesn't match for "&i&"\nExpected: "&expectedDigest&"\nActual: "&actualDigest
 
-        var actualDigest = sha256hexdigest(readAll(open(
-                filename)))&"  "&filename
-        var expectedDigest = pkg.sha256sum.split(";")[int]
-        if expectedDigest != actualDigest:
-            err "sha256sum doesn't match for "&i&"\nExpected: "&expectedDigest&"\nActual: "&actualDigest
-
-        int = int+1
+            int = int+1
 
         if existsPrepare != 0:
             discard execProcess("su -s /bin/sh _nyaa -c 'bsdtar -xvf "&filename&"'")
