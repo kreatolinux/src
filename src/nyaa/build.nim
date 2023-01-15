@@ -91,7 +91,8 @@ proc builder(package: string, destdir: string,
         if existsPrepare != 0:
             discard execProcess("su -s /bin/sh _nyaa -c bsdtar -xvf "&filename&"'")
         else:
-            assert execShellCmd("su -s /bin/sh _nyaa -c '. "&path&"/run"&" && prepare'") == 0, "prepare failed"
+            assert execShellCmd("su -s /bin/sh _nyaa -c '. "&path&"/run"&" && prepare'") ==
+                    0, "prepare failed"
 
     var cmd = "su -s /bin/sh _nyaa -c '. "&path&"/run"&" && export CC="&getConfigValue(
             "Options",
