@@ -3,8 +3,8 @@ proc removeInternal(package: string, root = ""): string =
         err("package "&package&" is not installed", false)
 
     for line in lines root&"/etc/nyaa.installed/"&package&"/list_files":
-        # TODO: replace this with a Nim implementation
-        discard execShellCmd("rm -f "&root&"/"&line&" 2>/dev/null")
-        discard execShellCmd("[ -z \"$(ls -A "&root&"/"&line&" 2>/dev/null)\" ] && rm -rf "&root&"/"&line&" 2>/dev/null")
+        removeFile(root&"/"&line)
+        if isEmptyOrWhitespace(toSeq(walkFiles(root&"/"&line)).join("")):
+            removeDir(root&"/"&line)
     removeDir(root&"/etc/nyaa.installed/"&package)
     return "nyaa: package "&package&" removed."
