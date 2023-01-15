@@ -13,7 +13,7 @@ proc cleanUp() {.noconv.} =
     quit(0)
 
 proc builder(package: string, destdir: string,
-    root = "/tmp/nyaa_build", srcdir = "/tmp/nyaa_srcdir", offline = true,
+    root = "/tmp/nyaa_build", srcdir = "/tmp/nyaa_srcdir", offline = false,
             dontInstall = false, useCacheIfAvailable = false): bool =
     ## Builds the packages.
 
