@@ -77,13 +77,15 @@ proc builder(package: string, destdir: string,
         filename = extractFilename(i.replace("$VERSION", pkg.version)).strip()
         try:
             if i.startsWith("git::"):
-                if execShellCmd("git clone "&i.split("::")[1]&" && cd "&lastPathPart(i.split("::")[1])&" && git branch -C "&i.split("::")[2]) != 0:
+                if execShellCmd("git clone "&i.split("::")[
+                        1]&" && cd "&lastPathPart(i.split("::")[
+                        1])&" && git branch -C "&i.split("::")[2]) != 0:
                     err("Cloning repository failed!")
             else:
                 waitFor download(i.replace("$VERSION", pkg.version), filename)
         except:
             raise
-        
+
         # git cloning doesn't support sha256sum checking
         if not i.startsWith("git::"):
             var actualDigest = sha256hexdigest(readAll(open(
