@@ -5,7 +5,7 @@ proc removeInternal(package: string, root = ""): string =
     for line in lines root&"/etc/nyaa.installed/"&package&"/list_files":
         if fileExists(root&"/"&line):
             removeFile(root&"/"&line)
-        else isEmptyOrWhitespace(toSeq(walkFiles(root&"/"&line)).join("")):
+        elif isEmptyOrWhitespace(toSeq(walkFiles(root&"/"&line)).join("")):
             removeDir(root&"/"&line)
     removeDir(root&"/etc/nyaa.installed/"&package)
     return "nyaa: package "&package&" removed."
