@@ -34,12 +34,6 @@ jobs:
           cd /nyaa
           nimble install --depsOnly -Y
           nimble nyaastrap
-          
-          # Will be removed once tarball builds
-          nyaa update
-          nyaa build shadow --offline=false --yes
-          rm -f /etc/nyaa.conf
-
           /nyaa/src/nyaastrap/nyaastrap rootfs --buildType=nocc --arch=amd64
           cd /out
           tar -czvf /nyaa/kreato-linux-nocc-"$(date +%d-%m-%Y)"-amd64.tar.gz *
