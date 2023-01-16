@@ -17,7 +17,7 @@ An example runfile structure;
 NAME="test"
 VERSION="0.0.1"
 RELEASE="1"
-SOURCES="https://test.file/source/testfile.tar.gz"
+SOURCES="https://test.file/source/testfile.tar.gz;git::https://github.com/kreatolinux/nyaa3::543ee30eda806029fa9ea16a1f9767eda7cab4d1"
 SHA256SUM="e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  testfile.tar.gz"
 DESCRIPTION="Test package"
 
@@ -32,8 +32,8 @@ Now lets break it down.
 * NAME: Name of your package. Will show this name on the info command.
 * VERSION: Version of your package. It will be on the info command and updating it will result in nyaa upgrading the package.
 * RELEASE: Release of your package. It will also be on the info command and updating it will result in nyaa upgrading the package.
-* SOURCES: Source URL's of your package. Can be seperated by ';' like `test.url;testurl2`.
-* SHA256SUM: sha256sum output of the sources. Should align with sources. Can also be seperated by ';'.
+* SOURCES: Source URL's of your package. Can be seperated by ';' like `test.url;testurl2`. Also supports git URL's as shown by the second source.
+* SHA256SUM: sha256sum output of the sources. Should align with sources. Can also be seperated by ';'. Doesnt support git URL's yet.
 * DESCRIPTION: Description of the package. It will be on the info command.
 
 ## FUNCTIONS
