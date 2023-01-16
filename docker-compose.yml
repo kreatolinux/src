@@ -16,3 +16,10 @@ services:
       - ./:/nyaa
       - /etc/nyaa.tarballs:/etc/nyaa.tarballs
     command: /nyaa/src/nyaastrap/nyaastrap buildPackages  
+  
+  testing:
+    image: ghcr.io/kreatolinux/builder:latest
+    volumes:
+      - ./:/nyaa
+      - /etc/nyaa.tarballs:/etc/nyaa.tarballs
+    command: /nyaa/out/purr
