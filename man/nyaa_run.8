@@ -25,7 +25,7 @@ An example runfile structure;
 NAME=\[dq]test\[dq]
 VERSION=\[dq]0.0.1\[dq]
 RELEASE=\[dq]1\[dq]
-SOURCES=\[dq]https://test.file/source/testfile.tar.gz\[dq]
+SOURCES=\[dq]https://test.file/source/testfile.tar.gz;git::https://github.com/kreatolinux/nyaa3::543ee30eda806029fa9ea16a1f9767eda7cab4d1\[dq]
 SHA256SUM=\[dq]e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  testfile.tar.gz\[dq]
 DESCRIPTION=\[dq]Test package\[dq]
 
@@ -52,10 +52,12 @@ upgrading the package.
 .IP \[bu] 2
 SOURCES: Source URL\[cq]s of your package.
 Can be seperated by `;' like \f[C]test.url;testurl2\f[R].
+Also supports git URL\[cq]s as shown by the second source.
 .IP \[bu] 2
 SHA256SUM: sha256sum output of the sources.
 Should align with sources.
 Can also be seperated by `;'.
+Doesnt support git URL\[cq]s yet.
 .IP \[bu] 2
 DESCRIPTION: Description of the package.
 It will be on the info command.
