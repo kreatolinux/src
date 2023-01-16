@@ -7,6 +7,6 @@ proc removeInternal(package: string, root = ""): string =
 
         if isEmptyOrWhitespace(toSeq(walkDirRec(root&"/"&line)).join("")):
             removeDir(root&"/"&line)
-    
+
     removeDir(root&"/etc/nyaa.installed/"&package)
     return "nyaa: package "&package&" removed."
