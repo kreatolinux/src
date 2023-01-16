@@ -3,9 +3,10 @@ proc removeInternal(package: string, root = ""): string =
         err("package "&package&" is not installed", false)
 
     for line in lines root&"/etc/nyaa.installed/"&package&"/list_files":
-        if fileExists(root&"/"&line):
-            removeFile(root&"/"&line)
-        elif isEmptyOrWhitespace(toSeq(walkFiles(root&"/"&line)).join("")):
+        discard tryRemoveFile(root&"/"&line)
+
+        if isEmptyOrWhitespace(toSeq(walkDirRec(root&"/"&line)).join("")):
             removeDir(root&"/"&line)
+    
     removeDir(root&"/etc/nyaa.installed/"&package)
     return "nyaa: package "&package&" removed."
