@@ -119,8 +119,10 @@ proc install(promptPackages: seq[string], root = "/", yes: bool = false,
         deps.delete(deps.find(i))
 
     if not (deps.len == 0 and deps == @[""]):
-        install_bin(deps, binrepo, fullRootPath, offline, downloadOnly = downloadOnly)
+        install_bin(deps, binrepo, fullRootPath, offline,
+                downloadOnly = downloadOnly)
 
-    install_bin(packages, binrepo, fullRootPath, offline, downloadOnly = downloadOnly)
+    install_bin(packages, binrepo, fullRootPath, offline,
+            downloadOnly = downloadOnly)
 
     return "nyaa: done"
