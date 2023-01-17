@@ -109,16 +109,18 @@ proc install(promptPackages: seq[string], root = "/", yes: bool = false,
 
     var depsDelete: string
 
+    let fullRootPath = expandFilename(root)
+
     for i in deps:
-        if dirExists(root&"/etc/nyaa.installed/"&i):
+        if dirExists(fullRootPath&"/etc/nyaa.installed/"&i):
             depsDelete = depsDelete&" "&i
 
     for i in depsDelete.split(" ").filterit(it.len != 0):
         deps.delete(deps.find(i))
 
     if not (deps.len == 0 and deps == @[""]):
-        install_bin(deps, binrepo, root, offline, downloadOnly = downloadOnly)
+        install_bin(deps, binrepo, fullRootPath, offline, downloadOnly = downloadOnly)
 
-    install_bin(packages, binrepo, root, offline, downloadOnly = downloadOnly)
+    install_bin(packages, binrepo, fullRootPath, offline, downloadOnly = downloadOnly)
 
     return "nyaa: done"

@@ -165,12 +165,13 @@ proc build(no = false, yes = false, root = "/",
     if output.toLower() == "y":
         var cacheAvailable: string
         var builderOutput: bool
+        let fullRootPath = expandFilename(root)
         for i in deps:
             try:
-                if dirExists(root&"/etc/nyaa.installed/"&i):
+                if dirExists(fullRootPath&"/etc/nyaa.installed/"&i):
                     discard
                 else:
-                    builderOutput = builder(i, root, offline = false,
+                    builderOutput = builder(i, fullRootPath, offline = false,
                             useCacheIfAvailable = useCacheIfAvailable)
 
                     if builderOutput == false:
@@ -188,7 +189,7 @@ proc build(no = false, yes = false, root = "/",
 
         for i in packages:
             try:
-                discard builder(i, root, offline = false,
+                discard builder(i, fullRootPath, offline = false,
                             useCacheIfAvailable = parseBool(cacheAvailable))
                 echo("nyaa: installed "&i&" successfully")
 
