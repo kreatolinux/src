@@ -16,7 +16,8 @@ proc dephandler(pkgs: seq[string], ignoreDeps = @["  "]): seq[string] =
 
             if fileExists(repo&"/"&pkg&"/deps"):
                 for dep in lines repo&"/"&pkg&"/deps":
-                    if dep in pkgs or dep in deps or isIn(deps, ignoreDeps) or dep in ignoreDeps:
+                    if dep in pkgs or dep in deps or isIn(deps, ignoreDeps) or
+                            dep in ignoreDeps:
                         continue
 
                     deps.add(dephandler(@[dep], deps&ignoreDeps))
