@@ -101,13 +101,14 @@ proc builder(package: string, destdir: string,
         else:
             assert execShellCmd("su -s /bin/sh _nyaa -c '. "&path&"/run"&" && prepare'") ==
                     0, "prepare failed"
-    
+
     var cmd = "su -s /bin/sh _nyaa -c '. "&path&"/run"&" && export CC="&getConfigValue(
             "Options",
             "cc")&" && export DESTDIR="&root&" && export ROOT=$DESTDIR && build'"
-    
+
     if pkg.buildAsRoot == true:
-        cmd = ". "&path&"/run"&" && export CC="&getConfigValue("Options", "cc")&" && export DESTDIR="&root&" && export ROOT=$DESTDIR && build"
+        cmd = ". "&path&"/run"&" && export CC="&getConfigValue("Options",
+                "cc")&" && export DESTDIR="&root&" && export ROOT=$DESTDIR && build"
 
     if offline == true:
         cmd = "unshare -n /bin/sh -c '"&cmd&"'"
