@@ -107,6 +107,8 @@ proc builder(package: string, destdir: string,
             "cc")&" && export DESTDIR="&root&" && export ROOT=$DESTDIR && build'"
 
     if pkg.buildAsRoot == true:
+        echo "nyaa: WARNING: THE PACKAGE IS BUILT AS ROOT!"
+        echo "Such package will not be accepted on official repositories without a proper reason."
         cmd = ". "&path&"/run"&" && export CC="&getConfigValue("Options",
                 "cc")&" && export DESTDIR="&root&" && export ROOT=$DESTDIR && build"
 
