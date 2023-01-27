@@ -216,11 +216,11 @@ proc rootfs(buildType = "builder", arch = "amd64",
             ok "Generated CA certificates"
 
         removeFile(buildDir&"/certdata.txt")
-        
+
         nyaastrapInstall("python", installWithBinaries, buildDir, useCacheIfPossible)
-        
+
         let ensurePip = execCmdEx("chroot "&buildDir&" /bin/sh -c 'python -m ensurepip'")
-        
+
         if ensurePip.exitcode != 0:
             debug "ensurePip output: "&ensurePip.output
             error "Installing pip failed"
@@ -233,7 +233,7 @@ proc rootfs(buildType = "builder", arch = "amd64",
                 nyaastrapInstall(i, installWithBinaries, buildDir, useCacheIfPossible)
 
 
-        
+
 proc buildPackages(useCacheIfPossible = true, repo = "/etc/nyaa") =
     ## Build all packages available.
 
