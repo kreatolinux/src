@@ -82,7 +82,7 @@ proc builder(package: string, destdir: string,
                         1])&" && git branch -C "&i.split("::")[2]) != 0:
                     err("Cloning repository failed!")
             else:
-                waitFor download(pkg.version, filename)
+                waitFor download(i, filename)
         except:
             raise
 
