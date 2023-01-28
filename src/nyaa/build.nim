@@ -169,7 +169,11 @@ proc build(no = false, yes = false, root = "/",
         output = readLine(stdin)
 
     if output.toLower() == "y":
-        var cacheAvailable: string
+        type cacheAvailable = enum
+            INIT
+            TRUE
+            FALSE
+        var ifCacheAvailable: cacheAvailable 
         var builderOutput: bool
         let fullRootPath = expandFilename(root)
         for i in deps:
@@ -181,22 +185,25 @@ proc build(no = false, yes = false, root = "/",
                             useCacheIfAvailable = useCacheIfAvailable)
 
                     if builderOutput == false:
-                        cacheAvailable = "false"
+                        ifCacheAvailable = TRUE
 
                     echo("nyaa: installed "&i&" successfully")
 
             except:
                 raise
 
-        if isEmptyOrWhitespace(cacheAvailable) and useCacheIfAvailable == true:
-            cacheAvailable = "true"
+        if ifCacheAvailable == INIT and useCacheIfAvailable == true:
+            ifCacheAvailable = TRUE
         else:
-            cacheAvailable = "false"
+            ifCacheAvailable = FALSE
 
         for i in packages:
             try:
-                discard builder(i, fullRootPath, offline = false,
-                            useCacheIfAvailable = parseBool(cacheAvailable))
+                if ifCacheAvailable == TRUE:
+                    discard builder(i, fullRootPath, offline = false,
+                                useCacheIfAvailable = true)
+                else:
+                    discard builder(i, fullRootPath, offline = false, useCacheIfAvailable = false)
                 echo("nyaa: installed "&i&" successfully")
 
             except:
