@@ -5,7 +5,8 @@ on:
 
 jobs:
   build:
-    runs-on: self-hosted 
+    #runs-on: self-hosted 
+    runs-on: ubuntu # Temporary
     image: ghcr.io/kreatolinux/builder:latest
     volumes:
       - /etc/nyaa.tarballs:/etc/nyaa.tarballs 
@@ -26,4 +27,5 @@ jobs:
         run: |
           nimble install --depsOnly -Y
           nimble nyaastrap
+          ./src/nyaastrap/nyaastrap buildPackages --useCacheIfAvailable=true --repo=/etc/nyaa
 
