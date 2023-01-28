@@ -6,8 +6,8 @@ on:
 jobs:
   build:
     #runs-on: self-hosted 
-    runs-on: ubuntu # Temporary
-    image: ghcr.io/kreatolinux/builder:latest
+    runs-on: ubuntu-latest # Temporary
+    container: ghcr.io/kreatolinux/builder:latest
     #volumes:
     #  - /etc/nyaa.tarballs:/etc/nyaa.tarballs 
 
