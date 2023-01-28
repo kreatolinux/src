@@ -173,7 +173,7 @@ proc build(no = false, yes = false, root = "/",
             INIT
             TRUE
             FALSE
-        var ifCacheAvailable: cacheAvailable 
+        var ifCacheAvailable: cacheAvailable
         var builderOutput: bool
         let fullRootPath = expandFilename(root)
         for i in deps:
@@ -203,7 +203,8 @@ proc build(no = false, yes = false, root = "/",
                     discard builder(i, fullRootPath, offline = false,
                                 useCacheIfAvailable = true)
                 else:
-                    discard builder(i, fullRootPath, offline = false, useCacheIfAvailable = false)
+                    discard builder(i, fullRootPath, offline = false,
+                            useCacheIfAvailable = false)
                 echo("nyaa: installed "&i&" successfully")
 
             except:
