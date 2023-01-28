@@ -2,7 +2,7 @@ proc update(repo = "",
     path = ""): string =
     ## Update repositories
 
-    if isAdmin() == false:
+    if not isAdmin():
         err("you have to be root for this action.", false)
 
     let repodirs = getConfigValue("Repositories", "RepoDirs")

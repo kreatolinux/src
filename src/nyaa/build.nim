@@ -17,7 +17,7 @@ proc builder(package: string, destdir: string,
             dontInstall = false, useCacheIfAvailable = false): bool =
     ## Builds the packages.
 
-    if isAdmin() == false:
+    if not isAdmin():
         err("you have to be root for this action.", false)
 
     if fileExists(lockfile):
@@ -74,7 +74,7 @@ proc builder(package: string, destdir: string,
     for i in pkg.sources.split(";"):
         if i == "":
             continue
-        filename = extractFilename(i.replace("$VERSION", pkg.version)).strip()
+        filename = extractFilename(i).strip()
         try:
             if i.startsWith("git::"):
                 if execShellCmd("git clone "&i.split("::")[
@@ -83,36 +83,35 @@ proc builder(package: string, destdir: string,
                     err("Cloning repository failed!")
             else:
                 waitFor download(i, filename)
+
+                # git cloning doesn't support sha256sum checking
+                var actualDigest = sha256hexdigest(readAll(open(
+                        filename)))&"  "&filename
+                var expectedDigest = pkg.sha256sum.split(";")[int]
+                if expectedDigest != actualDigest:
+                    err "sha256sum doesn't match for "&i&"\nExpected: "&expectedDigest&"\nActual: "&actualDigest
+
+                int = int+1
         except:
             raise
 
-        # git cloning doesn't support sha256sum checking
-        if not i.startsWith("git::"):
-            var actualDigest = sha256hexdigest(readAll(open(
-                    filename)))&"  "&filename
-            var expectedDigest = pkg.sha256sum.split(";")[int]
-            if expectedDigest != actualDigest:
-                err "sha256sum doesn't match for "&i&"\nExpected: "&expectedDigest&"\nActual: "&actualDigest
-
-            int = int+1
-
-    if existsPrepare != 0:
-        discard execProcess("su -s /bin/sh _nyaa -c 'bsdtar -xvf "&filename&"'")
-    else:
-        assert execShellCmd("su -s /bin/sh _nyaa -c '. "&path&"/run"&" && prepare'") ==
-                0, "prepare failed"
+        if existsPrepare != 0:
+            discard execProcess("su -s /bin/sh _nyaa -c 'bsdtar -xvf "&filename&"'")
+        else:
+            assert execShellCmd("su -s /bin/sh _nyaa -c '. "&path&"/run"&" && prepare'") ==
+                    0, "prepare failed"
 
     var cmd = "su -s /bin/sh _nyaa -c '. "&path&"/run"&" && export CC="&getConfigValue(
             "Options",
             "cc")&" && export DESTDIR="&root&" && export ROOT=$DESTDIR && build'"
 
-    if pkg.buildAsRoot == true:
+    if pkg.buildAsRoot:
         echo "nyaa: WARNING: THE PACKAGE IS BUILT AS ROOT!"
         echo "Such package will not be accepted on official repositories without a proper reason."
         cmd = ". "&path&"/run"&" && export CC="&getConfigValue("Options",
                 "cc")&" && export DESTDIR="&root&" && export ROOT=$DESTDIR && build"
 
-    if offline == true:
+    if offline:
         cmd = "unshare -n /bin/sh -c '"&cmd&"'"
 
     if execShellCmd(cmd) != 0:
@@ -129,10 +128,10 @@ proc builder(package: string, destdir: string,
     # Install package to root aswell so dependency errors doesnt happen
     # because the dep is installed to destdir but not root.
     if destdir != "/" and not dirExists("/etc/nyaa.installed/"&package) and
-            dontInstall == false:
+            (not dontInstall):
         install_pkg(repo, package, "/")
 
-    if dontInstall == false:
+    if not dontInstall:
         install_pkg(repo, package, destdir)
 
     removeFile(lockfile)
@@ -169,11 +168,7 @@ proc build(no = false, yes = false, root = "/",
         output = readLine(stdin)
 
     if output.toLower() == "y":
-        type cacheAvailable = enum
-            INIT
-            TRUE
-            FALSE
-        var ifCacheAvailable: cacheAvailable
+        var cacheAvailable: bool
         var builderOutput: bool
         let fullRootPath = expandFilename(root)
         for i in deps:
@@ -184,27 +179,17 @@ proc build(no = false, yes = false, root = "/",
                     builderOutput = builder(i, fullRootPath, offline = false,
                             useCacheIfAvailable = useCacheIfAvailable)
 
-                    if builderOutput == false:
-                        ifCacheAvailable = TRUE
-
                     echo("nyaa: installed "&i&" successfully")
 
             except:
                 raise
 
-        if ifCacheAvailable == INIT and useCacheIfAvailable == true:
-            ifCacheAvailable = TRUE
-        else:
-            ifCacheAvailable = FALSE
+        cacheAvailable = builderOutput and useCacheIfAvailable;
 
         for i in packages:
             try:
-                if ifCacheAvailable == TRUE:
-                    discard builder(i, fullRootPath, offline = false,
-                                useCacheIfAvailable = true)
-                else:
-                    discard builder(i, fullRootPath, offline = false,
-                            useCacheIfAvailable = false)
+                discard builder(i, fullRootPath, offline = false,
+                            useCacheIfAvailable = cacheAvailable)
                 echo("nyaa: installed "&i&" successfully")
 
             except:

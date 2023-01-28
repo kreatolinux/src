@@ -15,10 +15,5 @@ proc addUser(name: string, path = "/"): bool =
     else:
         return false
 
-
 proc existsUser(name: string): bool =
-    ## Checks if an user exists.
-    if execCmdEx("id "&name).exitcode == 0:
-        return true
-    else:
-        return false
+    return execCmdEx("id "&name).exitcode == 0

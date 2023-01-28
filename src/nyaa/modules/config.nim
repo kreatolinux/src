@@ -7,7 +7,7 @@ var config: Config
 proc initializeConfig(): Config =
   ## Initializes the configuration file
 
-  if isAdmin() == false:
+  if not isAdmin():
     err("please be root to initialize config", false)
 
   var config = newConfig()

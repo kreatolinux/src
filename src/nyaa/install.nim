@@ -49,7 +49,7 @@ proc install_bin(packages: seq[string], binrepo: string, root: string,
         if fileExists("/etc/nyaa.tarballs/"&tarball) and fileExists(
                 "/etc/nyaa.tarballs/"&chksum):
             echo "Tarball already exists, not gonna download again"
-        elif offline == false:
+        elif not offline:
             echo "Downloading tarball for "&i
             try:
                 discard spawn download("https://"&binrepo&"/"&tarball, tarball)
@@ -62,7 +62,7 @@ proc install_bin(packages: seq[string], binrepo: string, root: string,
         else:
             err("attempted to download tarball from binary repository in offline mode", false)
 
-    if downloadOnly == false:
+    if not downloadOnly:
         for i in packages:
             repo = findPkgRepo(i)
             install_pkg(repo, i, root, true)
