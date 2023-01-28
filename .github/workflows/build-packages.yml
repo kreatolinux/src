@@ -27,5 +27,5 @@ jobs:
         run: |
           nimble install --depsOnly -Y
           nimble nyaastrap
-          ./src/nyaastrap/nyaastrap buildPackages --useCacheIfAvailable=true --repo=/etc/nyaa
+          ./src/nyaastrap/nyaastrap buildPackages
 
