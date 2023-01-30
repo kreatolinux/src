@@ -10,8 +10,11 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
-    container: kreato/builder:latest
+    runs-on: self-hosted 
+    container: 
+      image: ghcr.io/kreatolinux/builder:latest
+      volumes:
+        - /etc/nyaa.tarballs:/etc/nyaa.tarballs 
     
     steps:
 
