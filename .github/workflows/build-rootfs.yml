@@ -39,7 +39,7 @@ jobs:
           tar -czvf /nyaa/kreato-linux-nocc-"$(date +%d-%m-%Y)"-amd64.tar.gz *
        
       
-      - name: Upload Source Rootfs
+      - name: Upload nocc Rootfs
         uses: actions/upload-artifact@v3.1.1
         with:
           # Artifact name
@@ -64,5 +64,23 @@ jobs:
           name: builder-rootfs # optional, default is artifact
           # A file, directory or wildcard pattern that describes what to upload
           path: ${{ github.workspace }}/kreato-linux-builder-*.tar.gz
+          # The desired behavior if no files are found using the provided path.
+          if-no-files-found: error 
+          
+      - name: Build server rootfs tarball
+        run: |
+          rm -rf /out/*
+          cd /nyaa
+          /nyaa/src/nyaastrap/nyaastrap rootfs --buildType=server --arch=amd64
+          cd /out
+          tar -czvf /nyaa/kreato-linux-builder-"$(date +%d-%m-%Y)"-amd64.tar.gz *
+    
+      - name: Upload Server Rootfs
+        uses: actions/upload-artifact@v3.1.1
+        with:
+          # Artifact name
+          name: server-rootfs # optional, default is artifact
+          # A file, directory or wildcard pattern that describes what to upload
+          path: ${{ github.workspace }}/kreato-linux-server-*.tar.gz
           # The desired behavior if no files are found using the provided path.
           if-no-files-found: error 
