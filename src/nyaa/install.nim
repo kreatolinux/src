@@ -1,5 +1,7 @@
 import threadpool
 
+const cpu {.strdefine.}: string = "amd64"
+
 proc install_pkg(repo: string, package: string, root: string, binary = false) =
     ## Installs an package.
 
@@ -52,9 +54,9 @@ proc install_bin(packages: seq[string], binrepo: string, root: string,
         elif not offline:
             echo "Downloading tarball for "&i
             try:
-                discard spawn download("https://"&binrepo&"/"&tarball, tarball)
+                discard spawn download("https://"&binrepo&"/arch/"&cpu&"/"&tarball, tarball)
                 echo "Downloading tarball checksum for "&i
-                discard spawn download("https://"&binrepo&"/"&chksum, chksum)
+                discard spawn download("https://"&binrepo&"/arch/"&cpu&"/"&chksum, chksum)
             except:
                 raise
 
