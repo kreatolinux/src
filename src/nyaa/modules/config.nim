@@ -4,6 +4,8 @@ const configPath = "/etc/nyaa.conf"
 
 var config: Config
 
+const branch {.strdefine.}: string = "stable"
+
 proc initializeConfig(): Config =
   ## Initializes the configuration file
 
@@ -18,7 +20,7 @@ proc initializeConfig(): Config =
   config.setSectionKey("Repositories", "RepoDirs",
       "/etc/nyaa /etc/nyaa-bin") # Seperate by space
   config.setSectionKey("Repositories", "RepoLinks",
-      "https://github.com/kreatolinux/nyaa-repo.git https://github.com/kreatolinux/nyaa-repo-bin.git") # Seperate by space, must match RepoDirs
+      "https://github.com/kreatolinux/nyaa-repo.git::"&branch&" https://github.com/kreatolinux/nyaa-repo-bin.git::"&stable) # Seperate by space, must match RepoDirs
 
   # [Upgrade]
   config.setSectionKey("Upgrade", "buildByDefault", "yes") # Build packages by default
