@@ -58,7 +58,8 @@ dispatchMulti(
   [
   update, help = {
     "repo": "The nyaa repository Git URL",
-    "path": "The nyaa repository path"
+    "path": "The nyaa repository path",
+    "branch": "The nyaa repository branch. Also supports commits."
     }
   ],
 

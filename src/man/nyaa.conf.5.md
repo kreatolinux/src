@@ -28,6 +28,10 @@ buildByDefault=yes
 * RepoDirs: Repository directories. Must line up with RepoLinks. Seperate by space.
 * RepoLinks: Repository links. Must line up with RepoDirs. Seperate by space. Has nyaa-repo and nyaa-repo-bin repositories by default.
 
+Repositories also support branches/commits like this;
+
+`RepoLinks="https://github.com/kreatolinux/nyaa-repo.git::BRANCHNAME"`
+
 ## UPGRADE
 * buildByDefault: Enable building by default on upgrades or not. Is enabled by default.
 
