@@ -29,14 +29,15 @@ proc update(repo = "",
         echo "cloning "&path&" from "&repo
         discard execProcess("git clone "&repo&" "&path)
         if not (repo in repolinks and path in repodirs):
-                if branch != "master":
-                        setCurrentDir(path)
-                        discard execProcess("git checkout "&branch)
-                        setConfigValue("Repositories", "RepoLinks", repolinks&" "&repo&"::"&branch)
-                        setConfigValue("Repositories", "RepoDirs", repodirs&" "&path)
-                else:
-                        setConfigValue("Repositories", "RepoLinks", repolinks&" "&repo)
-                        setConfigValue("Repositories", "RepoDirs", repodirs&" "&path)
+            if branch != "master":
+                setCurrentDir(path)
+                discard execProcess("git checkout "&branch)
+                setConfigValue("Repositories", "RepoLinks",
+                        repolinks&" "&repo&"::"&branch)
+                setConfigValue("Repositories", "RepoDirs", repodirs&" "&path)
+            else:
+                setConfigValue("Repositories", "RepoLinks", repolinks&" "&repo)
+                setConfigValue("Repositories", "RepoDirs", repodirs&" "&path)
 
 
     return "nyaa: updated all repositories"
