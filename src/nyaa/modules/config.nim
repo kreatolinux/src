@@ -20,7 +20,7 @@ proc initializeConfig(): Config =
   config.setSectionKey("Repositories", "RepoDirs",
       "/etc/nyaa /etc/nyaa-bin") # Seperate by space
   config.setSectionKey("Repositories", "RepoLinks",
-      "https://github.com/kreatolinux/nyaa-repo.git::"&branch&" https://github.com/kreatolinux/nyaa-repo-bin.git::"&stable) # Seperate by space, must match RepoDirs
+      "https://github.com/kreatolinux/nyaa-repo.git::"&branch&" https://github.com/kreatolinux/nyaa-repo-bin.git::"&branch) # Seperate by space, must match RepoDirs
 
   # [Upgrade]
   config.setSectionKey("Upgrade", "buildByDefault", "yes") # Build packages by default
