@@ -11,7 +11,7 @@ proc install_pkg(repo: string, package: string, root: string, binary = false) =
     except:
         raise
 
-    let tarball = "/etc/nyaa.tarballs/nyaa-tarball-"&pkg.pkg&"-"&pkg.versionString&".tar.gz"
+    let tarball = "/etc/nyaa.tarballs/arch/"&cpu&"/nyaa-tarball-"&pkg.pkg&"-"&pkg.versionString&".tar.gz"
 
     if sha256hexdigest(readAll(open(tarball)))&"  "&tarball != readAll(open(
         tarball&".sum")):
@@ -48,7 +48,7 @@ proc install_bin(packages: seq[string], binrepo: string, root: string,
         let tarball = "nyaa-tarball-"&pkg.pkg&"-"&pkg.versionString&".tar.gz"
         let chksum = tarball&".sum"
 
-        if fileExists("/etc/nyaa.tarballs/"&tarball) and fileExists(
+        if fileExists("/etc/nyaa.tarballs/arch/"&cpu&"/"&tarball) and fileExists(
                 "/etc/nyaa.tarballs/"&chksum):
             echo "Tarball already exists, not gonna download again"
         elif not offline:

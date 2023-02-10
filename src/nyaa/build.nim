@@ -58,9 +58,9 @@ proc builder(package: string, destdir: string,
     except:
         raise
 
-    if fileExists("/etc/nyaa.tarballs/nyaa-tarball-"&pkg.pkg&"-"&pkg.versionString&".tar.gz") and
+    if fileExists("/etc/nyaa.tarballs/arch/"&cpu&"/nyaa-tarball-"&pkg.pkg&"-"&pkg.versionString&".tar.gz") and
             fileExists(
-            "/etc/nyaa.tarballs/nyaa-tarball-"&pkg.pkg&"-"&pkg.versionString&".tar.gz.sum") and
+            "/etc/nyaa.tarballs/arch/"&cpu&"/nyaa-tarball-"&pkg.pkg&"-"&pkg.versionString&".tar.gz.sum") and
             useCacheIfAvailable == true and dontInstall == false:
         install_pkg(repo, package, destdir)
         removeFile(lockfile)
@@ -117,7 +117,7 @@ proc builder(package: string, destdir: string,
     if execShellCmd(cmd) != 0:
         err("build failed")
 
-    let tarball = "/etc/nyaa.tarballs/nyaa-tarball-"&pkg.pkg&"-"&pkg.versionString&".tar.gz"
+    let tarball = "/etc/nyaa.tarballs/arch/"&cpu&"/nyaa-tarball-"&pkg.pkg&"-"&pkg.versionString&".tar.gz"
 
     discard execProcess("tar -czvf "&tarball&" -C "&root&" .")
 
