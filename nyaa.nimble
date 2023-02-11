@@ -16,6 +16,9 @@ task prettify, "Run nimpretty":
 task tests, "Build tests":
   exec "nim c -d:release --threads:on -d:cpu=$(uname -m) -d:ssl -o="&binDir&" "&srcDir&"/purr/purr.nim"
 
+task chkupd, "Build chkupd":
+  exec "nim c -d:release -d:ssl -o="&binDir&" "&srcDir&"/chkupd/chkupd.nim"
+
 task nyaastrap, "Build nyaastrap":
   exec "nim c --threads:on -d:ssl -d:cpu=$(uname -m) -o="&srcDir&"/nyaastrap/nyaastrap "&srcDir&"/nyaastrap/nyaastrap.nim"
 
