@@ -1,7 +1,5 @@
 import threadpool
 
-const cpu {.strdefine.}: string = "amd64"
-
 proc install_pkg(repo: string, package: string, root: string, binary = false) =
     ## Installs an package.
 
@@ -11,7 +9,7 @@ proc install_pkg(repo: string, package: string, root: string, binary = false) =
     except:
         raise
 
-    let tarball = "/etc/nyaa.tarballs/arch/"&cpu&"/nyaa-tarball-"&pkg.pkg&"-"&pkg.versionString&".tar.gz"
+    let tarball = "/etc/nyaa.tarballs/arch/"&hostCPU&"/nyaa-tarball-"&pkg.pkg&"-"&pkg.versionString&".tar.gz"
 
     if sha256hexdigest(readAll(open(tarball)))&"  "&tarball != readAll(open(
         tarball&".sum")):
@@ -48,15 +46,15 @@ proc install_bin(packages: seq[string], binrepo: string, root: string,
         let tarball = "nyaa-tarball-"&pkg.pkg&"-"&pkg.versionString&".tar.gz"
         let chksum = tarball&".sum"
 
-        if fileExists("/etc/nyaa.tarballs/arch/"&cpu&"/"&tarball) and
+        if fileExists("/etc/nyaa.tarballs/arch/"&hostCPU&"/"&tarball) and
                 fileExists("/etc/nyaa.tarballs/"&chksum):
             echo "Tarball already exists, not gonna download again"
         elif not offline:
             echo "Downloading tarball for "&i
             try:
-                discard spawn download("https://"&binrepo&"/arch/"&cpu&"/"&tarball, tarball)
+                discard spawn download("https://"&binrepo&"/arch/"&hostCPU&"/"&tarball, tarball)
                 echo "Downloading tarball checksum for "&i
-                discard spawn download("https://"&binrepo&"/arch/"&cpu&"/"&chksum, chksum)
+                discard spawn download("https://"&binrepo&"/arch/"&hostCPU&"/"&chksum, chksum)
             except:
                 raise
 
