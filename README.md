@@ -22,7 +22,6 @@ nyaa3 also includes optional utilities in its source tree. These are use nyaa3's
 
 There are a couple of build variables;
 
-* -d:cpu: CPU architecture for the binary repository, is set to `amd64` by default
 * -d:branch: Repository branch that is gonna be used for the default repositories, is set to `stable` by default
 
 You can find how to build/use them below.
