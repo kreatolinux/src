@@ -18,7 +18,7 @@ Please note that using `nyaa3` in a environment other than Kreato Linux is not s
 We recommend using the ssl task to build since repositories that nyaa3 is configured with need SSL.
 Run `nimble ssl` to build, and `nimble install` to install.
 
-nyaa3 also includes optional utilities in its source tree. These are use nyaa3's library functions which is why they are on nyaa3's source tree.
+nyaa3 also includes optional utilities in its source tree. These use nyaa3's library functions which is why they are on nyaa3's source tree.
 
 There are a couple of build variables;
 
