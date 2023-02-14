@@ -33,7 +33,7 @@ proc initDirectories(buildDirectory: string, arch: string) =
             fpUserRead, fpGroupExec, fpGroupWrite, fpGroupRead, fpOthersExec,
             fpOthersWrite, fpOthersRead})
 
-    createDir(buildDirectory&"/etc/nyaa.installed")
+    createDir(buildDirectory&"/etc/kpkg.installed")
     createDir(buildDirectory&"/run")
 
     if arch == "amd64":
@@ -47,7 +47,7 @@ proc initDirectories(buildDirectory: string, arch: string) =
 
     info_msg "Root directory structure created."
 
-proc nyaastrapInstall(package: string, installWithBinaries: bool,
+proc kpkgstrapInstall(package: string, installWithBinaries: bool,
         buildDir: string, useCacheIfPossible = true) =
     # Install a package.
     info_msg "Installing package '"&package&"'"
@@ -85,7 +85,7 @@ proc rootfs(buildType = "builder", arch = "amd64",
     else:
         error("Config "&buildType&" does not exist!")
 
-    info_msg "nyaastrap v3.0.0"
+    info_msg "kpkgstrap v3.0.0"
 
     discard update()
 
@@ -134,10 +134,10 @@ proc rootfs(buildType = "builder", arch = "amd64",
         case conf.getSectionValue("Core", "TlsLibrary").normalize():
             of "openssl":
                 info_msg "Installing OpenSSL as TLS Library"
-                nyaastrapInstall("openssl", installWithBinaries, buildDir, useCacheIfPossible)
+                kpkgstrapInstall("openssl", installWithBinaries, buildDir, useCacheIfPossible)
             of "libressl":
                 info_msg "Installing LibreSSL as TLS library"
-                nyaastrapInstall("libressl", installWithBinaries, buildDir, useCacheIfPossible)
+                kpkgstrapInstall("libressl", installWithBinaries, buildDir, useCacheIfPossible)
             else:
                 error conf.getSectionValue("Core",
                         "TlsLibrary")&" is not available as a TLS library option."
@@ -146,11 +146,11 @@ proc rootfs(buildType = "builder", arch = "amd64",
         case conf.getSectionValue("Core", "Compiler").normalize():
             of "gcc":
                 info_msg "Installing GCC as Compiler"
-                nyaastrapInstall("gcc", installWithBinaries, buildDir, useCacheIfPossible)
+                kpkgstrapInstall("gcc", installWithBinaries, buildDir, useCacheIfPossible)
                 set_default_cc(buildDir, "gcc")
             of "clang":
                 info_msg "Installing clang as Compiler"
-                nyaastrapInstall("llvm", installWithBinaries, buildDir, useCacheIfPossible)
+                kpkgstrapInstall("llvm", installWithBinaries, buildDir, useCacheIfPossible)
                 set_default_cc(buildDir, "clang")
             of "no":
                 warn "Skipping compiler installation"
@@ -162,10 +162,10 @@ proc rootfs(buildType = "builder", arch = "amd64",
         case conf.getSectionValue("Core", "Libc").normalize():
             of "glibc":
                 info_msg "Installing glibc as libc"
-                nyaastrapInstall("glibc", installWithBinaries, buildDir, useCacheIfPossible)
+                kpkgstrapInstall("glibc", installWithBinaries, buildDir, useCacheIfPossible)
             of "musl":
                 info_msg "Installing musl as libc"
-                nyaastrapInstall("musl", installWithBinaries, buildDir, useCacheIfPossible)
+                kpkgstrapInstall("musl", installWithBinaries, buildDir, useCacheIfPossible)
             else:
                 error conf.getSectionValue("Core",
                         "Libc")&" is not available as a Libc option."
@@ -174,29 +174,29 @@ proc rootfs(buildType = "builder", arch = "amd64",
         case conf.getSectionValue("Core", "Coreutils").normalize():
             of "busybox":
                 info_msg "Installing BusyBox as Coreutils"
-                nyaastrapInstall("busybox", installWithBinaries, buildDir, useCacheIfPossible)
+                kpkgstrapInstall("busybox", installWithBinaries, buildDir, useCacheIfPossible)
 
                 if execCmdEx("chroot "&buildDir&" /bin/busybox --install").exitcode != 0:
                     error "Installing busybox failed"
 
             of "gnu":
                 info_msg "Installing GNU Coreutils as Coreutils"
-                nyaastrapInstall("gnu-coreutils", installWithBinaries,
+                kpkgstrapInstall("gnu-coreutils", installWithBinaries,
                         buildDir, useCacheIfPossible)
             else:
                 error conf.getSectionValue("Core",
                         "Coreutils")&" is not available as a Coreutils option."
 
         # Install shadow, and enable it
-        nyaastrapInstall("shadow", installWithBinaries, buildDir, useCacheIfPossible)
+        kpkgstrapInstall("shadow", installWithBinaries, buildDir, useCacheIfPossible)
 
         if execCmdEx("chroot "&buildDir&" /usr/sbin/pwconv").exitcode != 0:
             error "Enabling shadow failed"
 
-        # Install nyaa, p11-kit and make-ca here
-        nyaastrapInstall("nyaa", installWithBinaries, buildDir, useCacheIfPossible)
-        nyaastrapInstall("p11-kit", installWithBinaries, buildDir, useCacheIfPossible)
-        nyaastrapInstall("make-ca", installWithBinaries, buildDir, useCacheIfPossible)
+        # Install kpkg, p11-kit and make-ca here
+        kpkgstrapInstall("kpkg", installWithBinaries, buildDir, useCacheIfPossible)
+        kpkgstrapInstall("p11-kit", installWithBinaries, buildDir, useCacheIfPossible)
+        kpkgstrapInstall("make-ca", installWithBinaries, buildDir, useCacheIfPossible)
 
 
         # Generate certdata here
@@ -217,7 +217,7 @@ proc rootfs(buildType = "builder", arch = "amd64",
 
         removeFile(buildDir&"/certdata.txt")
 
-        nyaastrapInstall("python", installWithBinaries, buildDir, useCacheIfPossible)
+        kpkgstrapInstall("python", installWithBinaries, buildDir, useCacheIfPossible)
 
         let ensurePip = execCmdEx("chroot "&buildDir&" /bin/sh -c 'python -m ensurepip'")
 
@@ -230,11 +230,11 @@ proc rootfs(buildType = "builder", arch = "amd64",
         if conf.getSectionValue("Extras", "ExtraPackages") != "":
             info_msg "Installing extra packages"
             for i in conf.getSectionValue("Extras", "ExtraPackages").split(" "):
-                nyaastrapInstall(i, installWithBinaries, buildDir, useCacheIfPossible)
+                kpkgstrapInstall(i, installWithBinaries, buildDir, useCacheIfPossible)
 
 
 
-proc buildPackages(useCacheIfPossible = true, repo = "/etc/nyaa") =
+proc buildPackages(useCacheIfPossible = true, repo = "/etc/kpkg") =
     ## Build all packages available.
 
     discard update()
@@ -244,12 +244,12 @@ proc buildPackages(useCacheIfPossible = true, repo = "/etc/nyaa") =
             of pcDir:
                 info_msg "Now building "&lastPathPart(path)
                 debug "Full path: "&path
-                nyaastrapInstall(lastPathPart(path), false, "/", useCacheIfPossible)
+                kpkgstrapInstall(lastPathPart(path), false, "/", useCacheIfPossible)
             of pcLinkToDir:
-                warn "nyaa3 doesn't support symlinks properly. Issues may occur"
+                warn "kpkg doesn't support symlinks properly. Issues may occur"
                 info_msg "Now building "&lastPathPart(path)
                 debug "Full path: "&path
-                nyaastrapInstall(lastPathPart(path), false, "/", useCacheIfPossible)
+                kpkgstrapInstall(lastPathPart(path), false, "/", useCacheIfPossible)
             else:
                 discard
 

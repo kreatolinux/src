@@ -20,7 +20,7 @@ proc info(package: seq[string]): string =
     echo "package release: "&pkg.release
     when declared(pkg.epoch):
         echo "package epoch: "&pkg.epoch
-    if dirExists("/etc/nyaa.installed/"&pkg.pkg):
+    if dirExists("/var/cache/kpkg/installed/"&pkg.pkg):
         return "installed: yes"
     # return err if package isn't installed (for scripting :p)
     err("installed: no", false)

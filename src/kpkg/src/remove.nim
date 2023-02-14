@@ -21,6 +21,6 @@ proc remove(packages: seq[string], yes = false, root = ""): string =
     if output.toLower() == "y":
         for i in packages:
             echo removeInternal(i, root)
-        return "nyaa: done!"
+        return "kpkg: done!"
 
-    return "nyaa: exiting"
+    return "kpkg: exiting"

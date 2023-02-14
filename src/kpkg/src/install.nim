@@ -9,28 +9,28 @@ proc install_pkg(repo: string, package: string, root: string, binary = false) =
     except:
         raise
 
-    let tarball = "/etc/nyaa.tarballs/arch/"&hostCPU&"/nyaa-tarball-"&pkg.pkg&"-"&pkg.versionString&".tar.gz"
+    let tarball = "/var/cache/kpkg/archives/arch/"&hostCPU&"/kpkg-tarball-"&pkg.pkg&"-"&pkg.versionString&".tar.gz"
 
     if sha256hexdigest(readAll(open(tarball)))&"  "&tarball != readAll(open(
         tarball&".sum")):
         err("sha256sum doesn't match for"&pkg.pkg, false)
 
-    setCurrentDir("/etc/nyaa.tarballs")
+    setCurrentDir("/var/cache/kpkg/archives")
 
 
-    discard existsOrCreateDir(root&"/etc/nyaa.installed")
-    removeDir(root&"/etc/nyaa.installed/"&package)
-    copyDir(repo&"/"&package, root&"/etc/nyaa.installed/"&package)
+    discard existsOrCreateDir(root&"/var/cache/kpkg/installed")
+    removeDir(root&"/var/cache/kpkg/installed/"&package)
+    copyDir(repo&"/"&package, root&"/var/cache/kpkg/installed/"&package)
 
-    writeFile(root&"/etc/nyaa.installed/"&package&"/list_files", execProcess(
+    writeFile(root&"/var/cache/kpkg/installed/"&package&"/list_files", execProcess(
         "tar -hxvf"&tarball&" -C "&root))
 
 proc install_bin(packages: seq[string], binrepo: string, root: string,
         offline: bool, downloadOnly = false) =
     ## Downloads and installs binaries.
 
-    discard existsOrCreateDir("/etc/nyaa.tarballs")
-    setCurrentDir("/etc/nyaa.tarballs")
+    discard existsOrCreateDir("/var/cache/kpkg/archives")
+    setCurrentDir("/var/cache/kpkg/archives")
 
     var repo: string
 
@@ -43,11 +43,11 @@ proc install_bin(packages: seq[string], binrepo: string, root: string,
         except:
             raise
 
-        let tarball = "nyaa-tarball-"&pkg.pkg&"-"&pkg.versionString&".tar.gz"
+        let tarball = "kpkg-tarball-"&pkg.pkg&"-"&pkg.versionString&".tar.gz"
         let chksum = tarball&".sum"
 
-        if fileExists("/etc/nyaa.tarballs/arch/"&hostCPU&"/"&tarball) and
-                fileExists("/etc/nyaa.tarballs/"&chksum):
+        if fileExists("/var/cache/kpkg/archives/"&hostCPU&"/"&tarball) and
+                fileExists("/var/cache/kpkg/archives/"&hostCPU&"/"&"&chksum):
             echo "Tarball already exists, not gonna download again"
         elif not offline:
             echo "Downloading tarball for "&i
@@ -105,14 +105,14 @@ proc install(promptPackages: seq[string], root = "/", yes: bool = false,
         output = readLine(stdin)
 
     if output.toLower() != "y":
-        return "nyaa: exiting"
+        return "kpkg: exiting"
 
     var depsDelete: string
 
     let fullRootPath = expandFilename(root)
 
     for i in deps:
-        if dirExists(fullRootPath&"/etc/nyaa.installed/"&i):
+        if dirExists(fullRootPath&"/var/cache/kpkg/installed/"&i):
             depsDelete = depsDelete&" "&i
 
     for i in depsDelete.split(" ").filterit(it.len != 0):
@@ -125,4 +125,4 @@ proc install(promptPackages: seq[string], root = "/", yes: bool = false,
     install_bin(packages, binrepo, fullRootPath, offline,
             downloadOnly = downloadOnly)
 
-    return "nyaa: done"
+    return "kpkg: done"

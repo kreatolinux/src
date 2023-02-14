@@ -1,6 +1,6 @@
 include shadow
 
-const configPath = "/etc/nyaa.conf"
+const configPath = "/etc/kpkg/kpkg.conf"
 
 var config: Config
 
@@ -18,9 +18,9 @@ proc initializeConfig(): Config =
   
   # [Repositories]
   config.setSectionKey("Repositories", "RepoDirs",
-      "/etc/nyaa /etc/nyaa-bin") # Seperate by space
+      "/etc/kpkg/repos/main /etc/kpkg/repos/main-bin") # Seperate by space
   config.setSectionKey("Repositories", "RepoLinks",
-      "https://github.com/kreatolinux/nyaa-repo.git::"&branch&" https://github.com/kreatolinux/nyaa-repo-bin.git::"&branch) # Seperate by space, must match RepoDirs
+      "https://github.com/kreatolinux/kpkg-repo.git::"&branch&" https://github.com/kreatolinux/kpkg-repo-bin.git::"&branch) # Seperate by space, must match RepoDirs
 
   # [Upgrade]
   config.setSectionKey("Upgrade", "buildByDefault", "yes") # Build packages by default
@@ -28,10 +28,10 @@ proc initializeConfig(): Config =
 
   config.writeConfig(configPath)
 
-  # Add an _nyaa user if it doesn't exist
-  if not existsUser("_nyaa"):
-    if addUser("_nyaa") == false:
-      err("adding user _nyaa failed!")
+  # Add an _kpkg user if it doesn't exist
+  if not existsUser("_kpkg"):
+    if addUser("_kpkg") == false:
+      err("adding user _kpkg failed!")
 
   return config
 

@@ -1,8 +1,8 @@
 # chkupd v3 repology backend
 import json, strutils, os, libsha/sha256
-include ../../nyaa/modules/logger
-include ../../nyaa/modules/downloader
-include ../../nyaa/modules/runparser
+include ../../kpkg/src/modules/logger
+include ../../kpkg/src/modules/downloader
+include ../../kpkg/src/modules/runparser
 
 proc repologyCheck(package: string, repo: string, autoUpdate = false,
                 skipIfDownloadFails = true) =

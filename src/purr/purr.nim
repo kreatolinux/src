@@ -1,7 +1,7 @@
 include common
-include ../nyaa/info
-include ../nyaa/remove
-include ../nyaa/upgrade
+include ../kpkg/src/info
+include ../kpkg/src/remove
+include ../kpkg/src/upgrade
 
 proc genFiles(tmpdir: string) =
     ## Generates files required for the utility to function.
@@ -11,7 +11,7 @@ proc genFiles(tmpdir: string) =
     discard existsOrCreateDir(tmpdir&"/root/etc")
 
 proc purr(tests = "all", tmpdir = "/tmp/purr") =
-    ## nyaa3's testing utility.
+    ## kpkg's testing utility.
 
     if not isAdmin():
         error("You have to be root to run the tests.")

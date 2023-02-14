@@ -3,10 +3,10 @@ import sequtils
 import parsecfg
 import os
 import options
-include ../nyaa/modules/logger
-include ../nyaa/modules/config
-include ../nyaa/build
-include ../nyaa/update
+include ../kpkg/src/modules/logger
+include ../kpkg/src/modules/config
+include ../kpkg/src/build
+include ../kpkg/src/update
 
 proc debug(message: string) =
     when not defined(release):
