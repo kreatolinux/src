@@ -17,12 +17,12 @@ proc update(repo = "",
                 err("failed to update repositories!", false)
         else:
             if "::" in i.link:
-                echo "nyaa: repository on "&i.dir&" not found, cloning them now..."
+                echo "kpkg: repository on "&i.dir&" not found, cloning them now..."
                 discard execProcess("git clone "&i.link.split("::")[0]&" "&i.dir)
                 setCurrentDir(i.dir)
                 discard execProcess("git checkout "&i.link.split("::")[0])
             else:
-                echo "nyaa: repository on "&i.dir&" not found, cloning them now..."
+                echo "kpkg: repository on "&i.dir&" not found, cloning them now..."
                 discard execProcess("git clone "&i.link&" "&i.dir)
 
     if path != "" and repo != "":
@@ -40,4 +40,4 @@ proc update(repo = "",
                 setConfigValue("Repositories", "RepoDirs", repodirs&" "&path)
 
 
-    return "nyaa: updated all repositories"
+    return "kpkg: updated all repositories"

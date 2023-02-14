@@ -5,7 +5,7 @@ include modules/runparser
 include modules/downloader
 include install
 
-const lockfile = "/tmp/nyaa.lock"
+const lockfile = "/tmp/kpkg.lock"
 
 proc cleanUp() {.noconv.} =
     ## Cleans up.
@@ -13,7 +13,7 @@ proc cleanUp() {.noconv.} =
     quit(0)
 
 proc builder(package: string, destdir: string,
-    root = "/tmp/nyaa_build", srcdir = "/tmp/nyaa_srcdir", offline = false,
+    root = "/tmp/kpkg/build", srcdir = "/tmp/kpkg/srcdir", offline = false,
             dontInstall = false, useCacheIfAvailable = false): bool =
     ## Builds the packages.
 
@@ -23,7 +23,7 @@ proc builder(package: string, destdir: string,
     if fileExists(lockfile):
         err("lockfile exists, will not proceed", false)
 
-    echo "nyaa: starting build for "&package
+    echo "kpkg: starting build for "&package
 
     writeFile(lockfile, "") # Create lockfile
 
@@ -40,7 +40,11 @@ proc builder(package: string, destdir: string,
     removeDir(srcdir)
 
     # Create tarball directory if it doesn't exist
-    discard existsOrCreateDir("/etc/nyaa.tarballs")
+    discard existsOrCreateDir("/var/cache")
+    discard existsOrCreateDir("/var/cache/kpkg")
+    discard existsOrCreateDir("/var/cache/kpkg/archives")
+    discard existsOrCreateDir("/var/cache/kpkg/archives/arch")
+    discard existsOrCreateDir("/var/cache/kpkg/archives/arch/"&hostCPU)
 
     # Create required directories
     createDir(root)
@@ -58,9 +62,9 @@ proc builder(package: string, destdir: string,
     except:
         raise
 
-    if fileExists("/etc/nyaa.tarballs/arch/"&hostCPU&"/nyaa-tarball-"&pkg.pkg&"-"&pkg.versionString&".tar.gz") and
+    if fileExists("/var/cache/kpkg/archives/arch/"&hostCPU&"/kpkg-tarball-"&pkg.pkg&"-"&pkg.versionString&".tar.gz") and
             fileExists(
-            "/etc/nyaa.tarballs/arch/"&hostCPU&"/nyaa-tarball-"&pkg.pkg&"-"&pkg.versionString&".tar.gz.sum") and
+            "/var/cache/kpkg/archives/arch/"&hostCPU&"/kpkg-tarball-"&pkg.pkg&"-"&pkg.versionString&".tar.gz.sum") and
             useCacheIfAvailable == true and dontInstall == false:
         install_pkg(repo, package, destdir)
         removeFile(lockfile)
@@ -96,17 +100,17 @@ proc builder(package: string, destdir: string,
             raise
 
     if existsPrepare != 0:
-        discard execProcess("su -s /bin/sh _nyaa -c 'bsdtar -xvf "&filename&"'")
+        discard execProcess("su -s /bin/sh _kpkg -c 'bsdtar -xvf "&filename&"'")
     else:
-        assert execShellCmd("su -s /bin/sh _nyaa -c '. "&path&"/run"&" && prepare'") ==
+        assert execShellCmd("su -s /bin/sh _kpkg -c '. "&path&"/run"&" && prepare'") ==
                 0, "prepare failed"
 
-    var cmd = "su -s /bin/sh _nyaa -c '. "&path&"/run"&" && export CC="&getConfigValue(
+    var cmd = "su -s /bin/sh _kpkg -c '. "&path&"/run"&" && export CC="&getConfigValue(
             "Options",
             "cc")&" && export DESTDIR="&root&" && export ROOT=$DESTDIR && build'"
 
     if pkg.buildAsRoot:
-        echo "nyaa: WARNING: THE PACKAGE IS BUILT AS ROOT!"
+        echo "kpkg: WARNING: THE PACKAGE IS BUILT AS ROOT!"
         echo "Such package will not be accepted on official repositories without a proper reason."
         cmd = ". "&path&"/run"&" && export CC="&getConfigValue("Options",
                 "cc")&" && export DESTDIR="&root&" && export ROOT=$DESTDIR && build"
@@ -117,7 +121,7 @@ proc builder(package: string, destdir: string,
     if execShellCmd(cmd) != 0:
         err("build failed")
 
-    let tarball = "/etc/nyaa.tarballs/arch/"&hostCPU&"/nyaa-tarball-"&pkg.pkg&"-"&pkg.versionString&".tar.gz"
+    let tarball = "/var/cache/kpkg/archives/arch/"&hostCPU&"/kpkg-tarball-"&pkg.pkg&"-"&pkg.versionString&".tar.gz"
 
     discard execProcess("tar -czvf "&tarball&" -C "&root&" .")
 
@@ -127,7 +131,7 @@ proc builder(package: string, destdir: string,
 
     # Install package to root aswell so dependency errors doesnt happen
     # because the dep is installed to destdir but not root.
-    if destdir != "/" and not dirExists("/etc/nyaa.installed/"&package) and
+    if destdir != "/" and not dirExists("/etc/kpkg/installed/"&package) and
             (not dontInstall):
         install_pkg(repo, package, "/")
 
@@ -151,7 +155,7 @@ proc build(no = false, yes = false, root = "/",
         err("please enter a package name", false)
 
     try:
-        deps = dephandler(packages)
+        deps = dephandler(packages, bdeps = true)&dephandler(packages)
     except:
         raise
 
@@ -173,7 +177,7 @@ proc build(no = false, yes = false, root = "/",
         let fullRootPath = expandFilename(root)
         for i in deps:
             try:
-                if dirExists(fullRootPath&"/etc/nyaa.installed/"&i):
+                if dirExists(fullRootPath&"/etc/kpkg/installed/"&i):
                     discard
                 else:
                     builderOutput = builder(i, fullRootPath, offline = false,
@@ -181,7 +185,7 @@ proc build(no = false, yes = false, root = "/",
                     if not builderOutput:
                         cacheAvailable = false
 
-                    echo("nyaa: installed "&i&" successfully")
+                    echo("kpkg: installed "&i&" successfully")
 
             except:
                 raise
@@ -192,9 +196,9 @@ proc build(no = false, yes = false, root = "/",
             try:
                 discard builder(i, fullRootPath, offline = false,
                             useCacheIfAvailable = cacheAvailable)
-                echo("nyaa: installed "&i&" successfully")
+                echo("kpkg: installed "&i&" successfully")
 
             except:
                 raise
-        return "nyaa: built all packages successfully"
-    return "nyaa: exiting"
+        return "kpkg: built all packages successfully"
+    return "kpkg: exiting"

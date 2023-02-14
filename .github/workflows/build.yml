@@ -23,18 +23,14 @@ jobs:
       - uses: jiro4989/setup-nim-action@v1
         with:
           nim-version: 'stable' # default is 'stable'
-      - run: nimble build --threads:on -Y
+      - run: ./build.sh deps
+      - run: ./build.sh kpkg
       - uses: actions/upload-artifact@v3
         with:
-          name: nyaa3-withoutssl
-          path: ${{ github.workspace }}/out/*
-      - run: rm -rf out/ && nimble ssl -Y
-      - uses: actions/upload-artifact@v3
-        with:
-          name: nyaa3-withssl
+          name: kpkg 
           path: ${{ github.workspace }}/out/*
         
       - run: |
-          nimble tests
-          sudo ./out/nyaa # This is done to generate the config, purr cant seem to generate them by itself for now
+          ./build.sh tests
+          sudo ./out/kpkg # This is done to generate the config, purr cant seem to generate them by itself for now
           sudo ./out/purr

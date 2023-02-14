@@ -1,8 +1,8 @@
 proc upgrade(root = "/",
-        builddir = "/tmp/nyaa_build", srcdir = "/tmp/nyaa_srcdir"): string =
+        builddir = "/tmp/kpkg/build", srcdir = "/tmp/kpkg/srcdir"): string =
     ## Upgrade packages
     var repo: string
-    for i in walkDir("/etc/nyaa.installed"):
+    for i in walkDir("/var/cache/kpkg/installed"):
         if i.kind == pcDir:
             var localPkg: runFile
             try:
@@ -11,7 +11,7 @@ proc upgrade(root = "/",
                 raise
 
             if localPkg.pkg in getConfigValue("Upgrade", "dontUpgrade").split(" "):
-                echo "skipping "&localPkg.pkg&": selected to not upgrade in nyaa.conf"
+                echo "skipping "&localPkg.pkg&": selected to not upgrade in kpkg.conf"
                 continue
 
             when declared(localPkg.epoch):
@@ -43,4 +43,4 @@ proc upgrade(root = "/",
                 discard removeInternal(localPkg.pkg, root)
                 discard install(@[localPkg.pkg], root, true, offline = true)
 
-    return "nyaa: done"
+    return "kpkg: done"

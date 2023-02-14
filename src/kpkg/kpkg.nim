@@ -1,4 +1,4 @@
-# nyaa3 - Simple, efficient and fast package manager
+# kpkg - Simple, efficient and fast package manager
 # Copyright 2022 Kreato
 #
 # This file is part of Kreato Linux.
@@ -19,15 +19,15 @@ import cligen
 import sequtils
 import parsecfg
 import os
-include nyaa/modules/logger
-include nyaa/modules/config
-include nyaa/build
-include nyaa/update
-include nyaa/remove
-include nyaa/upgrade
-include nyaa/info
+include src/modules/logger
+include src/modules/config
+include src/build
+include src/update
+include src/remove
+include src/upgrade
+include src/info
 
-clCfg.version = "nyaa v3.4"
+clCfg.version = "kpkg v4"
 
 dispatchMulti(
   [
@@ -44,7 +44,7 @@ dispatchMulti(
     "root": "The directory the package is gonna be installed to",
     "yes": "Automatically say 'yes' to every question",
     "no": "Automatically say 'no' to every question",
-    "binrepo": "The nyaa binary mirror",
+    "binrepo": "The kpkg binary mirror",
     "offline": "Offline mode, errors out if tarball is attempted to get downloaded off binrepo",
     }
   ],
@@ -57,9 +57,9 @@ dispatchMulti(
 
   [
   update, help = {
-    "repo": "The nyaa repository Git URL",
-    "path": "The nyaa repository path",
-    "branch": "The nyaa repository branch. Also supports commits."
+    "repo": "The kpkg repository Git URL",
+    "path": "The kpkg repository path",
+    "branch": "The kpkg repository branch. Also supports commits."
     }
   ],
 

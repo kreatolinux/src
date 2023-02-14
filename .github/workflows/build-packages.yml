@@ -9,7 +9,7 @@ jobs:
     container: 
       image: ghcr.io/kreatolinux/builder:latest
       volumes:
-        - /etc/nyaa.tarballs:/etc/nyaa.tarballs 
+        - /var/cache/kpkg/archives:/var/cache/kpkg/archives 
 
     steps:
       - name: Checkout
@@ -20,12 +20,12 @@ jobs:
       - name: Cache built packages
         uses: actions/cache@v3
         with:
-          path: /etc/nyaa.tarballs
+          path: /var/cache/kpkg/archives
           key: cache-nyaa-tarballs
 
       - name: Build packages
         run: |
-          nimble install --depsOnly -Y
-          nimble nyaastrap
-          ./src/nyaastrap/nyaastrap buildPackages
+          ./build.sh deps
+          ./build.sh kreastrap
+          ./src/kreastrap/kreastrap buildPackages
 
