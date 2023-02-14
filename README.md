@@ -16,18 +16,18 @@ There are a couple of build variables;
 # Projects
 
 ## kpkg
-`kpkg` is a rewrite of the `nyaa` package manager. It is written in Nim, and is mainly for use with Kreato Linux. 
-`kpkg` is heavily inspired by package managers such as `kiss`, `dnf` and `pacman`. Run `nimble kpkg` to build.
+`kpkg` is a rewrite of the nyaa2 package manager. It is written in Nim, and is mainly for use with Kreato Linux. 
+`kpkg` is heavily inspired by package managers such as `kiss`, `dnf` and `pacman`. Run `./build.sh kpkg` to build.
 
-## nyaastrap
-nyaa3 also includes nyaastrap v3, a rootfs building utility.
-You can build it by running `nimble nyaastrap`. The binary will be located on `src/nyaastrap/nyaastrap`.
+## kreastrap
+There is also kreastrap v3, a rootfs building utility.
+You can build it by running `./build.sh kreastrap`. The binary will be located on `src/kreastrap/kreastrap`.
 
 ## purr
-purr is nyaa3's testing utility. You can build it by running `nimble tests`. The binary will be located on the usual `out` folder.
+purr is kpkg's testing utility. You can build it by running `./build.sh tests`. The binary will be located on the usual `out` folder.
 
 ## chkupd
-chkupd is a tool to check if a package is up-to-date on a nyaa repository. It also has the ability to attempt to autoupdate the package. You can build it by running `nimble chkupd`. The binary will be located on the usual `out` folder.
+chkupd is a tool to check if a package is up-to-date on a kpkg repository. It also has the ability to attempt to autoupdate the package. You can build it by running `./build.sh chkupd`. The binary will be located on the usual `out` folder.
 
 # License
 Licensed under GPLv3. Check LICENSE file for details
