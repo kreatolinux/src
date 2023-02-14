@@ -13,7 +13,7 @@ proc dephandler(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false): seq[str
             let repo = findPkgRepo(pkg)
             if repo == "":
                 err("Package "&pkg&" doesn't exist", false)
-            
+
             var depsType: string
 
             if bdeps:
@@ -21,7 +21,7 @@ proc dephandler(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false): seq[str
             else:
                 depsType = "/deps"
 
-            
+
 
             if fileExists(repo&"/"&pkg&depsType):
                 for dep in lines repo&"/"&pkg&depsType:
