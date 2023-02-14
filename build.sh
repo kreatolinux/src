@@ -1,6 +1,6 @@
 #!/bin/sh
-OUTDIR="./out/"
-SRCDIR="./src/"
+OUTDIR="$(dirname $0)/out/"
+SRCDIR="$(dirname $0)/src/"
 
 run() {
         echo "Running $@"
