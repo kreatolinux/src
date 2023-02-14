@@ -24,4 +24,4 @@ proc onRequest(req: Request): Future[void] =
     else:
       req.send(Http404)
 
-run(onRequest, initSettings(port=Port(parseInt(getEnv("port", "8080")))))
+run(onRequest, initSettings(port = Port(parseInt(getEnv("port", "8080")))))
