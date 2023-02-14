@@ -1,14 +1,7 @@
-include common
+include ../kreastrap/kreastrap
 include ../kpkg/src/info
 include ../kpkg/src/remove
 include ../kpkg/src/upgrade
-
-proc genFiles(tmpdir: string) =
-    ## Generates files required for the utility to function.
-    ok("Files successfully generated.")
-    discard existsOrCreateDir(tmpdir)
-    discard existsOrCreateDir(tmpdir&"/root")
-    discard existsOrCreateDir(tmpdir&"/root/etc")
 
 proc purr(tests = "all", tmpdir = "/tmp/purr") =
     ## kpkg's testing utility.
@@ -17,7 +10,7 @@ proc purr(tests = "all", tmpdir = "/tmp/purr") =
         error("You have to be root to run the tests.")
 
     removeDir("/tmp/purr")
-    genFiles(tmpdir)
+    initDirectories(tmpdir&"/root", hostCPU)
 
     # Test update
     # TODO: remove repo from config when successful
