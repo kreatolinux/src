@@ -14,7 +14,7 @@ jobs:
     container: 
       image: kreato/builder:latest
       volumes:
-        - /etc/nyaa.tarballs:/etc/nyaa.tarballs 
+        - /var/cache/kpkg/archives:/var/cache/kpkg/archives 
     
     steps:
 
@@ -26,20 +26,20 @@ jobs:
       - name: Cache built packages
         uses: actions/cache@v3
         with:
-          path: /etc/nyaa.tarballs
+          path: /var/cache/kpkg/archives
           key: cache-nyaa-tarballs
 
       - name: Build nocc rootfs tarball
         run: |
-          ln -s $GITHUB_WORKSPACE /nyaa
+          ln -s $GITHUB_WORKSPACE /work
           mkdir /out
-          ln -s /out /nyaa/out
-          cd /nyaa
-          nimble install --depsOnly -Y
-          nimble nyaastrap
-          /nyaa/src/nyaastrap/nyaastrap rootfs --buildType=nocc --arch=amd64
+          ln -s /out /work/out
+          cd /work
+          ./build.sh deps
+          ./build.sh kreastrap
+          /work/src/kreastrap/kreastrap rootfs --buildType=nocc --arch=amd64
           cd /out
-          tar -czvf /nyaa/kreato-linux-nocc-"$(date +%d-%m-%Y)"-amd64.tar.gz *
+          tar -czvf /work/kreato-linux-nocc-"$(date +%d-%m-%Y)"-amd64.tar.gz *
        
       
       - name: Upload nocc Rootfs
@@ -55,10 +55,10 @@ jobs:
       - name: Build builder rootfs tarball
         run: |
           rm -rf /out/*
-          cd /nyaa
-          /nyaa/src/nyaastrap/nyaastrap rootfs --buildType=builder --arch=amd64
+          cd /work
+          /work/src/kreastrap/kreastrap rootfs --buildType=builder --arch=amd64
           cd /out
-          tar -czvf /nyaa/kreato-linux-builder-"$(date +%d-%m-%Y)"-amd64.tar.gz *
+          tar -czvf /work/kreato-linux-builder-"$(date +%d-%m-%Y)"-amd64.tar.gz *
     
       - name: Upload Builder Rootfs
         uses: actions/upload-artifact@v3.1.1
@@ -73,10 +73,10 @@ jobs:
       - name: Build server rootfs tarball
         run: |
           rm -rf /out/*
-          cd /nyaa
-          /nyaa/src/nyaastrap/nyaastrap rootfs --buildType=server --arch=amd64
+          cd /work
+          /work/src/kreastrap/kreastrap rootfs --buildType=server --arch=amd64
           cd /out
-          tar -czvf /nyaa/kreato-linux-builder-"$(date +%d-%m-%Y)"-amd64.tar.gz *
+          tar -czvf /work/kreato-linux-builder-"$(date +%d-%m-%Y)"-amd64.tar.gz *
     
       - name: Upload Server Rootfs
         uses: actions/upload-artifact@v3.1.1
