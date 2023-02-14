@@ -21,9 +21,9 @@ proc initializeConfig(): Config =
   
   # [Repositories]
   config.setSectionKey("Repositories", "RepoDirs",
-      "/etc/kpkg/repos/main /etc/kpkg/repos/main-bin") # Seperate by space
+      "/etc/kpkg/repos/main") # Seperate by space
   config.setSectionKey("Repositories", "RepoLinks",
-      "https://github.com/kreatolinux/kpkg-repo.git::"&branch&" https://github.com/kreatolinux/kpkg-repo-bin.git::"&branch) # Seperate by space, must match RepoDirs
+      "https://github.com/kreatolinux/kpkg-repo.git::"&branch) # Seperate by space, must match RepoDirs
 
   # [Upgrade]
   config.setSectionKey("Upgrade", "buildByDefault", "yes") # Build packages by default

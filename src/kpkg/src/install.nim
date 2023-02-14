@@ -85,13 +85,9 @@ proc install(promptPackages: seq[string], root = "/", yes: bool = false,
     var deps: seq[string]
 
     var packages = promptPackages
-    var packages_bin = promptPackages
-    # append bin suffix to packages
-    for i, _ in promptPackages:
-        packages_bin[i] = promptPackages[i]&"-bin"
 
     try:
-        deps = dephandler(packages_bin)
+        deps = dephandler(packages)
     except:
         raise
 
