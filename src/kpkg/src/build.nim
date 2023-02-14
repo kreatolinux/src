@@ -40,6 +40,7 @@ proc builder(package: string, destdir: string,
     removeDir(srcdir)
 
     # Create tarball directory if it doesn't exist
+    discard existsOrCreateDir("/var/cache")
     discard existsOrCreateDir("/var/cache/kpkg")
     discard existsOrCreateDir("/var/cache/kpkg/archives")
     discard existsOrCreateDir("/var/cache/kpkg/archives/arch")

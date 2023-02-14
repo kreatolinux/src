@@ -18,6 +18,8 @@ proc install_pkg(repo: string, package: string, root: string, binary = false) =
     setCurrentDir("/var/cache/kpkg/archives")
 
 
+    discard existsOrCreateDir(root&"/var/cache")
+    discard existsOrCreateDir(root&"/var/cache/kpkg")
     discard existsOrCreateDir(root&"/var/cache/kpkg/installed")
     removeDir(root&"/var/cache/kpkg/installed/"&package)
     copyDir(repo&"/"&package, root&"/var/cache/kpkg/installed/"&package)
