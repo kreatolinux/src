@@ -27,7 +27,7 @@ include src/remove
 include src/upgrade
 include src/info
 
-clCfg.version = "kpkg v3.4"
+clCfg.version = "kpkg v4"
 
 dispatchMulti(
   [
