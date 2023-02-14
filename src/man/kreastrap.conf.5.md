@@ -1,13 +1,13 @@
-% nyaastrap.conf(5)
+% kreastrap.conf(5)
 
 # NAME
-nyaastrap.conf - Configuration file for nyaastrap v3
+kreastrap.conf - Configuration file for kreastrap v3
 
 # DESCRIPTION
-nyaastrap.conf is the configuration file for nyaastrap. It is put on `arch/ARCHITECTURE/configs/buildTypeName.conf`.
+kreastrap.conf is the configuration file for kreastrap. It is put on `arch/ARCHITECTURE/configs/buildTypeName.conf`.
 
 # SYNTAX
-nyaastrap.conf uses a INI format.
+kreastrap.conf uses a INI format.
 An example configuration file looks like this;
 ```
 [General]
@@ -41,15 +41,15 @@ ExtraPackages="gmake nim"
 Written by Kreato.
 
 # COPYRIGHT
-nyaa is free software: you can redistribute it and/or modify
+kreastrap is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
 
-nyaa is distributed in the hope that it will be useful,
+kreastrap is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with nyaa.  If not, see <https://www.gnu.org/licenses/>.
+along with kreastrap.  If not, see <https://www.gnu.org/licenses/>.
