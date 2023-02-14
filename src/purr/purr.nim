@@ -8,6 +8,7 @@ proc genFiles(tmpdir: string) =
     ok("Files successfully generated.")
     discard existsOrCreateDir(tmpdir)
     discard existsOrCreateDir(tmpdir&"/root")
+    discard existsOrCreateDir(tmpdir&"/root/var")
     discard existsOrCreateDir(tmpdir&"/root/etc")
 
 proc purr(tests = "all", tmpdir = "/tmp/purr") =
