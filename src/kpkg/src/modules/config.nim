@@ -13,6 +13,7 @@ proc initializeConfig(): Config =
     err("please be root to initialize config", false)
 
   discard existsOrCreateDir("/etc/kpkg")
+  discard existsOrCreateDir("/etc/kpkg/repos")
 
   var config = newConfig()
   # [Options]
