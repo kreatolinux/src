@@ -44,8 +44,6 @@ Now lets break it down.
 * build: The main function.
 * install: The install function.
 
-Please DO NOT install within the build function.
-
 ## OPTIONAL FUNCTIONS AND VARIABLES
 * EPOCH: Only use this when the versioning logic fail for the package.
 * prepare(): Files downloaded from SOURCES are extracted by default. Use prepare() to prevent this and have custom prepare procedure.
