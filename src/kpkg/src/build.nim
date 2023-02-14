@@ -109,17 +109,11 @@ proc builder(package: string, destdir: string,
             "Options",
             "cc")&" && export DESTDIR="&root&" && export ROOT=$DESTDIR && build'"
 
-    if pkg.buildAsRoot:
-        echo "kpkg: WARNING: THE PACKAGE IS BUILT AS ROOT!"
-        echo "Such package will not be accepted on official repositories without a proper reason."
-        cmd = ". "&path&"/run"&" && export CC="&getConfigValue("Options",
-                "cc")&" && export DESTDIR="&root&" && export ROOT=$DESTDIR && build"
-
-    if offline:
-        cmd = "unshare -n /bin/sh -c '"&cmd&"'"
-
     if execShellCmd(cmd) != 0:
         err("build failed")
+
+    if execShellCmd(". "&path&"/run"&" && export DESTDIR="&root&" && export ROOT=$DESTDIR && install") != 0:
+        err("Installation failed")
 
     let tarball = "/var/cache/kpkg/archives/arch/"&hostCPU&"/kpkg-tarball-"&pkg.pkg&"-"&pkg.versionString&".tar.gz"
 
