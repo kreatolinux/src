@@ -33,6 +33,10 @@ build() {
     tar -xvf testfile.tar.gz
     echo \[dq]Insert additional installation instructions here\[dq]
 }
+
+install() {
+    make install
+}
 \f[R]
 .fi
 .PP
@@ -64,6 +68,10 @@ It will be on the info command.
 .SS FUNCTIONS
 .IP \[bu] 2
 build: The main function.
+.IP \[bu] 2
+install: The install function.
+.PP
+Please DO NOT install within the build function.
 .SS OPTIONAL FUNCTIONS AND VARIABLES
 .IP \[bu] 2
 EPOCH: Only use this when the versioning logic fail for the package.
