@@ -1,7 +1,7 @@
 include common
-include ../kpkg/src/info
-include ../kpkg/src/remove
-include ../kpkg/src/upgrade
+include ../kpkg/info
+include ../kpkg/remove
+include ../kpkg/upgrade
 
 proc genFiles(tmpdir: string) =
     ## Generates files required for the utility to function.

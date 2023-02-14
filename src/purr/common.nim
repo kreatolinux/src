@@ -3,10 +3,10 @@ import sequtils
 import parsecfg
 import os
 import options
-include ../kpkg/src/modules/logger
-include ../kpkg/src/modules/config
-include ../kpkg/src/build
-include ../kpkg/src/update
+include ../kpkg/modules/logger
+include ../kpkg/modules/config
+include ../kpkg/build
+include ../kpkg/update
 
 proc debug(message: string) =
     when not defined(release):

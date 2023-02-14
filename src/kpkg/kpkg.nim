@@ -19,13 +19,13 @@ import cligen
 import sequtils
 import parsecfg
 import os
-include src/modules/logger
-include src/modules/config
-include src/build
-include src/update
-include src/remove
-include src/upgrade
-include src/info
+include modules/logger
+include modules/config
+include build
+include update
+include remove
+include upgrade
+include info
 
 clCfg.version = "kpkg v4"
 
