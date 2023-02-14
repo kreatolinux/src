@@ -107,7 +107,7 @@ proc builder(package: string, destdir: string,
 
     var cmd = "su -s /bin/sh _kpkg -c '. "&path&"/run"&" && export CC="&getConfigValue(
             "Options",
-            "cc")&" && export DESTDIR="&root&" && export ROOT=$DESTDIR && build'"
+            "cc")&"build'"
 
     if execShellCmd(cmd) != 0:
         err("build failed")
