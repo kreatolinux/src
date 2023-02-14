@@ -22,7 +22,8 @@ proc install_pkg(repo: string, package: string, root: string, binary = false) =
     removeDir(root&"/var/cache/kpkg/installed/"&package)
     copyDir(repo&"/"&package, root&"/var/cache/kpkg/installed/"&package)
 
-    writeFile(root&"/var/cache/kpkg/installed/"&package&"/list_files", execProcess(
+    writeFile(root&"/var/cache/kpkg/installed/"&package&"/list_files",
+        execProcess(
         "tar -hxvf"&tarball&" -C "&root))
 
 proc install_bin(packages: seq[string], binrepo: string, root: string,
