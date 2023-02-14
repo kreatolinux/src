@@ -13,7 +13,7 @@ proc initializeConfig(): Config =
     err("please be root to initialize config", false)
 
   discard existsOrCreateDir("/etc/kpkg")
-  
+
   var config = newConfig()
   # [Options]
   config.setSectionKey("Options", "cc", "gcc") # GCC works the best right now
