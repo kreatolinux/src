@@ -15,8 +15,8 @@ case $1 in
         "chkupd")                    
                 nim c -d:release -d:ssl -o="$OUTDIR" "$SRCDIR/chkupd/chkupd.nim"              
         ;;
-        "nyaastrap")
-                nim c --threads:on -d:ssl -o="$SRCDIR/nyaastrap/nyaastrap" "$SRCDIR/nyaastrap/nyaastrap.nim"
+        "kreastrap")
+                nim c --threads:on -d:ssl -o="$SRCDIR/kreastrap/kreastrap" "$SRCDIR/kreastrap/kreastrap.nim"
         ;;
         "deps")
                 nimble install cligen libsha -y
@@ -25,7 +25,7 @@ case $1 in
                 echo """./build.sh kpkg: builds kpkg
 ./build.sh prettify: uses nimpretty to prettify code
 ./build.sh chkupd: builds chkupd
-./build.sh nyaastrap: builds nyaastrap
+./build.sh kreastrap: builds kreastrap
 ./build.sh deps: Install dependencies through Nimble"""
         ;;
 esac

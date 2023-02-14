@@ -14,6 +14,8 @@ proc initDirectories(buildDirectory: string, arch: string) =
     createDir(buildDirectory)
     createDir(buildDirectory&"/etc")
     createDir(buildDirectory&"/var")
+    createDir(buildDirectory&"/var/cache")
+    createDir(buildDirectory&"/var/cache/kpkg")
     createDir(buildDirectory&"/usr")
     createDir(buildDirectory&"/usr/bin")
     createDir(buildDirectory&"/usr/lib")
@@ -33,7 +35,7 @@ proc initDirectories(buildDirectory: string, arch: string) =
             fpUserRead, fpGroupExec, fpGroupWrite, fpGroupRead, fpOthersExec,
             fpOthersWrite, fpOthersRead})
 
-    createDir(buildDirectory&"/etc/kpkg.installed")
+    createDir(buildDirectory&"/var/cache/kpkg/installed")
     createDir(buildDirectory&"/run")
 
     if arch == "amd64":
@@ -47,7 +49,7 @@ proc initDirectories(buildDirectory: string, arch: string) =
 
     info_msg "Root directory structure created."
 
-proc kpkgstrapInstall(package: string, installWithBinaries: bool,
+proc kreastrapInstall(package: string, installWithBinaries: bool,
         buildDir: string, useCacheIfPossible = true) =
     # Install a package.
     info_msg "Installing package '"&package&"'"
@@ -85,7 +87,7 @@ proc rootfs(buildType = "builder", arch = "amd64",
     else:
         error("Config "&buildType&" does not exist!")
 
-    info_msg "kpkgstrap v3.0.0"
+    info_msg "kreastrap v3.0.0"
 
     discard update()
 
@@ -134,10 +136,10 @@ proc rootfs(buildType = "builder", arch = "amd64",
         case conf.getSectionValue("Core", "TlsLibrary").normalize():
             of "openssl":
                 info_msg "Installing OpenSSL as TLS Library"
-                kpkgstrapInstall("openssl", installWithBinaries, buildDir, useCacheIfPossible)
+                kreastrapInstall("openssl", installWithBinaries, buildDir, useCacheIfPossible)
             of "libressl":
                 info_msg "Installing LibreSSL as TLS library"
-                kpkgstrapInstall("libressl", installWithBinaries, buildDir, useCacheIfPossible)
+                kreastrapInstall("libressl", installWithBinaries, buildDir, useCacheIfPossible)
             else:
                 error conf.getSectionValue("Core",
                         "TlsLibrary")&" is not available as a TLS library option."
@@ -146,11 +148,11 @@ proc rootfs(buildType = "builder", arch = "amd64",
         case conf.getSectionValue("Core", "Compiler").normalize():
             of "gcc":
                 info_msg "Installing GCC as Compiler"
-                kpkgstrapInstall("gcc", installWithBinaries, buildDir, useCacheIfPossible)
+                kreastrapInstall("gcc", installWithBinaries, buildDir, useCacheIfPossible)
                 set_default_cc(buildDir, "gcc")
             of "clang":
                 info_msg "Installing clang as Compiler"
-                kpkgstrapInstall("llvm", installWithBinaries, buildDir, useCacheIfPossible)
+                kreastrapInstall("llvm", installWithBinaries, buildDir, useCacheIfPossible)
                 set_default_cc(buildDir, "clang")
             of "no":
                 warn "Skipping compiler installation"
@@ -162,10 +164,10 @@ proc rootfs(buildType = "builder", arch = "amd64",
         case conf.getSectionValue("Core", "Libc").normalize():
             of "glibc":
                 info_msg "Installing glibc as libc"
-                kpkgstrapInstall("glibc", installWithBinaries, buildDir, useCacheIfPossible)
+                kreastrapInstall("glibc", installWithBinaries, buildDir, useCacheIfPossible)
             of "musl":
                 info_msg "Installing musl as libc"
-                kpkgstrapInstall("musl", installWithBinaries, buildDir, useCacheIfPossible)
+                kreastrapInstall("musl", installWithBinaries, buildDir, useCacheIfPossible)
             else:
                 error conf.getSectionValue("Core",
                         "Libc")&" is not available as a Libc option."
@@ -174,29 +176,29 @@ proc rootfs(buildType = "builder", arch = "amd64",
         case conf.getSectionValue("Core", "Coreutils").normalize():
             of "busybox":
                 info_msg "Installing BusyBox as Coreutils"
-                kpkgstrapInstall("busybox", installWithBinaries, buildDir, useCacheIfPossible)
+                kreastrapInstall("busybox", installWithBinaries, buildDir, useCacheIfPossible)
 
                 if execCmdEx("chroot "&buildDir&" /bin/busybox --install").exitcode != 0:
                     error "Installing busybox failed"
 
             of "gnu":
                 info_msg "Installing GNU Coreutils as Coreutils"
-                kpkgstrapInstall("gnu-coreutils", installWithBinaries,
+                kreastrapInstall("gnu-coreutils", installWithBinaries,
                         buildDir, useCacheIfPossible)
             else:
                 error conf.getSectionValue("Core",
                         "Coreutils")&" is not available as a Coreutils option."
 
         # Install shadow, and enable it
-        kpkgstrapInstall("shadow", installWithBinaries, buildDir, useCacheIfPossible)
+        kreastrapInstall("shadow", installWithBinaries, buildDir, useCacheIfPossible)
 
         if execCmdEx("chroot "&buildDir&" /usr/sbin/pwconv").exitcode != 0:
             error "Enabling shadow failed"
 
         # Install kpkg, p11-kit and make-ca here
-        kpkgstrapInstall("kpkg", installWithBinaries, buildDir, useCacheIfPossible)
-        kpkgstrapInstall("p11-kit", installWithBinaries, buildDir, useCacheIfPossible)
-        kpkgstrapInstall("make-ca", installWithBinaries, buildDir, useCacheIfPossible)
+        kreastrapInstall("kpkg", installWithBinaries, buildDir, useCacheIfPossible)
+        kreastrapInstall("p11-kit", installWithBinaries, buildDir, useCacheIfPossible)
+        kreastrapInstall("make-ca", installWithBinaries, buildDir, useCacheIfPossible)
 
 
         # Generate certdata here
@@ -217,7 +219,7 @@ proc rootfs(buildType = "builder", arch = "amd64",
 
         removeFile(buildDir&"/certdata.txt")
 
-        kpkgstrapInstall("python", installWithBinaries, buildDir, useCacheIfPossible)
+        kreastrapInstall("python", installWithBinaries, buildDir, useCacheIfPossible)
 
         let ensurePip = execCmdEx("chroot "&buildDir&" /bin/sh -c 'python -m ensurepip'")
 
@@ -230,11 +232,11 @@ proc rootfs(buildType = "builder", arch = "amd64",
         if conf.getSectionValue("Extras", "ExtraPackages") != "":
             info_msg "Installing extra packages"
             for i in conf.getSectionValue("Extras", "ExtraPackages").split(" "):
-                kpkgstrapInstall(i, installWithBinaries, buildDir, useCacheIfPossible)
+                kreastrapInstall(i, installWithBinaries, buildDir, useCacheIfPossible)
 
 
 
-proc buildPackages(useCacheIfPossible = true, repo = "/etc/kpkg") =
+proc buildPackages(useCacheIfPossible = true, repo = "/etc/kpkg/repos/main") =
     ## Build all packages available.
 
     discard update()
@@ -244,12 +246,12 @@ proc buildPackages(useCacheIfPossible = true, repo = "/etc/kpkg") =
             of pcDir:
                 info_msg "Now building "&lastPathPart(path)
                 debug "Full path: "&path
-                kpkgstrapInstall(lastPathPart(path), false, "/", useCacheIfPossible)
+                kreastrapInstall(lastPathPart(path), false, "/", useCacheIfPossible)
             of pcLinkToDir:
                 warn "kpkg doesn't support symlinks properly. Issues may occur"
                 info_msg "Now building "&lastPathPart(path)
                 debug "Full path: "&path
-                kpkgstrapInstall(lastPathPart(path), false, "/", useCacheIfPossible)
+                kreastrapInstall(lastPathPart(path), false, "/", useCacheIfPossible)
             else:
                 discard
 
