@@ -25,6 +25,10 @@ build() {
     tar -xvf testfile.tar.gz
     echo "Insert additional installation instructions here"
 }
+
+install() {
+    make install
+}
 ```
 Now lets break it down.
 
@@ -38,6 +42,9 @@ Now lets break it down.
 
 ## FUNCTIONS
 * build: The main function.
+* install: The install function.
+
+Please DO NOT install within the build function.
 
 ## OPTIONAL FUNCTIONS AND VARIABLES
 * EPOCH: Only use this when the versioning logic fail for the package.
