@@ -27,14 +27,19 @@ case $1 in
                 shift
                 run nim c --threads:on -d:ssl "$@" -o="$SRCDIR/kreastrap/kreastrap" "$SRCDIR/kreastrap/kreastrap.nim"
         ;;
+        "mari")
+                shift
+                run nim c -d:release -o="$OUTDIR" "$SRCDIR/mari/mari.nim" 
+        ;;
         "deps")
                 shift
-                run nimble install cligen libsha "$@" -y
+                run nimble install cligen libsha httpbeast "$@" -y
                 ;;
         *)
                 echo """./build.sh kpkg: builds kpkg
 ./build.sh prettify: uses nimpretty to prettify code
 ./build.sh tests: builds tests
+./build.sh mari: builds mari
 ./build.sh chkupd: builds chkupd
 ./build.sh kreastrap: builds kreastrap
 ./build.sh deps: Install dependencies through Nimble"""

@@ -23,6 +23,9 @@ There are a couple of build variables;
 There is also kreastrap v3, a rootfs building utility.
 You can build it by running `./build.sh kreastrap`. The binary will be located on `src/kreastrap/kreastrap`.
 
+## mari
+Mari is a very simple http server that uses httpbeast. It is mainly used to run Kreato Linux binary repository. You can build it by running `./build.sh mari`. The binary will be located on the usual `out` folder.
+
 ## purr
 purr is kpkg's testing utility. You can build it by running `./build.sh tests`. The binary will be located on the usual `out` folder.
 
