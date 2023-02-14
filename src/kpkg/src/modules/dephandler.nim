@@ -5,7 +5,7 @@ proc isIn(one: seq[string], two: seq[string]): bool =
             return true
     return false
 
-proc dephandler(pkgs: seq[string], ignoreDeps = @["  "]): seq[string] =
+proc dephandler(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false): seq[string] =
     ## takes in a seq of packages and returns what to install.
     var deps: seq[string]
     try:
@@ -13,9 +13,18 @@ proc dephandler(pkgs: seq[string], ignoreDeps = @["  "]): seq[string] =
             let repo = findPkgRepo(pkg)
             if repo == "":
                 err("Package "&pkg&" doesn't exist", false)
+            
+            var depsType: string
 
-            if fileExists(repo&"/"&pkg&"/deps"):
-                for dep in lines repo&"/"&pkg&"/deps":
+            if bdeps:
+                depsType = "/build_deps"
+            else:
+                depsType = "/deps"
+
+            
+
+            if fileExists(repo&"/"&pkg&depsType):
+                for dep in lines repo&"/"&pkg&depsType:
                     if dep in pkgs or dep in deps or isIn(deps, ignoreDeps) or
                             dep in ignoreDeps:
                         continue
