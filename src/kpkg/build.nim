@@ -118,7 +118,7 @@ proc builder(package: string, destdir: string,
     if execShellCmd(cmd) != 0:
         err("build failed")
 
-    if execShellCmd(". "&path&"/run"&" && export DESTDIR="&root&" && export ROOT=$DESTDIR && install") != 0:
+    if execCmdEx(". "&path&"/run"&" && export DESTDIR="&root&" && export ROOT=$DESTDIR && install", workingDir = folder[0]).exitCode != 0:
         err("Installation failed")
 
     let tarball = "/var/cache/kpkg/archives/arch/"&hostCPU&"/kpkg-tarball-"&pkg.pkg&"-"&pkg.versionString&".tar.gz"
