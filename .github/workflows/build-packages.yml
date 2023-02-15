@@ -25,7 +25,7 @@ jobs:
 
       - name: Build packages
         run: |
-          ./build.sh deps
-          ./build.sh kreastrap
-          ./src/kreastrap/kreastrap buildPackages
+          make deps
+          make kreastrap
+          ./out/kreastrap buildPackages
 
