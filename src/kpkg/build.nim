@@ -99,8 +99,11 @@ proc builder(package: string, destdir: string,
         except:
             raise
 
+    let folder = absolutePath(execProcess("su -s /bin/sh _kpkg -c 'bsdtar -tzf "&filename&" | head -1'")).splitWhitespace.filterit(it.len != 0)
+
     if existsPrepare != 0:
         discard execProcess("su -s /bin/sh _kpkg -c 'bsdtar -xvf "&filename&"'")
+        setCurrentDir(folder[0])
     else:
         assert execShellCmd("su -s /bin/sh _kpkg -c '. "&path&"/run"&" && prepare'") ==
                 0, "prepare failed"
@@ -108,7 +111,7 @@ proc builder(package: string, destdir: string,
     var cmd = "su -s /bin/sh _kpkg -c '. "&path&"/run"&" && export CC="&getConfigValue(
             "Options",
             "cc")&"build'"
-
+    
     if execShellCmd(cmd) != 0:
         err("build failed")
 
