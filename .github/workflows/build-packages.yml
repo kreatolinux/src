@@ -27,5 +27,5 @@ jobs:
         run: |
           make deps
           make kreastrap
-          ./out/kreastrap buildPackages
+          ./src/kreastrap/kreastrap buildPackages
 

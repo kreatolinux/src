@@ -15,8 +15,6 @@ $(tasks)::
 kreastrap:
 	nim c -d:release -d:branch=master --threads:on -d:ssl -o=$(SRCDIR)/kreastrap/kreastrap $(SRCDIR)/kreastrap/kreastrap.nim
 
-purr:: kpkg
-
 prettify:
 	find $(SRCDIR) -type f -name '*.nim' | xargs nimpretty
 
