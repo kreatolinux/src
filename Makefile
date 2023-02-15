@@ -9,8 +9,10 @@ all: $(tasks)
 deps:
 	nimble install cligen libsha httpbeast -y
 
-$(tasks):
+$(tasks)::
 	$(call nimbuild,$@)
+
+purr:: kpkg
 
 prettify:
 	find $(SRCDIR) -type f -name '*.nim' | xargs nimpretty
