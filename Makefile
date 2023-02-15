@@ -2,7 +2,7 @@ SRCDIR = $(shell pwd)/src
 PREFIX = ./out
 
 nimbuild = nim c -d:release -d:branch=master --threads:on -d:ssl -o=$(PREFIX)/$1 $(SRCDIR)/$1/$1.nim
-tasks = kpkg chkupd kreastrap mari purr
+tasks = kpkg chkupd mari purr
 
 all: $(tasks)
 
@@ -11,6 +11,9 @@ deps:
 
 $(tasks)::
 	$(call nimbuild,$@)
+
+kreastrap:
+	nim c -d:release -d:branch=master --threads:on -d:ssl -o=$(SRCDIR)/kreastrap/kreastrap $(SRCDIR)/kreastrap/kreastrap.nim
 
 purr:: kpkg
 
