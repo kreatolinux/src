@@ -105,21 +105,26 @@ proc builder(package: string, destdir: string,
 
     if existsPrepare != 0:
         discard execProcess("su -s /bin/sh _kpkg -c 'bsdtar -xvf "&filename&"'")
-        if pkg.sources.split(";").len == 0:
+        if pkg.sources.split(";").len == 1:
             setCurrentDir(folder[0])
     else:
         assert execShellCmd("su -s /bin/sh _kpkg -c '. "&path&"/run"&" && prepare'") ==
                 0, "prepare failed"
+    
+    var cmd: int 
+    var cmd2: tuple[output: string, exitCode: int]
 
-    var cmd = "su -s /bin/sh _kpkg -c '. "&path&"/run"&" && export CC="&getConfigValue(
-            "Options",
-            "cc")&"build'"
+    if pkg.sources.split(";").len == 1:        
+        cmd = execShellCmd("su -s /bin/sh _kpkg -c 'cd "&folder[0]&" && . "&path&"/run"&" && export CC="&getConfigValue("Options","cc")&" && build'")
+        cmd2 = execCmdEx(". "&path&"/run"&" && export DESTDIR="&root&" && export ROOT=$DESTDIR && install",
+            workingDir = folder[0])
+    else:
+        cmd = execShellCmd("su -s /bin/sh _kpkg -c '. "&path&"/run"&" && export CC="&getConfigValue("Options","cc")&" && build'")
+        cmd2 = execCmdEx(". "&path&"/run"&" && export DESTDIR="&root&" && export ROOT=$DESTDIR && install")
 
-    if execShellCmd(cmd) != 0:
+    if cmd != 0:
         err("build failed")
 
-    let cmd2 = execCmdEx(". "&path&"/run"&" && export DESTDIR="&root&" && export ROOT=$DESTDIR && install",
-            workingDir = folder[0])
     if cmd2.exitCode != 0:
         echo cmd2.output
         err("Installation failed")
