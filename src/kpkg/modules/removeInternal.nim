@@ -9,4 +9,4 @@ proc removeInternal(package: string, root = ""): string =
             removeDir(root&"/"&line)
 
     removeDir(root&"/var/cache/kpkg/installed/"&package)
-    return "nyaa: package "&package&" removed."
+    return "kpkg: package "&package&" removed."
