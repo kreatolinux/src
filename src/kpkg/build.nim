@@ -117,7 +117,7 @@ proc builder(package: string, destdir: string,
 
     if execShellCmd(cmd) != 0:
         err("build failed")
-    
+
     let cmd2 = execCmdEx(". "&path&"/run"&" && export DESTDIR="&root&" && export ROOT=$DESTDIR && install",
             workingDir = folder[0])
     if cmd2.exitCode != 0:
