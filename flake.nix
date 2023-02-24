@@ -3,11 +3,16 @@
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
   inputs.nimble.url = "github:nix-community/flake-nimble";
+  inputs.flake-compat = {
+    url = "github:edolstra/flake-compat";
+    flake = false;
+  };
 
   outputs = {
     self,
     nixpkgs,
     nimble,
+    flake-compat,
   }: let
     lastModifiedDate = self.lastModifiedDate or self.lastModified or "19700101";
     version = builtins.substring 0 8 lastModifiedDate;
