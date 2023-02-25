@@ -1,106 +1,59 @@
 {
   description = "A basic flake with a shell";
 
-  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
-  inputs.nimble.url = "github:nix-community/flake-nimble";
-  inputs.flake-compat = {
-    url = "github:edolstra/flake-compat";
-    flake = false;
+  # ------------------------------------------------------------------------------------------------
+
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    nimble.url = "github:nix-community/flake-nimble";
+    flake-compat = {
+      url = "github:edolstra/flake-compat";
+      flake = false;
+    };
+    flake-utils.url = "github:numtide/flake-utils";
   };
+
+  # ------------------------------------------------------------------------------------------------
 
   outputs = {
     self,
     nixpkgs,
+    flake-utils,
     nimble,
-    flake-compat,
+    ...
   }: let
-    lastModifiedDate = self.lastModifiedDate or self.lastModified or "19700101";
-    version = builtins.substring 0 8 lastModifiedDate;
-    supportedSystems = ["x86_64-linux"];
+    inherit (self) lastModifiedDate;
+    inherit (builtins) substring;
+    version = substring 0 8 lastModifiedDate;
 
-    forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
-    nixpkgsFor = forAllSystems (system:
+    inherit (flake-utils.lib) system eachSystem;
+    systems = with system; [x86_64-linux aarch64-linux];
+
+    packagesFn = pkgs: import ./nix {inherit pkgs version;};
+
+    overlays = [nimble.overlay];
+    # nixpkgs instance for cross compilation
+    armPkgs = system:
       import nixpkgs {
-        inherit system;
-        overlays = [nimble.overlay];
-      });
-  in {
-    packages =
-      forAllSystems
-      (system: let
-        pkgs = nixpkgsFor.${system};
-
-        libArgs = {name}: "-p:${pkgs.nimPackages.${name}}";
-
-        nimBuild = {
-          name,
-          nativeBuild ? [],
-          buildInputs ? [],
-          args ? "",
-        }: {
-          ${name} = with pkgs;
-            stdenv.mkDerivation rec {
-              pname = name;
-              inherit buildInputs version;
-
-              src = ./.;
-              nativeBuildInputs = [nim] ++ nativeBuild;
-
-              buildPhase = ''
-                nim compile -d:release -d:branch-master --threads:on -d:ssl --nimcache:.cache/ \
-                  ${args} \
-                  -o=./out/${pname} ./src/${pname}/${pname}.nim
-              '';
-
-              installPhase = ''
-                mkdir -p $out/bin
-                cp out/${pname} $out/bin/
-              '';
-            };
+        inherit system overlays;
+        crossSystem = {
+          config = "aarch64-unknown-linux-gnu";
         };
-
-        cligenArgs = libArgs {
-          name = "cligen";
-        };
-        httpbeastArgs = libArgs {
-          name = "httpbeast";
-        };
-        libshaArgs = libArgs {
-          name = "libsha";
-        };
+      };
+  in
+    eachSystem systems (system: let
+      pkgs = import nixpkgs {
+        inherit system overlays;
+      };
+    in {
+      packages = let
+        packages = packagesFn pkgs;
       in
-        with pkgs;
-          (nimBuild {
-            name = "kpkg";
-            nativeBuild = with nimPackages; [cligen libsha];
-            args = "${cligenArgs} ${libshaArgs}";
-          })
-          // (nimBuild {
-            name = "chkupd";
-            nativeBuild = with nimPackages; [cligen libsha];
-            args = "${cligenArgs} ${libshaArgs}";
-          })
-          // (nimBuild {
-            name = "mari";
-            nativeBuild = with nimPackages; [httpbeast libsha];
-            args = "${httpbeastArgs} ${libshaArgs}";
-          })
-          // (nimBuild {
-            name = "purr";
-            nativeBuild = with nimPackages; [cligen];
-            args = cligenArgs;
-            buildInputs = [self.packages.${system}.kpkg];
-          })
-          // (nimBuild {
-            name = "kreastrap";
-            buildInputs = [self.packages.${system}.purr];
-            nativeBuild = buildInputs;
-          }));
+        packages // {default = packages.kpkg;};
 
-    checks = forAllSystems (system: let
-      pkgs = nixpkgsFor.${system};
-    in
-      with pkgs; {
+      checks = let
+        inherit (pkgs) nim runCommand;
+      in {
         nimpretty =
           runCommand "nimpretty" {
             buildInputs = [nim];
@@ -109,16 +62,15 @@
             mkdir $out
             find ${./src} -type f -name '*.nim' | xargs nimpretty
           '';
-      });
+      };
 
-    defaultPackage = forAllSystems (system: self.packages.${system}.kpkg);
-
-    devShell = forAllSystems (system: let
-      pkgs = nixpkgsFor.${system};
-    in
-      with pkgs;
-        mkShell {
+      devShells = let
+        inherit (pkgs) gnumake mkShell nim nimPackages;
+      in {
+        default = mkShell {
           packages = with nimPackages; [gnumake nim cligen libsha];
-        });
-  };
+        };
+      };
+    })
+    // {arm = packagesFn (armPkgs "x86_64-linux");};
 }
