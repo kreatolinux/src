@@ -4,9 +4,9 @@ name: CI
 on:
   # Triggers the workflow on push or pull request events but only for the "master" branch
   push:
-    branches: [ "master" ]
+    branches: ["master"]
   pull_request:
-    branches: [ "master" ]
+    branches: ["master"]
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -20,17 +20,15 @@ jobs:
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       - uses: actions/checkout@v3
-      - uses: jiro4989/setup-nim-action@v1
-        with:
-          nim-version: 'stable' # default is 'stable'
-      - run: make deps
-      - run: make kpkg
+      - uses: cachix/install-nix-action@v20
+      - run: |
+          nix build .#kpkg
+          sudo ./result/bin/kpkg
       - uses: actions/upload-artifact@v3
         with:
-          name: kpkg 
-          path: ${{ github.workspace }}/out/*
-        
+          name: kpkg
+          path: ${{ github.workspace }}/result/bin/*
+
       - run: |
-          make purr
-          sudo ./out/kpkg # This is done to generate the config, purr cant seem to generate them by itself for now
-          sudo ./out/purr
+          nix build .#purr
+          sudo ./result/bin/purr
