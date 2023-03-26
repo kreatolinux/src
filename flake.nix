@@ -26,22 +26,38 @@
     inherit (builtins) substring;
     version = substring 0 8 lastModifiedDate;
 
+    # ------------------------------------------------------------------------------------------------
+
     inherit (flake-utils.lib) system eachSystem;
     systems = with system; [x86_64-linux aarch64-linux];
 
+    # ------------------------------------------------------------------------------------------------
+
     packagesFn = pkgs: import ./nix {inherit pkgs version;};
 
-    overlays = [nimble.overlay];
+    # ------------------------------------------------------------------------------------------------
+
+    nixpkgsFor = nixpkgs.lib.genAttrs systems (system:
+      import nixpkgs {
+        inherit system;
+        overlays = [nimble.overlay];
+      });
   in
     eachSystem systems (system: let
-      pkgs = import nixpkgs {
-        inherit system overlays;
-      };
+      pkgs = nixpkgsFor.${system};
     in {
+      # ------------------------------------------------------------------------------------------------
       packages = let
         packages = packagesFn pkgs;
       in
         packages // {default = packages.kpkg;};
+
+      # ------------------------------------------------------------------------------------------------
+
+      # statically compiled packages
+      static = packagesFn pkgs.pkgsStatic;
+
+      # ------------------------------------------------------------------------------------------------
 
       checks = let
         inherit (pkgs) nim runCommand;
@@ -56,26 +72,27 @@
           '';
       };
 
-      devShells = let
-        inherit (pkgs) gnumake mkShell nim nimPackages;
-      in {
-        default = mkShell {
-          packages = with nimPackages; [gnumake nim cligen libsha];
-        };
+      # ------------------------------------------------------------------------------------------------
+
+      devShells = {
+        default = with pkgs;
+          mkShell {
+            packages = [gnumake nim];
+          };
       };
     })
+    # ------------------------------------------------------------------------------------------------
+    # cross-compiled and optionally static arm packages
     // (let
-      pkgs = import nixpkgs {
-        system = "x86_64-linux";
-        inherit overlays;
-      };
+      pkgs = nixpkgsFor."x86_64-linux";
+      inherit (pkgs.pkgsCross) aarch64-multiplatform;
     in {
-      # cross-compiled arm and static packages
-      arm = let
-        armPkgs = pkgs.pkgsCross.aarch64-multiplatform.pkgsStatic;
-      in
-        packagesFn armPkgs;
-
-      static = packagesFn pkgs.pkgsStatic;
+      arm =
+        packagesFn aarch64-multiplatform
+        // {
+          static = packagesFn aarch64-multiplatform.pkgsStatic;
+        };
     });
+
+  # ------------------------------------------------------------------------------------------------
 }

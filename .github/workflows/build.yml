@@ -24,7 +24,7 @@ jobs:
 
       - name: build (x64)
         run: |
-          nix build .#static.kpkg
+          nix build .#kpkg
           sudo ./result/bin/kpkg
       - uses: actions/upload-artifact@v3
         with:
@@ -36,7 +36,7 @@ jobs:
           nix build .#arm.kpkg
       - uses: actions/upload-artifact@v3
         with:
-          name: kpkg-x64-linux
+          name: kpkg-aarch64-linux
           path: ${{ github.workspace }}/result/bin/*
 
       - run: |
