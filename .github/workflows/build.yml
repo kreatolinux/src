@@ -21,12 +21,22 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: cachix/install-nix-action@v20
-      - run: |
-          nix build .#kpkg
+
+      - name: build (x64)
+        run: |
+          nix build .#static.kpkg
           sudo ./result/bin/kpkg
       - uses: actions/upload-artifact@v3
         with:
-          name: kpkg
+          name: kpkg-x64-linux
+          path: ${{ github.workspace }}/result/bin/*
+
+      - name: build (aarch64)
+        run: |
+          nix build .#arm.kpkg
+      - uses: actions/upload-artifact@v3
+        with:
+          name: kpkg-x64-linux
           path: ${{ github.workspace }}/result/bin/*
 
       - run: |

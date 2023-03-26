@@ -32,14 +32,6 @@
     packagesFn = pkgs: import ./nix {inherit pkgs version;};
 
     overlays = [nimble.overlay];
-    # nixpkgs instance for cross compilation
-    armPkgs = system:
-      import nixpkgs {
-        inherit system overlays;
-        crossSystem = {
-          config = "aarch64-unknown-linux-gnu";
-        };
-      };
   in
     eachSystem systems (system: let
       pkgs = import nixpkgs {
@@ -72,5 +64,18 @@
         };
       };
     })
-    // {arm = packagesFn (armPkgs "x86_64-linux");};
+    // (let
+      pkgs = import nixpkgs {
+        system = "x86_64-linux";
+        inherit overlays;
+      };
+    in {
+      # cross-compiled arm and static packages
+      arm = let
+        armPkgs = pkgs.pkgsCross.aarch64-multiplatform.pkgsStatic;
+      in
+        packagesFn armPkgs;
+
+      static = packagesFn pkgs.pkgsStatic;
+    });
 }
