@@ -55,6 +55,7 @@ jobs:
       - name: Build builder rootfs tarball
         run: |
           cd /work
+          rm -rf /out
           ./src/kreastrap/kreastrap rootfs --buildType=builder --arch=amd64
           cd /out
           tar -czvf /work/kreato-linux-builder-"$(date +%d-%m-%Y)"-amd64.tar.gz *
@@ -72,6 +73,7 @@ jobs:
       - name: Build server rootfs tarball
         run: |
           cd /work
+          rm -rf /out
           ./src/kreastrap/kreastrap rootfs --buildType=server --arch=amd64
           cd /out
           tar -czvf /work/kreato-linux-builder-"$(date +%d-%m-%Y)"-amd64.tar.gz *
