@@ -100,7 +100,7 @@ proc builder(package: string, destdir: string,
             raise
 
     let folder = absolutePath(execProcess(
-            "su -s /bin/sh _kpkg -c \"dirname $(bsdtar -tzf "&filename&" | head -2 | tail -1)\"")).splitWhitespace.filterit(
+            "su -s /bin/sh _kpkg -c \"dirname $(bsdtar -tzf "&filename&" | head -2 | tail -1 2>/dev/null)\"")).splitWhitespace.filterit(
             it.len != 0)
 
     echo folder # Temporary
