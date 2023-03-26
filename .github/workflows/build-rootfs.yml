@@ -10,11 +10,9 @@ on:
 
 jobs:
   build:
-    runs-on: self-hosted 
-    container: 
+    runs-on: ubuntu-latest 
+    container:
       image: kreato/builder:latest
-      volumes:
-        - /var/cache/kpkg/archives:/var/cache/kpkg/archives 
     
     steps:
 
