@@ -12,7 +12,7 @@ jobs:
   build:
     runs-on: ubuntu-latest 
     container:
-      image: kreato/builder:latest
+      image: ghcr.io/kreatolinux/builder@sha256:e47b5e26e05305814ad50c6c12690dcfb9c2ba0c7b51e931db22610507c5377f
     
     steps:
 
