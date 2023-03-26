@@ -103,6 +103,8 @@ proc builder(package: string, destdir: string,
             "su -s /bin/sh _kpkg -c \"dirname $(bsdtar -tzf "&filename&" | head -2 | tail -1)\"")).splitWhitespace.filterit(
             it.len != 0)
 
+    echo folder # Temporary
+
     if existsPrepare != 0:
         discard execProcess("su -s /bin/sh _kpkg -c 'bsdtar -xvf "&filename&"'")
         if pkg.sources.split(";").len == 1:
