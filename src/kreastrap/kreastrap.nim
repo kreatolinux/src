@@ -195,29 +195,14 @@ proc rootfs(buildType = "builder", arch = "amd64",
         if execCmdEx("chroot "&buildDir&" /usr/sbin/pwconv").exitcode != 0:
             error "Enabling shadow failed"
 
-        # Install kpkg, p11-kit and make-ca here
+        # Install kpkg, p11-kit and ca-certificates here
         kreastrapInstall("kpkg", installWithBinaries, buildDir, useCacheIfPossible)
         kreastrapInstall("p11-kit", installWithBinaries, buildDir, useCacheIfPossible)
-        kreastrapInstall("make-ca", installWithBinaries, buildDir, useCacheIfPossible)
+        kreastrapInstall("ca-certificates", installWithBinaries, buildDir, useCacheIfPossible)
 
 
         # Generate certdata here
         info_msg "Generating CA certificates"
-
-        setCurrentDir(buildDir)
-
-        waitFor download("https://hg.mozilla.org/releases/mozilla-release/raw-file/default/security/nss/lib/ckfw/builtins/certdata.txt",
-                "certdata.txt")
-
-        let caCertCmd = execCmdEx("chroot "&buildDir&" /bin/sh -c '. /etc/profile && cd / && /usr/sbin/make-ca -C certdata.txt'")
-
-        if caCertCmd.exitcode != 0:
-            debug "CA certification generation output: "&caCertCmd.output
-            error "Generating CA certificates failed"
-        else:
-            ok "Generated CA certificates"
-
-        removeFile(buildDir&"/certdata.txt")
 
         kreastrapInstall("python", installWithBinaries, buildDir, useCacheIfPossible)
 
