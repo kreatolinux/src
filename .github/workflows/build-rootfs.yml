@@ -36,9 +36,9 @@ jobs:
           make deps
           make kpkg
           ./out/kpkg update
+          nim c -d:release -d:branch=master --threads:on -d:ssl -o=src/kreastrap/kreastrap --passL:-static --passL:-lssl --passL:-lcrypto --dynlibOverride:ssl src/kreastrap/kreastrap.nim
           ./out/kpkg build musl -y
           sed s/gcc/musl-gcc/g -i /etc/kpkg/kpkg.conf
-          make kreastrap
           ./src/kreastrap/kreastrap rootfs --buildType=nocc --arch=amd64
           cd /out
           tar -czvf /work/kreato-linux-nocc-"$(date +%d-%m-%Y)"-amd64.tar.gz *
