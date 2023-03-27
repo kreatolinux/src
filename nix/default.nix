@@ -72,7 +72,12 @@
 
     # ------------------------------------------------------------------------------------------------
 
-    isStatic = pkgs.attr.dontDisableStatic;
+    isStatic = let
+      inherit (pkgs) attr;
+    in
+      if hasAttr "dontDisableStatic" attr
+      then attr.dontDisableStatic
+      else false;
 
     # collect and flatten args from attrsets in
     # our generated buildDeps
