@@ -12,7 +12,7 @@ jobs:
   build:
     runs-on: ubuntu-latest 
     container:
-      image: ghcr.io/kreatolinux/builder
+      image: alpine
     
     steps:
 
@@ -33,15 +33,24 @@ jobs:
           mkdir /out
           ln -s /out /work/out
           cd /work
+          cat > /etc/apk/repositories << EOF; $(echo)
+
+https://dl-cdn.alpinelinux.org/alpine/v$(cut -d'.' -f1,2 /etc/alpine-release)/main/
+https://dl-cdn.alpinelinux.org/alpine/v$(cut -d'.' -f1,2 /etc/alpine-release)/community/
+https://dl-cdn.alpinelinux.org/alpine/edge/testing/
+
+EOF
+          apk update
+          apk add alpine-sdk
+          apk add nimble
           make deps
           make kpkg
           ./out/kpkg update
-          nim c -d:release -d:branch=master --threads:on -d:ssl -o=src/kreastrap/kreastrap --passL:-static --passL:-lssl --passL:-lcrypto --dynlibOverride:ssl src/kreastrap/kreastrap.nim
-          ./out/kpkg build musl -y
           sed s/gcc/musl-gcc/g -i /etc/kpkg/kpkg.conf
+          make kreastrap
           ./src/kreastrap/kreastrap rootfs --buildType=nocc --arch=amd64
           cd /out
-          tar -czvf /work/kreato-linux-nocc-"$(date +%d-%m-%Y)"-amd64.tar.gz *
+          tar -czvf /work/kreato-linux-nocc-musl-"$(date +%d-%m-%Y)"-amd64.tar.gz *
        
       
       - name: Upload nocc Rootfs
