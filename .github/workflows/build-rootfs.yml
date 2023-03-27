@@ -18,8 +18,6 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@v3
-        with:
-          submodules: 'true'
           
       - name: Cache built packages
         uses: actions/cache@v3
