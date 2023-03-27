@@ -28,7 +28,7 @@ jobs:
 
       - name: build (x64)
         run: |
-          nix build .#static.x86_64-linux.kpkg
+          cachix watch-exec balls -- nix-build -A static.x86_64-linux.kpkg
           sudo ./result/bin/kpkg
       - uses: actions/upload-artifact@v3
         with:
@@ -37,12 +37,12 @@ jobs:
 
       - name: build (aarch64)
         run: |
-          nix build .#arm.static.kpkg
+          cachix watch-exec balls -- nix-build -A arm.static.kpkg
       - uses: actions/upload-artifact@v3
         with:
           name: kpkg-aarch64-linux
           path: ${{ github.workspace }}/result/bin/*
 
       - run: |
-          nix build .#purr
+          cachix watch-exec balls -- nix-build -A packages.x86_64-linux.purr
           sudo ./result/bin/purr
