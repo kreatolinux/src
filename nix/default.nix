@@ -63,7 +63,7 @@
     name,
     version ? inputs.version,
     nativeBuildInputs ? [],
-    propagatedBuildInputs ? [],
+    propagatedBuildInputs ? [pkgs.openssl],
   }: let
     # ------------------------------------------------------------------------------------------------
     inherit (builtins) catAttrs concatStringsSep hasAttr;
@@ -122,6 +122,7 @@ in rec {
   kpkg = nimBuild {
     name = "kpkg";
     nativeBuildInputs = with buildDeps; [cligen libsha];
+    propagatedBuildInputs = with pkgs; [libarchive shadow openssl git];
   };
 
   # ------------------------------------------------------------------------------------------------
