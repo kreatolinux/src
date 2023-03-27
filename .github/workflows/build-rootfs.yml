@@ -40,7 +40,7 @@ jobs:
           apk add alpine-sdk
           apk add nimble
           apk add shadow
-          apk add libarchive
+          apk add libarchive-tools
           make deps
           make kpkg
           ./out/kpkg update || true
