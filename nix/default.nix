@@ -67,14 +67,23 @@
   }: let
     # ------------------------------------------------------------------------------------------------
     inherit (builtins) catAttrs concatStringsSep hasAttr;
-    inherit (pkgs) nim stdenv;
+    inherit (pkgs) openssl nim stdenv;
     inherit (pkgs.lib) flatten;
 
     # ------------------------------------------------------------------------------------------------
 
+    isStatic = pkgs.attr.dontDisableStatic;
+
     # collect and flatten args from attrsets in
     # our generated buildDeps
-    buildArgs = concatStringsSep " " (flatten (catAttrs "buildArgs" nativeBuildInputs));
+    buildArgs =
+      (concatStringsSep " " (flatten (catAttrs "buildArgs" nativeBuildInputs)))
+      # extra flags for static builds
+      + (
+        if isStatic
+        then " --passL:-lssl --dynlibOverride:ssl --passL:-lcrypto --dynlibOverride:crypto --clibdir:${openssl.out}/lib"
+        else ""
+      );
 
     # ditto but with their deps
     nat = map (dep:
