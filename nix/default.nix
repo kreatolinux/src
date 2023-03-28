@@ -4,6 +4,15 @@
   ...
 } @ inputs: let
   # ------------------------------------------------------------------------------------------------
+  isStatic = let
+    inherit (builtins) hasAttr;
+    inherit (pkgs) attr;
+  in
+    if hasAttr "dontDisableStatic" attr
+    then attr.dontDisableStatic
+    else false;
+
+  # ------------------------------------------------------------------------------------------------
   # helper to add generate information about
   # nim dependenices to use in nimBuild.
   # takes in the name of the dependency as a string
@@ -72,13 +81,6 @@
 
     # ------------------------------------------------------------------------------------------------
 
-    isStatic = let
-      inherit (pkgs) attr;
-    in
-      if hasAttr "dontDisableStatic" attr
-      then attr.dontDisableStatic
-      else false;
-
     # collect and flatten args from attrsets in
     # our generated buildDeps
     buildArgs =
@@ -122,7 +124,15 @@ in rec {
   kpkg = nimBuild {
     name = "kpkg";
     nativeBuildInputs = with buildDeps; [cligen libsha];
-    propagatedBuildInputs = with pkgs; [libarchive shadow openssl git];
+    propagatedBuildInputs = let
+      git = pkgs.git.override {doInstallCheck = false;};
+    in
+      (with pkgs; [libarchive shadow openssl])
+      ++ (
+        if isStatic
+        then [git]
+        else [pkgs.git]
+      );
   };
 
   # ------------------------------------------------------------------------------------------------
