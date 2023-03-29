@@ -26,7 +26,7 @@ proc info(package: seq[string], testing = false): string =
     # don't error when package isn't installed during testing
     const ret = "installed: no"
     if testing:
-      return ret
+        return ret
 
     # return err if package isn't installed (for scripting :p)
     err(ret, false)
