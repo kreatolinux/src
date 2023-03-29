@@ -1,4 +1,4 @@
-proc info(package: seq[string]): string =
+proc info(package: seq[string], testing = false): string =
     ## Get information about packages
 
     if package.len == 0:
@@ -22,5 +22,11 @@ proc info(package: seq[string]): string =
         echo "package epoch: "&pkg.epoch
     if dirExists("/var/cache/kpkg/installed/"&pkg.pkg):
         return "installed: yes"
+
+    # don't error when package isn't installed during testing
+    const ret = "installed: no"
+    if testing:
+      return ret
+
     # return err if package isn't installed (for scripting :p)
-    err("installed: no", false)
+    err(ret, false)
