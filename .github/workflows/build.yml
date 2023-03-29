@@ -62,5 +62,5 @@ jobs:
 
       - name: test
         run: |
-          nix-build -A packages.x86_64-linux.purr
+          nix-build -A static.x86_64-linux.purr
           sudo ./result/bin/purr
