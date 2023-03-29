@@ -24,7 +24,7 @@ proc purr(tests = "all", tmpdir = "/tmp/purr") =
     # TODO: remove repo from config when successful
     discard update("https://github.com/kreatolinux/purr-test-repo.git", "/tmp/purr/test")
     if dirExists(tmpdir&"/test"):
-        ok("update test completed succesfully")
+        ok("update test completed successfully")
     else:
         error("update test failed")
 
@@ -39,7 +39,7 @@ proc purr(tests = "all", tmpdir = "/tmp/purr") =
     #discard remove(packages = toSeq(["purr"]), yes = true,
     #        root = "/tmp/purr/root")
     #if not fileExists(tmpdir&"root/testfile"):
-    #    ok("remove test completed succesfully")
+    #    ok("remove test completed successfully")
     #else:
     #    error("remove test failed")
 
@@ -48,7 +48,7 @@ proc purr(tests = "all", tmpdir = "/tmp/purr") =
     else:
         ok("dephandler test completed successfully")
 
-    discard info(toSeq(["purr"]))
+    discard info(toSeq(["purr"]), true)
     ok("info test completed")
 
     # Test install_bin (and the functions it uses)
