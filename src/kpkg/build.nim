@@ -98,12 +98,10 @@ proc builder(package: string, destdir: string,
                 int = int+1
         except:
             raise
-
+    
     let folder = absolutePath(execProcess(
             "su -s /bin/sh _kpkg -c \"dirname $(bsdtar -tzf "&filename&" 2>/dev/null | head -2 | tail -1 )\"")).splitWhitespace.filterit(
             it.len != 0)
-
-    echo folder # Temporary
 
     if existsPrepare != 0:
         discard execProcess("su -s /bin/sh _kpkg -c 'bsdtar -xvf "&filename&"'")
@@ -117,11 +115,12 @@ proc builder(package: string, destdir: string,
     var cmd2: tuple[output: string, exitCode: int]
 
     if pkg.sources.split(";").len == 1:
-        cmd = execShellCmd("su -s /bin/sh _kpkg -c 'cd "&folder[
-                0]&" && . "&path&"/run"&" && export CC="&getConfigValue(
-                "Options", "cc")&" && build'")
-        cmd2 = execCmdEx(". "&path&"/run"&" && export DESTDIR="&root&" && export ROOT=$DESTDIR && install",
-            workingDir = folder[0])
+        if existsPrepare == 0:
+                cmd = execShellCmd("su -s /bin/sh _kpkg -c '. "&path&"/run"&" && export CC="&getConfigValue("Options", "cc")&" && build'")
+                cmd2 = execCmdEx(". "&path&"/run"&" && export DESTDIR="&root&" && export ROOT=$DESTDIR && install")
+        else:
+                cmd = execShellCmd("su -s /bin/sh _kpkg -c 'cd "&folder[0]&" && . "&path&"/run"&" && export CC="&getConfigValue("Options", "cc")&" && build'")
+                cmd2 = execCmdEx(". "&path&"/run"&" && export DESTDIR="&root&" && export ROOT=$DESTDIR && install", workingDir = folder[0])
     else:
         cmd = execShellCmd("su -s /bin/sh _kpkg -c '. "&path&"/run"&" && export CC="&getConfigValue(
                 "Options", "cc")&" && build'")
