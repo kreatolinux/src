@@ -41,6 +41,7 @@ jobs:
           apk add nimble
           apk add shadow
           apk add libarchive-tools
+          apk add perl 
           make deps
           make kpkg
           ./out/kpkg update || true
