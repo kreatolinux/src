@@ -44,8 +44,8 @@ jobs:
           apk add perl 
           make deps
           make kpkg
-          ./out/kpkg update || true
-          sed s/gcc/musl-gcc/g -i /etc/kpkg/kpkg.conf
+          #./out/kpkg update || true
+          #sed s/gcc/musl-gcc/g -i /etc/kpkg/kpkg.conf
           make kreastrap
           ./src/kreastrap/kreastrap rootfs --buildType=nocc --arch=amd64
           cd /out
