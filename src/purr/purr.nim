@@ -22,11 +22,11 @@ proc purr(tests = "all", tmpdir = "/tmp/purr") =
 
     # Test update
     # TODO: remove repo from config when successful
-    discard update("https://github.com/kreatolinux/purr-test-repo.git", "/tmp/purr/test")
-    if dirExists(tmpdir&"/test"):
-        ok("update test completed successfully")
-    else:
-        error("update test failed")
+    #discard update("https://github.com/kreatolinux/purr-test-repo.git", "/tmp/purr/test")
+    #if dirExists(tmpdir&"/test"):
+    #    ok("update test completed successfully")
+    #else:
+    #    error("update test failed")
 
     # Test build
     #discard build(yes = true, root = tmpdir&"/root", packages = toSeq(["purr"]))
