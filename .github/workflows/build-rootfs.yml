@@ -28,7 +28,7 @@ jobs:
       - name: Build nocc rootfs tarball
         run: |
           IS_ACTIONS=y sh $GITHUB_WORKSPACE/src/scripts/build-ci.sh init
-          IS_ACTIONS=y sh $GITHUB_WORKSPACE/src/scripts/build-ci.sh nocc
+          IS_ACTIONS=y sh $GITHUB_WORKSPACE/src/scripts/build-ci.sh build nocc
       
       - name: Upload nocc Rootfs
         uses: actions/upload-artifact@v3.1.1
@@ -56,7 +56,7 @@ jobs:
           
       - name: Build server rootfs tarball
         run: |
-          IS_ACTIONS=y sh $GITHUB_WORKSPACE/src/scripts/build-ci.sh server
+          IS_ACTIONS=y sh $GITHUB_WORKSPACE/src/scripts/build-ci.sh build server
     
       - name: Upload Server Rootfs
         uses: actions/upload-artifact@v3.1.1
