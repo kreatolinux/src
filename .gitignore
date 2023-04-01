@@ -2,4 +2,5 @@ out
 packages
 src/kreastrap/kreastrap
 result
+archives
 .direnv/

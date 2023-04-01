@@ -27,26 +27,8 @@ jobs:
 
       - name: Build nocc rootfs tarball
         run: |
-          ln -s $GITHUB_WORKSPACE /work
-          mkdir /out
-          ln -s /out /work/out
-          cd /work
-          cat > /etc/apk/repositories << EOF; $(echo)
-          https://dl-cdn.alpinelinux.org/alpine/v$(cut -d'.' -f1,2 /etc/alpine-release)/main/
-          https://dl-cdn.alpinelinux.org/alpine/v$(cut -d'.' -f1,2 /etc/alpine-release)/community/
-          https://dl-cdn.alpinelinux.org/alpine/edge/testing/
-          EOF
-          apk update
-          apk add alpine-sdk nimble shadow libarchive-tools perl zlib-dev llvm clang linux-headers openssl-dev xz
-          make deps
-          make kpkg
-          #./out/kpkg update || true
-          #sed s/gcc/musl-gcc/g -i /etc/kpkg/kpkg.conf
-          make kreastrap
-          ./src/kreastrap/kreastrap rootfs --buildType=nocc --arch=amd64
-          cd /out
-          tar -czvf /work/kreato-linux-nocc-musl-"$(date +%d-%m-%Y)"-amd64.tar.gz *
-       
+          IS_ACTIONS=y sh $GITHUB_WORKSPACE/src/scripts/build-ci.sh init
+          IS_ACTIONS=y sh $GITHUB_WORKSPACE/src/scripts/build-ci.sh nocc
       
       - name: Upload nocc Rootfs
         uses: actions/upload-artifact@v3.1.1
@@ -60,11 +42,7 @@ jobs:
 
       - name: Build builder rootfs tarball
         run: |
-          cd /work
-          rm -rf /out
-          ./src/kreastrap/kreastrap rootfs --buildType=builder --arch=amd64
-          cd /out
-          tar -czvf /work/kreato-linux-builder-"$(date +%d-%m-%Y)"-amd64.tar.gz *
+          IS_ACTIONS=y sh $GITHUB_WORKSPACE/src/scripts/build-ci.sh builder
     
       - name: Upload Builder Rootfs
         uses: actions/upload-artifact@v3.1.1
@@ -78,11 +56,7 @@ jobs:
           
       - name: Build server rootfs tarball
         run: |
-          cd /work
-          rm -rf /out
-          ./src/kreastrap/kreastrap rootfs --buildType=server --arch=amd64
-          cd /out
-          tar -czvf /work/kreato-linux-builder-"$(date +%d-%m-%Y)"-amd64.tar.gz *
+          IS_ACTIONS=y sh $GITHUB_WORKSPACE/src/scripts/build-ci.sh server
     
       - name: Upload Server Rootfs
         uses: actions/upload-artifact@v3.1.1
