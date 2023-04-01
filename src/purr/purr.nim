@@ -21,6 +21,7 @@ proc purr(tests = "all", tmpdir = "/tmp/purr") =
     genFiles(tmpdir)
 
     # Test update
+    discard update()
     # TODO: remove repo from config when successful
     #discard update("https://github.com/kreatolinux/purr-test-repo.git", "/tmp/purr/test")
     #if dirExists(tmpdir&"/test"):
