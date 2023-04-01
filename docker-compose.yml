@@ -5,5 +5,5 @@ services:
     volumes:
       - ./out:/out
       - .:/work
-      - ./cache:/var/cache/kpkg/archives
+      - ./archives:/var/cache/kpkg/archives
     command: sh -c "sh /work/src/scripts/build-ci.sh init && sh /work/src/scripts/build-ci.sh build builder"
