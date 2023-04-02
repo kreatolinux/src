@@ -12,7 +12,7 @@ case $1 in
                 echo "https://dl-cdn.alpinelinux.org/alpine/v$(cut -d'.' -f1,2 /etc/alpine-release)/community/" >> /etc/apk/repositories
                 echo "https://dl-cdn.alpinelinux.org/alpine/edge/testing/" >> /etc/apk/repositories
                 apk update
-                apk add alpine-sdk nimble shadow libarchive-tools perl zlib-dev llvm clang linux-headers openssl-dev xz
+                apk add alpine-sdk nimble shadow libarchive-tools perl zlib-dev llvm clang linux-headers openssl-dev binutils-dev xz
                 make deps
                 make kpkg
                 #./out/kpkg update || true
