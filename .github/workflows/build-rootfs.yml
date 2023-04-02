@@ -42,7 +42,7 @@ jobs:
 
       - name: Build builder rootfs tarball
         run: |
-          IS_ACTIONS=y sh $GITHUB_WORKSPACE/src/scripts/build-ci.sh builder
+          IS_ACTIONS=y sh $GITHUB_WORKSPACE/src/scripts/build-ci.sh build builder
     
       - name: Upload Builder Rootfs
         uses: actions/upload-artifact@v3.1.1
