@@ -21,6 +21,7 @@ case $1 in
         ;;
 
         "build")
+                rm -rf /out/*
                 cd /work || exit 1
                 ./src/kreastrap/kreastrap rootfs --buildType="$2" --arch=amd64
                 cd /out || exit 1
