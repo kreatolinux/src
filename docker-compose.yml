@@ -1,9 +1,10 @@
 version: '3'
 services:
   builder:
-    image: alpine
+    image: ghcr.io/kreatolinux/builder:latest 
     volumes:
       - ./out:/out
       - .:/work
       - ./archives:/var/cache/kpkg/archives
+      - ./kpkg-repo:/etc/kpkg/repos/main
     command: sh -c "sh /work/src/scripts/build-ci.sh init && sh /work/src/scripts/build-ci.sh build builder"
