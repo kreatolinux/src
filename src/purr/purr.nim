@@ -50,7 +50,7 @@ proc purr(tests = "all", tmpdir = "/tmp/purr") =
     else:
         ok("dephandler test completed successfully")
 
-    discard info(toSeq(["purr"]), true)
+    discard info(toSeq(["sway"]), true)
     ok("info test completed")
 
     # Test install_bin (and the functions it uses)
