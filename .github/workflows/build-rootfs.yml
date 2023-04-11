@@ -12,7 +12,7 @@ jobs:
   build:
     runs-on: ubuntu-latest 
     container:
-      image: alpine
+      image: ghcr.io/kreatolinux/builder:latest 
     
     steps:
 
