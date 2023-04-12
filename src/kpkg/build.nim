@@ -75,6 +75,8 @@ proc builder(package: string, destdir: string,
     var existsPrepare = execShellCmd(". "&path&"/run"&" && command -v prepare")
 
     var int = 0
+    var usesGit: bool
+    var folder: seq[string]
 
     for i in pkg.sources.split(";"):
         if i == "":
@@ -82,10 +84,13 @@ proc builder(package: string, destdir: string,
         filename = extractFilename(i).strip()
         try:
             if i.startsWith("git::"):
+                usesGit = true
                 if execShellCmd("git clone "&i.split("::")[
                         1]&" && cd "&lastPathPart(i.split("::")[
                         1])&" && git branch -C "&i.split("::")[2]) != 0:
                     err("Cloning repository failed!")
+
+                folder = @[lastPathPart(i.split("::")[1])]
             else:
                 waitFor download(i, filename)
 
@@ -100,15 +105,12 @@ proc builder(package: string, destdir: string,
         except:
             raise
 
-    let folder = absolutePath(execProcess(
-            "su -s /bin/sh _kpkg -c \"dirname $(bsdtar -tzf "&filename&" 2>/dev/null | head -2 | tail -1 )\"")).splitWhitespace.filterit(
-            it.len != 0)
-
-    if existsPrepare != 0:
+    if existsPrepare != 0 and usesGit:
+        folder = absolutePath(execProcess("su -s /bin/sh _kpkg -c \"dirname $(bsdtar -tzf "&filename&" 2>/dev/null | head -2 | tail -1 )\"")).splitWhitespace.filterit(it.len != 0)
         discard execProcess("su -s /bin/sh _kpkg -c 'bsdtar -xvf "&filename&"'")
         if pkg.sources.split(";").len == 1:
             setCurrentDir(folder[0])
-    else:
+    elif existsPrepare == 0:
         assert execShellCmd("su -s /bin/sh _kpkg -c '. "&path&"/run"&" && prepare'") ==
                 0, "prepare failed"
 
