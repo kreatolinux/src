@@ -105,7 +105,7 @@ proc builder(package: string, destdir: string,
         except:
             raise
 
-    if existsPrepare != 0 or usesGit:
+    if existsPrepare != 0 and not usesGit:
         folder = absolutePath(execProcess(
                 "su -s /bin/sh _kpkg -c \"dirname $(bsdtar -tzf "&filename&" 2>/dev/null | head -2 | tail -1 )\"")).splitWhitespace.filterit(
                 it.len != 0)
