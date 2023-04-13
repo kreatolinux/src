@@ -3,4 +3,5 @@ packages
 src/kreastrap/kreastrap
 result
 archives
+kreato-linux*.tar.gz
 .direnv/
