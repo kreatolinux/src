@@ -152,7 +152,7 @@ proc builder(package: string, destdir: string,
 
     # Install package to root aswell so dependency errors doesnt happen
     # because the dep is installed to destdir but not root.
-    if destdir != "/" and not dirExists("/etc/kpkg/installed/"&package) and
+    if destdir != "/" and not dirExists("/var/cache/kpkg/installed/"&package) and
             (not dontInstall):
         install_pkg(repo, package, "/")
 
@@ -198,7 +198,7 @@ proc build(no = false, yes = false, root = "/",
         let fullRootPath = expandFilename(root)
         for i in deps:
             try:
-                if dirExists(fullRootPath&"/etc/kpkg/installed/"&i):
+                if dirExists(fullRootPath&"/var/cache/kpkg/installed/"&i):
                     discard
                 else:
                     builderOutput = builder(i, fullRootPath, offline = false,
