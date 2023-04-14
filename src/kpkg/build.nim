@@ -117,13 +117,13 @@ proc builder(package: string, destdir: string,
                 0, "prepare failed"
 
     var cmd: int
-    var cmd2: tuple[output: string, exitCode: int]
+    var cmd2: int
 
     if pkg.sources.split(";").len == 1:
         if existsPrepare == 0:
             cmd = execShellCmd("su -s /bin/sh _kpkg -c '. "&path&"/run"&" && export CC="&getConfigValue(
                     "Options", "cc")&" && build'")
-            cmd2 = execCmdEx(". "&path&"/run"&" && export DESTDIR="&root&" && export ROOT=$DESTDIR && install")
+            cmd2 = execShellCmd(". "&path&"/run"&" && export DESTDIR="&root&" && export ROOT=$DESTDIR && install")
         else:
             cmd = execShellCmd("su -s /bin/sh _kpkg -c 'cd "&folder[
                     0]&" && . "&path&"/run"&" && export CC="&getConfigValue(
