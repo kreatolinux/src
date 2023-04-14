@@ -49,8 +49,8 @@ proc install_bin(packages: seq[string], binrepo: string, root: string,
         let tarball = "kpkg-tarball-"&pkg.pkg&"-"&pkg.versionString&".tar.gz"
         let chksum = tarball&".sum"
 
-        if fileExists("/var/cache/kpkg/archives/"&hostCPU&"/"&tarball) and
-                fileExists("/var/cache/kpkg/archives/"&hostCPU&"/"&chksum):
+        if fileExists("/var/cache/kpkg/archives/arch/"&hostCPU&"/"&tarball) and
+                fileExists("/var/cache/kpkg/archives/arch/"&hostCPU&"/"&chksum):
             echo "Tarball already exists, not gonna download again"
         elif not offline:
             echo "Downloading tarball for "&i
