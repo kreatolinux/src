@@ -49,7 +49,7 @@ proc parse_runfile(path: string, removeLockfileWhenErr = true): runFile =
                     ret.sha256sum = vars[1]
             if "()" in vars[0]:
                 break
-    except:
+    except CatchableError:
         err(path&" doesn't seem to have a runfile. possibly a broken package?", removeLockfileWhenErr)
 
     when declared(ret.epoch):

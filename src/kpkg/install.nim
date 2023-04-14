@@ -6,7 +6,7 @@ proc install_pkg(repo: string, package: string, root: string, binary = false) =
     var pkg: runFile
     try:
         pkg = parse_runfile(repo&"/"&package)
-    except:
+    except CatchableError:
         raise
 
     let tarball = "/var/cache/kpkg/archives/arch/"&hostCPU&"/kpkg-tarball-"&pkg.pkg&"-"&pkg.versionString&".tar.gz"
@@ -43,7 +43,7 @@ proc install_bin(packages: seq[string], binrepo: string, root: string,
 
         try:
             pkg = parse_runfile(repo&"/"&i)
-        except:
+        except CatchableError:
             raise
 
         let tarball = "kpkg-tarball-"&pkg.pkg&"-"&pkg.versionString&".tar.gz"
@@ -58,7 +58,7 @@ proc install_bin(packages: seq[string], binrepo: string, root: string,
                 discard spawn download("https://"&binrepo&"/arch/"&hostCPU&"/"&tarball, tarball)
                 echo "Downloading tarball checksum for "&i
                 discard spawn download("https://"&binrepo&"/arch/"&hostCPU&"/"&chksum, chksum)
-            except:
+            except CatchableError:
                 raise
 
             sync()
@@ -88,7 +88,7 @@ proc install(promptPackages: seq[string], root = "/", yes: bool = false,
 
     try:
         deps = dephandler(packages)
-    except:
+    except CatchableError:
         raise
 
 

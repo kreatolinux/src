@@ -59,7 +59,7 @@ proc builder(package: string, destdir: string,
     var pkg: runFile
     try:
         pkg = parse_runfile(path)
-    except:
+    except CatchableError:
         raise
 
     if fileExists("/var/cache/kpkg/archives/arch/"&hostCPU&"/kpkg-tarball-"&pkg.pkg&"-"&pkg.versionString&".tar.gz") and
@@ -102,7 +102,7 @@ proc builder(package: string, destdir: string,
                     err "sha256sum doesn't match for "&i&"\nExpected: "&expectedDigest&"\nActual: "&actualDigest
 
                 int = int+1
-        except:
+        except CatchableError:
             raise
 
     if existsPrepare != 0 and not usesGit:
@@ -128,8 +128,7 @@ proc builder(package: string, destdir: string,
             cmd = execShellCmd("su -s /bin/sh _kpkg -c 'cd "&folder[
                     0]&" && . "&path&"/run"&" && export CC="&getConfigValue(
                     "Options", "cc")&" && build'")
-            cmd2 = execShellCmd(". "&path&"/run"&" && export DESTDIR="&root&" && export ROOT=$DESTDIR && install",
-                    workingDir = folder[0])
+            cmd2 = execShellCmd("cd "&folder[0]&" && . "&path&"/run"&" && export DESTDIR="&root&" && export ROOT=$DESTDIR && install")
     else:
         cmd = execShellCmd("su -s /bin/sh _kpkg -c '. "&path&"/run"&" && export CC="&getConfigValue(
                 "Options", "cc")&" && build'")
@@ -176,7 +175,7 @@ proc build(no = false, yes = false, root = "/",
 
     try:
         deps = dephandler(packages, bdeps = true)&dephandler(packages)
-    except:
+    except CatchableError:
         raise
 
     echo "Packages: "&deps.join(" ")&" "&packages.join(" ")
@@ -207,7 +206,7 @@ proc build(no = false, yes = false, root = "/",
 
                     echo("kpkg: installed "&i&" successfully")
 
-            except:
+            except CatchableError:
                 raise
 
         cacheAvailable = cacheAvailable and useCacheIfAvailable;
@@ -218,7 +217,7 @@ proc build(no = false, yes = false, root = "/",
                             useCacheIfAvailable = cacheAvailable)
                 echo("kpkg: installed "&i&" successfully")
 
-            except:
+            except CatchableError:
                 raise
         return "kpkg: built all packages successfully"
     return "kpkg: exiting"

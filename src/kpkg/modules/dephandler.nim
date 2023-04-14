@@ -33,5 +33,5 @@ proc dephandler(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false): seq[str
                     deps.add(dep)
 
         return deps.filterit(it.len != 0)
-    except Exception:
+    except CatchableError:
         raise

@@ -7,7 +7,7 @@ proc upgrade(root = "/",
             var localPkg: runFile
             try:
                 localPkg = parse_runfile(i.path)
-            except Exception:
+            except CatchableError:
                 raise
 
             if localPkg.pkg in getConfigValue("Upgrade", "dontUpgrade").split(" "):
@@ -25,7 +25,7 @@ proc upgrade(root = "/",
             var upstreamPkg: runFile
             try:
                 upstreamPkg = parse_runfile(repo&"/"&lastPathpart(i.path))
-            except:
+            except CatchableError:
                 raise
 
             if localPkg.version < upstreamPkg.version or localPkg.release <

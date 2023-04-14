@@ -12,7 +12,7 @@ proc info(package: seq[string], testing = false): string =
     var pkg: runFile
     try:
         pkg = parse_runfile(repo&"/"&package[0])
-    except:
+    except CatchableError:
         raise
 
     echo "package name: "&pkg.pkg
