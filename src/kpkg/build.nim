@@ -133,13 +133,12 @@ proc builder(package: string, destdir: string,
     else:
         cmd = execShellCmd("su -s /bin/sh _kpkg -c '. "&path&"/run"&" && export CC="&getConfigValue(
                 "Options", "cc")&" && build'")
-        cmd2 = execCmdEx(". "&path&"/run"&" && export DESTDIR="&root&" && export ROOT=$DESTDIR && install")
+        cmd2 = execShellCmd(". "&path&"/run"&" && export DESTDIR="&root&" && export ROOT=$DESTDIR && install")
 
     if cmd != 0:
         err("build failed")
 
-    if cmd2.exitCode != 0:
-        echo cmd2.output
+    if cmd2 != 0:
         err("Installation failed")
 
     let tarball = "/var/cache/kpkg/archives/arch/"&hostCPU&"/kpkg-tarball-"&pkg.pkg&"-"&pkg.versionString&".tar.gz"
