@@ -128,7 +128,8 @@ proc builder(package: string, destdir: string,
             cmd = execShellCmd("su -s /bin/sh _kpkg -c 'cd "&folder[
                     0]&" && . "&path&"/run"&" && export CC="&getConfigValue(
                     "Options", "cc")&" && build'")
-            cmd2 = execShellCmd("cd "&folder[0]&" && . "&path&"/run"&" && export DESTDIR="&root&" && export ROOT=$DESTDIR && install")
+            cmd2 = execShellCmd("cd "&folder[
+                    0]&" && . "&path&"/run"&" && export DESTDIR="&root&" && export ROOT=$DESTDIR && install")
     else:
         cmd = execShellCmd("su -s /bin/sh _kpkg -c '. "&path&"/run"&" && export CC="&getConfigValue(
                 "Options", "cc")&" && build'")
