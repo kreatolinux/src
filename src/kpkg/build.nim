@@ -61,7 +61,6 @@ proc builder(package: string, destdir: string,
         pkg = parse_runfile(path)
     except CatchableError:
         raise
-
     if fileExists("/var/cache/kpkg/archives/arch/"&hostCPU&"/kpkg-tarball-"&pkg.pkg&"-"&pkg.versionString&".tar.gz") and
             fileExists(
             "/var/cache/kpkg/archives/arch/"&hostCPU&"/kpkg-tarball-"&pkg.pkg&"-"&pkg.versionString&".tar.gz.sum") and
@@ -107,7 +106,7 @@ proc builder(package: string, destdir: string,
 
     if existsPrepare != 0 and not usesGit:
         folder = absolutePath(execProcess(
-                "su -s /bin/sh _kpkg -c \"dirname $(bsdtar -tzf "&filename&" 2>/dev/null | head -2 | tail -1 )\"")).splitWhitespace.filterit(
+                "su -s /bin/sh _kpkg -c \"bsdtar -tzf "&filename&" 2>/dev/null | head -2 | tail -1\"")).splitWhitespace.filterit(
                 it.len != 0)
         discard execProcess("su -s /bin/sh _kpkg -c 'bsdtar -xvf "&filename&"'")
         if pkg.sources.split(";").len == 1:
