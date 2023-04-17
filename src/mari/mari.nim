@@ -18,7 +18,7 @@ import options, asyncdispatch, httpbeast, os, strutils
 
 proc onRequest(req: Request): Future[void] =
   if req.httpMethod == some(HttpGet):
-    var path = getEnv("path", "/var/cache/kpkg/installed")
+    var path = getEnv("path", "/var/cache/kpkg/archives")
     if fileExists(path & $req.path.get()):
       req.send(readFile(path & $req.path.get()))
     else:
