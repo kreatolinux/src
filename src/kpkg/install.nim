@@ -55,13 +55,11 @@ proc install_bin(packages: seq[string], binrepo: string, root: string,
         elif not offline:
             echo "Downloading tarball for "&i
             try:
-                discard spawn download("https://"&binrepo&"/arch/"&hostCPU&"/"&tarball, tarball)
+                waitFor download("https://"&binrepo&"/arch/"&hostCPU&"/"&tarball, "/var/cache/kpkg/archives/arch/"&hostCPU&"/"&tarball)
                 echo "Downloading tarball checksum for "&i
-                discard spawn download("https://"&binrepo&"/arch/"&hostCPU&"/"&chksum, chksum)
+                waitFor download("https://"&binrepo&"/arch/"&hostCPU&"/"&chksum, "/var/cache/kpkg/archives/arch/"&hostCPU&"/"&chksum)
             except CatchableError:
                 raise
-
-            sync()
         else:
             err("attempted to download tarball from binary repository in offline mode", false)
 
