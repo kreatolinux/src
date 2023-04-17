@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  build-packages:
     runs-on: self-hosted 
     container: 
       image: ghcr.io/kreatolinux/builder:latest
