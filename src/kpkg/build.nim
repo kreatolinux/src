@@ -160,7 +160,7 @@ proc builder(package: string, destdir: string,
     try:
       waitFor download("https://"&binrepo&"/arch/"&hostCPU&"/"&chksum, "/var/cache/kpkg/archives/arch/"&hostCPU&"/"&chksum&".bin")
       downloaded = true
-   except Exception:
+   except:
      if enforceReproducibility:
        err("kpkg: checksum couldn't get downloaded for reproducibility check")
      else:
