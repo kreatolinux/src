@@ -160,12 +160,12 @@ proc builder(package: string, destdir: string,
     try:
       waitFor download("https://"&binrepo&"/arch/"&hostCPU&"/"&chksum, "/var/cache/kpkg/archives/arch/"&hostCPU&"/"&chksum&".bin")
       downloaded = true
-   except:
-     if enforceReproducibility:
-       err("kpkg: checksum couldn't get downloaded for reproducibility check")
-     else:
-       echo "kpkg: skipping reproducibility check, checksum couldn't get downloaded"
-       echo "kpkg: run with --enforceReproducibility=true if you want to enforce this"
+    except:
+      if enforceReproducibility:
+        err("kpkg: checksum couldn't get downloaded for reproducibility check")
+      else:
+        echo "kpkg: skipping reproducibility check, checksum couldn't get downloaded"
+        echo "kpkg: run with --enforceReproducibility=true if you want to enforce this"
 
    if downloaded:
      if readAll(open("/var/cache/kpkg/archives/arch/"&hostCPU&"/"&chksum&".bin")) == readAll(open("/var/cache/kpkg/archives/arch/"&hostCPU&"/"&chksum)):
