@@ -167,14 +167,14 @@ proc builder(package: string, destdir: string,
         echo "kpkg: skipping reproducibility check, checksum couldn't get downloaded"
         echo "kpkg: run with --enforceReproducibility=true if you want to enforce this"
 
-   if downloaded:
-     if readAll(open("/var/cache/kpkg/archives/arch/"&hostCPU&"/"&chksum&".bin")) == readAll(open("/var/cache/kpkg/archives/arch/"&hostCPU&"/"&chksum)):
-       echo "kpkg: reproducibility check success"
-     elif enforceReproducibility:
-       err("kpkg: reproducibility check failed")
-     else:
-       echo "kpkg: reproducibility check failed"
-       echo "kpkg: run with --enforceReproducibility=true if you want to enforce this"
+    if downloaded:
+      if readAll(open("/var/cache/kpkg/archives/arch/"&hostCPU&"/"&chksum&".bin")) == readAll(open("/var/cache/kpkg/archives/arch/"&hostCPU&"/"&chksum)):
+        echo "kpkg: reproducibility check success"
+      elif enforceReproducibility:
+        err("kpkg: reproducibility check failed")
+      else:
+        echo "kpkg: reproducibility check failed"
+        echo "kpkg: run with --enforceReproducibility=true if you want to enforce this"
 
     if not dontInstall:
         install_pkg(repo, package, destdir)
