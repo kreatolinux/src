@@ -55,9 +55,11 @@ proc install_bin(packages: seq[string], binrepo: string, root: string,
         elif not offline:
             echo "Downloading tarball for "&i
             try:
-                waitFor download("https://"&binrepo&"/arch/"&hostCPU&"/"&tarball, "/var/cache/kpkg/archives/arch/"&hostCPU&"/"&tarball)
+                waitFor download("https://"&binrepo&"/arch/"&hostCPU&"/"&tarball,
+                        "/var/cache/kpkg/archives/arch/"&hostCPU&"/"&tarball)
                 echo "Downloading tarball checksum for "&i
-                waitFor download("https://"&binrepo&"/arch/"&hostCPU&"/"&chksum, "/var/cache/kpkg/archives/arch/"&hostCPU&"/"&chksum)
+                waitFor download("https://"&binrepo&"/arch/"&hostCPU&"/"&chksum,
+                        "/var/cache/kpkg/archives/arch/"&hostCPU&"/"&chksum)
             except CatchableError:
                 raise
         else:

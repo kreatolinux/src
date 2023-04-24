@@ -14,7 +14,9 @@ proc cleanUp() {.noconv.} =
 
 proc builder(package: string, destdir: string,
     root = "/tmp/kpkg/build", srcdir = "/tmp/kpkg/srcdir", offline = false,
-            dontInstall = false, useCacheIfAvailable = false, binrepo = "mirror.kreato.dev", enforceReproducibility = false): bool =
+            dontInstall = false, useCacheIfAvailable = false,
+                    binrepo = "mirror.kreato.dev",
+                    enforceReproducibility = false): bool =
     ## Builds the packages.
 
     if not isAdmin():
@@ -158,23 +160,26 @@ proc builder(package: string, destdir: string,
     var downloaded = false
 
     try:
-      waitFor download("https://"&binrepo&"/arch/"&hostCPU&"/"&chksum, "/var/cache/kpkg/archives/arch/"&hostCPU&"/"&chksum&".bin")
-      downloaded = true
+        waitFor download("https://"&binrepo&"/arch/"&hostCPU&"/"&chksum,
+                "/var/cache/kpkg/archives/arch/"&hostCPU&"/"&chksum&".bin")
+        downloaded = true
     except:
-      if enforceReproducibility:
-        err("kpkg: checksum couldn't get downloaded for reproducibility check")
-      else:
-        echo "kpkg: skipping reproducibility check, checksum couldn't get downloaded"
-        echo "kpkg: run with --enforceReproducibility=true if you want to enforce this"
+        if enforceReproducibility:
+            err("kpkg: checksum couldn't get downloaded for reproducibility check")
+        else:
+            echo "kpkg: skipping reproducibility check, checksum couldn't get downloaded"
+            echo "kpkg: run with --enforceReproducibility=true if you want to enforce this"
 
     if downloaded:
-      if readAll(open("/var/cache/kpkg/archives/arch/"&hostCPU&"/"&chksum&".bin")) == readAll(open("/var/cache/kpkg/archives/arch/"&hostCPU&"/"&chksum)):
-        echo "kpkg: reproducibility check success"
-      elif enforceReproducibility:
-        err("kpkg: reproducibility check failed")
-      else:
-        echo "kpkg: reproducibility check failed"
-        echo "kpkg: run with --enforceReproducibility=true if you want to enforce this"
+        if readAll(open("/var/cache/kpkg/archives/arch/"&hostCPU&"/"&chksum&".bin")) ==
+                readAll(open(
+                "/var/cache/kpkg/archives/arch/"&hostCPU&"/"&chksum)):
+            echo "kpkg: reproducibility check success"
+        elif enforceReproducibility:
+            err("kpkg: reproducibility check failed")
+        else:
+            echo "kpkg: reproducibility check failed"
+            echo "kpkg: run with --enforceReproducibility=true if you want to enforce this"
 
     if not dontInstall:
         install_pkg(repo, package, destdir)
