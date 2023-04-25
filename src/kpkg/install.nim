@@ -49,14 +49,14 @@ proc install_pkg(repo: string, package: string, root: string, binary = false, en
             echo "kpkg: run with --enforceReproducibility=true if you want to enforce this"
 
     if downloaded:
-      if readAll(open("/tmp/kpkg-temp"&pkg.pkg&".bin")) == readAll(open(tarball&".sum.bin")):
+      if readAll(open("/tmp/kpkg-temp-"&pkg.pkg&".bin")) == readAll(open(tarball&".sum.bin")):
         echo "kpkg: reproducibility check success"
       elif enforceReproducibility:
           err("reproducibility check failed")
       else:
           echo "kpkg: reproducibility check failed"
           echo "kpkg: run with --enforceReproducibility=true if you want to enforce this"
-          
+
     discard execProcess("tar -xf"&tarball&" -C "&root)
 
 proc install_bin(packages: seq[string], binrepo: string, root: string,
