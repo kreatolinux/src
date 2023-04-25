@@ -157,7 +157,9 @@ proc builder(package: string, destdir: string,
         install_pkg(repo, package, "/")
 
     if not dontInstall:
-        install_pkg(repo, package, destdir, enforceReproducibility = enforceReproducibility, binrepo = binrepo, builddir = root)
+        install_pkg(repo, package, destdir,
+                enforceReproducibility = enforceReproducibility,
+                binrepo = binrepo, builddir = root)
 
     removeFile(lockfile)
 
