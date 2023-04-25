@@ -64,7 +64,7 @@ proc install_pkg(repo: string, package: string, root: string, binary = false,
                 echo "kpkg: run with --enforceReproducibility=true if you want to enforce this"
 
     copyFile(tarball&".sum.bin", root&"/var/cache/kpkg/installed/"&package&"/list_sums")
-    discard execProcess("tar -xf"&tarball&" -C "&root)
+    discard execProcess("tar -hxf"&tarball&" -C "&root)
 
 proc install_bin(packages: seq[string], binrepo: string, root: string,
         offline: bool, downloadOnly = false) =
