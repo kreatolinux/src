@@ -24,7 +24,8 @@ proc install_pkg(repo: string, package: string, root: string, binary = false, en
     removeDir(root&"/var/cache/kpkg/installed/"&package)
     copyDir(repo&"/"&package, root&"/var/cache/kpkg/installed/"&package)
 
-    writeFile(root&"/var/cache/kpkg/installed/"&package&"/list_files", execProcess("tar -tf"&tarball))
+    writeFile(root&"/var/cache/kpkg/installed/"&package&"/list_files",
+            execProcess("tar -tf"&tarball))
 
     if not binary:
       var downloaded = false
