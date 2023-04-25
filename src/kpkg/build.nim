@@ -156,33 +156,8 @@ proc builder(package: string, destdir: string,
             "/var/cache/kpkg/installed/"&package) and (not dontInstall):
         install_pkg(repo, package, "/")
 
-    let chksum = "kpkg-tarball-"&pkg.pkg&"-"&pkg.versionString&".tar.gz.sum"
-    var downloaded = false
-
-    try:
-        waitFor download("https://"&binrepo&"/arch/"&hostCPU&"/"&chksum,
-                "/var/cache/kpkg/archives/arch/"&hostCPU&"/"&chksum&".bin")
-        downloaded = true
-    except:
-        if enforceReproducibility:
-            err("kpkg: checksum couldn't get downloaded for reproducibility check")
-        else:
-            echo "kpkg: skipping reproducibility check, checksum couldn't get downloaded"
-            echo "kpkg: run with --enforceReproducibility=true if you want to enforce this"
-
-    if downloaded:
-        if readAll(open("/var/cache/kpkg/archives/arch/"&hostCPU&"/"&chksum&".bin")) ==
-                readAll(open(
-                "/var/cache/kpkg/archives/arch/"&hostCPU&"/"&chksum)):
-            echo "kpkg: reproducibility check success"
-        elif enforceReproducibility:
-            err("kpkg: reproducibility check failed")
-        else:
-            echo "kpkg: reproducibility check failed"
-            echo "kpkg: run with --enforceReproducibility=true if you want to enforce this"
-
     if not dontInstall:
-        install_pkg(repo, package, destdir)
+        install_pkg(repo, package, destdir, enforceReproducibility = enforceReproducibility, binrepo = binrepo)
 
     removeFile(lockfile)
 

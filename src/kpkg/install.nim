@@ -1,6 +1,6 @@
 import threadpool
 
-proc install_pkg(repo: string, package: string, root: string, binary = false) =
+proc install_pkg(repo: string, package: string, root: string, binary = false, enforceReproducibility = false, binrepo = "mirror.kreato.dev") =
     ## Installs an package.
 
     var pkg: runFile
@@ -24,9 +24,40 @@ proc install_pkg(repo: string, package: string, root: string, binary = false) =
     removeDir(root&"/var/cache/kpkg/installed/"&package)
     copyDir(repo&"/"&package, root&"/var/cache/kpkg/installed/"&package)
 
-    writeFile(root&"/var/cache/kpkg/installed/"&package&"/list_files",
-        execProcess(
-        "tar -hxvf"&tarball&" -C "&root))
+    writeFile(root&"/var/cache/kpkg/installed/"&package&"/list_files", execProcess("tar -tf"&tarball))
+
+    let file = open(root&"/var/cache/kpkg/installed/"&package&"/list_sums", fmWrite)
+    defer: file.close()
+
+    for line in lines root&"/var/cache/kpkg/installed/"&package&"/list_files":
+      if fileExists(line):
+        file.writeLine(sha256hexdigest(readAll(open(line)))&"  "&line)
+
+    copyFile(root&"/var/cache/kpkg/installed/"&package&"/list_sums", tarball&".sum.bin")
+
+    var downloaded = false
+
+    try:
+        waitFor download("https://"&binrepo&"/arch/"&hostCPU&"/kpkg-tarball-"&pkg.pkg&"-"&pkg.versionString&".tar.gz.sum.bin",
+                "/tmp/kpkg-temp-"&pkg.pkg&".bin")
+        downloaded = true
+    except:
+        if enforceReproducibility:
+            err("checksum couldn't get downloaded for reproducibility check")
+        else:
+            echo "kpkg: skipping reproducibility check, checksum couldn't get downloaded"
+            echo "kpkg: run with --enforceReproducibility=true if you want to enforce this"
+
+    if downloaded:
+      if readAll(open("/tmp/kpkg-temp"&pkg.pkg&".bin")) == readAll(open(tarball&".sum.bin")):
+        echo "kpkg: reproducibility check success"
+      elif enforceReproducibility:
+          err("reproducibility check failed")
+      else:
+          echo "kpkg: reproducibility check failed"
+          echo "kpkg: run with --enforceReproducibility=true if you want to enforce this"
+          
+    discard execProcess("tar -xf"&tarball&" -C "&root)
 
 proc install_bin(packages: seq[string], binrepo: string, root: string,
         offline: bool, downloadOnly = false) =
