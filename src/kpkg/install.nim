@@ -1,6 +1,8 @@
 import threadpool
 
-proc install_pkg(repo: string, package: string, root: string, binary = false, enforceReproducibility = false, binrepo = "mirror.kreato.dev", builddir = "/tmp/kpkg/build") =
+proc install_pkg(repo: string, package: string, root: string, binary = false,
+        enforceReproducibility = false, binrepo = "mirror.kreato.dev",
+        builddir = "/tmp/kpkg/build") =
     ## Installs an package.
 
     var pkg: runFile
@@ -28,34 +30,36 @@ proc install_pkg(repo: string, package: string, root: string, binary = false, en
             execProcess("tar -tf"&tarball))
 
     if not binary:
-      var downloaded = false
+        var downloaded = false
 
-      let file = open(tarball&".sum.bin", fmWrite)
-      defer: file.close()
+        let file = open(tarball&".sum.bin", fmWrite)
+        defer: file.close()
 
-      setCurrentDir(builddir)
+        setCurrentDir(builddir)
 
-      for line in lines root&"/var/cache/kpkg/installed/"&package&"/list_files":
-        file.writeLine(sha256hexdigest(readAll(open(line)))&"  "&line)
+        for line in lines root&"/var/cache/kpkg/installed/"&package&"/list_files":
+            file.writeLine(sha256hexdigest(readAll(open(line)))&"  "&line)
 
-      try:
-          waitFor download("https://"&binrepo&"/arch/"&hostCPU&"/kpkg-tarball-"&pkg.pkg&"-"&pkg.versionString&".tar.gz.sum.bin", "/tmp/kpkg-temp-"&pkg.pkg&".bin")
-          downloaded = true
-      except:
-          if enforceReproducibility:
-              err("checksum couldn't get downloaded for reproducibility check")
-          else:
-              echo "kpkg: skipping reproducibility check, checksum couldn't get downloaded"
-              echo "kpkg: run with --enforceReproducibility=true if you want to enforce this"
+        try:
+            waitFor download("https://"&binrepo&"/arch/"&hostCPU&"/kpkg-tarball-"&pkg.pkg&"-"&pkg.versionString&".tar.gz.sum.bin",
+                    "/tmp/kpkg-temp-"&pkg.pkg&".bin")
+            downloaded = true
+        except:
+            if enforceReproducibility:
+                err("checksum couldn't get downloaded for reproducibility check")
+            else:
+                echo "kpkg: skipping reproducibility check, checksum couldn't get downloaded"
+                echo "kpkg: run with --enforceReproducibility=true if you want to enforce this"
 
-      if downloaded:
-        if readAll(open("/tmp/kpkg-temp-"&pkg.pkg&".bin")) == readAll(open(tarball&".sum.bin")):
-          echo "kpkg: reproducibility check success"
-        elif enforceReproducibility:
-            err("reproducibility check failed")
-        else:
-            echo "kpkg: reproducibility check failed"
-            echo "kpkg: run with --enforceReproducibility=true if you want to enforce this"
+        if downloaded:
+            if readAll(open("/tmp/kpkg-temp-"&pkg.pkg&".bin")) == readAll(open(
+                    tarball&".sum.bin")):
+                echo "kpkg: reproducibility check success"
+            elif enforceReproducibility:
+                err("reproducibility check failed")
+            else:
+                echo "kpkg: reproducibility check failed"
+                echo "kpkg: run with --enforceReproducibility=true if you want to enforce this"
 
     copyFile(tarball&".sum.bin", root&"/var/cache/kpkg/installed/"&package&"/list_sums")
     discard execProcess("tar -xf"&tarball&" -C "&root)
@@ -82,7 +86,9 @@ proc install_bin(packages: seq[string], binrepo: string, root: string,
         let chksum = tarball&".sum"
 
         if fileExists("/var/cache/kpkg/archives/arch/"&hostCPU&"/"&tarball) and
-                fileExists("/var/cache/kpkg/archives/arch/"&hostCPU&"/"&chksum) and fileExists("/var/cache/kpkg/archives/arch/"&hostCPU&"/"&chksum&".bin"):
+                fileExists("/var/cache/kpkg/archives/arch/"&hostCPU&"/"&chksum) and
+                        fileExists(
+                        "/var/cache/kpkg/archives/arch/"&hostCPU&"/"&chksum&".bin"):
             echo "Tarball already exists, not gonna download again"
         elif not offline:
             echo "Downloading tarball for "&i
