@@ -168,7 +168,8 @@ proc builder(package: string, destdir: string,
 
 proc build(no = false, yes = false, root = "/",
     packages: seq[string],
-            useCacheIfAvailable = false, binrepo = "mirror.kreato.dev", enforceReproducibility = false): string =
+            useCacheIfAvailable = false, binrepo = "mirror.kreato.dev",
+                    enforceReproducibility = false): string =
     ## Build and install packages
     var deps: seq[string]
 
@@ -202,7 +203,9 @@ proc build(no = false, yes = false, root = "/",
                     discard
                 else:
                     builderOutput = builder(i, fullRootPath, offline = false,
-                            useCacheIfAvailable = useCacheIfAvailable, enforceReproducibility = enforceReproducibility, binrepo = binrepo)
+                            useCacheIfAvailable = useCacheIfAvailable,
+                            enforceReproducibility = enforceReproducibility,
+                            binrepo = binrepo)
                     if not builderOutput:
                         cacheAvailable = false
 
@@ -216,7 +219,9 @@ proc build(no = false, yes = false, root = "/",
         for i in packages:
             try:
                 discard builder(i, fullRootPath, offline = false,
-                            useCacheIfAvailable = cacheAvailable, enforceReproducibility = enforceReproducibility, binrepo = binrepo)
+                            useCacheIfAvailable = cacheAvailable,
+                            enforceReproducibility = enforceReproducibility,
+                            binrepo = binrepo)
                 echo("kpkg: installed "&i&" successfully")
 
             except CatchableError:
