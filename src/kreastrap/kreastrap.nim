@@ -244,9 +244,10 @@ proc buildPackages(useCacheIfPossible = true, repo = "/etc/kpkg/repos/main") =
     for kind, path in walkDir(repo):
         case kind:
             of pcDir:
-                info_msg "Now building "&lastPathPart(path)
-                debug "Full path: "&path
-                kreastrapInstall(lastPathPart(path), false, "/", useCacheIfPossible)
+                if lastPathPart(path) != ".git": 
+                    info_msg "Now building "&lastPathPart(path)
+                    debug "Full path: "&path
+                    kreastrapInstall(lastPathPart(path), false, "/", useCacheIfPossible)
             of pcLinkToDir:
                 warn "kpkg doesn't support symlinks properly. Issues may occur"
                 info_msg "Now building "&lastPathPart(path)
