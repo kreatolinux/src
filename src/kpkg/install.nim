@@ -37,9 +37,9 @@ proc install_pkg(repo: string, package: string, root: string, binary = false,
 
         setCurrentDir(builddir)
 
-      for line in lines root&"/var/cache/kpkg/installed/"&package&"/list_files":
-        if fileExists(line):
-          file.writeLine(sha256hexdigest(readAll(open(line)))&"  "&line)
+        for line in lines root&"/var/cache/kpkg/installed/"&package&"/list_files":
+          if fileExists(line):
+            file.writeLine(sha256hexdigest(readAll(open(line)))&"  "&line)
 
         try:
             waitFor download("https://"&binrepo&"/arch/"&hostCPU&"/kpkg-tarball-"&pkg.pkg&"-"&pkg.versionString&".tar.gz.sum.bin",
