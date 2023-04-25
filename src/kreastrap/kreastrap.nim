@@ -244,7 +244,7 @@ proc buildPackages(useCacheIfPossible = true, repo = "/etc/kpkg/repos/main") =
     for kind, path in walkDir(repo):
         case kind:
             of pcDir:
-                if lastPathPart(path) != ".git": 
+                if lastPathPart(path) != ".git":
                     info_msg "Now building "&lastPathPart(path)
                     debug "Full path: "&path
                     kreastrapInstall(lastPathPart(path), false, "/", useCacheIfPossible)
