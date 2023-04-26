@@ -17,12 +17,6 @@ jobs:
         with:
           submodules: 'true'
           
-      - name: Cache built packages
-        uses: actions/cache@v3
-        with:
-          path: /var/cache/kpkg/archives
-          key: cache-nyaa-tarballs
-
       - name: Build packages
         run: |
           make deps

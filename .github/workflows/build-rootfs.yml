@@ -13,18 +13,14 @@ jobs:
     runs-on: self-hosted
     container:
       image: ghcr.io/kreatolinux/builder:latest 
+    volumes:
+      - /var/cache/kpkg/archives:/var/cache/kpkg/archives 
     
     steps:
 
       - name: Checkout
         uses: actions/checkout@v3
           
-      - name: Cache built packages
-        uses: actions/cache@v3
-        with:
-          path: /var/cache/kpkg/archives
-          key: cache-nyaa-tarballs
-
       - name: Build nocc rootfs tarball
         run: |
           IS_ACTIONS=y sh $GITHUB_WORKSPACE/src/scripts/build-ci.sh init
