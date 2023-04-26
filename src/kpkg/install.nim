@@ -54,8 +54,8 @@ proc install_pkg(repo: string, package: string, root: string, binary = false,
                 echo "kpkg: run with --enforceReproducibility=true if you want to enforce this"
 
         if downloaded:
-            if readAll(open("/tmp/kpkg-temp-"&pkg.pkg&".bin")) == readAll(open(
-                    tarball&".sum.bin")):
+            let result = execCmdEx("sha256sum -c /tmp/kpkg-temp-"&pkg.pkg&".bin")
+            if result.exitCode == 0:
                 echo "kpkg: reproducibility check success"
             elif enforceReproducibility:
                 err("reproducibility check failed")
