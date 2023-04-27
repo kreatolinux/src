@@ -28,11 +28,11 @@ proc install_pkg(repo: string, package: string, root: string, binary = false,
 
     writeFile(root&"/var/cache/kpkg/installed/"&package&"/list_files",
             execProcess("tar -tf"&tarball))
-
+    
+    let file = open(tarball&".sum.bin", fmWrite)
+    
     if not binary:
         var downloaded = false
-
-        let file = open(tarball&".sum.bin", fmWrite)
 
         setCurrentDir(builddir)
 
@@ -63,8 +63,16 @@ proc install_pkg(repo: string, package: string, root: string, binary = false,
                 echo "kpkg: reproducibility check failed"
                 echo "kpkg: run with --enforceReproducibility=true if you want to enforce this"
 
+    else:
+        discard execProcess("tar -hxf"&tarball&" -C "&root)
+        setCurrentDir(root)
+        for line in lines root&"/var/cache/kpkg/installed/"&package&"/list_files":
+            if fileExists(line):
+                file.writeLine(sha256hexdigest(readAll(open(line)))&"  "&line)
+        
+	file.close()
+
     copyFile(tarball&".sum.bin", root&"/var/cache/kpkg/installed/"&package&"/list_sums")
-    discard execProcess("tar -hxf"&tarball&" -C "&root)
 
 proc install_bin(packages: seq[string], binrepo: string, root: string,
         offline: bool, downloadOnly = false) =
