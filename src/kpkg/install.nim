@@ -62,7 +62,7 @@ proc install_pkg(repo: string, package: string, root: string, binary = false,
             else:
                 echo "kpkg: reproducibility check failed"
                 echo "kpkg: run with --enforceReproducibility=true if you want to enforce this"
-        
+
         discard execProcess("tar -hxf"&tarball&" -C "&root)
     else:
         discard execProcess("tar -hxf"&tarball&" -C "&root)
