@@ -13,8 +13,8 @@ jobs:
     runs-on: self-hosted
     container:
       image: ghcr.io/kreatolinux/builder:latest 
-    volumes:
-      - /var/cache/kpkg/archives:/var/cache/kpkg/archives 
+      volumes:
+        - /var/cache/kpkg/archives:/var/cache/kpkg/archives 
     
     steps:
 
