@@ -37,5 +37,5 @@ while true:
     case json["service"]["action"].getStr:
         of "stop":
             echo "stopped service"
-     
+
 
