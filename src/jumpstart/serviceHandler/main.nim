@@ -15,7 +15,7 @@ proc serviceHandlerInit() =
             service = loadConfig(i)
         except Exception:
             warn "Service "&i&" couldn't be loaded, possibly broken configuration?"
-        
+
         discard execProcess(service.getSectionValue("Service", "exec"))
 
 proc getStat(service: string): string =
