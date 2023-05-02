@@ -9,9 +9,8 @@ proc serviceHandlerInit() =
     discard existsOrCreateDir(servicePath)
     for i in walkFiles(servicePath"/*"):
         echo i
-    
 
-proc getStat(service: string): string = 
+
+proc getStat(service: string): string =
     ## Get status of an service.
     echo service
-    
