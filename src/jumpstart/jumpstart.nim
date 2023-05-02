@@ -1,28 +1,7 @@
 import std/net
-import os
 import json
-import terminal
-import serviceHandler/main
-include commonImports
-
-
-proc debug(message: string) =
-    when not defined(release):
-        styledEcho "[", styleBlinkRapid, styleBright, fgYellow, " DEBUG ",
-                resetStyle, "] "&message
-
-proc info_msg(message: string) =
-    styledEcho "[", styleBright, fgBlue, " INFO ", resetStyle, "] "&message
-
-proc ok(message: string) =
-    styledEcho "[", styleBright, fgGreen, " OK ", resetStyle, "] "&message
-
-proc warn(message: string) =
-    styledEcho "[", styleBright, fgYellow, " WARN ", resetStyle, "] "&message
-
-proc error(message: string) =
-    styledEcho "[", styleBright, fgRed, " ERROR ", resetStyle, "] "&message
-    quit(1)
+include serviceHandler/main
+import logging
 
 let socket = newSocket(AF_UNIX, SOCK_STREAM, IPPROTO_IP)
 
@@ -46,10 +25,10 @@ setControlCHook(ctrlc)
 
 var client: Socket
 var address = ""
+serviceHandlerInit()
 while true:
     socket.acceptAddr(client, address)
     var json = parseJson(client.recvLine())
-    serviceHandlerInit()
     #echo pretty(json)
     case json["service"]["action"].getStr:
         of "stop":

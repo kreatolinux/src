@@ -1,6 +1,0 @@
-[Service]
-ExecPre="echo xd"
-Exec="echo 'lol' > /lol"
-ExecPost="echo lol!!!!"
-Deps=""
-Restart="yes"

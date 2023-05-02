@@ -2,14 +2,21 @@
 # JumpStart's service handler
 include ../commonImports
 include enable, disable, start, stop
-import os
+import os, osproc
+import parsecfg
+import ../logging
 
 proc serviceHandlerInit() =
     ## Initialize serviceHandler.
     discard existsOrCreateDir(servicePath)
-    for i in walkFiles(servicePath"/*"):
-        echo i
-
+    var service: Config
+    for i in walkFiles(servicePath&"/*"):
+        try:
+            service = loadConfig(i)
+        except Exception:
+            warn "Service "&i&" couldn't be loaded, possibly broken configuration?"
+        
+        discard execProcess(service.getSectionValue("Service", "exec"))
 
 proc getStat(service: string): string =
     ## Get status of an service.
