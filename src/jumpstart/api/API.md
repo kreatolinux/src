@@ -51,7 +51,7 @@ status can have values such as healthy, stopped, killed, exited.
 ## Services
 Services are parsed using std/parsecfg, which is like ini.
 
-Services are stored in ``/etc/jumpstart/services` by default and have the `.service` extension.
+Services are stored in `/etc/jumpstart/services` by default and have the `.service` extension.
 
 ```ini
 [Service]
