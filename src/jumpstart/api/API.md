@@ -47,3 +47,18 @@ Status uses JSON format.
 ```
 
 status can have values such as healthy, stopped, killed, exited.
+
+## Services
+Services are parsed using std/parsecfg, which is like ini.
+
+Services are stored in ``/etc/jumpstart/services` by default and have the `.service` extension.
+
+```ini
+[Service]
+execPre="echo 'This will be ran before Exec'"
+exec="echo 'this is a test'"
+execPost="echo 'This will be ran after the initial command'"
+
+[Settings]
+workDir="/tmp/test"
+```
