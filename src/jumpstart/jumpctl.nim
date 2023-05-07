@@ -85,6 +85,6 @@ dispatchMulti(
     [
         status, help = {
            "service": "The service that will be reported."
-        } 
+        }
     ]
 )

@@ -17,7 +17,7 @@ proc spawnSock(serviceName: string) =
         error "cannot start, sock already in use (is another instance of jumpstart open?)"
 
     socket.listen()
-    
+
     while true:
         socket.acceptAddr(client, address)
         echo client.recvLine()
