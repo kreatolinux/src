@@ -31,11 +31,7 @@ serviceHandler is the service handler of JumpStart. It manages services.
 
 ### Folder structure
 ```
-/run/serviceHandler/serviceName.service/enable
-/run/serviceHandler/serviceName.service/disable
-/run/serviceHandler/serviceName.service/stop
-/run/serviceHandler/serviceName.service/start
-/run/serviceHandler/serviceName.service/status
+/run/serviceHandler/serviceName.service/sock
 ```
 Should explain themselves well enough.
 Status uses JSON format.

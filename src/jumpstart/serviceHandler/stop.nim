@@ -1,3 +1,3 @@
-proc stopService(service: string) =
+proc stopService*(service: string) =
     ## Stop an service.
     echo service

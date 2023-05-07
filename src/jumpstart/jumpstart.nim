@@ -33,22 +33,16 @@ while true:
     case json["service"]["action"].getStr:
         of "stop":
             stopService(json["service"]["name"].getStr)
-            ok "stopped service "&json["service"]["name"].getStr
         of "start":
             startService(json["service"]["name"].getStr)
-            ok "started service "&json["service"]["name"].getStr
         of "enable":
             enableService(json["service"]["name"].getStr)
-            ok "enabled service "&json["service"]["name"].getStr
             if json["service"]["now"].getStr == "true":
                 startService(json["service"]["name"].getStr)
-                ok "started service "&json["service"]["name"].getStr
         of "disable":
             disableService(json["service"]["name"].getStr)
-            ok "disabled service "&json["service"]["name"].getStr
             if json["service"]["now"].getStr == "true":
                 stopService(json["service"]["name"].getStr)
-                ok "stopped service "&json["service"]["name"].getStr
 
 
 
