@@ -4,6 +4,7 @@ import std/threadpool
 import status
 import ../logging
 include ../commonImports
+import globalVariables
 
 proc startService*(serviceName: string) =
     ## Start an service.
@@ -20,6 +21,8 @@ proc startService*(serviceName: string) =
     except CatchableError:
         warn "Service "&serviceName&" couldn't be started, possibly broken configuration?"
         return
+    
+    
     #var workDir: string
     #try:
     #    workDir = service.getSectionValue("Settings", "workDir")
@@ -29,6 +32,8 @@ proc startService*(serviceName: string) =
     createDir("/run/serviceHandler/"&serviceName)
     let process = startProcess(command = service.getSectionValue("Service",
             "exec"), options = {poEvalCommand, poUsePath, poDaemon})
+
+    services = services&(serviceName: serviceName, process: process)
 
     spawn statusDaemon(process, serviceName)
     ok "Started "&serviceName

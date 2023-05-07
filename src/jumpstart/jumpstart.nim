@@ -1,7 +1,6 @@
 import std/net
 import json
 include serviceHandler/main
-import logging
 
 let socket = newSocket(AF_UNIX, SOCK_STREAM, IPPROTO_IP)
 
