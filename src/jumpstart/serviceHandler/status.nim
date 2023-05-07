@@ -11,6 +11,7 @@ proc statusDaemon*(process: Process, serviceName: string) =
         if exited == 0:
             writeFile("/run/serviceHandler/"&serviceName&"/status", "stopped")
         else:
-            writeFile("/run/serviceHandler/"&serviceName&"/status", "stopped with an exit code "&intToStr(exited))
+            writeFile("/run/serviceHandler/"&serviceName&"/status",
+                    "stopped with an exit code "&intToStr(exited))
     except CatchableError:
         writeFile("/run/serviceHandler/"&serviceName&"/status", "stopped")

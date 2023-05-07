@@ -21,8 +21,8 @@ proc startService*(serviceName: string) =
     except CatchableError:
         warn "Service "&serviceName&" couldn't be started, possibly broken configuration?"
         return
-    
-    
+
+
     #var workDir: string
     #try:
     #    workDir = service.getSectionValue("Settings", "workDir")

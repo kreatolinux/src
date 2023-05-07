@@ -4,7 +4,7 @@ import os
 import globalVariables
 
 proc stopService*(serviceName: string) =
-    
+
     if not dirExists("/run/serviceHandler/"&serviceName):
         info_msg "Service "&serviceName&" is already not running, not trying to stop"
         return
@@ -16,6 +16,6 @@ proc stopService*(serviceName: string) =
             close(services[i].process)
             services.delete(i)
             return
-            
+
     info_msg "Service "&serviceName&" stopped"
-        
+
