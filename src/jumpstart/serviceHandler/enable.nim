@@ -4,11 +4,11 @@ import ../logging
 
 proc enableService*(service: string) =
     ## Enables an service.
-    
+
     if existsDir(servicePath&"/enabled/"&service):
         info_msg "Service "&service&" is already enabled, no need to re-enable"
         return
-    
+
     try:
         discard existsOrCreateDir(servicePath&"/enabled")
         createSymlink(servicePath&"/"&service, servicePath&"/enabled/"&service)

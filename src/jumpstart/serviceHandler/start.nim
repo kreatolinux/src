@@ -8,7 +8,7 @@ proc startService*(serviceName: string) =
     ## Start an service.
     var service: Config
 
-    # Load the configuration, 
+    # Load the configuration,
     try:
         if dirExists("/run/serviceHandler/"&serviceName):
             warn "Service "&serviceName&" is already running, not starting it again"
