@@ -17,7 +17,7 @@ proc sendSock(message: string) =
     socket.send(message&"\c\l")
 
 proc enable(service: seq[string], now = false) =
-    ## Enable service.
+    ## Enable the service.
     connectSock()
     if now:
         sendSock("""{ "client": { "name": "Jumpstart CLI", "version": """"&clCfg.version&"""" }, "service": { "name": """"&service[
@@ -28,7 +28,7 @@ proc enable(service: seq[string], now = false) =
     echo("jumpstart: enabled service "&service[0])
 
 proc disable(service: seq[string], now = false) =
-    ## Disable service.
+    ## Disable the service.
     connectSock()
     if now:
         sendSock("""{ "client": { "name": "Jumpstart CLI", "version": """"&clCfg.version&"""" }, "service": { "name": """"&service[
@@ -39,18 +39,23 @@ proc disable(service: seq[string], now = false) =
     echo("jumpstart: disabled service "&service[0])
 
 proc start(service: seq[string]) =
-    ## Start service.
+    ## Start the service.
     connectSock()
     sendSock("""{ "client": { "name": "Jumpstart CLI", "version": """"&clCfg.version&"""" }, "service": { "name": """"&service[
             0]&""".service", "action": "start", "now": "false" }}""")
     echo("jumpstart: started service "&service[0])
 
 proc stop(service: seq[string]) =
-    ## Stop service.
+    ## Stop the service.
     connectSock()
     sendSock("""{ "client": { "name": "Jumpstart CLI", "version": """"&clCfg.version&"""" }, "service": { "name": """"&service[
             0]&""".service", "action": "stop", "now": "false" }}""")
     echo("jumpstart: stopped service "&service[0])
+
+proc status(service: seq[string]) =
+    ## Check status of the service.
+    connectSock("/run/serviceHandler/"&service[0]&"/sock")
+    sendSock("test")
 
 clCfg.version = jumpstartVersion
 
@@ -76,5 +81,10 @@ dispatchMulti(
         stop, help = {
             "service": "The service that will be stopped."
         }
+    ],
+    [
+        status, help = {
+           "service": "The service that will be reported."
+        } 
     ]
 )

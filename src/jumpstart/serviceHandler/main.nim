@@ -10,7 +10,6 @@ proc serviceHandlerInit() =
     discard existsOrCreateDir(servicePath)
     removeDir("/run/serviceHandler")
     for i in walkFiles(servicePath&"/enabled/*"):
-        createDir("/run/serviceHandler/"&extractFilename(i))
         startService(extractFilename(i))
 
 proc getStat(service: string): string =
