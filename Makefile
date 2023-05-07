@@ -13,8 +13,8 @@ $(tasks)::
 	$(call nimbuild,$@)
 
 jumpstart:
-	nim c -d:release --threads:on -o=$(PREFIX)/jumpstart $(SRCDIR)/jumpstart/jumpstart.nim
-	nim c -d:release -o=$(PREFIX)/jumpctl $(SRCDIR)/jumpstart/jumpctl.nim
+	nim c -d:debug --threads:on -o=$(PREFIX)/jumpstart $(SRCDIR)/jumpstart/jumpstart.nim
+	nim c -d:debug -o=$(PREFIX)/jumpctl $(SRCDIR)/jumpstart/jumpctl.nim
 
 kreastrap:
 	nim c -d:release -d:branch=master --threads:on -d:ssl -o=$(SRCDIR)/kreastrap/kreastrap $(SRCDIR)/kreastrap/kreastrap.nim

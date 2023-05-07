@@ -1,24 +1,23 @@
 import osproc
 import os
+import strutils
 
 proc statusDaemon*(process: Process, serviceName: string) =
-    ## The status daemon, checks constantly for the status of the service.
-    ## Also stops service if requested.
-    while true:
-        # Probably a bad way to do this but it should work for now
+    
+    if not fileExists("/run/serviceHandler/"&serviceName&"/status"):
+        writeFile("/run/serviceHandler/"&serviceName&"/status", "running")
+    
+    let exited = waitForExit(process)
 
+    if exited == 0:
+        writeFile("/run/serviceHandler/"&serviceName&"/status", "stopped")
+    else:
+        writeFile("/run/serviceHandler/"&serviceName&"/status", "stopped with an exit code "&intToStr(exited))
+
+    while true:
         if fileExists("/run/serviceHandler/"&serviceName&"/stopFile"):
             terminate(process)
             discard waitForExit(process)
             close(process)
             removeDir("/run/serviceHandler/"&serviceName)
             return
-
-        if running(process):
-            writeFile("/run/serviceHandler/"&serviceName&"/status", """running""")
-        else:
-            writeFile("/run/serviceHandler/"&serviceName&"/status", """stopped""")
-
-
-
-        sleep(5)

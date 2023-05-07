@@ -9,7 +9,7 @@ proc startService*(serviceName: string) =
     ## Start an service.
     var service: Config
 
-    # Load the configuration,
+    # Load the configuration
     try:
         if dirExists("/run/serviceHandler/"&serviceName):
             warn "Service "&serviceName&" is already running, not starting it again"
@@ -20,9 +20,15 @@ proc startService*(serviceName: string) =
     except CatchableError:
         warn "Service "&serviceName&" couldn't be started, possibly broken configuration?"
         return
+    #var workDir: string
+    #try:
+    #    workDir = service.getSectionValue("Settings", "workDir")
+    #except CatchableError:
+    #    workDir = "/"
 
     createDir("/run/serviceHandler/"&serviceName)
     let process = startProcess(command = service.getSectionValue("Service",
             "exec"), options = {poEvalCommand, poUsePath, poDaemon})
+
     spawn statusDaemon(process, serviceName)
     ok "Started "&serviceName
