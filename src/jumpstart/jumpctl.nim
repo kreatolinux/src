@@ -54,7 +54,7 @@ proc stop(service: seq[string]) =
 
 proc status(service: seq[string]) =
     ## Check status of the service.
-    
+
     var status: string
 
     try:

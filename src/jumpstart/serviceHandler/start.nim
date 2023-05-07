@@ -22,6 +22,7 @@ proc startService*(serviceName: string) =
         return
 
     createDir("/run/serviceHandler/"&serviceName)
-    let process = startProcess(command=service.getSectionValue("Service", "exec"), options={poEvalCommand, poUsePath, poDaemon})
+    let process = startProcess(command = service.getSectionValue("Service",
+            "exec"), options = {poEvalCommand, poUsePath, poDaemon})
     spawn statusDaemon(process, serviceName)
     ok "Started "&serviceName
