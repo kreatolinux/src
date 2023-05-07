@@ -5,7 +5,7 @@ import ../logging
 proc enableService*(service: string) =
     ## Enables an service.
 
-    if existsDir(servicePath&"/enabled/"&service):
+    if dirExists(servicePath&"/enabled/"&service):
         info_msg "Service "&service&" is already enabled, no need to re-enable"
         return
 

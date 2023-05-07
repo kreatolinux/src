@@ -54,8 +54,15 @@ proc stop(service: seq[string]) =
 
 proc status(service: seq[string]) =
     ## Check status of the service.
-    connectSock("/run/serviceHandler/"&service[0]&"/sock")
-    sendSock("test")
+    
+    var status: string
+
+    try:
+        status = readFile("/run/serviceHandler/"&service[0]&".service/status")
+    except CatchableError:
+        status = "stopped"
+
+    echo "jumpstart: service is reporting status as '"&status&"'"
 
 clCfg.version = jumpstartVersion
 

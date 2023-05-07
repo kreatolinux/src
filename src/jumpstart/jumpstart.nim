@@ -18,6 +18,7 @@ info_msg "Initializing "&jumpstartVersion
 proc ctrlc() {.noconv.} =
     info_msg "removing socket"
     removeFile(sockPath)
+    removeDir("/run/serviceHandler")
     info_msg "exiting"
     quit(0)
 
@@ -43,6 +44,5 @@ while true:
             disableService(json["service"]["name"].getStr)
             if json["service"]["now"].getStr == "true":
                 stopService(json["service"]["name"].getStr)
-
 
 

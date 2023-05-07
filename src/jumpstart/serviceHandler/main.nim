@@ -2,7 +2,7 @@
 # JumpStart's service handler
 include ../commonImports
 import enable, disable, start, stop
-import os, osproc
+import os
 import ../logging
 
 proc serviceHandlerInit() =
@@ -11,7 +11,3 @@ proc serviceHandlerInit() =
     removeDir("/run/serviceHandler")
     for i in walkFiles(servicePath&"/enabled/*"):
         startService(extractFilename(i))
-
-proc getStat(service: string): string =
-    ## Get status of an service.
-    echo service
