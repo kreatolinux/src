@@ -36,7 +36,8 @@ proc startService*(serviceName: string) =
     let process = startProcess(command = service.getSectionValue("Service",
             "exec"), options = {poEvalCommand, poUsePath, poDaemon})
 
-    services = services&(serviceName: serviceName, process: process, processPre: processPre)
+    services = services&(serviceName: serviceName, process: process,
+            processPre: processPre)
 
     spawn statusDaemon(process, serviceName)
     ok "Started "&serviceName
