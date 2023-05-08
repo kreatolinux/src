@@ -30,6 +30,22 @@
   };
 
   # ------------------------------------------------------------------------------------------------
+  
+  jumpstart = nimBuild {
+    name = "jumpstart";
+    propagatedBuildInputs = [jumpctl];
+  }
+  
+  # ------------------------------------------------------------------------------------------------
+
+  jumpctl = nimBuild {
+    name = "jumpctl";
+    nativeBuildInputs = with buildDeps; [cligen];
+    sourceName = "jumpstart";
+    file = "jumpctl.nim";
+  }
+
+  # ------------------------------------------------------------------------------------------------
 
   mari = nimBuild {
     name = "mari";
