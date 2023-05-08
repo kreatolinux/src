@@ -30,10 +30,13 @@ proc startService*(serviceName: string) =
     #    workDir = "/"
 
     createDir("/run/serviceHandler/"&serviceName)
+    let processPre = startProcess(command = service.getSectionValue("Service",
+        "execPre"), options = {poEvalCommand, poUsePath})
+
     let process = startProcess(command = service.getSectionValue("Service",
             "exec"), options = {poEvalCommand, poUsePath, poDaemon})
 
-    services = services&(serviceName: serviceName, process: process)
+    services = services&(serviceName: serviceName, process: process, processPre: processPre)
 
     spawn statusDaemon(process, serviceName)
     ok "Started "&serviceName
