@@ -53,7 +53,7 @@ Enabled services are stored in `/etc/jumpstart/services/enabled`.
 
 ## Mounts
 Mounts are also parsed using std/parsecfg, which is like ini.
-They are stored in `/etc/jumpstart/mounts` and have the `.mount` extensions.
+They are stored in `/etc/jumpstart/mounts` and have the `.mount` extension.
 
 ```ini
 [Info]
