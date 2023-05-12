@@ -41,6 +41,7 @@ Services are stored in `/etc/jumpstart/services` by default and have the `.servi
 ```ini
 [Info]
 Desc="This is a test service."
+Type="service" # Specify type, 'service' is for services, 'mount' is for mounting
 
 [Service]
 execPre="echo 'This will be ran before Exec'"
@@ -49,6 +50,23 @@ execPost="echo 'This will be ran after the initial command'"
 ```
 
 Enabled services are stored in `/etc/jumpstart/services/enabled`.
+
+## Mounts
+Mounts are also parsed using std/parsecfg, which is like ini.
+They are stored in `/etc/jumpstart/mounts` and have the `.mount` extensions.
+
+```ini
+[Info]
+Desc="This is an test mount."
+Type="mount"
+
+[Mount]
+From="/dev/nvme0n1p1"
+To="/mnt"
+Type="ext4"
+Timeout="5s"
+Chmod="755"
+```
 
 ## Using another service manager
 Jumpstart is designed to be modular, and allows using other service managers.
