@@ -12,6 +12,6 @@ proc serviceHandlerInit() =
     removeDir("/run/serviceHandler")
     for i in walkFiles(servicePath&"/enabled/*.service"):
         startService(extractFilename(i))
-    
+
     for i in walkFiles(mountPath&"/enabled/*.mount"):
         startMount(extractFilename(i))
