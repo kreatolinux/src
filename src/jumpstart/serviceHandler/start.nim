@@ -39,5 +39,5 @@ proc startService*(serviceName: string) =
     services = services&(serviceName: serviceName, process: process,
             processPre: processPre)
 
-    spawn statusDaemon(process, serviceName)
+    spawn statusDaemon(process, serviceName, service.getSectionValue("Service", "execPost"), options = {poEvalCommand, poUsePath, poDaemon})
     ok "Started "&serviceName
