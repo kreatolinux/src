@@ -36,6 +36,8 @@ proc startMount*(mountName: string) =
     cmd = cmd&" "&mount.getSectionValue("Mount",
             "From")&" "&mount.getSectionValue("Mount", "To")
 
+    cmd = cmd&mount.getSectionValue("Mount", "extraArgs")
+
     let process = startProcess(command = cmd, options = {poEvalCommand, poUsePath})
 
     if mount.getSectionValue("Mount", "Timeout") != "":

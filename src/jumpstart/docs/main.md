@@ -67,6 +67,7 @@ Type="ext4"
 Timeout="5s"
 lazyUmount="true"
 Chmod="755"
+extraArgs="--bind"
 ```
 
 ## Using another service manager
