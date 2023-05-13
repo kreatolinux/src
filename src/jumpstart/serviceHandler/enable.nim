@@ -4,7 +4,7 @@ import ../logging
 
 proc enableService*(service: string, isMount: bool) =
     ## Enables an service.
-    
+
     var srvmntPath: string
 
     if isMount:

@@ -6,7 +6,7 @@ import ../../logging
 include ../../commonImports
 
 proc stopMount*(mountName: string) =
-    
+
     if not existsDir("/run/serviceHandler/mounts/"&mountName):
         warn "Mount "&mountName&" is not running, no need to try stopping it"
         return
@@ -19,7 +19,7 @@ proc stopMount*(mountName: string) =
     except CatchableError:
         warn "Mount "&mountName&" couldn't be loaded, possibly broken configuration?"
         return
-    
+
     var cmd = "umount"
 
     if parseBool(mount.getSectionValue("Mount", "lazyUmount", "no")):

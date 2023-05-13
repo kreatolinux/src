@@ -15,7 +15,7 @@ proc serviceName(service: seq[string]): tuple[name: string, isMount: bool] =
             return (name: service[0], isMount: false)
         of ".mount":
             return (name: service[0], isMount: true)
-    
+
 
 proc connectSock(sockPath = sockPath) =
     ## Connect to UNIX socket.
@@ -58,14 +58,14 @@ proc start(service: seq[string]) =
     connectSock()
 
     let srvName = serviceName(service)
-    
+
     sendSock("""{ "client": { "name": "Jumpstart CLI", "version": """"&clCfg.version&"""" }, "service": { "name": """"&srvName.name&"""", "action": "start", "now": "false" }}""")
     echo("jumpstart: started service "&service[0])
 
 proc stop(service: seq[string]) =
     ## Stop the service.
     connectSock()
-    
+
     let srvName = serviceName(service)
 
     sendSock("""{ "client": { "name": "Jumpstart CLI", "version": """"&clCfg.version&"""" }, "service": { "name": """"&srvName.name&"""", "action": "stop", "now": "false" }}""")
@@ -73,7 +73,7 @@ proc stop(service: seq[string]) =
 
 proc status(service: seq[string]) =
     ## Check status of the service.
-    
+
     let srvName = serviceName(service)
 
     var status: string

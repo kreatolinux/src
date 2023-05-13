@@ -33,7 +33,7 @@ while true:
     var isMount: bool
     if splitFile(json["service"]["name"].getStr).ext == ".mount":
         isMount = true
-        
+
     case json["service"]["action"].getStr:
         of "stop":
             if isMount:
