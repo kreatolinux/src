@@ -34,6 +34,7 @@
   jumpstart = nimBuild {
     name = "jumpstart";
     propagatedBuildInputs = [jumpctl];
+    nativeBuildInputs = with buildDeps; [fusion];
   };
   
   # ------------------------------------------------------------------------------------------------
