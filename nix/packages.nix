@@ -34,7 +34,7 @@
   jumpstart = nimBuild {
     name = "jumpstart";
     propagatedBuildInputs = [jumpctl];
-  }
+  };
   
   # ------------------------------------------------------------------------------------------------
 
@@ -43,7 +43,7 @@
     nativeBuildInputs = with buildDeps; [cligen];
     sourceName = "jumpstart";
     file = "jumpctl.nim";
-  }
+  };
 
   # ------------------------------------------------------------------------------------------------
 
