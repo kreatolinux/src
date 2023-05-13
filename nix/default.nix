@@ -113,7 +113,7 @@
         nim compile -d:release \
           --threads:on -d:ssl --nimcache:$TMPDIR \
           ${buildArgs} \
-          -o=./out/${file} ./src/${sourceName}/${file}
+          -o=./out/${pname} ./src/${sourceName}/${file}
       '';
 
       installPhase = ''
