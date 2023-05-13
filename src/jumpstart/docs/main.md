@@ -65,6 +65,7 @@ From="/dev/nvme0n1p1"
 To="/mnt"
 Type="ext4"
 Timeout="5s"
+lazyUmount="true"
 Chmod="755"
 ```
 

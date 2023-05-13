@@ -7,7 +7,7 @@ tasks = kpkg chkupd mari purr
 all: $(tasks)
 
 deps:
-	nimble install cligen libsha httpbeast -y
+	nimble install cligen libsha httpbeast fusion -y
 
 $(tasks)::
 	$(call nimbuild,$@)
