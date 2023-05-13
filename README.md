@@ -32,6 +32,9 @@ purr is kpkg's testing utility. You can build it by running `make tests`. The bi
 ## chkupd
 chkupd is a tool to check if a package is up-to-date on a kpkg repository. It also has the ability to attempt to autoupdate the package. You can build it by running `make chkupd`. The binary will be located on the usual `out` folder.
 
+## jumpstart
+Jumpstart is Kreato Linux's new service manager/init system. It is similar in style to systemd. You can build it by running `make jumpstart`. The binary will be located on the usual `out` folder.
+
 # License
 Licensed under GPLv3. Check LICENSE file for details
 
