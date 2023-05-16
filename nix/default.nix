@@ -1,11 +1,7 @@
 # ------------------------------------------------------------------------------------------------
 # helpers and variables for packages
 # ------------------------------------------------------------------------------------------------
-{
-  pkgs,
-  version,
-  ...
-} @ inputs: let
+{pkgs, ...} @ inputs: let
   # ------------------------------------------------------------------------------------------------
   isStatic = let
     inherit (builtins) hasAttr;
@@ -73,6 +69,8 @@
   # and can't take advantage of buildNimPackage)
   nimBuild = {
     name,
+    sourceName ? name,
+    file ? "${sourceName}.nim",
     version ? inputs.version,
     nativeBuildInputs ? [],
     propagatedBuildInputs ? [pkgs.openssl],
@@ -115,7 +113,7 @@
         nim compile -d:release \
           --threads:on -d:ssl --nimcache:$TMPDIR \
           ${buildArgs} \
-          -o=./out/${pname} ./src/${pname}/${pname}.nim
+          -o=./out/${pname} ./src/${sourceName}/${file}
       '';
 
       installPhase = ''
