@@ -18,7 +18,7 @@ proc initDirectories() =
     if fileExists("/etc/fstab"):
         execLoggedCmd("mount -a", "Couldn't mount fstab entries")
     execLoggedCmd("mount -o remount,rw /", "Couldn't mount rootfs")
-    execLoggedCmd("mount -t proc none /proc", "Couldn't mount /proc")
+    execLoggedCmd("mount -t proc proc /proc", "Couldn't mount /proc")
     execLoggedCmd("mount -t devtmpfs none /dev", "Couldn't mount /dev")
     execLoggedCmd("mount -t devpts devpts /dev/pts", "Couldn't mount /dev/pts")
     execLoggedCmd("mount -t sysfs sysfs /sys", "Couldn't mount /sys")
