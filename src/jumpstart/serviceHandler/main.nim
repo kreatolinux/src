@@ -17,12 +17,12 @@ proc initDirectories() =
     info_msg "Mounting filesystems..."
     if fileExists("/etc/fstab"):
         execLoggedCmd("mount -a", "Couldn't mount fstab entries")
-    execLoggedCmd("mount -o remount,rw /", "Couldn't mount rootfs")
     execLoggedCmd("mount -t proc proc /proc", "Couldn't mount /proc")
     execLoggedCmd("mount -t devtmpfs none /dev", "Couldn't mount /dev")
     execLoggedCmd("mount -t devpts devpts /dev/pts", "Couldn't mount /dev/pts")
     execLoggedCmd("mount -t sysfs sysfs /sys", "Couldn't mount /sys")
     execLoggedCmd("mount -t tmpfs none /run", "Couldn't mount /run")
+    execLoggedCmd("mount -o remount,rw /", "Couldn't mount rootfs")
 
 proc serviceHandlerInit() =
     ## Initialize serviceHandler.
