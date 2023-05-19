@@ -2,27 +2,31 @@
 # JumpStart's service handler
 include ../commonImports
 import enable, disable, start, stop
-import os
+import os, osproc
 import ../logging
 import jumpmount/main
 import jumpmount/umount
 
 proc execLoggedCmd(cmd: string, err: string) =
     ## execShellCmd with simple if statement
+    if err != "/proc" and execCmdEx("mountpoint "&err).exitCode == 0:
+        info_msg err&" already mounted, skipping"
+        return
+
     if execShellCmd(cmd) != 0:
-        error err
+        error "Couldn't mount "&err
 
 proc initDirectories() =
     ## Initialize directories such as /proc, /dev, etc.
     info_msg "Mounting filesystems..."
     if fileExists("/etc/fstab"):
-        execLoggedCmd("mount -a", "Couldn't mount fstab entries")
-    execLoggedCmd("mount -t proc proc /proc", "Couldn't mount /proc")
-    execLoggedCmd("mount -t devtmpfs none /dev", "Couldn't mount /dev")
-    execLoggedCmd("mount -t devpts devpts /dev/pts", "Couldn't mount /dev/pts")
-    execLoggedCmd("mount -t sysfs sysfs /sys", "Couldn't mount /sys")
-    execLoggedCmd("mount -t tmpfs none /run", "Couldn't mount /run")
-    execLoggedCmd("mount -o remount,rw /", "Couldn't mount rootfs")
+        execLoggedCmd("mount -a", "fstab")
+    execLoggedCmd("mount -t proc proc /proc", "/proc")
+    execLoggedCmd("mount -t devtmpfs none /dev", "/dev")
+    execLoggedCmd("mount -t devpts devpts /dev/pts", "/dev/pts")
+    execLoggedCmd("mount -t sysfs sysfs /sys", "/sys")
+    execLoggedCmd("mount -t tmpfs none /run", "/run")
+    execLoggedCmd("mount -o remount,rw /", "rootfs")
 
 proc serviceHandlerInit() =
     ## Initialize serviceHandler.
