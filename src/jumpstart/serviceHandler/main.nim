@@ -15,7 +15,8 @@ proc execLoggedCmd(cmd: string, err: string) =
 proc initDirectories() =
     ## Initialize directories such as /proc, /dev, etc.
     info_msg "Mounting filesystems..."
-    execLoggedCmd("mount -a", "Couldn't mount fstab entries")
+    if fileExists("/etc/fstab"):
+        execLoggedCmd("mount -a", "Couldn't mount fstab entries")
     execLoggedCmd("mount -o remount,rw /", "Couldn't mount rootfs")
     execLoggedCmd("mount -t proc none /proc", "Couldn't mount /proc")
     execLoggedCmd("mount -t devtmpfs none /dev", "Couldn't mount /dev")
