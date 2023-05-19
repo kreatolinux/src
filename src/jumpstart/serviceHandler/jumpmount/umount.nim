@@ -7,7 +7,7 @@ include ../../commonImports
 
 proc stopMount*(mountName: string) =
 
-    if not existsDir("/run/serviceHandler/mounts/"&mountName):
+    if not dirExists("/run/serviceHandler/mounts/"&mountName):
         warn "Mount "&mountName&" is not running, no need to try stopping it"
         return
 
