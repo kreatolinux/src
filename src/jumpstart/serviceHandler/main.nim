@@ -9,7 +9,7 @@ import jumpmount/umount
 
 proc execLoggedCmd(cmd: string, err: string) =
     ## execShellCmd with simple if statement
-    existsOrCreateDir(err)
+    discard existsOrCreateDir(err)
     if err != "/proc" and execCmdEx("mountpoint "&err).exitCode == 0:
         info_msg err&" already mounted, skipping"
         return
