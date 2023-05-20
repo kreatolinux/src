@@ -5,6 +5,7 @@ include commonImports
 
 let socket = newSocket(AF_UNIX, SOCK_STREAM, IPPROTO_IP)
 
+## Tool to control Jumpstart.
 
 proc serviceName(service: seq[string]): tuple[name: string, isMount: bool] =
     ## Convenience proc to check the reported service name.
