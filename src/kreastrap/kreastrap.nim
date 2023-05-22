@@ -62,7 +62,7 @@ proc kreastrapInstall(package: string, installWithBinaries: bool,
                 package]),
                 useCacheIfAvailable = useCacheIfPossible)
         discard install(toSeq([package]), buildDir, true)
-        
+
     ok("Package "&package&" installed successfully")
 
 proc set_default_cc(buildDir: string, cc: string) =
