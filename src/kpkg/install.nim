@@ -46,7 +46,7 @@ proc install_pkg(repo: string, package: string, root: string, binary = false,
             waitFor download("https://"&binrepo&"/arch/"&hostCPU&"/kpkg-tarball-"&pkg.pkg&"-"&pkg.versionString&".tar.gz.sum.bin",
                     "/tmp/kpkg-temp-"&pkg.pkg&".bin")
             downloaded = true
-        except:
+        except CatchableError:
             if enforceReproducibility:
                 err("checksum couldn't get downloaded for reproducibility check")
             else:

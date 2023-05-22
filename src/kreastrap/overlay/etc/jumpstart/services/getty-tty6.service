@@ -1,0 +1,6 @@
+[Info]
+Desc="This service starts up TTY6."
+Type="service"
+
+[Service]
+exec="getty 115200,38400,9600 tty6 linux"

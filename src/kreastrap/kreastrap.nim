@@ -188,6 +188,18 @@ proc rootfs(buildType = "builder", arch = "amd64",
             else:
                 error conf.getSectionValue("Core",
                         "Coreutils")&" is not available as a Coreutils option."
+        
+        case conf.getSectionValue("Core", "Init").normalize():
+            of "busybox":
+                if conf.getSectionValue("Core", "Coreutils").normalize() != "busybox":
+                    error "You have to use busybox as coreutils to use it as the init system for now."
+                else:
+                    info_msg "Init system chosen as busybox init"
+            of "jumpstart":
+                info_msg "Installing Jumpstart as the init system"
+                kreastrapInstall("jumpstart", installWithBinaries, buildDir, useCacheIfPossible)
+                removeFile(buildDir&"/sbin/init")
+                createSymlink("/bin/jumpstart", "/sbin/init")
 
         # Install shadow, and enable it
         kreastrapInstall("shadow", installWithBinaries, buildDir, useCacheIfPossible)
