@@ -199,7 +199,7 @@ proc rootfs(buildType = "builder", arch = "amd64",
                 info_msg "Installing Jumpstart as the init system"
                 kreastrapInstall("jumpstart", installWithBinaries, buildDir, useCacheIfPossible)
                 removeFile(buildDir&"/sbin/init")
-                createSymlink("/bin/jumpstart", "/sbin/init")
+                createSymlink("/bin/jumpstart", buildDir&"/sbin/init")
 
         # Install shadow, and enable it
         kreastrapInstall("shadow", installWithBinaries, buildDir, useCacheIfPossible)
