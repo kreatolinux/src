@@ -188,7 +188,7 @@ proc rootfs(buildType = "builder", arch = "amd64",
             else:
                 error conf.getSectionValue("Core",
                         "Coreutils")&" is not available as a Coreutils option."
-        
+
         case conf.getSectionValue("Core", "Init").normalize():
             of "busybox":
                 if conf.getSectionValue("Core", "Coreutils").normalize() != "busybox":
