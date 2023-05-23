@@ -58,9 +58,10 @@ proc kreastrapInstall(package: string, installWithBinaries: bool,
         discard install(toSeq([package]), buildDir, true)
     else:
         debug "Building package from source"
-        discard build(yes = true, root = buildDir, packages = toSeq([
+        discard build(yes = true, root = "/", packages = toSeq([
                 package]),
                 useCacheIfAvailable = useCacheIfPossible)
+        discard install(toSeq([package]), buildDir, true)
 
     ok("Package "&package&" installed successfully")
 
