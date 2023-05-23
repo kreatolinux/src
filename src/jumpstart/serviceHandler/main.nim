@@ -29,16 +29,17 @@ proc initSystem() =
     execLoggedCmd("mount -t sysfs sysfs /sys", "/sys")
     execLoggedCmd("mount -t tmpfs none /run", "/run")
     execLoggedCmd("mount -o remount,rw /", "rootfs")
-    
+
     try:
         if fileExists("/etc/jumpstart/jumpstart.conf"):
             info_msg "Loading configuration..."
-            let conf = loadConfig("/etc/jumpstart/jumpstart.conf")   
-            if execCmdEx("hostname "&conf.getSectionValue("System", "hostname", "klinux")).exitCode != 0:
+            let conf = loadConfig("/etc/jumpstart/jumpstart.conf")
+            if execCmdEx("hostname "&conf.getSectionValue("System", "hostname",
+                    "klinux")).exitCode != 0:
                 warn "Couldn't change hostname!"
     except CatchableError:
         warn "Couldn't load configuration!"
- 
+
 proc serviceHandlerInit() =
     ## Initialize serviceHandler.
     discard existsOrCreateDir(servicePath)
