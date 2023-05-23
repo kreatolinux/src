@@ -30,13 +30,15 @@ proc initSystem() =
     execLoggedCmd("mount -t tmpfs none /run", "/run")
     execLoggedCmd("mount -o remount,rw /", "rootfs")
 
+    let defaultHostname = "klinux"
+
     try:
         if fileExists("/etc/jumpstart/main.conf"):
             info_msg "Loading configuration..."
             let conf = loadConfig("/etc/jumpstart/main.conf")
-            if execCmdEx("hostname "&conf.getSectionValue("System", "hostname",
-                    "klinux")).exitCode != 0:
-                warn "Couldn't change hostname!"
+            writeFile("/proc/sys/kernel/hostname", conf.getSectionValue("System", "hostname", defaultHostname)
+        else:
+            writeFile("/proc/sys/kernel/hostname", defaultHostname)
     except CatchableError:
         warn "Couldn't load configuration!"
 
