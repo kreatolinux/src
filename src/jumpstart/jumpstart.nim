@@ -3,7 +3,7 @@ import json
 include serviceHandler/main
 
 ## Initialize the entire system, such as mounting /proc etc.
-initDirectories()
+initSystem()
 
 let socket = newSocket(AF_UNIX, SOCK_STREAM, IPPROTO_IP)
 
