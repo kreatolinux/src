@@ -31,9 +31,9 @@ proc initSystem() =
     execLoggedCmd("mount -o remount,rw /", "rootfs")
 
     try:
-        if fileExists("/etc/jumpstart/jumpstart.conf"):
+        if fileExists("/etc/jumpstart/main.conf"):
             info_msg "Loading configuration..."
-            let conf = loadConfig("/etc/jumpstart/jumpstart.conf")
+            let conf = loadConfig("/etc/jumpstart/main.conf")
             if execCmdEx("hostname "&conf.getSectionValue("System", "hostname",
                     "klinux")).exitCode != 0:
                 warn "Couldn't change hostname!"
