@@ -3,6 +3,7 @@
 include ../commonImports
 import enable, disable, start, stop
 import os, osproc
+import parsecfg
 import ../logging
 import jumpmount/main
 import jumpmount/umount
@@ -17,8 +18,8 @@ proc execLoggedCmd(cmd: string, err: string) =
     if execShellCmd(cmd) != 0:
         error "Couldn't mount "&err
 
-proc initDirectories() =
-    ## Initialize directories such as /proc, /dev, etc.
+proc initSystem() =
+    ## Initialize system such as mounting /proc, /dev, putting the hostname, etc.
     info_msg "Mounting filesystems..."
     if fileExists("/etc/fstab"):
         execLoggedCmd("mount -a", "fstab")
@@ -28,7 +29,16 @@ proc initDirectories() =
     execLoggedCmd("mount -t sysfs sysfs /sys", "/sys")
     execLoggedCmd("mount -t tmpfs none /run", "/run")
     execLoggedCmd("mount -o remount,rw /", "rootfs")
-
+    
+    try:
+        if fileExists("/etc/jumpstart/jumpstart.conf"):
+            info_msg "Loading configuration..."
+            let conf = loadConfig("/etc/jumpstart/jumpstart.conf")   
+            if execCmdEx("hostname "&conf.getSectionValue("System", "hostname", "klinux")).exitCode != 0:
+                warn "Couldn't change hostname!"
+    except CatchableError:
+        warn "Couldn't load configuration!"
+ 
 proc serviceHandlerInit() =
     ## Initialize serviceHandler.
     discard existsOrCreateDir(servicePath)

@@ -70,6 +70,20 @@ Chmod="755"
 extraArgs="--bind"
 ```
 
+
+## Jumpstart configuration
+Jumpstart has a config file in `/etc/jumpstart/main.conf`. It has an ini-like format.
+
+```ini
+[Startup]
+emergencyShell="yes"
+debugLogs="yes"
+
+[System]
+hostname="klinux"
+```
+
+
 ## Using another service manager
 Jumpstart is designed to be modular, and allows using other service managers.
 
