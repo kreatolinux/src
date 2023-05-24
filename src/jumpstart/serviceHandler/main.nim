@@ -36,7 +36,8 @@ proc initSystem() =
         if fileExists("/etc/jumpstart/main.conf"):
             info_msg "Loading configuration..."
             let conf = loadConfig("/etc/jumpstart/main.conf")
-            writeFile("/proc/sys/kernel/hostname", conf.getSectionValue("System", "hostname", defaultHostname))
+            writeFile("/proc/sys/kernel/hostname", conf.getSectionValue(
+                    "System", "hostname", defaultHostname))
         else:
             writeFile("/proc/sys/kernel/hostname", defaultHostname)
     except CatchableError:
