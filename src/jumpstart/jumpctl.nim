@@ -2,6 +2,7 @@ import cligen
 import std/net
 import os
 include commonImports
+import strutils
 
 let socket = newSocket(AF_UNIX, SOCK_STREAM, IPPROTO_IP)
 
@@ -28,6 +29,10 @@ proc connectSock(sockPath = sockPath) =
 
 proc sendSock(message: string) =
     ## Send information to the UNIX socket.
+    if isEmptyOrWhitespace(message):
+        echo "jumpstart: please enter service name"
+        quit(1)
+
     socket.send(message&"\c\l")
 
 proc enable(service: seq[string], now = false) =
