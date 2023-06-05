@@ -1,0 +1,108 @@
+#!/bin/sh
+# Kreato Linux - Installer
+# Copyright 2022 Kreato
+#
+# This file is part of Kreato Linux.
+#
+# Kreato Linux is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# Kreato Linux is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with Kreato Linux.  If not, see <https://www.gnu.org/licenses/>.
+
+VERSION="v2: The Last Battle"
+
+if [ "$(id -u)" != "0" ]; then
+  echo "This script needs to be ran as root."
+fi
+
+main() {
+  echo "------------------------------------------------------"
+  echo "Welcome to Kreato Linux $VERSION Installer!"
+  echo "------------------------------------------------------"
+  echo
+  printf "Select keyboard layout [us]: "
+  read -r kblyt
+  # Code for kb layout
+  
+  printf "\nChoose system hostname [klinux]: " 
+  read -r hostname
+  if [ -n "$hostname" ]; then
+    echo "$hostname" > /etc/hostname
+  else
+    echo "klinux" > /etc/hostname
+  fi
+  printf "\nChoose system locale [en_US]: "
+  read -r LOCALE
+  if [ -n "$locale" ]; then
+    mkdir -p /usr/lib/locale
+    localedef -i $LOCALE -c -f UTF-8 $LOCALE
+    echo "export LANG=$LOCALE" >> /etc/profile
+  else
+    mkdir -p /usr/lib/locale
+    localedef -i en_US -c -f UTF-8 en_US
+    echo "export LANG=en_US" >> /etc/profile
+  fi
+
+  printf "\nBuild packages or install them as a binary? (available options: build, binary) [build]: "
+  read -r pkginstalltype
+  printf "\nDo you use Wi-Fi? [no]: "
+  read -r wifi
+  if [ "$wifi" = "yes" ]; then
+    [ "$pkginstalltype" = "build" ] && kpkg build wpa_supplicant -y
+    [ "$pkginstalltype" = "binary" ] && kpkg install wpa_supplicant -y
+  fi
+  printf "\nChoose DNS [9.9.9.9]: " 
+  read -r choosedns
+  echo "# This file is made by Kreato Linux Installer" > /etc/resolv.conf
+  [ -z "$choosedns" ] && echo "nameserver 9.9.9.9" >> /etc/resolv.conf 
+  [ -n "$choosedns" ] && echo "nameserver $choosedns" >> /etc/resolv.conf 
+  printf "\nWhat kernel do you like to use (available options: distro, custom package, skip) [distro]: "
+  read -r kernel
+  # code for the Kernel
+  printf "\nChoose the init system you want to use (available options: runit, openrc, jumpstart) [jumpstart]: "
+  read -r init
+  if [ -z "$init" ] || [ "$init" = "runit" ]; then
+    [ "$pkginstalltype" = "build" ] && kpkg build base-runit -y
+    [ "$pkginstalltype" = "binary" ] && kpkg install base-runit -y
+  elif [ -z "$init" ] || [ "$init" = "jumpstart" ]; then
+    [ "$pkginstalltype" = "build" ] && kpkg build openrc -y
+    [ "$pkginstalltype" = "binary" ] && kpkg install openrc -y
+  fi 
+  printf "\nWhat partition do you want to install the bootloader on? [none]: " 
+  read -r part
+  printf "\nWhat bootloader do you want to use (available options: grub, lumine) [lumine]: " 
+  read -r bootloader
+  if [ -z "$bootloader" ] || [ "$bootloader" = "grub" ];
+	  [ "$pkginstalltype" = "build" ] && kpkg build grub -y
+	  [ "$pkginstalltype" = "binary" ] && kpkg install grub -y
+  else
+	  [ "$pkginstalltype" = "build" ] && kpkg build lumine -y
+	  [ "$pkginstalltype" = "binary" ] && kpkg install lumine -y
+  fi
+  printf "\nAdditional packages you want to install (seperate by space) [none]: " 
+  read -r additionalpackages
+  [ "$pkginstalltype" = "build" ] && kpkg build "$additionalpackages" -y
+  [ "$pkginstalltype" = "binary" ] && kpkg install "$additionalpackages" -y
+  printf "\nDo you want to change root password? [yes]: "
+  read -r chgpsw
+  [ -z "$chgpsw" ] && passwd root
+  printf "\nDo you want to add users? (seperate usernames by space) [no]: "
+  read -r users
+  if [ -z "$users" ] || [ "$users" != "no" ]; then
+    for i in "$(echo "$users" tr " " "\n" )"; do
+      echo "Adding user $i"
+      useradd "$i"
+      passwd "$i"
+    done
+  fi
+}
+
+main "$@"
