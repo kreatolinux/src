@@ -31,14 +31,6 @@ main() {
   printf "Select keyboard layout [us]: "
   read -r kblyt
   # Code for kb layout
-  
-  printf "\nChoose system hostname [klinux]: " 
-  read -r hostname
-  if [ -n "$hostname" ]; then
-    echo "$hostname" > /etc/hostname
-  else
-    echo "klinux" > /etc/hostname
-  fi
   printf "\nChoose system locale [en_US]: "
   read -r LOCALE
   if [ -n "$locale" ]; then
@@ -76,6 +68,16 @@ main() {
     [ "$pkginstalltype" = "build" ] && kpkg build openrc -y
     [ "$pkginstalltype" = "binary" ] && kpkg install openrc -y
   fi 
+  printf "\nChoose system hostname [klinux]: " 
+  read -r hostname
+  [ -z "$hostname" ] && hostname = "klinux" 
+  if [ "$init" = "runit" ] || [ "$init" = "openrc" ]; then
+    echo "$hostname" > /etc/hostname
+  else
+    mkdir -p /etc/jumpstart
+    echo "[System]" > /etc/jumpstart/main.conf
+    echo "$hostname" >> /etc/jumpstart/main.conf
+  fi
   printf "\nWhat partition do you want to install the bootloader on? [none]: " 
   read -r part
   printf "\nWhat bootloader do you want to use (available options: grub, lumine) [lumine]: " 
