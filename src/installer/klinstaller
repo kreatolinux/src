@@ -76,7 +76,7 @@ main() {
   else
     mkdir -p /etc/jumpstart
     echo "[System]" > /etc/jumpstart/main.conf
-    echo "$hostname" >> /etc/jumpstart/main.conf
+    echo "hostname=$hostname" >> /etc/jumpstart/main.conf
   fi
   printf "\nWhat partition do you want to install the bootloader on? [none]: " 
   read -r part
