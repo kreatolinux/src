@@ -22,5 +22,9 @@ kreastrap:
 prettify:
 	find $(SRCDIR) -type f -name '*.nim' | xargs nimpretty
 
+install_klinstaller:
+	cp $(SRCDIR)/installer/klinstaller /bin/klinstaller
+	chmod +x /bin/klinstaller
+
 clean:
 	rm -rf $(PREFIX)

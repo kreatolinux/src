@@ -35,6 +35,9 @@ chkupd is a tool to check if a package is up-to-date on a kpkg repository. It al
 ## jumpstart
 Jumpstart is Kreato Linux's new service manager/init system. It is similar in style to systemd. You can build it by running `make jumpstart`. The binary will be located on the usual `out` folder.
 
+## klinstaller
+klinstaller is Kreato Linux's official installer. Unlike other utilities, it is written in sh. It will be available on every Kreato Linux rootfs. you can install it by running `make install_klinstaller`.
+
 # License
 Licensed under GPLv3. Check LICENSE file for details
 
