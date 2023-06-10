@@ -269,7 +269,7 @@ proc buildPackages(useCacheIfPossible = true, repo = "/etc/kpkg/repos/main") =
                     kreastrapInstall(lastPathPart(path), false, "/", useCacheIfPossible)
             else:
                 discard
-    
+
     kreastrapInstall("musl", false, "/", useCacheIfPossible)
 
 dispatchMulti(
