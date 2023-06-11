@@ -123,17 +123,17 @@ proc builder(package: string, destdir: string,
     if pkg.sources.split(";").len == 1:
         if existsPrepare == 0:
             cmd = execShellCmd("su -s /bin/sh _kpkg -c '. "&path&"/run"&" && export CC="&getConfigValue(
-                    "Options", "cc")&" && build'")
+                    "Options", "cc")&" && export CCACHE_DIR=/tmp/kpkg/cache && build'")
             cmd2 = execShellCmd(". "&path&"/run"&" && export DESTDIR="&root&" && export ROOT=$DESTDIR && install")
         else:
             cmd = execShellCmd("su -s /bin/sh _kpkg -c 'cd "&folder[
                     0]&" && . "&path&"/run"&" && export CC="&getConfigValue(
-                    "Options", "cc")&" && build'")
+                    "Options", "cc")&" && export CCACHE_DIR=/tmp/kpkg/cache && build'")
             cmd2 = execShellCmd("cd "&folder[
                     0]&" && . "&path&"/run"&" && export DESTDIR="&root&" && export ROOT=$DESTDIR && install")
     else:
         cmd = execShellCmd("su -s /bin/sh _kpkg -c '. "&path&"/run"&" && export CC="&getConfigValue(
-                "Options", "cc")&" && build'")
+                "Options", "cc")&" && export CCACHE_DIR=/tmp/kpkg/cache && build'")
         cmd2 = execShellCmd(". "&path&"/run"&" && export DESTDIR="&root&" && export ROOT=$DESTDIR && install")
 
     if cmd != 0:
