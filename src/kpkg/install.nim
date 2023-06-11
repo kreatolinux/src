@@ -63,8 +63,7 @@ proc install_pkg(repo: string, package: string, root: string, binary = false,
                 echo "kpkg: reproducibility check failed"
                 echo "kpkg: run with --enforceReproducibility=true if you want to enforce this"
 
-        discard execProcess("tar -hxf"&tarball&" -C "&root)
-
+    discard execProcess("tar -hxf"&tarball&" -C "&root)
     copyFile(tarball&".sum.bin", root&"/var/cache/kpkg/installed/"&package&"/list_sums")
 
 proc install_bin(packages: seq[string], binrepo: string, root: string,
