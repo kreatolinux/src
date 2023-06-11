@@ -64,14 +64,6 @@ proc install_pkg(repo: string, package: string, root: string, binary = false,
                 echo "kpkg: run with --enforceReproducibility=true if you want to enforce this"
 
         discard execProcess("tar -hxf"&tarball&" -C "&root)
-    else:
-        discard execProcess("tar -hxf"&tarball&" -C "&root)
-        setCurrentDir(root)
-        for line in lines root&"/var/cache/kpkg/installed/"&package&"/list_files":
-            if fileExists(line):
-                file.writeLine(sha256hexdigest(readAll(open(line)))&"  "&line)
-
-        file.close()
 
     copyFile(tarball&".sum.bin", root&"/var/cache/kpkg/installed/"&package&"/list_sums")
 
