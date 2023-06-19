@@ -186,10 +186,10 @@ proc rootfs(buildType = "builder", arch = "amd64",
                 info_msg "Installing GNU Coreutils as Coreutils"
                 kreastrapInstall("gnu-coreutils", installWithBinaries,
                         buildDir, useCacheIfPossible)
-                
+
                 kreastrapInstall("bash", installWithBinaries,
                         buildDir, useCacheIfPossible)
-                
+
                 createSymlink("/bin/bash", buildDir&"/bin/sh")
             else:
                 error conf.getSectionValue("Core",
