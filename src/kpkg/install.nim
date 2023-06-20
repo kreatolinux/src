@@ -73,6 +73,8 @@ proc install_bin(packages: seq[string], binrepo: string, root: string,
     discard existsOrCreateDir("/var/cache")
     discard existsOrCreateDir("/var/cache/kpkg")
     discard existsOrCreateDir("/var/cache/kpkg/archives")
+    discard existsOrCreateDir("/var/cache/kpkg/archives/arch")
+    discard existsOrCreateDir("/var/cache/kpkg/archives/arch/"&hostCPU)
     setCurrentDir("/var/cache/kpkg/archives")
 
     var repo: string
