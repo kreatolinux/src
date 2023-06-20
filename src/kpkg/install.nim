@@ -19,7 +19,6 @@ proc install_pkg(repo: string, package: string, root: string, binary = false,
 
     setCurrentDir("/var/cache/kpkg/archives")
 
-
     discard existsOrCreateDir(root&"/var/cache")
     discard existsOrCreateDir(root&"/var/cache/kpkg")
     discard existsOrCreateDir(root&"/var/cache/kpkg/installed")
@@ -70,6 +69,9 @@ proc install_bin(packages: seq[string], binrepo: string, root: string,
         offline: bool, downloadOnly = false) =
     ## Downloads and installs binaries.
 
+    discard existsOrCreateDir("/var/")
+    discard existsOrCreateDir("/var/cache")
+    discard existsOrCreateDir("/var/cache/kpkg")
     discard existsOrCreateDir("/var/cache/kpkg/archives")
     setCurrentDir("/var/cache/kpkg/archives")
 
