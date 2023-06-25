@@ -29,8 +29,7 @@ proc checkAll(repo: string, backend = "repology", autoUpdate = true,
                     echo "couldnt update "&i
 
                 if not pkgFailed and autoBuild:
-                    echo "docker run -v ./"&repo&":/etc/kpkg/repos/main -it ghcr.io/kreatolinux/builder:latest kpkg build "&lastPathPart(i)
-                    if execShellCmd("docker run -v "&repo&":/etc/kpkg/repos/main -v /var/cache/kpkg/archives:/var/cache/kpkg/archives -it ghcr.io/kreatolinux/builder:latest kpkg build -u -y "&lastPathPart(
+                    if execShellCmd("docker run --rm -v "&repo&":/etc/kpkg/repos/main -v /var/cache/kpkg/archives:/var/cache/kpkg/archives -it ghcr.io/kreatolinux/builder:latest kpkg build -u -y "&lastPathPart(
                             i)) != 0:
                         failedBuildPackages = failedBuildPackages&i
                         echo "couldnt build "&i
