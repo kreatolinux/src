@@ -7,12 +7,13 @@ include ../../kpkg/modules/runparser
 proc repologyCheck(package: string, repo: string, autoUpdate = false,
                 skipIfDownloadFails = true) =
         ## Check against Repology database.
+        let pkgName = lastPathPart(package)
         var client = newHttpClient()
         var request = parseJson(client.getContent(
-                        "https://repology.org/api/v1/project/"&package&"?repos_newest=1&newest=1"))
+                        "https://repology.org/api/v1/project/"&pkgName&"?repos_newest=1&newest=1"))
         var counter = 0
         var version: string
-        let packageDir = repo&"/"&package
+        let packageDir = repo&"/"&pkgName
 
         echo "chkupd v3 Repology backend"
 
@@ -50,7 +51,7 @@ proc repologyCheck(package: string, repo: string, autoUpdate = false,
                                                         waitFor download(source, filename)
                                                 except Exception:
                                                         if skipIfDownloadFails:
-                                                                echo "WARN: '"&package&"' failed because of download. Skipping."
+                                                                echo "WARN: '"&pkgName&"' failed because of download. Skipping."
                                                                 return
 
                                                 # Replace the sha256sum
