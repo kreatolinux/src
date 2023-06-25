@@ -18,6 +18,10 @@ proc repologyCheck(package: string, repo: string, autoUpdate = false,
         echo "chkupd v3 Repology backend"
 
         while true:
+
+                if isEmptyOrWhitespace($request) or $request == "[]":
+                    break
+
                 if $request[counter]["status"] == "\"newest\"":
                         version = multiReplace($request[counter]["version"], (
                                         "\"", ""), ("'", ""))
