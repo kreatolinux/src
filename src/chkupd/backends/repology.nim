@@ -3,6 +3,7 @@ import json, strutils, os, libsha/sha256
 include ../../kpkg/modules/logger
 include ../../kpkg/modules/downloader
 include ../../kpkg/modules/runparser
+include ../autoupdater
 
 proc repologyCheck(package: string, repo: string, autoUpdate = false,
                 skipIfDownloadFails = true) =
@@ -14,6 +15,7 @@ proc repologyCheck(package: string, repo: string, autoUpdate = false,
         var counter = 0
         var version: string
         let packageDir = repo&"/"&pkgName
+        var newestOrNot: string
 
         echo "chkupd v3 Repology backend"
 
@@ -21,10 +23,14 @@ proc repologyCheck(package: string, repo: string, autoUpdate = false,
 
                 if isEmptyOrWhitespace($request) or $request == "[]":
                         break
+                try:
+                     newestOrNot = getStr(request[counter]["status"])
+                except Exception:
+                        echo "Couldn't get package version, skipping"
+                        break
 
-                if $request[counter]["status"] == "\"newest\"":
-                        version = multiReplace($request[counter]["version"], (
-                                        "\"", ""), ("'", ""))
+                if newestOrNot == "newest":
+                        version = getStr(request[counter]["version"])
                         let pkg = parse_runfile(packageDir)
                         echo "local version: "&pkg.version
                         echo "remote version: "&version
@@ -33,47 +39,7 @@ proc repologyCheck(package: string, repo: string, autoUpdate = false,
                                 echo "Package is not uptodate."
 
                                 if autoUpdate:
-                                        echo "Autoupdating.."
-
-                                        setCurrentDir("/tmp")
-
-                                        var c = 0
-                                        var source: string
-                                        var filename: string
-
-                                        for i in pkg.sha256sum.split(";"):
-
-                                                source = pkg.sources.split(";")[
-                                                                c].replace(
-                                                                pkg.version, version)
-                                                filename = extractFilename(
-                                                                source).strip().replace(
-                                                                pkg.version, version)
-
-                                                # Download the source
-                                                try:
-                                                        waitFor download(source, filename)
-                                                except Exception:
-                                                        if skipIfDownloadFails:
-                                                                echo "WARN: '"&pkgName&"' failed because of download. Skipping."
-                                                                return
-
-                                                # Replace the sha256sum
-                                                writeFile(packageDir&"/run",
-                                                                readFile(
-                                                                packageDir&"/run").replace(
-                                                                pkg.sha256sum.split(
-                                                                ";")[c],
-                                                                sha256hexdigest(
-                                                                readFile(
-                                                                filename))&"  "&filename))
-                                                c = c+1
-
-                                        # Replace the version
-                                        writeFile(packageDir&"/run", readFile(
-                                                        packageDir&"/run").replace(
-                                                        pkg.version, version))
-                                        echo "Autoupdate complete. As always, you should check if the package does build or not."
+                                        autoUpdater(pkg, packageDir, version, skipIfDownloadFails)
 
                         return
                 else:

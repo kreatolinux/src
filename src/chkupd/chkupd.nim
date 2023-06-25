@@ -1,5 +1,6 @@
 import cligen
 include backends/repology
+include backends/arch
 include checkall
 
 clCfg.version = "chkupd v3.1"
@@ -7,6 +8,14 @@ clCfg.version = "chkupd v3.1"
 dispatchMulti(
         [
         repologyCheck, help = {
+           "package": "Package name.",
+           "repo": "Repository name.",
+           "autoUpdate": "Autoupdate if older version is detected.",
+           "skipIfDownloadFails": "Skip autoupdate if the newer version couldn't be downloaded."
+        }
+        ],
+        [
+        archCheck, help = {
            "package": "Package name.",
            "repo": "Repository name.",
            "autoUpdate": "Autoupdate if older version is detected.",

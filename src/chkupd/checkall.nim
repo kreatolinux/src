@@ -34,6 +34,30 @@ proc checkAll(repo: string, backend = "repology", autoUpdate = true,
                             i)) != 0:
                         failedBuildPackages = failedBuildPackages&i
                         echo "couldnt build "&i
+        of "arch":
+            # this sounds stupid but i couldnt think of anything else lol
+            var pkgFailed = true
+
+            for i in toSeq(walkDirs(repo&"/*")):
+
+                if lastPathPart(i) == ".git" or lastPathPart(i) == ".github" or
+                        lastPathPart(i) == "builder-essentials":
+                    continue
+
+                echo "trying to update "&i
+                try:
+                    archCheck(package = i, repo = repo, autoUpdate = autoUpdate, skipIfDownloadFails = false)
+                    pkgFailed = false
+                    echo "updating "&i&" successful"
+                except CatchableError:
+                    failedUpdPackages = failedUpdPackages&i
+                    echo "couldnt update "&i
+
+                if not pkgFailed and autoBuild:
+                    if execShellCmd("docker run --rm -v "&repo&":/etc/kpkg/repos/main -v /var/cache/kpkg/archives:/var/cache/kpkg/archives ghcr.io/kreatolinux/builder:latest kpkg build -u -y "&lastPathPart(i)) != 0:
+                        failedBuildPackages = failedBuildPackages&i
+                        echo "couldnt build "&i
+
         else:
             echo "Not supported"
 
