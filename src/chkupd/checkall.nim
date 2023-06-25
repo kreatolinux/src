@@ -14,7 +14,8 @@ proc checkAll(repo: string, backend = "repology", autoUpdate = true,
 
             for i in toSeq(walkDirs(repo&"/*")):
 
-                if lastPathPart(i) == ".git" or lastPathPart(i) == ".github" or lastPathPart(i) == "builder-essentials":
+                if lastPathPart(i) == ".git" or lastPathPart(i) == ".github" or
+                        lastPathPart(i) == "builder-essentials":
                     continue
 
                 echo "trying to update "&i

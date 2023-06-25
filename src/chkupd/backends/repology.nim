@@ -20,7 +20,7 @@ proc repologyCheck(package: string, repo: string, autoUpdate = false,
         while true:
 
                 if isEmptyOrWhitespace($request) or $request == "[]":
-                    break
+                        break
 
                 if $request[counter]["status"] == "\"newest\"":
                         version = multiReplace($request[counter]["version"], (
