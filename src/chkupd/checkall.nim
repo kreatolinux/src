@@ -25,6 +25,8 @@ proc checkAll(repo: string, backend = "repology", autoUpdate = true,
                             skipIfDownloadFails = false)
                     pkgFailed = false
                     echo "updating "&i&" successful"
+                    if not autoBuild:
+                        pkgCount = pkgCount+1
                 except CatchableError:
                     failedUpdPackages = failedUpdPackages&i
                     echo "couldnt update "&i
@@ -34,6 +36,8 @@ proc checkAll(repo: string, backend = "repology", autoUpdate = true,
                             i)) != 0:
                         failedBuildPackages = failedBuildPackages&i
                         echo "couldnt build "&i
+                    else:
+                        pkgCount = pkgCount+1
         of "arch":
             # this sounds stupid but i couldnt think of anything else lol
             var pkgFailed = true
