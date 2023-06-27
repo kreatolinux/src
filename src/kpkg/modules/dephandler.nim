@@ -28,12 +28,12 @@ proc dephandler(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false): seq[str
                     if dep in pkgs or dep in deps or isIn(deps, ignoreDeps) or
                             dep in ignoreDeps:
                         continue
-                    
-                    if fileExists(repo&"/"&dep&depsType) and bdeps:
-                        deps.add(dephandler(@[dep], deps&ignoreDeps, bdeps=true))
 
-                    deps.add(dephandler(@[dep], deps&ignoreDeps, bdeps=false))
-                    
+                    if fileExists(repo&"/"&dep&depsType) and bdeps:
+                        deps.add(dephandler(@[dep], deps&ignoreDeps, bdeps = true))
+
+                    deps.add(dephandler(@[dep], deps&ignoreDeps, bdeps = false))
+
                     deps.add(dep)
 
         return deps.filterit(it.len != 0)
