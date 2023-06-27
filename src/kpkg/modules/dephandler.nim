@@ -29,7 +29,7 @@ proc dephandler(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false): seq[str
                             dep in ignoreDeps:
                         continue
 
-                    deps.add(dephandler(@[dep], deps&ignoreDeps))
+                    deps.add(dephandler(@[dep], deps&ignoreDeps, bdeps))
                     deps.add(dep)
 
         return deps.filterit(it.len != 0)
