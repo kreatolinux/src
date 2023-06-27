@@ -1,4 +1,5 @@
-proc autoUpdater(pkg: runFile, packageDir: string, newVersion: string, skipIfDownloadFails: bool) =
+proc autoUpdater(pkg: runFile, packageDir: string, newVersion: string,
+                skipIfDownloadFails: bool) =
         # Autoupdates packages.
         echo "Autoupdating.."
 
@@ -20,9 +21,13 @@ proc autoUpdater(pkg: runFile, packageDir: string, newVersion: string, skipIfDow
                                 return
 
                 # Replace the sha256sum
-                writeFile(packageDir&"/run", readFile(packageDir&"/run").replace(pkg.sha256sum.split(";")[c],sha256hexdigest(readFile(filename))&"  "&filename))
+                writeFile(packageDir&"/run", readFile(
+                                packageDir&"/run").replace(pkg.sha256sum.split(
+                                ";")[c], sha256hexdigest(readFile(
+                                filename))&"  "&filename))
                 c = c+1
 
                 # Replace the version
-                writeFile(packageDir&"/run", readFile(packageDir&"/run").replace(pkg.version, newVersion))
+                writeFile(packageDir&"/run", readFile(
+                                packageDir&"/run").replace(pkg.version, newVersion))
                 echo "Autoupdate complete. As always, you should check if the package does build or not."

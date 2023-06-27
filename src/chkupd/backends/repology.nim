@@ -24,7 +24,7 @@ proc repologyCheck(package: string, repo: string, autoUpdate = false,
                 if isEmptyOrWhitespace($request) or $request == "[]":
                         break
                 try:
-                     newestOrNot = getStr(request[counter]["status"])
+                        newestOrNot = getStr(request[counter]["status"])
                 except Exception:
                         echo "Couldn't get package version, skipping"
                         break

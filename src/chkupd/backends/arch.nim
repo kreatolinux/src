@@ -9,10 +9,12 @@ proc archCheck(package: string, repo: string, autoUpdate = false,
         let packageDir = repo&"/"&pkgName
 
         try:
-            version = getStr(parseJson(client.getContent("https://archlinux.org/packages/search/json/?name="&pkgName))["results"][0]["pkgver"])
+                version = getStr(parseJson(client.getContent(
+                                "https://archlinux.org/packages/search/json/?name="&pkgName))[
+                                "results"][0]["pkgver"])
         except Exception:
-            echo "Package doesn't seem to exist on Arch repositories, skipping"
-            return
+                echo "Package doesn't seem to exist on Arch repositories, skipping"
+                return
 
         echo "chkupd v3 Arch backend"
 
@@ -21,8 +23,8 @@ proc archCheck(package: string, repo: string, autoUpdate = false,
         echo "remote version: "&version
 
         if version > pkg.versionString:
-            echo "Package is not uptodate."
+                echo "Package is not uptodate."
 
-            if autoUpdate:
-                autoUpdater(pkg, packageDir, version, skipIfDownloadFails)
+                if autoUpdate:
+                        autoUpdater(pkg, packageDir, version, skipIfDownloadFails)
         return
