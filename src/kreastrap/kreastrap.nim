@@ -23,6 +23,7 @@ proc initDirectories(buildDirectory: string, arch: string) =
     createDir(buildDirectory&"/usr/local/lib")
     createDir(buildDirectory&"/usr/local/bin")
     createDir(buildDirectory&"/usr/local/sbin")
+    createDir(buildDirectory&"/usr/local/include")
     createDir(buildDirectory&"/home")
     createDir(buildDirectory&"/boot")
     createDir(buildDirectory&"/media")
