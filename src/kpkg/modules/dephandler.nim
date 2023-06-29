@@ -25,12 +25,13 @@ proc dephandler(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false): seq[str
 
             if fileExists(repo&"/"&pkg&depsType):
                 for dep in lines repo&"/"&pkg&depsType:
+                    
+                    if fileExists(repo&"/"&dep&depsType) and bdeps:
+                        deps.add(dephandler(@[dep], deps&ignoreDeps, bdeps = true))
+                    
                     if dep in pkgs or dep in deps or isIn(deps, ignoreDeps) or
                             dep in ignoreDeps:
                         continue
-
-                    if fileExists(repo&"/"&dep&depsType) and bdeps:
-                        deps.add(dephandler(@[dep], deps&ignoreDeps, bdeps = true))
 
                     deps.add(dephandler(@[dep], deps&ignoreDeps, bdeps = false))
 
