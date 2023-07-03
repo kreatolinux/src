@@ -192,6 +192,10 @@ proc rootfs(buildType = "builder", arch = "amd64",
                 kreastrapInstall("gnu-coreutils", installWithBinaries,
                         buildDir, useCacheIfPossible)
 
+                # Install pigz because it is needed for kpkg tarballs
+                kreastrapInstall("pigz", installWithBinaries,
+                        buildDir, useCacheIfPossible)
+
                 kreastrapInstall("bash", installWithBinaries,
                         buildDir, useCacheIfPossible)
 
