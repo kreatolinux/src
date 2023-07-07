@@ -77,19 +77,26 @@ jobs:
           path: ${{ github.workspace }}/kreato-linux-builder-gnu-*.tar.gz
           # The desired behavior if no files are found using the provided path.
           if-no-files-found: error
-          
-      - name: Prepare for Docker 
+  docker:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+    
+      - name: Download artifacts from build job
+        uses: actions/download-artifact@v3
+        
+      - name: Prepare for Docker
         run: |
             mkdir /tmp/docker.tmp /tmp/docker.tmp.nocc /tmp/docker.tmp.builder-gnu /tmp/docker.tmp.server
             cp $GITHUB_WORKSPACE/src/docker/Dockerfile /tmp/docker.tmp.nocc || exit 1
             cp $GITHUB_WORKSPACE/src/docker/Dockerfile /tmp/docker.tmp/ || exit 1
             cp $GITHUB_WORKSPACE/src/docker/Dockerfile /tmp/docker.tmp.builder-gnu || exit 1
             cp $GITHUB_WORKSPACE/src/docker/Dockerfile /tmp/docker.tmp.server || exit 1
-            tar -xvpf kreato-linux-builder-gnu-*.tar.gz -C "/tmp/docker.tmp.builder-gnu"
-            rm -f kreato-linux-builder-gnu-*.tar.gz
-            tar -xvpf kreato-linux-builder-*.tar.gz -C "/tmp/docker.tmp"
-            tar -xvpf kreato-linux-nocc-*.tar.gz -C "/tmp/docker.tmp.nocc"
-            tar -xvpf kreato-linux-server-*.tar.gz -C "/tmp/docker.tmp.server"
+            tar -xvpf $GITHUB_WORKSPACE/kreato-linux-builder-gnu-*.tar.gz -C "/tmp/docker.tmp.builder-gnu"
+            rm -f $GITHUB_WORKSPACE/kreato-linux-builder-gnu-*.tar.gz
+            tar -xvpf $GITHUB_WORKSPACE/kreato-linux-builder-*.tar.gz -C "/tmp/docker.tmp"
+            tar -xvpf $GITHUB_WORKSPACE/kreato-linux-nocc-*.tar.gz -C "/tmp/docker.tmp.nocc"
+            tar -xvpf $GITHUB_WORKSPACE/kreato-linux-server-*.tar.gz -C "/tmp/docker.tmp.server"
   
   
       - name: Set up Docker Buildx
