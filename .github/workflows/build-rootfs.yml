@@ -99,6 +99,7 @@ jobs:
             tar -xvpf $GITHUB_WORKSPACE/builder-rootfs/kreato-linux-builder-*.tar.gz -C "/tmp/docker.tmp"
             tar -xvpf $GITHUB_WORKSPACE/nocc-rootfs/kreato-linux-nocc-*.tar.gz -C "/tmp/docker.tmp.nocc"
             tar -xvpf $GITHUB_WORKSPACE/server-rootfs/kreato-linux-server-*.tar.gz -C "/tmp/docker.tmp.server"
+            rm -rf $GITHUB_WORKSPACE/*-rootfs
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
