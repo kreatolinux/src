@@ -118,58 +118,30 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
       
-      - name: Build and push builder image to Docker Hub
+      - name: Build and push builder image
         uses: docker/build-push-action@v3
         with:
           context: /tmp/docker.tmp
           push: true
-          tags: kreato/builder:latest
+          tags: kreato/builder:latest,ghcr.io/kreatolinux/builder:latest
       
-      - name: Build and push nocc image to Docker Hub
+      - name: Build and push nocc image
         uses: docker/build-push-action@v3
         with:
           context: /tmp/docker.tmp.nocc
           push: true
-          tags: kreato/linux:latest
+          tags: kreato/linux:latest,ghcr.io/kreatolinux/nocc:latest
       
-      - name: Build and push server image to Docker Hub
+      - name: Build and push server image
         uses: docker/build-push-action@v3
         with:
           context: /tmp/docker.tmp.server
           push: true
-          tags: kreato/server:latest
+          tags: kreato/server:latest,ghcr.io/kreatolinux/server:latest
           
-      - name: Build and push buider-gnu image to Docker Hub
+      - name: Build and push buider-gnu image
         uses: docker/build-push-action@v3
         with:
           context: /tmp/docker.tmp.builder-gnu
           push: true
-          tags: kreato/builder-gnu:latest
-          
-      - name: Build and push builder image to GitHub Packages
-        uses: docker/build-push-action@v3
-        with:
-          context: /tmp/docker.tmp
-          push: true
-          tags: ghcr.io/kreatolinux/builder:latest
-      
-      - name: Build and push nocc image to GitHub Packages
-        uses: docker/build-push-action@v3
-        with:
-          context: /tmp/docker.tmp.nocc
-          push: true
-          tags: ghcr.io/kreatolinux/nocc:latest
-          
-      - name: Build and push server image to GitHub Packages
-        uses: docker/build-push-action@v3
-        with:
-          context: /tmp/docker.tmp.server
-          push: true
-          tags: ghcr.io/kreatolinux/server:latest
-
-      - name: Build and push buider-gnu image to GitHub Packages
-        uses: docker/build-push-action@v3
-        with:
-          context: /tmp/docker.tmp.builder-gnu
-          push: true
-          tags: ghcr.io/kreatolinux/builder-gnu:latest
+          tags: kreato/builder-gnu:latest,ghcr.io/kreatolinux/builder-gnu:latest
