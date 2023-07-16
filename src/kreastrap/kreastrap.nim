@@ -43,9 +43,9 @@ proc initDirectories(buildDirectory: string, arch: string) =
     createDir(buildDirectory&"/var/cache/kpkg/installed")
     createDir(buildDirectory&"/run")
 
-    if arch == "amd64":
-        createSymlink("usr/lib", buildDirectory&"/lib64")
-        createSymlink("lib", buildDirectory&"/usr/lib64")
+    #if arch == "amd64":
+    #    createSymlink("usr/lib", buildDirectory&"/lib64")
+    #    createSymlink("lib", buildDirectory&"/usr/lib64")
 
     createSymlink("usr/bin", buildDirectory&"/sbin")
     createSymlink("bin", buildDirectory&"/usr/sbin")
