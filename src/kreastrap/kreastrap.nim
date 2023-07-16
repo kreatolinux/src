@@ -223,7 +223,7 @@ proc rootfs(buildType = "builder", arch = "amd64",
                 kreastrapInstall("systemd", installWithBinaries, buildDir, useCacheIfPossible)
                 removeFile(buildDir&"/sbin/init")
                 createSymlink("/lib/systemd/systemd", buildDir&"/sbin/init")
-                
+
         # Install shadow, and enable it
         kreastrapInstall("shadow", installWithBinaries, buildDir, useCacheIfPossible)
 
