@@ -2,6 +2,7 @@ out
 packages
 src/kreastrap/kreastrap
 result
+kpkg-repo
 archives
 kreato-linux*.tar.gz
 .direnv/
