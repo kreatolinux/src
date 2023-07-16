@@ -218,7 +218,12 @@ proc rootfs(buildType = "builder", arch = "amd64",
                 kreastrapInstall("jumpstart", installWithBinaries, buildDir, useCacheIfPossible)
                 removeFile(buildDir&"/sbin/init")
                 createSymlink("/bin/jumpstart", buildDir&"/sbin/init")
-
+            of "systemd":
+                info_msg "Installing systemd as the init system"
+                kreastrapInstall("systemd", installWithBinaries, buildDir, useCacheIfPossible)
+                removeFile(buildDir&"/sbin/init")
+                createSymlink("/lib/systemd/systemd", buildDir&"/sbin/init")
+                
         # Install shadow, and enable it
         kreastrapInstall("shadow", installWithBinaries, buildDir, useCacheIfPossible)
 
