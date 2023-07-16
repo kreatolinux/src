@@ -142,12 +142,22 @@ jobs:
           push: true
           tags: kreato/builder:latest,ghcr.io/kreatolinux/builder:latest
       
+      - name: Remove builder image
+        run: |
+          rm -rf /tmp/docker.tmp
+          sudo docker rmi ghcr.io/kreatolinux/builder kreato/builder -f    
+      
       - name: Build and push nocc image
         uses: docker/build-push-action@v3
         with:
           context: /tmp/docker.tmp.nocc
           push: true
           tags: kreato/linux:latest,ghcr.io/kreatolinux/nocc:latest
+
+      - name: Remove nocc image
+        run: |
+          rm -rf /tmp/docker.tmp.nocc
+          sudo docker rmi ghcr.io/kreatolinux/nocc kreato/linux -f    
       
       - name: Build and push server image
         uses: docker/build-push-action@v3
@@ -155,6 +165,11 @@ jobs:
           context: /tmp/docker.tmp.server
           push: true
           tags: kreato/server:latest,ghcr.io/kreatolinux/server:latest
+
+      - name: Remove server image
+        run: |
+            rm -rf /tmp/docker.tmp.server
+            sudo docker rmi ghcr.io/kreatolinux/server kreato/server -f   
           
       - name: Build and push builder-gnu image
         uses: docker/build-push-action@v3
@@ -162,6 +177,11 @@ jobs:
           context: /tmp/docker.tmp.builder-gnu
           push: true
           tags: kreato/builder-gnu:latest,ghcr.io/kreatolinux/builder-gnu:latest
+
+      - name: Remove builder-gnu image
+        run: |
+          rm -rf /tmp/docker.tmp.builder-gnu
+          sudo docker rmi ghcr.io/kreatolinux/builder-gnu kreato/builder-gnu -f   
 
       - name: Build and push builder-systemd image
         uses: docker/build-push-action@v3
