@@ -144,7 +144,7 @@ jobs:
       
       - name: Remove builder image
         run: |
-          rm -rf /tmp/docker.tmp
+          sudo rm -rf /tmp/docker.tmp
           sudo docker rmi ghcr.io/kreatolinux/builder kreato/builder -f    
       
       - name: Build and push nocc image
@@ -156,7 +156,7 @@ jobs:
 
       - name: Remove nocc image
         run: |
-          rm -rf /tmp/docker.tmp.nocc
+          sudo rm -rf /tmp/docker.tmp.nocc
           sudo docker rmi ghcr.io/kreatolinux/nocc kreato/linux -f    
       
       - name: Build and push server image
@@ -168,7 +168,7 @@ jobs:
 
       - name: Remove server image
         run: |
-            rm -rf /tmp/docker.tmp.server
+            sudo rm -rf /tmp/docker.tmp.server
             sudo docker rmi ghcr.io/kreatolinux/server kreato/server -f   
           
       - name: Build and push builder-gnu image
@@ -180,7 +180,7 @@ jobs:
 
       - name: Remove builder-gnu image
         run: |
-          rm -rf /tmp/docker.tmp.builder-gnu
+          sudo rm -rf /tmp/docker.tmp.builder-gnu
           sudo docker rmi ghcr.io/kreatolinux/builder-gnu kreato/builder-gnu -f   
 
       - name: Build and push builder-systemd image
