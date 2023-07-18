@@ -20,7 +20,7 @@ proc update(repo = "",
                 echo "kpkg: repository on "&i.dir&" not found, cloning them now..."
                 discard execProcess("git clone "&i.link.split("::")[0]&" "&i.dir)
                 setCurrentDir(i.dir)
-                discard execProcess("git checkout "&i.link.split("::")[0])
+                discard execProcess("git checkout "&i.link.split("::")[1])
             else:
                 echo "kpkg: repository on "&i.dir&" not found, cloning them now..."
                 discard execProcess("git clone "&i.link&" "&i.dir)
