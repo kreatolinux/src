@@ -205,6 +205,9 @@ proc rootfs(buildType = "builder", arch = "amd64",
                 kreastrapInstall("gsed", installWithBinaries,
                         buildDir, useCacheIfPossible)
 
+                kreastrapInstall("bzip2", installWithBinaries,
+                        buildDir, useCacheIfPossible)
+
                 createSymlink("/bin/bash", buildDir&"/bin/sh")
             else:
                 error conf.getSectionValue("Core",
