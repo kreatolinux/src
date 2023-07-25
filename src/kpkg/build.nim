@@ -121,7 +121,7 @@ proc builder(package: string, destdir: string,
     var cmd2: int
 
     # Run ldconfig beforehand for any errors
-    assert execShellCmd("ldconfig")
+    discard execProcess("ldconfig")
 
     if pkg.sources.split(";").len == 1:
         if existsPrepare == 0:
