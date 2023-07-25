@@ -64,7 +64,7 @@ proc install_pkg(repo: string, package: string, root: string, binary = false,
 
     discard execProcess("tar -hxf"&tarball&" -C "&root)
     copyFile(tarball&".sum.bin", root&"/var/cache/kpkg/installed/"&package&"/list_sums")
-    
+
     # Run ldconfig afterwards for any new libraries
     assert execShellCmd("ldconfig")
 
