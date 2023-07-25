@@ -120,6 +120,9 @@ proc builder(package: string, destdir: string,
     var cmd: int
     var cmd2: int
 
+    # Run ldconfig beforehand for any errors
+    assert execShellCmd("ldconfig")
+
     if pkg.sources.split(";").len == 1:
         if existsPrepare == 0:
             cmd = execShellCmd("su -s /bin/sh _kpkg -c '. "&path&"/run"&" && export CC="&getConfigValue(
