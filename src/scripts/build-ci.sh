@@ -17,7 +17,7 @@ case $1 in
                 #make kpkg
                 #./out/kpkg update || true
                 #sed s/gcc/musl-gcc/g -i /etc/kpkg/kpkg.conf
-                nim c -d:branch=master -no-pie --threads:on -d:ssl -o=src/kreastrap/kreastrap src/kreastrap/kreastrap.nim
+                nim c -d:branch=master --passC:-no-pie --threads:on -d:ssl -o=src/kreastrap/kreastrap src/kreastrap/kreastrap.nim
                 #make kreastrap
         ;;
 
