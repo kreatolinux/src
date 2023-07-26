@@ -14,10 +14,10 @@ case $1 in
                 #apk update
                 #apk add build-base llvm-libunwind-dev compiler-rt libc++-dev alpine-sdk nimble shadow libarchive-tools perl zlib-dev llvm clang linux-headers openssl-dev binutils-dev gettext-dev xz libgcc gcc
                 make deps
-                make kpkg
+                #make kpkg
                 #./out/kpkg update || true
                 #sed s/gcc/musl-gcc/g -i /etc/kpkg/kpkg.conf
-                nim c -d:branch=master --threads:on -d:ssl -o=src/kreastrap/kreastrap src/kreastrap/kreastrap.nim
+                nim c -d:branch=master -no-pie --threads:on -d:ssl -o=src/kreastrap/kreastrap src/kreastrap/kreastrap.nim
                 #make kreastrap
         ;;
 
