@@ -28,8 +28,15 @@ proc checkAll(repo: string, backend = "repology", autoUpdate = true,
                     if not autoBuild:
                         pkgCount = pkgCount+1
                 except CatchableError:
-                    failedUpdPackages = failedUpdPackages&i
-                    echo "couldnt update "&i
+                    try:
+                        archCheck(package = i, repo = repo, autoUpdate = autoUpdate, skipIfDownloadFails = false)
+                        pkgFailed = false
+                        echo "updating "&i&" successful"
+                        if not autoBuild:
+                            pkgCount = pkgCount+1
+                    except CatchableError:
+                        failedUpdPackages = failedUpdPackages&i
+                        echo "couldnt update "&i
 
                 if not pkgFailed and autoBuild:
                     if execShellCmd("docker run --rm -v "&repo&":/etc/kpkg/repos/main -v /var/cache/kpkg/archives:/var/cache/kpkg/archives ghcr.io/kreatolinux/builder:latest kpkg build -u -y "&lastPathPart(
