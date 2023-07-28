@@ -67,6 +67,11 @@ proc install_pkg(repo: string, package: string, root: string, binary = false,
 
     # Run ldconfig afterwards for any new libraries
     discard execProcess("ldconfig")
+    
+    var existsPostinstall = execShellCmd(". "&repo&"/"&package&"/run"&" && command -v postinstall")
+
+    if existsPostinstall == 0:
+        execShellCmd(". "&repo&"/"&package&"/run"&" && postinstall")
 
 proc install_bin(packages: seq[string], binrepo: string, root: string,
         offline: bool, downloadOnly = false) =
