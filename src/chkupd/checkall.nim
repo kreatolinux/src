@@ -29,9 +29,7 @@ proc checkAll(repo: string, backend = "repology", autoUpdate = true,
                         pkgCount = pkgCount+1
                 except CatchableError:
                     try:
-                        archCheck(package = i, repo = repo,
-                                autoUpdate = autoUpdate,
-                                skipIfDownloadFails = false)
+                        archCheck(package = i, repo = repo, autoUpdate = autoUpdate, skipIfDownloadFails = false)
                         pkgFailed = false
                         echo "updating "&i&" successful"
                         if not autoBuild:
