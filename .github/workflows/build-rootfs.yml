@@ -12,17 +12,21 @@ on:
 
 jobs:
   build:
-    runs-on: self-hosted
-    container:
-      image: ghcr.io/kreatolinux/builder:latest 
-      volumes:
-        - /var/cache/kpkg/archives:/var/cache/kpkg/archives 
-    
+    runs-on: ubuntu-latest
+    container: ghcr.io/kreatolinux/builder:latest 
+
     steps:
 
       - name: Checkout
         uses: actions/checkout@v3
-          
+      
+      - name: Cache Binaries
+        id: binary-cache
+        uses: actions/cache@v3
+        with:
+          path: /var/cache/kpkg/archives
+          key: binary-cache
+
       - name: Build nocc rootfs tarball
         run: |
           IS_ACTIONS=y sh $GITHUB_WORKSPACE/src/scripts/build-ci.sh init
