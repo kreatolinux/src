@@ -1,8 +1,10 @@
 import osproc
 
+const homeDir* = "/tmp/kpkg/homedir"
+
 proc addUser(name: string, path = "/"): bool =
     ## Adds an user.
-    var cmd = "useradd -M -r -s /bin/nologin "&name
+    var cmd = "useradd -M -r -s /bin/nologin -d "&homeDir&" "&name
     var cmdPasswd = "passwd -d "&name
     var cmdChroot = "chroot "&path&" /bin/sh -c '. /etc/profile && /usr/sbin/"
 

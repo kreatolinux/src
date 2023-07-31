@@ -4,6 +4,8 @@ include modules/dephandler
 include modules/runparser
 include modules/downloader
 include install
+import modules/shadow
+import os
 
 const lockfile = "/tmp/kpkg.lock"
 
@@ -105,6 +107,9 @@ proc builder(package: string, destdir: string,
                 int = int+1
         except CatchableError:
             raise
+    
+    # Create homedir of _kpkg temporarily
+    createDir(homeDir)
 
     if existsPrepare != 0 and not usesGit:
         folder = absolutePath(execProcess(
@@ -168,6 +173,7 @@ proc builder(package: string, destdir: string,
 
     removeDir(srcdir)
     removeDir(root)
+    removeDir(homeDir)
 
     return false
 
