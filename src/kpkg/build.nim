@@ -107,7 +107,7 @@ proc builder(package: string, destdir: string,
                 int = int+1
         except CatchableError:
             raise
-    
+
     # Create homedir of _kpkg temporarily
     createDir(homeDir)
 
