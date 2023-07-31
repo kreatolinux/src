@@ -110,6 +110,7 @@ proc builder(package: string, destdir: string,
 
     # Create homedir of _kpkg temporarily
     createDir(homeDir)
+    setFilePermissions(homeDir, {fpOthersWrite, fpOthersRead, fpOthersExec})
 
     if existsPrepare != 0 and not usesGit:
         folder = absolutePath(execProcess(
