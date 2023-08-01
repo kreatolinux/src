@@ -30,16 +30,23 @@ jobs:
         name: build and cache (x64)
         run: |
           cachix watch-exec balls -- nix-build -A static.x86_64-linux.kpkg
-
+          cachix watch-exec balls -- nix-build -A static.x86_64-linux.chkupd
+          
       - if: ${{ github.event_name == 'pull_request' }}
         name: build (x64)
         run: |
           nix-build -A static.x86_64-linux.kpkg
+          nix-build -A static.x86_64-linux.chkupd
 
       - uses: actions/upload-artifact@v3
         with:
           name: kpkg-x64-linux
-          path: ${{ github.workspace }}/result/bin/*
+          path: ${{ github.workspace }}/result/bin/kpkg
+          
+      - uses: actions/upload-artifact@v3
+        with:
+          name: chkupd-x64-linux
+          path: ${{ github.workspace }}/result/bin/chkupd
 
       - name: generate kpkg config
         run: |
@@ -49,16 +56,24 @@ jobs:
         name: build and cache (aarch64)
         run: |
           cachix watch-exec balls -- nix-build -A arm.static.kpkg
+          cachix watch-exec balls -- nix-build -A arm.static.chkupd
 
       - if: ${{ github.event_name == 'pull_request' }}
         name: build (aarch64)
         run: |
           nix-build -A arm.static.kpkg
+          nix-build -A arm.static.chkupd
 
       - uses: actions/upload-artifact@v3
         with:
           name: kpkg-aarch64-linux
-          path: ${{ github.workspace }}/result/bin/*
+          path: ${{ github.workspace }}/result/bin/kpkg
+          
+          
+      - uses: actions/upload-artifact@v3
+        with:
+          name: chkupd-aarch64-linux
+          path: ${{ github.workspace }}/result/bin/chkupd
 
       - name: test
         run: |
