@@ -13,7 +13,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    container: ghcr.io/kreatolinux/builder:latest 
+    container: ghcr.io/kreatolinux/builder:04ea78dbb0c88cee89350937b303d17fde995e5c4c96d6c091d728711756f4b8
 
     steps:
 
