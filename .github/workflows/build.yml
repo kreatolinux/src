@@ -23,7 +23,7 @@ jobs:
       - name: install dependencies
         run: |
           apk update
-          apk add gcc musl-dev openssl-libs-static git nim make nimble
+          apk add gcc musl-dev openssl-libs-static git nim make nimble shadow
           make deps
 
       - name: build (amd64)
