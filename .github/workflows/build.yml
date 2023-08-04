@@ -35,10 +35,6 @@ jobs:
           name: kpkg-amd64-linux
           path: /tmp/kpkg-amd64-linux
 
-      - name: generate kpkg config
-        run: |
-          sudo ./result/bin/kpkg
-
       # quoted out for now, will add later
       #- uses: actions/upload-artifact@v3
       #  with:
@@ -48,4 +44,4 @@ jobs:
       - name: run purr
         run: |
           nim c --threads=on -o=/tmp/purr --passL:-static -d:ssl --passL:-lssl --dynlibOverride:ssl --passL:-lcrypto --dynlibOverride:crypto src/purr/purr.nim
-          sudo ./tmp/purr
+          ./tmp/purr
