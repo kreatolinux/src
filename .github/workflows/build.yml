@@ -13,54 +13,41 @@ on:
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  build:
+  ci:
     # The type of runner that the job will run on
     runs-on: ubuntu-latest
-
+    container: alpine:latest
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       - uses: actions/checkout@v3
-      - uses: cachix/install-nix-action@v20
-      - uses: cachix/cachix-action@v12
-        with:
-          name: balls
-          authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
-
-      - if: ${{ github.event_name == 'push' }}
-        name: build and cache (x64)
+      - name: install dependencies
         run: |
-          cachix watch-exec balls -- nix-build -A static.x86_64-linux.kpkg
+          apk update
+          apk add gcc musl-dev openssl-libs-static git nim make nimble
+          make deps
 
-      - if: ${{ github.event_name == 'pull_request' }}
-        name: build (x64)
+      - name: build (amd64)
         run: |
-          nix-build -A static.x86_64-linux.kpkg
+          nim c --threads=on -o=/tmp/kpkg-amd64-linux --passL:-static -d:ssl --passL:-lssl --dynlibOverride:ssl --passL:-l
+crypto --dynlibOverride:crypto src/kpkg/kpkg.nim
 
       - uses: actions/upload-artifact@v3
         with:
-          name: kpkg-x64-linux
-          path: ${{ github.workspace }}/result/bin/*
+          name: kpkg-amd64-linux
+          path: /tmp/kpkg-amd64-linux
 
       - name: generate kpkg config
         run: |
           sudo ./result/bin/kpkg
 
-      - if: ${{ github.event_name == 'push' }}
-        name: build and cache (aarch64)
-        run: |
-          cachix watch-exec balls -- nix-build -A arm.static.kpkg
+      # quoted out for now, will add later
+      #- uses: actions/upload-artifact@v3
+      #  with:
+      #    name: kpkg-aarch64-linux
+      #    path: /tmp/kpkg-aarch64-linux
 
-      - if: ${{ github.event_name == 'pull_request' }}
-        name: build (aarch64)
+      - name: run purr
         run: |
-          nix-build -A arm.static.kpkg
-
-      - uses: actions/upload-artifact@v3
-        with:
-          name: kpkg-aarch64-linux
-          path: ${{ github.workspace }}/result/bin/*
-
-      - name: test
-        run: |
-          nix-build -A static.x86_64-linux.purr
-          sudo ./result/bin/purr
+          nim c --threads=on -o=/tmp/purr --passL:-static -d:ssl --passL:-lssl --dynlibOverride:ssl --passL:-l
+crypto --dynlibOverride:crypto src/purr/purr.nim
+          sudo ./tmp/purr
