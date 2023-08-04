@@ -41,7 +41,7 @@ jobs:
       #    name: kpkg-aarch64-linux
       #    path: /tmp/kpkg-aarch64-linux
 
-      - name: run purr
+      - name: build and run purr
         run: |
           nim c --threads=on -o=/tmp/purr --passL:-static -d:ssl --passL:-lssl --dynlibOverride:ssl --passL:-lcrypto --dynlibOverride:crypto src/purr/purr.nim
-          ./tmp/purr
+          /tmp/purr
