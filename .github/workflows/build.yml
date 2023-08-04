@@ -28,8 +28,7 @@ jobs:
 
       - name: build (amd64)
         run: |
-          nim c --threads=on -o=/tmp/kpkg-amd64-linux --passL:-static -d:ssl --passL:-lssl --dynlibOverride:ssl --passL:-l
-crypto --dynlibOverride:crypto src/kpkg/kpkg.nim
+          nim c --threads=on -o=/tmp/kpkg-amd64-linux --passL:-static -d:ssl --passL:-lssl --dynlibOverride:ssl --passL:-lcrypto --dynlibOverride:crypto src/kpkg/kpkg.nim
 
       - uses: actions/upload-artifact@v3
         with:
@@ -48,6 +47,5 @@ crypto --dynlibOverride:crypto src/kpkg/kpkg.nim
 
       - name: run purr
         run: |
-          nim c --threads=on -o=/tmp/purr --passL:-static -d:ssl --passL:-lssl --dynlibOverride:ssl --passL:-l
-crypto --dynlibOverride:crypto src/purr/purr.nim
+          nim c --threads=on -o=/tmp/purr --passL:-static -d:ssl --passL:-lssl --dynlibOverride:ssl --passL:-lcrypto --dynlibOverride:crypto src/purr/purr.nim
           sudo ./tmp/purr
