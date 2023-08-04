@@ -181,7 +181,7 @@ proc builder(package: string, destdir: string,
 proc build(no = false, yes = false, root = "/",
     packages: seq[string],
             useCacheIfAvailable = false, binrepo = "mirror.kreato.dev",
-                    enforceReproducibility = false): string =
+                    enforceReproducibility = false, forceInstallAll = false): string =
     ## Build and install packages
     var deps: seq[string]
 
@@ -211,7 +211,7 @@ proc build(no = false, yes = false, root = "/",
         let fullRootPath = expandFilename(root)
         for i in deps:
             try:
-                if dirExists(fullRootPath&"/var/cache/kpkg/installed/"&i):
+                if dirExists(fullRootPath&"/var/cache/kpkg/installed/"&i) and not forceInstallAll:
                     discard
                 else:
                     builderOutput = builder(i, fullRootPath, offline = false,
