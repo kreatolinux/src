@@ -116,7 +116,7 @@ proc install_bin(packages: seq[string], binrepo: string, root: string,
                         "/var/cache/kpkg/archives/arch/"&hostCPU&"/"&chksum&".bin")
 
             except CatchableError:
-                raise
+                err("couldn't download tarball", false)
         else:
             err("attempted to download tarball from binary repository in offline mode", false)
 
