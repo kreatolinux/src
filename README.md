@@ -1,6 +1,5 @@
 <p align="left">
-<img src="https://github.com/Kreato-Linux/logo/blob/master/withtext.png"> 
-  <img src="https://github.com/Kreato-Linux/logo/blob/master/core.png" height="10%" width="10%">
+<img src="https://github.com/Kreato-Linux/logo/blob/master/withtext.png">
 </p>
 
 # src
