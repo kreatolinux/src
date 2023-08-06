@@ -20,7 +20,7 @@ proc install_pkg*(repo: string, package: string, root: string, binary = false,
         pkg = parse_runfile(repo&"/"&package)
     except CatchableError:
         raise
-    
+
     for i in pkg.conflicts:
         if dirExists("/var/cache/kpkg/installed/"&i):
             err(i&" conflicts with "&package)
