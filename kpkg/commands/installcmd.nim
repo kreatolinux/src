@@ -41,19 +41,6 @@ proc install_pkg*(repo: string, package: string, root: string, binary = false,
     writeFile(root&"/var/cache/kpkg/installed/"&package&"/list_files",
             execProcess("tar -tf"&tarball))
 
-    let file = open(tarball&".sum.bin", fmWrite)
-
-    if not binary:
-        var downloaded = false
-
-        setCurrentDir(builddir)
-
-        for line in lines root&"/var/cache/kpkg/installed/"&package&"/list_files":
-            if fileExists(line):
-                file.writeLine(sha256hexdigest(readAll(open(line)))&"  "&line)
-
-        file.close()
-
     discard execProcess("tar -hxf"&tarball&" -C "&root)
 
     # Run ldconfig afterwards for any new libraries
