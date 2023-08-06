@@ -152,6 +152,8 @@ proc builder*(package: string, destdir: string,
     elif existsInstall == 0:
         cmd2Str = cmd2Str&" package"
     elif existsLegacyInstall == 0:
+        echo "kpkg: warning: The package you are currently installing is using the old install() function. This function got renamed (and improved!) in v5.0."
+        echo "kpkg: warning: The install() function will cease to function at a later version. Please update your runfile to use package() instead of install()."
         cmd2Str = cmd2Str&" install"
 
     if pkg.sources.split(";").len == 1:
