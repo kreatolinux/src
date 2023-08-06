@@ -80,12 +80,14 @@ proc builder*(package: string, destdir: string,
         return true
 
     var filename: string
-    
+
     let existsPrepare = execCmdEx(". "&path&"/run"&" && command -v prepare").exitCode
     let existsInstall = execCmdEx(". "&path&"/run"&" && command -v package").exitCode
-    let existsPackageInstall = execCmdEx(". "&path&"/run"&" && command -v package_"&package).exitCode 
-    let existsLegacyInstall = execCmdEx(". "&path&"/run"&" && command -v install").exitCode 
-    
+    let existsPackageInstall = execCmdEx(
+            ". "&path&"/run"&" && command -v package_"&package).exitCode
+    let existsLegacyInstall = execCmdEx(
+            ". "&path&"/run"&" && command -v install").exitCode
+
     var int = 0
     var usesGit: bool
     var folder: seq[string]
@@ -141,9 +143,10 @@ proc builder*(package: string, destdir: string,
     # Run ldconfig beforehand for any errors
     discard execProcess("ldconfig")
 
-    var cmdStr = ". "&path&"/run"&" && export CC="&getConfigValue("Options", "cc")&" && export CCACHE_DIR=/tmp/kpkg/cache && build"
+    var cmdStr = ". "&path&"/run"&" && export CC="&getConfigValue("Options",
+            "cc")&" && export CCACHE_DIR=/tmp/kpkg/cache && build"
     var cmd2Str = ". "&path&"/run"&" && export DESTDIR="&root&" && export ROOT=$DESTDIR &&"
-    
+
     if existsPackageInstall == 0:
         cmd2Str = cmd2Str&" package_"&package
     elif existsInstall == 0:
