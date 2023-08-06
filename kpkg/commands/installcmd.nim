@@ -10,9 +10,7 @@ import ../modules/runparser
 import ../modules/downloader
 import ../modules/dephandler
 
-proc install_pkg*(repo: string, package: string, root: string, binary = false,
-        enforceReproducibility = false, binrepo = "mirror.kreato.dev",
-        builddir = "/tmp/kpkg/build") =
+proc install_pkg*(repo: string, package: string, root: string, binary = false, builddir = "/tmp/kpkg/build") =
     ## Installs an package.
 
     var pkg: runFile
@@ -55,35 +53,13 @@ proc install_pkg*(repo: string, package: string, root: string, binary = false,
 
         file.close()
 
-        try:
-            waitFor download("https://"&binrepo&"/arch/"&hostCPU&"/kpkg-tarball-"&pkg.pkg&"-"&pkg.versionString&".tar.gz.sum.bin",
-                    "/tmp/kpkg-temp-"&pkg.pkg&".bin")
-            downloaded = true
-        except CatchableError:
-            if enforceReproducibility:
-                err("checksum couldn't get downloaded for reproducibility check")
-            else:
-                echo "kpkg: skipping reproducibility check, checksum couldn't get downloaded"
-                echo "kpkg: run with --enforceReproducibility=true if you want to enforce this"
-
-        if downloaded:
-            let result = execCmdEx("sha256sum -c /tmp/kpkg-temp-"&pkg.pkg&".bin")
-            if result.exitCode == 0:
-                echo "kpkg: reproducibility check success"
-            elif enforceReproducibility:
-                err("reproducibility check failed")
-            else:
-                echo "kpkg: reproducibility check failed"
-                echo "kpkg: run with --enforceReproducibility=true if you want to enforce this"
-
     discard execProcess("tar -hxf"&tarball&" -C "&root)
-    copyFile(tarball&".sum.bin", root&"/var/cache/kpkg/installed/"&package&"/list_sums")
 
     # Run ldconfig afterwards for any new libraries
     discard execProcess("ldconfig")
 
-    var existsPostinstall = execShellCmd(
-            ". "&repo&"/"&package&"/run"&" && command -v postinstall")
+    var existsPostinstall = execCmdEx(
+            ". "&repo&"/"&package&"/run"&" && command -v postinstall").exitCode
 
     if existsPostinstall == 0:
         if execShellCmd(". "&repo&"/"&package&"/run"&" && postinstall") != 0:
