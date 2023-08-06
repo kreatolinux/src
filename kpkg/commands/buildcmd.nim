@@ -153,13 +153,13 @@ proc builder*(package: string, destdir: string,
     if pkg.sources.split(";").len == 1:
         if existsPrepare == 0:
             cmd = execShellCmd(sboxWrap(cmdStr))
-            cmd2 = execShellCmd(cmd2Str)
+            cmd2 = execShellCmd("fakeroot -- "&cmd2Str)
         else:
             cmd = execShellCmd(sboxWrap("cd "&folder[0]&" && "&cmdStr))
-            cmd2 = execShellCmd("cd "&folder[0]&" && "&cmd2Str)
+            cmd2 = execShellCmd("fakeroot -- cd "&folder[0]&" && "&cmd2Str)
     else:
         cmd = execShellCmd(sboxWrap(cmdStr))
-        cmd2 = execShellCmd(cmd2Str)
+        cmd2 = execShellCmd("fakeroot -- "&cmd2Str)
 
     if cmd != 0:
         err("build failed")
