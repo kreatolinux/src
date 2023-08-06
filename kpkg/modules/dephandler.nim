@@ -18,7 +18,7 @@ proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false): seq[st
             let repo = findPkgRepo(pkg)
             if repo == "":
                 err("Package "&pkg&" doesn't exist", false)
-            
+
             let pkgrf = parse_runfile(repo&"/"&pkg)
 
             var pkgdeps: seq[string]
