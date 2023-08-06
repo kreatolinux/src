@@ -7,9 +7,9 @@ kreastrap - rootfs builder
 **kreastrap** [--buildType] [BUILDTYPE] [--arch] [ARCHITECTURE] [--useCacheIfPossible] [true/false]
 
 # DESCRIPTION
-Nyaastrap is a rootfs builder written in Nim. It is currently used for generating rootfs' for Kreato Linux.
+Kreastrap is a rootfs builder written in Nim. It is currently used for generating rootfs' for Kreato Linux.
 
-Nyaastrap has a simple config structure, and uses `kpkg` internal functions to work.
+Kreastrap has a simple config structure, and uses `kpkg` internal functions to work.
 
 For the config structure you can see kreastrap.conf(5)
 

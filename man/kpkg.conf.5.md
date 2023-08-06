@@ -15,7 +15,7 @@ cc=gcc
 
 [Repositories]
 RepoDirs=/etc/kpkg/repos/main /etc/kpkg/repos/main-bin
-RepoLinks="https://github.com/kreatolinux/kpkg-repo.git https://github.com/kreatolinux/kpkg-repo-bin.git"
+RepoLinks="https://github.com/kreatolinux/kpkg-repo.git::stable https://github.com/kreatolinux/kpkg-repo-lockin.git::stable"
 
 [Upgrade]
 buildByDefault=yes

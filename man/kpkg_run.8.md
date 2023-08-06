@@ -9,25 +9,40 @@ kpkg runfiles are the main package format of kpkg. It is a basic shell script wi
 # RUNFILE STRUCTURE
 
 Runfiles are just named "run" inside the package directory. It is written in POSIX sh and doesn't support any other languages.
-In addition to a runfile you also need a deps file which you can add by just making a file named "deps" in the package repository and putting deps on each line.
 
 An example runfile structure;
 
-```
+```sh
 NAME="test"
 VERSION="0.0.1"
 RELEASE="1"
-SOURCES="https://test.file/source/testfile.tar.gz;git::https://github.com/kreatolinux/kpkg3::543ee30eda806029fa9ea16a1f9767eda7cab4d1"
+SOURCES="https://test.file/source/testfile.tar.gz;git::https://github.com/kreatolinux/src::543ee30eda806029fa9ea16a1f9767eda7cab4d1"
+DEPENDS="testpackage1 testpackage3 testpackage4"
+BUILD_DEPENDS="testpackage5 testpackage6 testpackage10"
 SHA256SUM="e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  testfile.tar.gz"
 DESCRIPTION="Test package"
 
-build() {
+prepare() {
     tar -xvf testfile.tar.gz
-    echo "Insert additional installation instructions here"
 }
 
-install() {
+build() {
+    cd testfile
+    echo "Insert build instructions here"
+}
+
+package() {
+    cd testfile
     make install
+}
+
+package_test2() {
+    cd testfile
+    make install_test2
+}
+
+postinstall() {
+    echo "Insert postinstall instructions here"
 }
 ```
 Now lets break it down.
@@ -37,16 +52,20 @@ Now lets break it down.
 * VERSION: Version of your package. It will be on the info command and updating it will result in kpkg upgrading the package.
 * RELEASE: Release of your package. It will also be on the info command and updating it will result in kpkg upgrading the package.
 * SOURCES: Source URL's of your package. Can be seperated by ';' like `test.url;testurl2`. Also supports git URL's as shown by the second source.
+* DEPENDS: Dependencies of your package. Seperated by space.
+* BUILD_DEPENDS: Build dependencies of your package. Seperated by space. 
 * SHA256SUM: sha256sum output of the sources. Should align with sources. Can also be seperated by ';'. Doesnt support git URL's yet.
 * DESCRIPTION: Description of the package. It will be on the info command.
 
 ## FUNCTIONS
 * build: The main function.
-* install: The install function.
+* package: The install function.
 
 ## OPTIONAL FUNCTIONS AND VARIABLES
 * EPOCH: Only use this when the versioning logic fail for the package.
 * prepare(): Files downloaded from SOURCES are extracted by default. Use prepare() to prevent this and have custom prepare procedure.
+* postinstall: Post-install function. Will run after the package is installed.
+* package_PACKAGENAME: Install function of PACKAGENAME. With this function you can package multiple things in the same runfile. This may be used for packaging sub-projects easier.
 
 # AUTHOR
 Written by Kreato.
