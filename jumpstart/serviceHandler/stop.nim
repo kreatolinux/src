@@ -1,4 +1,4 @@
-import ../logging
+import ../../common/logging
 import osproc
 import os
 import globalVariables

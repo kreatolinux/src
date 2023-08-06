@@ -2,7 +2,7 @@ import parsecfg
 import os, osproc
 import std/threadpool
 import status
-import ../logging
+import ../../common/logging
 include ../commonImports
 import globalVariables
 

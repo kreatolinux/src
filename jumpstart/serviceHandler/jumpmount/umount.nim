@@ -2,7 +2,7 @@ import parsecfg
 import osproc
 import os
 import strutils
-import ../../logging
+import ../../../common/logging
 include ../../commonImports
 
 proc stopMount*(mountName: string) =

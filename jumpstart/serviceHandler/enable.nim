@@ -1,6 +1,6 @@
 import os
 include ../commonImports
-import ../logging
+import ../../common/logging
 
 proc enableService*(service: string, isMount: bool) =
     ## Enables an service.
