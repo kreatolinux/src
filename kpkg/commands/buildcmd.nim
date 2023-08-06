@@ -233,8 +233,7 @@ proc build*(no = false, yes = false, root = "/",
                     discard
                 else:
                     builderOutput = builder(i, fullRootPath, offline = false,
-                            useCacheIfAvailable = useCacheIfAvailable,
-                            binrepo = binrepo)
+                            useCacheIfAvailable = useCacheIfAvailable)
                     if not builderOutput:
                         cacheAvailable = false
 
@@ -248,8 +247,7 @@ proc build*(no = false, yes = false, root = "/",
         for i in packages:
             try:
                 discard builder(i, fullRootPath, offline = false,
-                            useCacheIfAvailable = cacheAvailable,
-                            binrepo = binrepo)
+                            useCacheIfAvailable = cacheAvailable)
                 echo("kpkg: installed "&i&" successfully")
 
             except CatchableError:
