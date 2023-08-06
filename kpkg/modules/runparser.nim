@@ -10,6 +10,7 @@ type runFile* = object
     sha256sum*: string
     epoch*: string
     versionString*: string
+    conflicts*: seq[string]
 
 proc parse_runfile*(path: string, removeLockfileWhenErr = true): runFile =
     ## Parse an runfile.
@@ -50,6 +51,8 @@ proc parse_runfile*(path: string, removeLockfileWhenErr = true): runFile =
                     )
                 of "SHA256SUM":
                     ret.sha256sum = vars[1]
+                of "CONFLICTS":
+                    ret.conflicts = vars[1].split(" ")
             if "()" in vars[0]:
                 break
     except CatchableError:
