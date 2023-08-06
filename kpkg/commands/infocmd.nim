@@ -1,4 +1,9 @@
-proc info(package: seq[string], testing = false): string =
+import os
+import ../modules/logger
+import ../modules/config
+import ../modules/runparser
+
+proc info*(package: seq[string], testing = false): string =
     ## Get information about packages
 
     if package.len == 0:

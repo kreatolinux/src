@@ -1,11 +1,16 @@
-import strutils
-import libsha/sha256
-include modules/dephandler
-include modules/runparser
-include modules/downloader
-include install
-import modules/shadow
 import os
+import osproc
+import installcmd
+import strutils
+import sequtils
+import libsha/sha256
+import asyncdispatch
+import ../modules/logger
+import ../modules/shadow
+import ../modules/config
+import ../modules/runparser
+import ../modules/dephandler
+import ../modules/downloader
 
 const lockfile = "/tmp/kpkg.lock"
 
@@ -14,7 +19,7 @@ proc cleanUp() {.noconv.} =
     removeFile(lockfile)
     quit(0)
 
-proc builder(package: string, destdir: string,
+proc builder*(package: string, destdir: string,
     root = "/tmp/kpkg/build", srcdir = "/tmp/kpkg/srcdir", offline = false,
             dontInstall = false, useCacheIfAvailable = false,
                     binrepo = "mirror.kreato.dev",
@@ -178,7 +183,7 @@ proc builder(package: string, destdir: string,
 
     return false
 
-proc build(no = false, yes = false, root = "/",
+proc build*(no = false, yes = false, root = "/",
     packages: seq[string],
             useCacheIfAvailable = false, binrepo = "mirror.kreato.dev",
                     enforceReproducibility = false,

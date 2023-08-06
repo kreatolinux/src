@@ -1,4 +1,11 @@
-proc update(repo = "",
+import os
+import osproc
+import sequtils
+import strutils
+import ../modules/logger
+import ../modules/config
+
+proc update*(repo = "",
     path = "", branch = "master"): string =
     ## Update repositories
 

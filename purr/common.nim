@@ -5,8 +5,8 @@ import os
 import options
 include ../kpkg/modules/logger
 include ../kpkg/modules/config
-include ../kpkg/build
-include ../kpkg/update
+include ../kpkg/commands/buildcmd
+include ../kpkg/commands/updatecmd
 
 proc debug(message: string) =
     when not defined(release):

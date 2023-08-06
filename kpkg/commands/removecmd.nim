@@ -1,5 +1,9 @@
-include modules/removeInternal
-proc remove(packages: seq[string], yes = false, root = ""): string =
+import os
+import strutils
+import ../modules/logger
+import ../modules/removeInternal
+
+proc remove*(packages: seq[string], yes = false, root = ""): string =
     ## Remove packages
 
     # bail early if user isn't admin

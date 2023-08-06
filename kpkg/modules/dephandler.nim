@@ -1,3 +1,8 @@
+import os
+import config
+import logger
+import sequtils
+
 proc isIn(one: seq[string], two: seq[string]): bool =
     ## Checks if a variable is in another.
     for i in one:
@@ -5,7 +10,7 @@ proc isIn(one: seq[string], two: seq[string]): bool =
             return true
     return false
 
-proc dephandler(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false): seq[string] =
+proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false): seq[string] =
     ## takes in a seq of packages and returns what to install.
     var deps: seq[string]
     try:

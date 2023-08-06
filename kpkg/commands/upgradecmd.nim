@@ -1,4 +1,12 @@
-proc upgrade(root = "/",
+import os
+import buildcmd
+import installcmd
+import strutils
+import ../modules/config
+import ../modules/runparser
+import ../modules/removeInternal
+
+proc upgrade*(root = "/",
         builddir = "/tmp/kpkg/build", srcdir = "/tmp/kpkg/srcdir"): string =
     ## Upgrade packages
     var repo: string

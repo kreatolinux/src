@@ -1,4 +1,4 @@
-SRCDIR = $(shell pwd)/src
+SRCDIR = $(shell pwd)
 PREFIX = ./out
 
 nimbuild = nim c -d:release -d:branch=master --threads:on -d:ssl -o=$(PREFIX)/$1 $(SRCDIR)/$1/$1.nim

@@ -15,19 +15,16 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with Kreato Linux.  If not, see <https://www.gnu.org/licenses/>.
-import cligen
-import sequtils
-import parsecfg
-import os
-include modules/logger
-include modules/config
-include build
-include update
-include remove
-include upgrade
-include info
 
-clCfg.version = "kpkg v4"
+import cligen
+import commands/infocmd
+import commands/buildcmd
+import commands/updatecmd
+import commands/removecmd
+import commands/upgradecmd
+import commands/installcmd
+
+clCfg.version = "kpkg v5"
 
 dispatchMulti(
   [

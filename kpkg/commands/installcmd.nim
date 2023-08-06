@@ -1,6 +1,16 @@
-import threadpool
+import os
+import osproc
+import strutils
+import sequtils
+import asyncdispatch
+import libsha/sha256
+import ../modules/config
+import ../modules/logger
+import ../modules/runparser
+import ../modules/downloader
+import ../modules/dephandler
 
-proc install_pkg(repo: string, package: string, root: string, binary = false,
+proc install_pkg*(repo: string, package: string, root: string, binary = false,
         enforceReproducibility = false, binrepo = "mirror.kreato.dev",
         builddir = "/tmp/kpkg/build") =
     ## Installs an package.
@@ -126,7 +136,7 @@ proc install_bin(packages: seq[string], binrepo: string, root: string,
             install_pkg(repo, i, root, true)
             echo "Installation for "&i&" complete"
 
-proc install(promptPackages: seq[string], root = "/", yes: bool = false,
+proc install*(promptPackages: seq[string], root = "/", yes: bool = false,
         no: bool = false,
     binrepo = "mirror.kreato.dev", offline = false,
             downloadOnly = false): string =

@@ -1,14 +1,17 @@
-type runFile = object
-    pkg: string
-    sources: string
-    version: string
-    release: string
-    buildAsRoot: bool
-    sha256sum: string
-    epoch: string
-    versionString: string
+import logger
+import strutils
 
-proc parse_runfile(path: string, removeLockfileWhenErr = true): runFile =
+type runFile* = object
+    pkg*: string
+    sources*: string
+    version*: string
+    release*: string
+    buildAsRoot*: bool
+    sha256sum*: string
+    epoch*: string
+    versionString*: string
+
+proc parse_runfile*(path: string, removeLockfileWhenErr = true): runFile =
     ## Parse an runfile.
 
     var vars: seq[string]

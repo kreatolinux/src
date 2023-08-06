@@ -2,7 +2,7 @@ import osproc
 
 const homeDir* = "/tmp/kpkg/homedir"
 
-proc addUser(name: string, path = "/"): bool =
+proc addUser*(name: string, path = "/"): bool =
     ## Adds an user.
     var cmd = "useradd -M -r -s /bin/nologin -d "&homeDir&" "&name
     var cmdPasswd = "passwd -d "&name
@@ -17,5 +17,5 @@ proc addUser(name: string, path = "/"): bool =
     else:
         return false
 
-proc existsUser(name: string): bool =
+proc existsUser*(name: string): bool =
     return execCmdEx("id "&name).exitcode == 0

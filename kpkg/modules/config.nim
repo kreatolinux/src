@@ -1,12 +1,16 @@
-include shadow
+import shadow
+import parsecfg
+import os
+import logger
+import strutils
 
 const configPath = "/etc/kpkg/kpkg.conf"
 
 var config: Config
 
-const branch {.strdefine.}: string = "stable"
+const branch* {.strdefine.}: string = "stable"
 
-proc initializeConfig(): Config =
+proc initializeConfig*(): Config =
   ## Initializes the configuration file
 
   if not isAdmin():
@@ -39,16 +43,16 @@ proc initializeConfig(): Config =
   return config
 
 
-proc getConfigValue(section: string, key: string): string =
+proc getConfigValue*(section: string, key: string): string =
   ## Reads the configuration file and returns value of section.
   return config.getSectionValue(section, key)
 
-proc setConfigValue(section: string, key: string, value: string) =
+proc setConfigValue*(section: string, key: string, value: string) =
   ## Writes a section to the configuration file.
   config.setSectionKey(section, key, value)
   config.writeConfig(configPath)
 
-proc findPkgRepo(package: string): string =
+proc findPkgRepo*(package: string): string =
   ## finds the package repository.
   for i in getConfigValue("Repositories", "RepoDirs").split(" "):
     if dirExists(i&"/"&package):

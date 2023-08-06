@@ -1,4 +1,6 @@
-proc err(error: string, removeLockFile = true) =
+import os
+
+proc err*(error: string, removeLockFile = true) =
     ## Handles errors.
     echo("kpkg: error: "&error)
     if removeLockFile:

@@ -1,4 +1,9 @@
-proc removeInternal(package: string, root = ""): string =
+import os
+import logger
+import strutils
+import sequtils
+
+proc removeInternal*(package: string, root = ""): string =
     if not fileExists(root&"/var/cache/kpkg/installed/"&package&"/list_files"):
         err("package "&package&" is not installed", false)
 
