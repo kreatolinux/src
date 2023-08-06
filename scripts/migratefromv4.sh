@@ -7,28 +7,33 @@
 sed -i 's/install()/package()/g' "$1/run"
 
 if [ -f "$1/build_deps" ]; then
-    cat "$1/build_deps" | while read line 
+    while read line 
     do
-        if [ "$DEPS" = "" ]; then
+        if [ -z "$BDEPS" ]; then
             BDEPS="$line"
         else
             BDEPS="$BDEPS $line"
         fi
-    done
+    done < "$1/build_deps"
     sed -i "1n; /^SHA256SUM/i BUILD_DEPENDS=\"$BDEPS\"" "$1/run"
+    rm -f "$1/build_deps"
 fi
 
 if [ -f "$1/deps" ]; then
-    cat "$1/deps" | while read line 
+    while read line 
     do
-        if [ "$DEPS" = "" ]; then
+        if [ -z "$DEPS" ]; then
             DEPS="$line"
         else
             DEPS="$DEPS $line"
         fi
-    done
-    [ -f "$1/build_deps" ] && sed -i "1n; /^BUILD_DEPENDS/i DEPENDS=\"$DEPS\"" "$1/run"
-    sed -i "1n; /^SHA256SUM/i DEPENDS=\"$DEPS\"" "$1/run"
+    done < "$1/deps"
+    if [ -f "$1/build_deps" ]; then
+        sed -i "1n; /^BUILD_DEPENDS/i DEPENDS=\"$DEPS\"" "$1/run"
+    else
+        sed -i "1n; /^SHA256SUM/i DEPENDS=\"$DEPS\"" "$1/run"
+    fi
+    rm -f "$1/deps"
 fi
 
 echo "complete"
