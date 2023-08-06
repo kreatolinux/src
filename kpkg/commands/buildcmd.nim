@@ -21,9 +21,7 @@ proc cleanUp() {.noconv.} =
 
 proc builder*(package: string, destdir: string,
     root = "/tmp/kpkg/build", srcdir = "/tmp/kpkg/srcdir", offline = false,
-            dontInstall = false, useCacheIfAvailable = false,
-                    binrepo = "mirror.kreato.dev",
-                    enforceReproducibility = false): bool =
+            dontInstall = false, useCacheIfAvailable = false): bool =
     ## Builds the packages.
 
     if not isAdmin():
@@ -188,9 +186,7 @@ proc builder*(package: string, destdir: string,
         install_pkg(repo, package, "/")
 
     if not dontInstall:
-        install_pkg(repo, package, destdir,
-                enforceReproducibility = enforceReproducibility,
-                binrepo = binrepo, builddir = root)
+        install_pkg(repo, package, destdir, builddir = root)
 
     removeFile(lockfile)
 
@@ -202,9 +198,7 @@ proc builder*(package: string, destdir: string,
 
 proc build*(no = false, yes = false, root = "/",
     packages: seq[string],
-            useCacheIfAvailable = false, binrepo = "mirror.kreato.dev",
-                    enforceReproducibility = false,
-                            forceInstallAll = false): string =
+            useCacheIfAvailable = false, forceInstallAll = false): string =
     ## Build and install packages
     var deps: seq[string]
 
@@ -240,7 +234,6 @@ proc build*(no = false, yes = false, root = "/",
                 else:
                     builderOutput = builder(i, fullRootPath, offline = false,
                             useCacheIfAvailable = useCacheIfAvailable,
-                            enforceReproducibility = enforceReproducibility,
                             binrepo = binrepo)
                     if not builderOutput:
                         cacheAvailable = false
@@ -256,7 +249,6 @@ proc build*(no = false, yes = false, root = "/",
             try:
                 discard builder(i, fullRootPath, offline = false,
                             useCacheIfAvailable = cacheAvailable,
-                            enforceReproducibility = enforceReproducibility,
                             binrepo = binrepo)
                 echo("kpkg: installed "&i&" successfully")
 
