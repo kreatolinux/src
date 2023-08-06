@@ -101,7 +101,7 @@ proc builder*(package: string, destdir: string,
                 folder = @[lastPathPart(i.split("::")[1])]
             else:
                 if fileExists(path&"/"&i):
-                    filename = i
+                    copyFile(path&"/"&i, i)
                 else:
                     waitFor download(i, filename)
 
