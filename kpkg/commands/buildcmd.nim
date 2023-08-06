@@ -83,8 +83,6 @@ proc builder*(package: string, destdir: string,
     let existsInstall = execCmdEx(". "&path&"/run"&" && command -v package").exitCode
     let existsPackageInstall = execCmdEx(
             ". "&path&"/run"&" && command -v package_"&package).exitCode
-    let existsLegacyInstall = execCmdEx(
-            ". "&path&"/run"&" && command -v install").exitCode
 
     var int = 0
     var usesGit: bool
@@ -149,10 +147,8 @@ proc builder*(package: string, destdir: string,
         cmd2Str = cmd2Str&" package_"&package
     elif existsInstall == 0:
         cmd2Str = cmd2Str&" package"
-    elif existsLegacyInstall == 0:
-        echo "kpkg: warning: The package you are currently installing is using the old install() function. This function got renamed (and improved!) in v5.0."
-        echo "kpkg: warning: The install() function will cease to function at a later version. Please update your runfile to use package() instead of install()."
-        cmd2Str = cmd2Str&" install"
+    else:
+        err "install stage of package doesn't exist, invalid runfile"
 
     if pkg.sources.split(";").len == 1:
         if existsPrepare == 0:
