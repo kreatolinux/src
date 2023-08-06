@@ -19,3 +19,7 @@ proc addUser*(name: string, path = "/"): bool =
 
 proc existsUser*(name: string): bool =
     return execCmdEx("id "&name).exitcode == 0
+
+proc sboxWrap*(command: string): string =
+    ## Convenience proc, just lets you run the command with _kpkg sandbox user.
+    return "su -s /bin/sh _kpkg -c '"&command&"'"

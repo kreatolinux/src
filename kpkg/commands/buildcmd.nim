@@ -80,8 +80,12 @@ proc builder*(package: string, destdir: string,
         return true
 
     var filename: string
-    var existsPrepare = execShellCmd(". "&path&"/run"&" && command -v prepare")
-
+    
+    let existsPrepare = execCmdEx(". "&path&"/run"&" && command -v prepare").exitCode
+    let existsInstall = execCmdEx(". "&path&"/run"&" && command -v package").exitCode
+    let existsPackageInstall = execCmdEx(". "&path&"/run"&" && command -v package_"&package).exitCode 
+    let existsLegacyInstall = execCmdEx(". "&path&"/run"&" && command -v install").exitCode 
+    
     var int = 0
     var usesGit: bool
     var folder: seq[string]
@@ -137,21 +141,26 @@ proc builder*(package: string, destdir: string,
     # Run ldconfig beforehand for any errors
     discard execProcess("ldconfig")
 
+    var cmdStr = ". "&path&"/run"&" && export CC="&getConfigValue("Options", "cc")&" && export CCACHE_DIR=/tmp/kpkg/cache && build"
+    var cmd2Str = ". "&path&"/run"&" && export DESTDIR="&root&" && export ROOT=$DESTDIR &&"
+    
+    if existsPackageInstall == 0:
+        cmd2Str = cmd2Str&" package_"&package
+    elif existsInstall == 0:
+        cmd2Str = cmd2Str&" package"
+    elif existsLegacyInstall == 0:
+        cmd2Str = cmd2Str&" install"
+
     if pkg.sources.split(";").len == 1:
         if existsPrepare == 0:
-            cmd = execShellCmd("su -s /bin/sh _kpkg -c '. "&path&"/run"&" && export CC="&getConfigValue(
-                    "Options", "cc")&" && export CCACHE_DIR=/tmp/kpkg/cache && build'")
-            cmd2 = execShellCmd(". "&path&"/run"&" && export DESTDIR="&root&" && export ROOT=$DESTDIR && install")
+            cmd = execShellCmd(sboxWrap(cmdStr))
+            cmd2 = execShellCmd(cmd2Str)
         else:
-            cmd = execShellCmd("su -s /bin/sh _kpkg -c 'cd "&folder[
-                    0]&" && . "&path&"/run"&" && export CC="&getConfigValue(
-                    "Options", "cc")&" && export CCACHE_DIR=/tmp/kpkg/cache && build'")
-            cmd2 = execShellCmd("cd "&folder[
-                    0]&" && . "&path&"/run"&" && export DESTDIR="&root&" && export ROOT=$DESTDIR && install")
+            cmd = execShellCmd(sboxWrap("cd "&folder[0]&" && "&cmdStr))
+            cmd2 = execShellCmd("cd "&folder[0]&" && "&cmd2Str)
     else:
-        cmd = execShellCmd("su -s /bin/sh _kpkg -c '. "&path&"/run"&" && export CC="&getConfigValue(
-                "Options", "cc")&" && export CCACHE_DIR=/tmp/kpkg/cache && build'")
-        cmd2 = execShellCmd(". "&path&"/run"&" && export DESTDIR="&root&" && export ROOT=$DESTDIR && install")
+        cmd = execShellCmd(sboxWrap(cmdStr))
+        cmd2 = execShellCmd(cmd2Str)
 
     if cmd != 0:
         err("build failed")
