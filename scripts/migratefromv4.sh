@@ -27,7 +27,8 @@ if [ -f "$1/deps" ]; then
             DEPS="$DEPS $line"
         fi
     done
-    sed -i "1n; /^BUILD_DEPENDS/i DEPENDS=\"$DEPS\"" "$1/run"
+    [ -f "$1/build_deps" ] && sed -i "1n; /^BUILD_DEPENDS/i DEPENDS=\"$DEPS\"" "$1/run"
+    sed -i "1n; /^SHA256SUM/i DEPENDS=\"$DEPS\"" "$1/run"
 fi
 
 echo "complete"
