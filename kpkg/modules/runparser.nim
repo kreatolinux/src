@@ -56,9 +56,15 @@ proc parse_runfile*(path: string, removeLockfileWhenErr = true): runFile =
                 of "CONFLICTS":
                     ret.conflicts = vars[1].split(" ")
                 of "DEPENDS":
-                    ret.deps = vars[1].split(" ")
+                    ret.deps = vars[1].multiReplace(
+                    ("\"", ""),
+                    ("'", "")
+                    ).split(" ")
                 of "BUILD_DEPENDS":
-                    ret.deps = vars[1].split(" ")
+                    ret.deps = vars[1].multiReplace(
+                    ("\"", ""),
+                    ("'", "")
+                    ).split(" ")
             if "()" in vars[0]:
                 break
     except CatchableError:
