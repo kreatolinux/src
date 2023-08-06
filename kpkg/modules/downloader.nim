@@ -6,7 +6,7 @@ proc onProgressChanged(total, progress, speed: BiggestInt) {.async.} =
   var p = "Downloaded "&formatSize(progress)&" of "&formatSize(
       total)&" at "&formatSize(speed)&"/s"
 
-  if round(int(progress) / int(total)*100) != "inf":
+  if $round(int(progress) / int(total)*100) != "inf":
     p = p&" "&formatBiggestFloat(round(int(progress) / int(total)*100), precision = -1)&"% complete"
 
   stdout.write(p)
