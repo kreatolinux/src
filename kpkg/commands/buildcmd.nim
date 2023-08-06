@@ -5,7 +5,6 @@ import strutils
 import sequtils
 import threadpool
 import libsha/sha256
-import asyncdispatch
 import ../modules/logger
 import ../modules/shadow
 import ../modules/config
@@ -106,7 +105,7 @@ proc builder*(package: string, destdir: string,
                 if fileExists(path&"/"&i):
                     copyFile(path&"/"&i, i)
                 else:
-                    spawn waitFor download(i, filename)
+                    spawn download(i, filename)
 
                 # git cloning doesn't support sha256sum checking
                 var actualDigest = sha256hexdigest(readAll(open(

@@ -1,7 +1,7 @@
-import std/[asyncdispatch, httpclient]
+import std/httpclient
 import terminal, math, strutils
 
-proc onProgressChanged(total, progress, speed: BiggestInt) {.async.} =
+proc onProgressChanged(total, progress, speed: BiggestInt) =
   stdout.eraseLine
   var p = "Downloaded "&formatSize(progress)&" of "&formatSize(
       total)&" at "&formatSize(speed)&"/s"
@@ -13,8 +13,8 @@ proc onProgressChanged(total, progress, speed: BiggestInt) {.async.} =
   stdout.write(p)
   stdout.flushFile
 
-proc download*(url: string, file: string) {.async.} =
-  var client = newAsyncHttpClient()
+proc download*(url: string, file: string) =
+  var client = newHttpClient()
   client.onProgressChanged = onProgressChanged
-  await client.downloadFile(url, file)
+  client.downloadFile(url, file)
   echo ""

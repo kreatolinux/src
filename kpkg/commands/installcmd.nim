@@ -3,7 +3,6 @@ import osproc
 import strutils
 import sequtils
 import threadpool
-import asyncdispatch
 import libsha/sha256
 import ../modules/config
 import ../modules/logger
@@ -86,10 +85,10 @@ proc install_bin(packages: seq[string], binrepo: string, root: string,
         elif not offline:
             echo "Downloading tarball for "&i
             try:
-                spawn waitFor download("https://"&binrepo&"/arch/"&hostCPU&"/"&tarball,
+                spawn download("https://"&binrepo&"/arch/"&hostCPU&"/"&tarball,
                         "/var/cache/kpkg/archives/arch/"&hostCPU&"/"&tarball)
                 echo "Downloading checksums for "&i
-                spawn waitFor download("https://"&binrepo&"/arch/"&hostCPU&"/"&chksum,
+                spawn download("https://"&binrepo&"/arch/"&hostCPU&"/"&chksum,
                         "/var/cache/kpkg/archives/arch/"&hostCPU&"/"&chksum)
                 sync()
 
