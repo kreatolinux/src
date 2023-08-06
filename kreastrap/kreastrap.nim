@@ -297,7 +297,7 @@ proc kreastrap(buildType = "builder", arch = "amd64",
                 kreastrapInstall(i, installWithBinaries, buildDir, useCacheIfPossible)
 
 dispatch kreastrap, help = {
-                "buildType": "Specify the build type", 
-                "arch": "Specify the architecture", 
+                "buildType": "Specify the build type",
+                "arch": "Specify the architecture",
                 "useCacheIfPossible": "Use already built packages if possible"
-                }
+    }
