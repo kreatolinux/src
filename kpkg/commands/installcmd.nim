@@ -2,6 +2,7 @@ import os
 import osproc
 import strutils
 import sequtils
+import threadpool
 import asyncdispatch
 import libsha/sha256
 import ../modules/config
@@ -85,11 +86,12 @@ proc install_bin(packages: seq[string], binrepo: string, root: string,
         elif not offline:
             echo "Downloading tarball for "&i
             try:
-                waitFor download("https://"&binrepo&"/arch/"&hostCPU&"/"&tarball,
+                spawn waitFor download("https://"&binrepo&"/arch/"&hostCPU&"/"&tarball,
                         "/var/cache/kpkg/archives/arch/"&hostCPU&"/"&tarball)
                 echo "Downloading checksums for "&i
-                waitFor download("https://"&binrepo&"/arch/"&hostCPU&"/"&chksum,
+                spawn waitFor download("https://"&binrepo&"/arch/"&hostCPU&"/"&chksum,
                         "/var/cache/kpkg/archives/arch/"&hostCPU&"/"&chksum)
+                sync()
 
             except CatchableError:
                 err("couldn't download tarball", false)

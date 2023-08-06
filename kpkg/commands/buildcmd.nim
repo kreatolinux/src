@@ -3,6 +3,7 @@ import osproc
 import installcmd
 import strutils
 import sequtils
+import threadpool
 import libsha/sha256
 import asyncdispatch
 import ../modules/logger
@@ -105,7 +106,7 @@ proc builder*(package: string, destdir: string,
                 if fileExists(path&"/"&i):
                     copyFile(path&"/"&i, i)
                 else:
-                    waitFor download(i, filename)
+                    spawn waitFor download(i, filename)
 
                 # git cloning doesn't support sha256sum checking
                 var actualDigest = sha256hexdigest(readAll(open(
@@ -117,6 +118,8 @@ proc builder*(package: string, destdir: string,
                 int = int+1
         except CatchableError:
             raise
+    
+    sync()
 
     # Create homedir of _kpkg temporarily
     createDir(homeDir)
