@@ -11,6 +11,8 @@ type runFile* = object
     epoch*: string
     versionString*: string
     conflicts*: seq[string]
+    deps*: seq[string]
+    bdeps*: seq[string]
 
 proc parse_runfile*(path: string, removeLockfileWhenErr = true): runFile =
     ## Parse an runfile.
@@ -53,6 +55,10 @@ proc parse_runfile*(path: string, removeLockfileWhenErr = true): runFile =
                     ret.sha256sum = vars[1]
                 of "CONFLICTS":
                     ret.conflicts = vars[1].split(" ")
+                of "DEPENDS":
+                    ret.deps = vars[1].split(" ")
+                of "BUILD_DEPENDS":
+                    ret.deps = vars[1].split(" ")
             if "()" in vars[0]:
                 break
     except CatchableError:

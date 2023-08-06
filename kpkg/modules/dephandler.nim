@@ -1,7 +1,7 @@
-import os
 import config
 import logger
 import sequtils
+import runparser
 
 proc isIn(one: seq[string], two: seq[string]): bool =
     ## Checks if a variable is in another.
@@ -18,20 +18,20 @@ proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false): seq[st
             let repo = findPkgRepo(pkg)
             if repo == "":
                 err("Package "&pkg&" doesn't exist", false)
+            
+            let pkgrf = parse_runfile(repo&"/"&pkg)
 
-            var depsType: string
+            var pkgdeps: seq[string]
 
             if bdeps:
-                depsType = "/build_deps"
+                pkgdeps = pkgrf.bdeps
             else:
-                depsType = "/deps"
+                pkgdeps = pkgrf.deps
 
+            if $pkgdeps != "":
+                for dep in pkgdeps:
 
-
-            if fileExists(repo&"/"&pkg&depsType):
-                for dep in lines repo&"/"&pkg&depsType:
-
-                    if fileExists(repo&"/"&dep&"/build_deps"):
+                    if $pkgrf.bdeps != "":
                         deps.add(dephandler(@[dep], deps&ignoreDeps, bdeps = true))
 
                     if dep in pkgs or dep in deps or isIn(deps, ignoreDeps) or
