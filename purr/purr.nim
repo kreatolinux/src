@@ -1,7 +1,11 @@
-include common
-include ../kpkg/commands/infocmd
-include ../kpkg/commands/removecmd
-include ../kpkg/commands/upgradecmd
+import os
+import cligen
+import strutils
+import sequtils
+import ../common/logging
+import ../kpkg/commands/infocmd
+import ../kpkg/commands/updatecmd
+import ../kpkg/modules/dephandler
 
 proc genFiles(tmpdir: string) =
     ## Generates files required for the utility to function.

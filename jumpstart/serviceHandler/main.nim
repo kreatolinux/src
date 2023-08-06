@@ -4,7 +4,7 @@ include ../commonImports
 import enable, disable, start, stop
 import os, osproc
 import parsecfg
-import ../logging
+import ../../common/logging
 import jumpmount/main
 import jumpmount/umount
 
