@@ -2,6 +2,9 @@ import std/net
 import json
 include serviceHandler/main
 
+if getCurrentProcessId() != 1:
+    error "jumpstart needs to be ran as PID 1 (init) to function correctly"
+
 ## Initialize the entire system, such as mounting /proc etc.
 initSystem()
 
