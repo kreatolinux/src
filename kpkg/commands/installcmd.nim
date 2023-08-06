@@ -90,8 +90,6 @@ proc install_bin(packages: seq[string], binrepo: string, root: string,
                 echo "Downloading checksums for "&i
                 waitFor download("https://"&binrepo&"/arch/"&hostCPU&"/"&chksum,
                         "/var/cache/kpkg/archives/arch/"&hostCPU&"/"&chksum)
-                waitFor download("https://"&binrepo&"/arch/"&hostCPU&"/"&chksum&".bin",
-                        "/var/cache/kpkg/archives/arch/"&hostCPU&"/"&chksum&".bin")
 
             except CatchableError:
                 err("couldn't download tarball", false)
