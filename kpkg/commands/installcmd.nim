@@ -10,7 +10,8 @@ import ../modules/runparser
 import ../modules/downloader
 import ../modules/dephandler
 
-proc install_pkg*(repo: string, package: string, root: string, binary = false, builddir = "/tmp/kpkg/build") =
+proc install_pkg*(repo: string, package: string, root: string, binary = false,
+        builddir = "/tmp/kpkg/build") =
     ## Installs an package.
 
     var pkg: runFile
