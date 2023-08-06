@@ -91,9 +91,9 @@ proc set_default_cc(buildDir: string, cc: string) =
         if not fileExists(file):
             createSymlink(cc, file)
 
-proc rootfs(buildType = "builder", arch = "amd64",
+proc kreastrap(buildType = "builder", arch = "amd64",
         useCacheIfPossible = true) =
-    ## Build a rootfs.
+    ## Build a Kreato Linux rootfs.
 
     if not isAdmin():
         error "You have to be root to continue."
@@ -296,46 +296,8 @@ proc rootfs(buildType = "builder", arch = "amd64",
             for i in conf.getSectionValue("Extras", "ExtraPackages").split(" "):
                 kreastrapInstall(i, installWithBinaries, buildDir, useCacheIfPossible)
 
-
-
-proc buildPackages(useCacheIfPossible = true, repo = "/etc/kpkg/repos/main") =
-    ## Build all packages available.
-
-    discard update()
-
-    for kind, path in walkDir(repo):
-        case kind:
-            of pcDir:
-                if lastPathPart(path) != ".git" and lastPathPart(path) != "musl":
-                    info_msg "Now building "&lastPathPart(path)
-                    debug "Full path: "&path
-                    kreastrapInstall(lastPathPart(path), false, "/", useCacheIfPossible)
-            of pcLinkToDir:
-                if lastPathPart(path) != "musl":
-                    warn "kpkg doesn't support symlinks properly. Issues may occur"
-                    info_msg "Now building "&lastPathPart(path)
-                    debug "Full path: "&path
-                    kreastrapInstall(lastPathPart(path), false, "/", useCacheIfPossible)
-            else:
-                discard
-
-    kreastrapInstall("musl", false, "/", useCacheIfPossible)
-
-dispatchMulti(
-    [
-    rootfs,
-    help = {
-            "buildType": "Specify the build type",
-            "arch": "Specify the architecture",
-            "useCacheIfPossible": "Use already built packages if possible",
-    }
-    ],
-
-    [
-    buildPackages,
-    help = {
-        "useCacheIfPossible": "Use already built packages if possible",
-        "repo": "Specify repository",
-    }
-    ]
-)
+dispatch kreastrap, help = {
+                "buildType": "Specify the build type", 
+                "arch": "Specify the architecture", 
+                "useCacheIfPossible": "Use already built packages if possible"
+                }
