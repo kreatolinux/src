@@ -28,7 +28,7 @@ proc install_pkg*(repo: string, package: string, root: string, binary = false,
 
     if sha256hexdigest(readAll(open(tarball)))&"  "&tarball != readAll(open(
         tarball&".sum")):
-        err("sha256sum doesn't match for"&pkg.pkg, false)
+        err("sha256sum doesn't match for "&pkg.pkg, false)
 
     setCurrentDir("/var/cache/kpkg/archives")
 
@@ -150,10 +150,10 @@ proc install*(promptPackages: seq[string], root = "/", yes: bool = false,
         deps.delete(deps.find(i))
 
     if not (deps.len == 0 and deps == @[""]):
-        install_bin(deps, binrepo, fullRootPath, offline,
-                downloadOnly = downloadOnly)
+        spawn install_bin(deps, binrepo, fullRootPath, offline, downloadOnly = downloadOnly)
 
-    install_bin(packages, binrepo, fullRootPath, offline,
-            downloadOnly = downloadOnly)
-
+    spawn install_bin(packages, binrepo, fullRootPath, offline, downloadOnly = downloadOnly)
+    
+    sync()
+    
     return "kpkg: done"
