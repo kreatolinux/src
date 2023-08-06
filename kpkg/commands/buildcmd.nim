@@ -100,7 +100,10 @@ proc builder*(package: string, destdir: string,
 
                 folder = @[lastPathPart(i.split("::")[1])]
             else:
-                waitFor download(i, filename)
+                if fileExists(path&"/"&i):
+                    filename = i
+                else:
+                    waitFor download(i, filename)
 
                 # git cloning doesn't support sha256sum checking
                 var actualDigest = sha256hexdigest(readAll(open(
