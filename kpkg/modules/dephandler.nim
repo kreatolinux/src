@@ -32,7 +32,7 @@ proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false): seq[st
             if not isEmptyOrWhitespace(pkgdeps.join()):
                 for dep in pkgdeps:
 
-                    if $pkgrf.bdeps != "":
+                    if not isEmptyOrWhitespace(pkgrf.bdeps.join()):
                         deps.add(dephandler(@[dep], deps&ignoreDeps, bdeps = true))
 
                     if dep in pkgs or dep in deps or isIn(deps, ignoreDeps) or
