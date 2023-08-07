@@ -30,7 +30,7 @@ proc initializeConfig*(): Config =
       "https://github.com/kreatolinux/kpkg-repo.git::"&branch&" https://github.com/kreatolinux/kpkg-repo-lockin.git::"&branch) # Seperate by space, must match RepoDirs
   
   # [Parallelization]
-  config.setSectionKey("Parallelization", "threadsUsed", "32")
+  config.setSectionKey("Parallelization", "threadsUsed", "4")
 
   # [Upgrade]
   config.setSectionKey("Upgrade", "buildByDefault", "yes") # Build packages by default

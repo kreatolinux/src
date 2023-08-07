@@ -18,7 +18,7 @@ try:
         echo "kpkg: warning: threadsUsed in /etc/kpkg/kpkg.conf can't be below 1. Please update your configuration."
         raise
 except Exception:
-    threadsUsed = 32
+    threadsUsed = 4
 
 proc ctrlc() {.noconv.} =
     for path in walkFiles("/var/cache/kpkg/archives/arch/"&hostCPU&"/*.partial"):
