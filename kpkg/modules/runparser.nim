@@ -64,7 +64,7 @@ proc parse_runfile*(path: string, removeLockfileWhenErr = true): runFile =
                     ("'", "")
                     ).split(" ")
                 of "BUILD_DEPENDS":
-                    ret.deps = vars[1].multiReplace(
+                    ret.bdeps = vars[1].multiReplace(
                     ("\"", ""),
                     ("'", "")
                     ).split(" ")
