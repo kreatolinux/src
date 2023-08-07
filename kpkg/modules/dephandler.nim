@@ -11,7 +11,7 @@ proc isIn(one: seq[string], two: seq[string]): bool =
             return true
     return false
 
-proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false): seq[string] =
+proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false, isBuild = false): seq[string] =
     ## takes in a seq of packages and returns what to install.
     var deps: seq[string]
     try:
@@ -39,14 +39,14 @@ proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false): seq[st
 
                     let deprf = parse_runfile(repo&"/"&dep)
 
-                    if not isEmptyOrWhitespace(deprf.bdeps.join()):
-                        deps.add(dephandler(@[dep], deps&ignoreDeps, bdeps = true))
+                    if not isEmptyOrWhitespace(deprf.bdeps.join()) and isBuild:
+                        deps.add(dephandler(@[dep], deps&ignoreDeps, bdeps = true, isBuild = true))
 
                     if dep in pkgs or dep in deps or isIn(deps, ignoreDeps) or
                             dep in ignoreDeps:
                         continue
 
-                    deps.add(dephandler(@[dep], deps&ignoreDeps, bdeps = false))
+                    deps.add(dephandler(@[dep], deps&ignoreDeps, bdeps = false, isBuild = isBuild))
 
                     deps.add(dep)
 
