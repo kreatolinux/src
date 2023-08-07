@@ -34,7 +34,7 @@ proc initializeConfig*(): Config =
 
   # [Upgrade]
   config.setSectionKey("Upgrade", "buildByDefault", "yes") # Build packages by default
-  # config.setSectionKey("Upgrade, "dontUpgrade", "") # Nyaa wont touch this package, seperate by space
+  # config.setSectionKey("Upgrade, "dontUpgrade", "") # kpkg wont touch this package, seperate by space
 
   config.writeConfig(configPath)
 

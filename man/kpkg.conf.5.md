@@ -9,13 +9,16 @@ kpkg.conf - Configuration file for kpkg
 # SYNTAX
 kpkg.conf uses a INI format.
 The default configuration file currently looks like this;
-```
+```ini
 [Options]
 cc=gcc
 
 [Repositories]
-RepoDirs=/etc/kpkg/repos/main /etc/kpkg/repos/main-bin
-RepoLinks="https://github.com/kreatolinux/kpkg-repo.git::stable https://github.com/kreatolinux/kpkg-repo-lockin.git::stable"
+repoDirs=/etc/kpkg/repos/main /etc/kpkg/repos/lockin
+repoLinks="https://github.com/kreatolinux/kpkg-repo.git::stable https://github.com/kreatolinux/kpkg-repo-lockin.git::stable"
+
+[Parallelization]
+threadsUsed="4"
 
 [Upgrade]
 buildByDefault=yes
@@ -32,8 +35,13 @@ Repositories also support branches/commits like this;
 
 `RepoLinks="https://github.com/kreatolinux/kpkg-repo.git::BRANCHNAME"`
 
+## PARALLELIZATION
+kpkg now supports parallelization, allowing for much faster binary package installations. This feature is only on the `install` command for now.
+* threadsUsed: You can set threads used to download packages. Set to 1 to disable parallelization. Number must be higher than 1. Defaults to 4.
+
 ## UPGRADE
 * buildByDefault: Enable building by default on upgrades or not. Is enabled by default.
+* dontUpgrade: Optional. You can set packages that shouldn't be upgraded. Seperate by space.
 
 # AUTHOR
 Written by Kreato.
