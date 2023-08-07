@@ -17,7 +17,7 @@ case $1 in
                 #make kpkg
                 #./out/kpkg update || true
                 #sed s/gcc/musl-gcc/g -i /etc/kpkg/kpkg.conf
-                nim c -d:branch=master --passC:-no-pie --threads:on -d:ssl -o=src/kreastrap/kreastrap src/kreastrap/kreastrap.nim
+                nim c -d:branch=master --passC:-no-pie --threads:on -d:ssl -o=kreastrap/kreastrap kreastrap/kreastrap.nim
                 #make kreastrap
         ;;
 
@@ -25,7 +25,7 @@ case $1 in
                 git config --global --add safe.directory /etc/kpkg/repos/main
                 rm -rf /out/*
                 cd /work || exit 1
-                ./src/kreastrap/kreastrap --buildType="$2" --arch=amd64 || exit 1
+                ./kreastrap/kreastrap --buildType="$2" --arch=amd64 || exit 1
                 cd /out || exit 1
                 tar -czvf /work/kreato-linux-"$2"-glibc-"$(date +%d-%m-%Y)"-amd64.tar.gz *
         ;;
