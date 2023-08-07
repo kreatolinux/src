@@ -201,7 +201,8 @@ proc build*(no = false, yes = false, root = "/",
         err("please enter a package name", false)
 
     try:
-        deps = dephandler(packages, bdeps = true, isBuild = true)&dephandler(packages, isBuild = true)
+        deps = dephandler(packages, bdeps = true, isBuild = true)&dephandler(
+                packages, isBuild = true)
     except CatchableError:
         raise
 
