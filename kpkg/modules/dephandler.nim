@@ -1,6 +1,7 @@
 import config
 import logger
 import sequtils
+import strutils
 import runparser
 
 proc isIn(one: seq[string], two: seq[string]): bool =
@@ -28,7 +29,7 @@ proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false): seq[st
             else:
                 pkgdeps = pkgrf.deps
 
-            if $pkgdeps != "":
+            if not isEmptyOrWhitespace(pkgdeps.join()):
                 for dep in pkgdeps:
 
                     if $pkgrf.bdeps != "":
