@@ -20,8 +20,11 @@ The default configuration file currently looks like this;
 cc=gcc
 
 [Repositories]
-RepoDirs=/etc/kpkg/repos/main /etc/kpkg/repos/main-bin
-RepoLinks=\[dq]https://github.com/kreatolinux/kpkg-repo.git::stable https://github.com/kreatolinux/kpkg-repo-lockin.git::stable\[dq]
+repoDirs=/etc/kpkg/repos/main /etc/kpkg/repos/lockin
+repoLinks=\[dq]https://github.com/kreatolinux/kpkg-repo.git::stable https://github.com/kreatolinux/kpkg-repo-lockin.git::stable\[dq]
+
+[Parallelization]
+threadsUsed=\[dq]4\[dq]
 
 [Upgrade]
 buildByDefault=yes
@@ -45,10 +48,23 @@ Has kpkg-repo and kpkg-repo-bin repositories by default.
 Repositories also support branches/commits like this;
 .PP
 \f[C]RepoLinks=\[dq]https://github.com/kreatolinux/kpkg-repo.git::BRANCHNAME\[dq]\f[R]
+.SS PARALLELIZATION
+.PP
+kpkg now supports parallelization, allowing for much faster binary
+package installations.
+This feature is only on the \f[C]install\f[R] command for now.
+* threadsUsed: You can set threads used to download packages.
+Set to 1 to disable parallelization.
+Number must be higher than 1.
+Defaults to 4.
 .SS UPGRADE
 .IP \[bu] 2
 buildByDefault: Enable building by default on upgrades or not.
 Is enabled by default.
+.IP \[bu] 2
+dontUpgrade: Optional.
+You can set packages that shouldn\[cq]t be upgraded.
+Seperate by space.
 .SH AUTHOR
 .PP
 Written by Kreato.
