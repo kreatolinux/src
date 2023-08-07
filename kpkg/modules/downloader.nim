@@ -1,5 +1,5 @@
 import std/httpclient
-import terminal, math, strutils
+import terminal, math, strutils, os
 
 proc onProgressChanged(total, progress, speed: BiggestInt) =
   stdout.eraseLine
@@ -16,5 +16,6 @@ proc onProgressChanged(total, progress, speed: BiggestInt) =
 proc download*(url: string, file: string) =
   var client = newHttpClient()
   client.onProgressChanged = onProgressChanged
-  client.downloadFile(url, file)
+  client.downloadFile(url, file&".partial")
+  moveFile(file&".partial", file)
   echo ""

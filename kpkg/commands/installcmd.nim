@@ -10,6 +10,26 @@ import ../modules/runparser
 import ../modules/downloader
 import ../modules/dephandler
 
+var threadsUsed: int
+
+try: 
+    threadsUsed = parseInt(getConfigValue("Parallelization", "threadsUsed"))
+    if threadsUsed < 1:
+        echo "kpkg: warning: threadsUsed in /etc/kpkg/kpkg.conf can't be below 1. Please update your configuration."
+        raise
+except Exception:
+    threadsUsed = 32
+
+proc ctrlc() {.noconv.} =
+    for path in walkFiles("/var/cache/kpkg/archives/arch/"&hostCPU&"/*.partial"):
+        removeFile(path)
+      
+    echo ""
+    echo "kpkg: ctrl+c pressed, shutting down"
+    quit(130)
+
+setControlCHook(ctrlc)
+
 proc install_pkg*(repo: string, package: string, root: string, binary = false,
         builddir = "/tmp/kpkg/build") =
     ## Installs an package.
@@ -55,6 +75,9 @@ proc install_pkg*(repo: string, package: string, root: string, binary = false,
 
 proc down_bin(package: string, binrepo: string, root: string, offline: bool) =
     ## Downloads binaries.
+    setMinPoolSize(1)
+    
+    setMaxPoolSize(threadsUsed)
     
     discard existsOrCreateDir("/var/")
     discard existsOrCreateDir("/var/cache")
@@ -83,11 +106,15 @@ proc down_bin(package: string, binrepo: string, root: string, offline: bool) =
     elif not offline:
         echo "Downloading tarball for "&package
         try:
-            spawn download("https://"&binrepo&"/arch/"&hostCPU&"/"&tarball, "/var/cache/kpkg/archives/arch/"&hostCPU&"/"&tarball)
-            echo "Downloading checksums for "&package
-            spawn download("https://"&binrepo&"/arch/"&hostCPU&"/"&chksum, "/var/cache/kpkg/archives/arch/"&hostCPU&"/"&chksum)
-            
-            sync()
+            if threadsUsed == 1:
+                download("https://"&binrepo&"/arch/"&hostCPU&"/"&tarball, "/var/cache/kpkg/archives/arch/"&hostCPU&"/"&tarball)
+                echo "Downloading checksums for "&package
+                download("https://"&binrepo&"/arch/"&hostCPU&"/"&chksum, "/var/cache/kpkg/archives/arch/"&hostCPU&"/"&chksum)
+            else:
+                spawn download("https://"&binrepo&"/arch/"&hostCPU&"/"&tarball, "/var/cache/kpkg/archives/arch/"&hostCPU&"/"&tarball)
+                echo "Downloading checksums for "&package
+                spawn download("https://"&binrepo&"/arch/"&hostCPU&"/"&chksum, "/var/cache/kpkg/archives/arch/"&hostCPU&"/"&chksum)
+                sync()
 
         except CatchableError:
             err("couldn't download tarball", false)
@@ -101,9 +128,13 @@ proc install_bin(packages: seq[string], binrepo: string, root: string,
     var repo: string
 
     for i in packages:
-        spawn down_bin(i, binrepo, root, offline)
-
-    sync()
+        if threadsUsed == 1:
+            down_bin(i, binrepo, root, offline)
+        else:
+            spawn down_bin(i, binrepo, root, offline)
+    
+    if threadsUsed != 1:
+        sync()
 
     if not downloadOnly:
         for i in packages:
@@ -158,12 +189,7 @@ proc install*(promptPackages: seq[string], root = "/", yes: bool = false,
         deps.delete(deps.find(i))
 
     if not (deps.len == 0 and deps == @[""]):
-        spawn install_bin(deps, binrepo, fullRootPath, offline,
-                downloadOnly = downloadOnly)
-
-    spawn install_bin(packages, binrepo, fullRootPath, offline,
-            downloadOnly = downloadOnly)
-
-    sync()
-
+        install_bin(deps, binrepo, fullRootPath, offline, downloadOnly = downloadOnly)
+        install_bin(packages, binrepo, fullRootPath, offline, downloadOnly = downloadOnly)
+    
     return "kpkg: done"

@@ -12,8 +12,8 @@ proc update*(repo = "",
     if not isAdmin():
         err("you have to be root for this action.", false)
 
-    let repodirs = getConfigValue("Repositories", "RepoDirs")
-    let repolinks = getConfigValue("Repositories", "RepoLinks")
+    let repodirs = getConfigValue("Repositories", "repoDirs")
+    let repolinks = getConfigValue("Repositories", "repoLinks")
 
     let repoList: seq[tuple[dir: string, link: string]] = zip(repodirs.split(
             " "), repolinks.split(" "))

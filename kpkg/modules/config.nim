@@ -24,10 +24,13 @@ proc initializeConfig*(): Config =
   config.setSectionKey("Options", "cc", "gcc") # GCC works the best right now
   
   # [Repositories]
-  config.setSectionKey("Repositories", "RepoDirs",
+  config.setSectionKey("Repositories", "repoDirs",
       "/etc/kpkg/repos/main /etc/kpkg/repos/lockin") # Seperate by space
-  config.setSectionKey("Repositories", "RepoLinks",
+  config.setSectionKey("Repositories", "repoLinks",
       "https://github.com/kreatolinux/kpkg-repo.git::"&branch&" https://github.com/kreatolinux/kpkg-repo-lockin.git::"&branch) # Seperate by space, must match RepoDirs
+  
+  # [Parallelization]
+  config.setSectionKey("Parallelization", "threadsUsed", "32")
 
   # [Upgrade]
   config.setSectionKey("Upgrade", "buildByDefault", "yes") # Build packages by default
@@ -58,7 +61,7 @@ proc setConfigValue*(section: string, key: string, value: string) =
 
 proc findPkgRepo*(package: string): string =
   ## finds the package repository.
-  for i in getConfigValue("Repositories", "RepoDirs").split(" "):
+  for i in getConfigValue("Repositories", "repoDirs").split(" "):
     if dirExists(i&"/"&package):
       return i
   # return blank line if not found
