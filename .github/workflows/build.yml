@@ -26,12 +26,7 @@ jobs:
 
       - name: build (amd64)
         run: |
-          nim c --threads=on -o=/tmp/kpkg-amd64-linux --passL:-static -d:ssl --passL:-lssl --dynlibOverride:ssl --passL:-lcrypto --dynlibOverride:crypto kpkg/kpkg.nim
-
-      - uses: actions/upload-artifact@v3
-        with:
-          name: kpkg-amd64-linux
-          path: /tmp/kpkg-amd64-linux
+          make kpkg
 
       # quoted out for now, will add later
       #- uses: actions/upload-artifact@v3
