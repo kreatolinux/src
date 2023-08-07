@@ -85,7 +85,7 @@ proc down_bin(package: string, binrepo: string, root: string, offline: bool) =
     discard existsOrCreateDir("/var/cache/kpkg/archives")
     discard existsOrCreateDir("/var/cache/kpkg/archives/arch")
     discard existsOrCreateDir("/var/cache/kpkg/archives/arch/"&hostCPU)
-    
+
     setCurrentDir("/var/cache/kpkg/archives")
     var repo: string
 
@@ -124,7 +124,7 @@ proc down_bin(package: string, binrepo: string, root: string, offline: bool) =
 proc install_bin(packages: seq[string], binrepo: string, root: string,
         offline: bool, downloadOnly = false) =
     ## Downloads and installs binaries.
-    
+
     var repo: string
 
     for i in packages:
