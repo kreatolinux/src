@@ -6,7 +6,7 @@ import strutils
 
 const configPath = "/etc/kpkg/kpkg.conf"
 
-var config {.threadvar.} : Config
+var config {.threadvar.}: Config
 
 const branch* {.strdefine.}: string = "stable"
 
