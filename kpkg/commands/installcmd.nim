@@ -113,12 +113,11 @@ proc down_bin(package: string, binrepo: string, root: string, offline: bool) =
                 download("https://"&binrepo&"/arch/"&hostCPU&"/"&chksum,
                         "/var/cache/kpkg/archives/arch/"&hostCPU&"/"&chksum)
             else:
-                spawn download("https://"&binrepo&"/arch/"&hostCPU&"/"&tarball,
+                download("https://"&binrepo&"/arch/"&hostCPU&"/"&tarball,
                         "/var/cache/kpkg/archives/arch/"&hostCPU&"/"&tarball)
                 echo "Downloading checksums for "&package
-                spawn download("https://"&binrepo&"/arch/"&hostCPU&"/"&chksum,
+                download("https://"&binrepo&"/arch/"&hostCPU&"/"&chksum,
                         "/var/cache/kpkg/archives/arch/"&hostCPU&"/"&chksum)
-                sync()
 
         except CatchableError:
             err("couldn't download tarball", false)
