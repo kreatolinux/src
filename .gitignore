@@ -1,6 +1,6 @@
 out
 packages
-src/kreastrap/kreastrap
+kreastrap/kreastrap
 result
 kpkg-repo
 archives

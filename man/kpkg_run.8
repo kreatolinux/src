@@ -14,9 +14,6 @@ package.
 .PP
 Runfiles are just named \[lq]run\[rq] inside the package directory.
 It is written in POSIX sh and doesn\[cq]t support any other languages.
-In addition to a runfile you also need a deps file which you can add by
-just making a file named \[lq]deps\[rq] in the package repository and
-putting deps on each line.
 .PP
 An example runfile structure;
 .IP
@@ -25,17 +22,33 @@ An example runfile structure;
 NAME=\[dq]test\[dq]
 VERSION=\[dq]0.0.1\[dq]
 RELEASE=\[dq]1\[dq]
-SOURCES=\[dq]https://test.file/source/testfile.tar.gz;git::https://github.com/kreatolinux/kpkg3::543ee30eda806029fa9ea16a1f9767eda7cab4d1\[dq]
+SOURCES=\[dq]https://test.file/source/testfile.tar.gz;git::https://github.com/kreatolinux/src::543ee30eda806029fa9ea16a1f9767eda7cab4d1\[dq]
+DEPENDS=\[dq]testpackage1 testpackage3 testpackage4\[dq]
+BUILD_DEPENDS=\[dq]testpackage5 testpackage6 testpackage10\[dq]
 SHA256SUM=\[dq]e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  testfile.tar.gz\[dq]
 DESCRIPTION=\[dq]Test package\[dq]
 
-build() {
+prepare() {
     tar -xvf testfile.tar.gz
-    echo \[dq]Insert additional installation instructions here\[dq]
 }
 
-install() {
+build() {
+    cd testfile
+    echo \[dq]Insert build instructions here\[dq]
+}
+
+package() {
+    cd testfile
     make install
+}
+
+package_test2() {
+    cd testfile
+    make install_test2
+}
+
+postinstall() {
+    echo \[dq]Insert postinstall instructions here\[dq]
 }
 \f[R]
 .fi
@@ -58,6 +71,12 @@ SOURCES: Source URL\[cq]s of your package.
 Can be seperated by `;' like \f[C]test.url;testurl2\f[R].
 Also supports git URL\[cq]s as shown by the second source.
 .IP \[bu] 2
+DEPENDS: Dependencies of your package.
+Seperated by space.
+.IP \[bu] 2
+BUILD_DEPENDS: Build dependencies of your package.
+Seperated by space.
+.IP \[bu] 2
 SHA256SUM: sha256sum output of the sources.
 Should align with sources.
 Can also be seperated by `;'.
@@ -69,13 +88,20 @@ It will be on the info command.
 .IP \[bu] 2
 build: The main function.
 .IP \[bu] 2
-install: The install function.
+package: The install function.
 .SS OPTIONAL FUNCTIONS AND VARIABLES
 .IP \[bu] 2
 EPOCH: Only use this when the versioning logic fail for the package.
 .IP \[bu] 2
 prepare(): Files downloaded from SOURCES are extracted by default.
 Use prepare() to prevent this and have custom prepare procedure.
+.IP \[bu] 2
+postinstall: Post-install function.
+Will run after the package is installed.
+.IP \[bu] 2
+package_PACKAGENAME: Install function of PACKAGENAME.
+With this function you can package multiple things in the same runfile.
+This may be used for packaging sub-projects easier.
 .SH AUTHOR
 .PP
 Written by Kreato.

@@ -2,11 +2,9 @@ name: CI
 
 # Controls when the workflow will run
 on:
-  # Triggers the workflow on push or pull request events but only for the "master" branch
   push:
-    branches: ["master"]
-  pull_request:
-    branches: ["master"]
+    paths:
+      - '**.nim'
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -28,7 +26,7 @@ jobs:
 
       - name: build (amd64)
         run: |
-          nim c --threads=on -o=/tmp/kpkg-amd64-linux --passL:-static -d:ssl --passL:-lssl --dynlibOverride:ssl --passL:-lcrypto --dynlibOverride:crypto src/kpkg/kpkg.nim
+          nim c --threads=on -o=/tmp/kpkg-amd64-linux --passL:-static -d:ssl --passL:-lssl --dynlibOverride:ssl --passL:-lcrypto --dynlibOverride:crypto kpkg/kpkg.nim
 
       - uses: actions/upload-artifact@v3
         with:
@@ -43,5 +41,5 @@ jobs:
 
       - name: build and run purr
         run: |
-          nim c --threads=on -o=/tmp/ci --passL:-static -d:ssl --passL:-lssl --dynlibOverride:ssl --passL:-lcrypto --dynlibOverride:crypto src/purr/purr.nim
+          nim c --threads=on -o=/tmp/ci --passL:-static -d:ssl --passL:-lssl --dynlibOverride:ssl --passL:-lcrypto --dynlibOverride:crypto purr/purr.nim
           /tmp/ci
