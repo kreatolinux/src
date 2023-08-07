@@ -8,6 +8,7 @@ case $1 in
                 mkdir /out
                 ln -s /out /work/out
                 cd /work || exit 1
+                kpkg build fakeroot -y # temporary
                 #echo "https://dl-cdn.alpinelinux.org/alpine/v$(cut -d'.' -f1,2 /etc/alpine-release)/main/" > /etc/apk/repositories
                 #echo "https://dl-cdn.alpinelinux.org/alpine/v$(cut -d'.' -f1,2 /etc/alpine-release)/community/" >> /etc/apk/repositories
                 #echo "https://dl-cdn.alpinelinux.org/alpine/edge/testing/" >> /etc/apk/repositories
