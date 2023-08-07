@@ -16,7 +16,7 @@ proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false): seq[st
     var deps: seq[string]
     try:
         for pkg in pkgs:
-            let repo = findPkgRepo(pkg)
+            var repo = findPkgRepo(pkg)
             if repo == "":
                 err("Package "&pkg&" doesn't exist", false)
 
@@ -31,8 +31,15 @@ proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false): seq[st
 
             if not isEmptyOrWhitespace(pkgdeps.join()):
                 for dep in pkgdeps:
+                    
+                    repo = findPkgRepo(dep)
 
-                    if not isEmptyOrWhitespace(pkgrf.bdeps.join()):
+                    if repo == "":
+                        err("Package "&dep&" doesn't exist", false)
+                    
+                    let deprf = parse_runfile(repo&"/"&dep)
+
+                    if not isEmptyOrWhitespace(deprf.bdeps.join()):
                         deps.add(dephandler(@[dep], deps&ignoreDeps, bdeps = true))
 
                     if dep in pkgs or dep in deps or isIn(deps, ignoreDeps) or
