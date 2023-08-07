@@ -31,12 +31,12 @@ proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false): seq[st
 
             if not isEmptyOrWhitespace(pkgdeps.join()):
                 for dep in pkgdeps:
-                    
+
                     repo = findPkgRepo(dep)
 
                     if repo == "":
                         err("Package "&dep&" doesn't exist", false)
-                    
+
                     let deprf = parse_runfile(repo&"/"&dep)
 
                     if not isEmptyOrWhitespace(deprf.bdeps.join()):
