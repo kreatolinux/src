@@ -106,18 +106,11 @@ proc down_bin(package: string, binrepo: string, root: string, offline: bool) =
     elif not offline:
         echo "Downloading tarball for "&package
         try:
-            if threadsUsed == 1:
-                download("https://"&binrepo&"/arch/"&hostCPU&"/"&tarball,
-                        "/var/cache/kpkg/archives/arch/"&hostCPU&"/"&tarball)
-                echo "Downloading checksums for "&package
-                download("https://"&binrepo&"/arch/"&hostCPU&"/"&chksum,
-                        "/var/cache/kpkg/archives/arch/"&hostCPU&"/"&chksum)
-            else:
-                download("https://"&binrepo&"/arch/"&hostCPU&"/"&tarball,
-                        "/var/cache/kpkg/archives/arch/"&hostCPU&"/"&tarball)
-                echo "Downloading checksums for "&package
-                download("https://"&binrepo&"/arch/"&hostCPU&"/"&chksum,
-                        "/var/cache/kpkg/archives/arch/"&hostCPU&"/"&chksum)
+            download("https://"&binrepo&"/arch/"&hostCPU&"/"&tarball, 
+                "/var/cache/kpkg/archives/arch/"&hostCPU&"/"&tarball)
+            echo "Downloading checksums for "&package
+            download("https://"&binrepo&"/arch/"&hostCPU&"/"&chksum, 
+                "/var/cache/kpkg/archives/arch/"&hostCPU&"/"&chksum)
 
         except CatchableError:
             err("couldn't download tarball", false)
