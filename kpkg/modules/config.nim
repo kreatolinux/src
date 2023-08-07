@@ -6,7 +6,7 @@ import strutils
 
 const configPath = "/etc/kpkg/kpkg.conf"
 
-var config: Config
+var config {.threadvar.} : Config
 
 const branch* {.strdefine.}: string = "stable"
 
@@ -45,6 +45,10 @@ proc initializeConfig*(): Config =
 
 proc getConfigValue*(section: string, key: string): string =
   ## Reads the configuration file and returns value of section.
+  if not fileExists(configPath):
+    config = initializeConfig()
+  else:
+    config = loadConfig(configPath)
   return config.getSectionValue(section, key)
 
 proc setConfigValue*(section: string, key: string, value: string) =

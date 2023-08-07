@@ -53,49 +53,57 @@ proc install_pkg*(repo: string, package: string, root: string, binary = false,
         if execShellCmd(". "&repo&"/"&package&"/run"&" && postinstall") != 0:
             err("postinstall failed")
 
-proc install_bin(packages: seq[string], binrepo: string, root: string,
-        offline: bool, downloadOnly = false) =
-    ## Downloads and installs binaries.
-
+proc down_bin(package: string, binrepo: string, root: string, offline: bool) =
+    ## Downloads binaries.
+    
     discard existsOrCreateDir("/var/")
     discard existsOrCreateDir("/var/cache")
     discard existsOrCreateDir("/var/cache/kpkg")
     discard existsOrCreateDir("/var/cache/kpkg/archives")
     discard existsOrCreateDir("/var/cache/kpkg/archives/arch")
     discard existsOrCreateDir("/var/cache/kpkg/archives/arch/"&hostCPU)
+    
     setCurrentDir("/var/cache/kpkg/archives")
+    var repo: string
 
+    repo = findPkgRepo(package)
+    var pkg: runFile
+
+    try:
+        pkg = parse_runfile(repo&"/"&package)
+    except CatchableError:
+        raise
+
+    let tarball = "kpkg-tarball-"&pkg.pkg&"-"&pkg.versionString&".tar.gz"
+    let chksum = tarball&".sum"
+
+    if fileExists("/var/cache/kpkg/archives/arch/"&hostCPU&"/"&tarball) and
+            fileExists("/var/cache/kpkg/archives/arch/"&hostCPU&"/"&chksum):
+        echo "Tarball already exists, not gonna download again"
+    elif not offline:
+        echo "Downloading tarball for "&package
+        try:
+            spawn download("https://"&binrepo&"/arch/"&hostCPU&"/"&tarball, "/var/cache/kpkg/archives/arch/"&hostCPU&"/"&tarball)
+            echo "Downloading checksums for "&package
+            spawn download("https://"&binrepo&"/arch/"&hostCPU&"/"&chksum, "/var/cache/kpkg/archives/arch/"&hostCPU&"/"&chksum)
+            
+            sync()
+
+        except CatchableError:
+            err("couldn't download tarball", false)
+    else:
+        err("attempted to download tarball from binary repository in offline mode", false)
+
+proc install_bin(packages: seq[string], binrepo: string, root: string,
+        offline: bool, downloadOnly = false) =
+    ## Downloads and installs binaries.
+    
     var repo: string
 
     for i in packages:
-        repo = findPkgRepo(i)
-        var pkg: runFile
+        spawn down_bin(i, binrepo, root, offline)
 
-        try:
-            pkg = parse_runfile(repo&"/"&i)
-        except CatchableError:
-            raise
-
-        let tarball = "kpkg-tarball-"&pkg.pkg&"-"&pkg.versionString&".tar.gz"
-        let chksum = tarball&".sum"
-
-        if fileExists("/var/cache/kpkg/archives/arch/"&hostCPU&"/"&tarball) and
-                fileExists("/var/cache/kpkg/archives/arch/"&hostCPU&"/"&chksum):
-            echo "Tarball already exists, not gonna download again"
-        elif not offline:
-            echo "Downloading tarball for "&i
-            try:
-                spawn download("https://"&binrepo&"/arch/"&hostCPU&"/"&tarball,
-                        "/var/cache/kpkg/archives/arch/"&hostCPU&"/"&tarball)
-                echo "Downloading checksums for "&i
-                spawn download("https://"&binrepo&"/arch/"&hostCPU&"/"&chksum,
-                        "/var/cache/kpkg/archives/arch/"&hostCPU&"/"&chksum)
-                sync()
-
-            except CatchableError:
-                err("couldn't download tarball", false)
-        else:
-            err("attempted to download tarball from binary repository in offline mode", false)
+    sync()
 
     if not downloadOnly:
         for i in packages:

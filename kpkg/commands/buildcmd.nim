@@ -3,7 +3,6 @@ import osproc
 import installcmd
 import strutils
 import sequtils
-import threadpool
 import libsha/sha256
 import ../modules/logger
 import ../modules/shadow
