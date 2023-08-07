@@ -54,7 +54,10 @@ proc parse_runfile*(path: string, removeLockfileWhenErr = true): runFile =
                 of "SHA256SUM":
                     ret.sha256sum = vars[1]
                 of "CONFLICTS":
-                    ret.conflicts = vars[1].split(" ")
+                    ret.conflicts = vars[1].multiReplace(
+                    ("\"", ""),
+                    ("'", "")
+                    ).split(" ")
                 of "DEPENDS":
                     ret.deps = vars[1].multiReplace(
                     ("\"", ""),
