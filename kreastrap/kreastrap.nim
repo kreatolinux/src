@@ -268,8 +268,7 @@ proc kreastrap(buildType = "builder", arch = "amd64",
 
         setCurrentDir(buildDir)
 
-        waitFor download("https://hg.mozilla.org/releases/mozilla-release/raw-file/default/security/nss/lib/ckfw/builtins/certdata.txt",
-                "certdata.txt")
+        download("https://hg.mozilla.org/releases/mozilla-release/raw-file/default/security/nss/lib/ckfw/builtins/certdata.txt", "certdata.txt")
 
         let caCertCmd = execCmdEx("chroot "&buildDir&" /bin/sh -c '. /etc/profile && cd / && /usr/sbin/make-ca -C certdata.txt'")
 
