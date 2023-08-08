@@ -193,7 +193,7 @@ proc builder*(package: string, destdir: string,
 
 proc build*(no = false, yes = false, root = "/",
     packages: seq[string],
-            useCacheIfAvailable = false, forceInstallAll = false): string =
+            useCacheIfAvailable = false, forceInstallAll = false, dontInstall = false): string =
     ## Build and install packages
     var deps: seq[string]
 
@@ -242,7 +242,7 @@ proc build*(no = false, yes = false, root = "/",
         for i in packages:
             try:
                 discard builder(i, fullRootPath, offline = false,
-                            useCacheIfAvailable = cacheAvailable)
+                            useCacheIfAvailable = cacheAvailable, dontInstall = dontInstall)
                 echo("kpkg: installed "&i&" successfully")
 
             except CatchableError:
