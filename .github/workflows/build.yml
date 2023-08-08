@@ -36,5 +36,5 @@ jobs:
 
       - name: build and run purr
         run: |
-          nim c --threads=on -o=/tmp/ci --passL:-static -d:ssl --passL:-lssl --dynlibOverride:ssl --passL:-lcrypto --dynlibOverride:crypto purr/purr.nim
+          nim c --threads=on -o=/tmp/ci -d:ssl -d:branch=master purr/purr.nim
           /tmp/ci
