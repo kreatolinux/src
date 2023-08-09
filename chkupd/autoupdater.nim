@@ -14,7 +14,7 @@ proc autoUpdater(pkg: runFile, packageDir: string, newVersion: string,
 
                 # Download the source
                 try:
-                        waitFor download(source, filename)
+                        download(source, filename)
                 except Exception:
                         if skipIfDownloadFails:
                                 echo "WARN: '"&pkg.pkg&"' failed because of download. Skipping."
