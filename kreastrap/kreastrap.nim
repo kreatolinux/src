@@ -232,6 +232,9 @@ proc kreastrap(buildType = "builder", arch = "amd64",
                 kreastrapInstall("util-linux", installWithBinaries,
                         buildDir, useCacheIfPossible)
 
+                kreastrapInstall("bc", installWithBinaries,
+                        buildDir, useCacheIfPossible)
+
                 createSymlink("/bin/bash", buildDir&"/bin/sh")
             else:
                 error conf.getSectionValue("Core",
