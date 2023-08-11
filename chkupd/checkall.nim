@@ -13,8 +13,8 @@ proc checkAll(repo: string, backend = "repology", autoUpdate = true,
             var pkgFailed = true
             if autoBuild:
                 if execShellCmd("docker pull ghcr.io/kreatolinux/builder-gnu:latest") != 0:
-                        echo "couldn't pull docker container, exiting"
-                        quit(1)
+                    echo "couldn't pull docker container, exiting"
+                    quit(1)
 
             for i in toSeq(walkDirs(repo&"/*")):
 
