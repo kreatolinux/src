@@ -143,9 +143,9 @@ proc builder*(package: string, destdir: string,
     var cmd2Str = ". "&path&"/run &&"
 
     if existsPackageInstall == 0:
-        cmd2Str = "package_"&package
+        cmd2Str = cmd2Str&" package_"&package
     elif existsInstall == 0:
-        cmd2Str = "package"
+        cmd2Str = cmd2Str" package"
     else:
         err "install stage of package doesn't exist, invalid runfile"
 
