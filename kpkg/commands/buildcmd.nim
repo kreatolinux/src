@@ -140,7 +140,7 @@ proc builder*(package: string, destdir: string,
 
     var cmdStr = ". "&path&"/run"&" && export CC="&getConfigValue("Options",
             "cc")&" && export CCACHE_DIR=/tmp/kpkg/cache && build"
-    var cmd2Str: string
+    var cmd2Str = ". "&path&"/run &&"
 
     if existsPackageInstall == 0:
         cmd2Str = "package_"&package
