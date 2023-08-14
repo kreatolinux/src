@@ -304,7 +304,7 @@ proc kreastrap(buildType = "builder", arch = "amd64",
 
         download("https://hg.mozilla.org/releases/mozilla-release/raw-file/default/security/nss/lib/ckfw/builtins/certdata.txt", "certdata.txt")
 
-        let caCertCmd = execCmdEx("chroot "&buildDir&" /bin/sh -c '. /etc/profile && cd / && /usr/sbin/make-ca -C certdata.txt'")
+        let caCertCmd = execCmdEx("chroot "&buildDir&" /bin/sh -c '. /etc/profile && cd / && make-ca -C certdata.txt'")
 
         if caCertCmd.exitcode != 0:
             debug "CA certification generation output: "&caCertCmd.output
