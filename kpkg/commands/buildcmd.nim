@@ -94,9 +94,9 @@ proc builder*(package: string, destdir: string,
         try:
             if i.startsWith("git::"):
                 usesGit = true
-                if execShellCmd("git clone "&i.split("::")[
+                if execShellCmd(sboxWrap("git clone "&i.split("::")[
                         1]&" && cd "&lastPathPart(i.split("::")[
-                        1])&" && git branch -C "&i.split("::")[2]) != 0:
+                        1])&" && git branch -C "&i.split("::")[2])) != 0:
                     err("Cloning repository failed!")
 
                 folder = @[lastPathPart(i.split("::")[1])]
