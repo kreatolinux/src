@@ -46,11 +46,14 @@ proc initDirectories(buildDirectory: string, arch: string) =
     setFilePermissions(buildDirectory&"/etc", {fpUserExec, fpUserWrite,
             fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
 
-    setFilePermissions(buildDirectory&"/usr", {fpUserExec, fpUserWrite, fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
-    
-    setFilePermissions(buildDirectory&"/usr/bin", {fpUserExec, fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
-    
-    setFilePermissions(buildDirectory&"/usr/lib", {fpUserExec, fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
+    setFilePermissions(buildDirectory&"/usr", {fpUserExec, fpUserWrite,
+            fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
+
+    setFilePermissions(buildDirectory&"/usr/bin", {fpUserExec, fpUserRead,
+            fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
+
+    setFilePermissions(buildDirectory&"/usr/lib", {fpUserExec, fpUserRead,
+            fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
 
 
     setFilePermissions(buildDirectory&"/var", {fpUserExec, fpUserWrite,
@@ -80,8 +83,9 @@ proc initDirectories(buildDirectory: string, arch: string) =
     setFilePermissions(buildDirectory&"/sys", {fpUserExec, fpUserRead,
             fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
 
-    setFilePermissions(buildDirectory&"/mnt", {fpUserExec, fpUserWrite, fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
-    
+    setFilePermissions(buildDirectory&"/mnt", {fpUserExec, fpUserWrite,
+            fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
+
     setFilePermissions(buildDirectory&"/tmp", {fpUserExec, fpUserWrite,
             fpUserRead, fpGroupExec, fpGroupWrite, fpGroupRead, fpOthersExec,
             fpOthersWrite, fpOthersRead})
