@@ -38,27 +38,27 @@ proc initDirectories(buildDirectory: string, arch: string) =
     # Set permissions for directories
     setFilePermissions(buildDirectory, {fpUserExec, fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
     
-   setFilePermissions(buildDirectory&"/etc", {fpUserExec, fpUserWrite, fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
+    setFilePermissions(buildDirectory&"/etc", {fpUserExec, fpUserWrite, fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
     
-   setFilePermissions(buildDirectory&"/var", {fpUserExec, fpUserWrite, fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
+    setFilePermissions(buildDirectory&"/var", {fpUserExec, fpUserWrite, fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
 
-   setFilePermissions(buildDirectory&"/var/cache", {fpUserExec, fpUserWrite, fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
+    setFilePermissions(buildDirectory&"/var/cache", {fpUserExec, fpUserWrite, fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
   
-   setFilePermissions(buildDirectory&"/var/cache/kpkg", {fpUserExec, fpUserWrite, fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead}) 
+    setFilePermissions(buildDirectory&"/var/cache/kpkg", {fpUserExec, fpUserWrite, fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead}) 
     
-   setFilePermissions(buildDirectory&"/boot", {fpUserExec, fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
+    setFilePermissions(buildDirectory&"/boot", {fpUserExec, fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
   
-   setFilePermissions(buildDirectory&"/root", {fpUserExec, fpUserRead, fpGroupExec, fpGroupRead})
+    setFilePermissions(buildDirectory&"/root", {fpUserExec, fpUserRead, fpGroupExec, fpGroupRead})
 
-   setFilePermissions(buildDirectory&"/dev", {fpUserExec, fpUserWrite, fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
+    setFilePermissions(buildDirectory&"/dev", {fpUserExec, fpUserWrite, fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
    
-   setFilePermissions(buildDirectory&"/opt", {fpUserExec, fpUserWrite, fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
+    setFilePermissions(buildDirectory&"/opt", {fpUserExec, fpUserWrite, fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
    
-   setFilePermissions(buildDirectory&"/proc", {fpUserExec, fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
+    setFilePermissions(buildDirectory&"/proc", {fpUserExec, fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
   
-   setFilePermissions(buildDirectory&"/sys", {fpUserExec, fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
+    setFilePermissions(buildDirectory&"/sys", {fpUserExec, fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
    
-   setFilePermissions(buildDirectory&"/tmp", {fpUserExec, fpUserWrite,
+    setFilePermissions(buildDirectory&"/tmp", {fpUserExec, fpUserWrite,
             fpUserRead, fpGroupExec, fpGroupWrite, fpGroupRead, fpOthersExec,
             fpOthersWrite, fpOthersRead})
 
