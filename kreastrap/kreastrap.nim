@@ -24,6 +24,9 @@ proc initDirectories(buildDirectory: string, arch: string) =
 
     createDir(buildDirectory)
     createDir(buildDirectory&"/etc")
+    createDir(buildDirectory&"/usr")
+    createDir(buildDirectory&"/usr/bin")
+    createDir(buildDirectory&"/usr/lib")
     createDir(buildDirectory&"/var")
     createDir(buildDirectory&"/var/cache")
     createDir(buildDirectory&"/var/cache/kpkg")
@@ -33,6 +36,7 @@ proc initDirectories(buildDirectory: string, arch: string) =
     createDir(buildDirectory&"/opt")
     createDir(buildDirectory&"/proc")
     createDir(buildDirectory&"/sys")
+    createDir(buildDirectory&"/mnt")
     createDir(buildDirectory&"/tmp")
 
     # Set permissions for directories
@@ -41,6 +45,13 @@ proc initDirectories(buildDirectory: string, arch: string) =
 
     setFilePermissions(buildDirectory&"/etc", {fpUserExec, fpUserWrite,
             fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
+
+    setFilePermissions(buildDirectory&"/usr", {fpUserExec, fpUserWrite, fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
+    
+    setFilePermissions(buildDirectory&"/usr/bin", {fpUserExec, fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
+    
+    setFilePermissions(buildDirectory&"/usr/lib", {fpUserExec, fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
+
 
     setFilePermissions(buildDirectory&"/var", {fpUserExec, fpUserWrite,
             fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
@@ -69,6 +80,8 @@ proc initDirectories(buildDirectory: string, arch: string) =
     setFilePermissions(buildDirectory&"/sys", {fpUserExec, fpUserRead,
             fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
 
+    setFilePermissions(buildDirectory&"/mnt", {fpUserExec, fpUserWrite, fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
+    
     setFilePermissions(buildDirectory&"/tmp", {fpUserExec, fpUserWrite,
             fpUserRead, fpGroupExec, fpGroupWrite, fpGroupRead, fpOthersExec,
             fpOthersWrite, fpOthersRead})
@@ -79,14 +92,14 @@ proc initDirectories(buildDirectory: string, arch: string) =
     setFilePermissions(buildDirectory&"/run", {fpUserExec, fpUserWrite,
             fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
 
-    #if arch == "amd64":
-    #    createSymlink("usr/lib", buildDirectory&"/lib64")
-    #    createSymlink("lib", buildDirectory&"/usr/lib64")
+    if arch == "amd64":
+        createSymlink("usr/lib", buildDirectory&"/lib64")
+        createSymlink("lib", buildDirectory&"/usr/lib64")
 
-    #createSymlink("usr/bin", buildDirectory&"/sbin")
-    #createSymlink("bin", buildDirectory&"/usr/sbin")
-    #createSymlink("usr/bin", buildDirectory&"/bin")
-    #createSymlink("usr/lib", buildDirectory&"/lib")
+    createSymlink("usr/bin", buildDirectory&"/sbin")
+    createSymlink("bin", buildDirectory&"/usr/sbin")
+    createSymlink("usr/bin", buildDirectory&"/bin")
+    createSymlink("usr/lib", buildDirectory&"/lib")
 
     info_msg "Root directory structure created."
 
