@@ -78,7 +78,7 @@ proc initDirectories(buildDirectory: string, arch: string) =
 
     setFilePermissions(buildDirectory&"/run", {fpUserExec, fpUserWrite,
             fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
-    
+
     #if arch == "amd64":
     #    createSymlink("usr/lib", buildDirectory&"/lib64")
     #    createSymlink("lib", buildDirectory&"/usr/lib64")
