@@ -36,28 +36,39 @@ proc initDirectories(buildDirectory: string, arch: string) =
     createDir(buildDirectory&"/tmp")
 
     # Set permissions for directories
-    setFilePermissions(buildDirectory, {fpUserExec, fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
-    
-    setFilePermissions(buildDirectory&"/etc", {fpUserExec, fpUserWrite, fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
-    
-    setFilePermissions(buildDirectory&"/var", {fpUserExec, fpUserWrite, fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
+    setFilePermissions(buildDirectory, {fpUserExec, fpUserRead, fpGroupExec,
+            fpGroupRead, fpOthersExec, fpOthersRead})
 
-    setFilePermissions(buildDirectory&"/var/cache", {fpUserExec, fpUserWrite, fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
-  
-    setFilePermissions(buildDirectory&"/var/cache/kpkg", {fpUserExec, fpUserWrite, fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead}) 
-    
-    setFilePermissions(buildDirectory&"/boot", {fpUserExec, fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
-  
-    setFilePermissions(buildDirectory&"/root", {fpUserExec, fpUserRead, fpGroupExec, fpGroupRead})
+    setFilePermissions(buildDirectory&"/etc", {fpUserExec, fpUserWrite,
+            fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
 
-    setFilePermissions(buildDirectory&"/dev", {fpUserExec, fpUserWrite, fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
-   
-    setFilePermissions(buildDirectory&"/opt", {fpUserExec, fpUserWrite, fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
-   
-    setFilePermissions(buildDirectory&"/proc", {fpUserExec, fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
-  
-    setFilePermissions(buildDirectory&"/sys", {fpUserExec, fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
-   
+    setFilePermissions(buildDirectory&"/var", {fpUserExec, fpUserWrite,
+            fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
+
+    setFilePermissions(buildDirectory&"/var/cache", {fpUserExec, fpUserWrite,
+            fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
+
+    setFilePermissions(buildDirectory&"/var/cache/kpkg", {fpUserExec,
+            fpUserWrite, fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
+
+    setFilePermissions(buildDirectory&"/boot", {fpUserExec, fpUserRead,
+            fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
+
+    setFilePermissions(buildDirectory&"/root", {fpUserExec, fpUserRead,
+            fpGroupExec, fpGroupRead})
+
+    setFilePermissions(buildDirectory&"/dev", {fpUserExec, fpUserWrite,
+            fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
+
+    setFilePermissions(buildDirectory&"/opt", {fpUserExec, fpUserWrite,
+            fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
+
+    setFilePermissions(buildDirectory&"/proc", {fpUserExec, fpUserRead,
+            fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
+
+    setFilePermissions(buildDirectory&"/sys", {fpUserExec, fpUserRead,
+            fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
+
     setFilePermissions(buildDirectory&"/tmp", {fpUserExec, fpUserWrite,
             fpUserRead, fpGroupExec, fpGroupWrite, fpGroupRead, fpOthersExec,
             fpOthersWrite, fpOthersRead})
@@ -65,8 +76,9 @@ proc initDirectories(buildDirectory: string, arch: string) =
     createDir(buildDirectory&"/var/cache/kpkg/installed")
     createDir(buildDirectory&"/run")
 
-    setFilePermissions(buildDirectory&"/run", {fpUserExec, fpUserWrite, fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
-    
+    setFilePermissions(buildDirectory&"/run", {fpUserExec, fpUserWrite,
+            fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
+
     if arch == "amd64":
         createSymlink("usr/lib", buildDirectory&"/lib64")
         createSymlink("lib", buildDirectory&"/usr/lib64")
