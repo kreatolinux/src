@@ -157,8 +157,7 @@ proc builder*(package: string, destdir: string,
         else:
             cmd = execShellCmd(sboxWrap("cd "&folder[0]&" && "&cmdStr))
             cmd2 = execShellCmd(sboxWrap(
-                    ". "&path&"/run && export DESTDIR="&root&" && export ROOT=$DESTDIR && fakeroot -- cd "&folder[
-                    0]&" && "&cmd2Str))
+                    ". "&path&"/run && export DESTDIR="&root&" && cd "&folder[0]&" && export ROOT=$DESTDIR && fakeroot -- "&cmd2Str))
     else:
         cmd = execShellCmd(sboxWrap(cmdStr))
         cmd2 = execShellCmd(sboxWrap(". "&path&"/run && export DESTDIR="&root&" && export ROOT=$DESTDIR && fakeroot -- "&cmd2Str))
