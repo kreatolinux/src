@@ -1,7 +1,7 @@
 import cligen
-include backends/repology
-include backends/arch
-include checkall
+import backends/repology
+import backends/arch
+import checkallcmd
 
 clCfg.version = "chkupd v3.1"
 

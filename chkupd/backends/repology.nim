@@ -1,11 +1,10 @@
 # chkupd v3 repology backend
-import json, strutils, os, libsha/sha256
-include ../../kpkg/modules/logger
-include ../../kpkg/modules/downloader
-include ../../kpkg/modules/runparser
-include ../autoupdater
+import json, strutils, os
+import ../../kpkg/modules/runparser
+import ../autoupdater
+import httpclient
 
-proc repologyCheck(package: string, repo: string, autoUpdate = false,
+proc repologyCheck*(package: string, repo: string, autoUpdate = false,
                 skipIfDownloadFails = true) =
         ## Check against Repology database.
         let pkgName = lastPathPart(package)

@@ -13,6 +13,7 @@ type runFile* = object
     conflicts*: seq[string]
     deps*: seq[string]
     bdeps*: seq[string]
+    noChkupd*: bool
 
 proc parse_runfile*(path: string, removeLockfileWhenErr = true): runFile =
     ## Parse an runfile.
@@ -46,6 +47,11 @@ proc parse_runfile*(path: string, removeLockfileWhenErr = true): runFile =
                     ("\"", ""),
                     ("'", "")
                     )
+                of "NO_CHKUPD":
+                    ret.noChkupd = parseBool(vars[1].multiReplace(
+                    ("\"", ""),
+                    ("'", "")
+                    ))
                 of "EPOCH":
                     ret.epoch = vars[1].multiReplace(
                     ("\"", ""),

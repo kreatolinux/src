@@ -1,4 +1,10 @@
-proc autoUpdater(pkg: runFile, packageDir: string, newVersion: string,
+import os
+import strutils
+import libsha/sha256
+import ../kpkg/modules/runparser
+import ../kpkg/modules/downloader
+
+proc autoUpdater*(pkg: runFile, packageDir: string, newVersion: string,
                 skipIfDownloadFails: bool) =
         # Autoupdates packages.
         echo "Autoupdating.."

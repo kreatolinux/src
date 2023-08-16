@@ -1,6 +1,11 @@
 # chkupd v3 arch backend
+import os
+import json
+import httpclient
+import ../../kpkg/modules/runparser
+import ../autoupdater
 
-proc archCheck(package: string, repo: string, autoUpdate = false,
+proc archCheck*(package: string, repo: string, autoUpdate = false,
                 skipIfDownloadFails = true) =
         ## Check against Arch repositories.
         let pkgName = lastPathPart(package)
