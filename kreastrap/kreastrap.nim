@@ -37,7 +37,15 @@ proc initDirectories(buildDirectory: string, arch: string) =
     createDir(buildDirectory&"/proc")
     createDir(buildDirectory&"/sys")
     createDir(buildDirectory&"/mnt")
+    createDir(buildDirectory&"/media")
+    createDir(buildDirectory&"/home")
     createDir(buildDirectory&"/tmp")
+    createDir(buildDirectory&"/usr/local")
+    createDir(buildDirectory&"/usr/local/lib")
+    createDir(buildDirectory&"/usr/local/bin")
+    createDir(buildDirectory&"/usr/local/sbin")
+    createDir(buildDirectory&"/usr/local/include")
+    createDir(buildDirectory&"/usr/include")
 
     # Set permissions for directories
     setFilePermissions(buildDirectory, {fpUserExec, fpUserRead, fpGroupExec,
@@ -54,7 +62,6 @@ proc initDirectories(buildDirectory: string, arch: string) =
 
     setFilePermissions(buildDirectory&"/usr/lib", {fpUserExec, fpUserRead,
             fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
-
 
     setFilePermissions(buildDirectory&"/var", {fpUserExec, fpUserWrite,
             fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
@@ -86,9 +93,33 @@ proc initDirectories(buildDirectory: string, arch: string) =
     setFilePermissions(buildDirectory&"/mnt", {fpUserExec, fpUserWrite,
             fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
 
+    setFilePermissions(buildDirectory&"/media", {fpUserExec, fpUserWrite,
+            fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
+
+    setFilePermissions(buildDirectory&"/home", {fpUserExec, fpUserWrite,
+            fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
+
     setFilePermissions(buildDirectory&"/tmp", {fpUserExec, fpUserWrite,
             fpUserRead, fpGroupExec, fpGroupWrite, fpGroupRead, fpOthersExec,
             fpOthersWrite, fpOthersRead})
+
+    setFilePermissions(buildDirectory&"/usr/local", {fpUserExec, fpUserWrite,
+            fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
+
+    setFilePermissions(buildDirectory&"/usr/local/lib", {fpUserExec,
+            fpUserWrite, fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
+
+    setFilePermissions(buildDirectory&"/usr/local/bin", {fpUserExec,
+            fpUserWrite, fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
+
+    setFilePermissions(buildDirectory&"/usr/local/sbin", {fpUserExec,
+            fpUserWrite, fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
+
+    setFilePermissions(buildDirectory&"/usr/local/include", {fpUserExec,
+            fpUserWrite, fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
+
+    setFilePermissions(buildDirectory&"/usr/include", {fpUserExec, fpUserWrite,
+            fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
 
     createDir(buildDirectory&"/var/cache/kpkg/installed")
     createDir(buildDirectory&"/run")
