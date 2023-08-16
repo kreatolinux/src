@@ -1,10 +1,10 @@
 import os
+import times
 import osproc
 import cligen
 import sequtils
 import strutils
 import parsecfg
-import asyncdispatch
 import ../common/logging
 import ../kpkg/commands/buildcmd
 import ../kpkg/modules/downloader
@@ -12,6 +12,40 @@ import ../kpkg/commands/updatecmd
 import ../kpkg/commands/installcmd
 
 ## Kreato Linux's build tools.
+
+const commitVer = staticExec("git rev-parse --short HEAD 2> /dev/null || echo 'unavailable'")
+
+clCfg.version = "kreastrap, built with commit "&commitVer
+
+
+proc initKrelease(conf: Config) =
+    # Initialize kreato-release.
+    
+    var config = newConfig()
+
+    #
+    # General
+    #
+    config.setSectionKey("General", "dateBuilt", getDateStr())
+    config.setSectionKey("General", "klinuxVersion", conf.getSectionValue("General", "klinuxVersion", "rolling"))
+    config.setSectionKey("General", "srcCommit", commitVer)
+
+    #
+    # Core
+    #
+    config.setSectionKey("Core", "libc", conf.getSectionValue("Core", "Libc"))
+    config.setSectionKey("Core", "compiler", conf.getSectionValue("Core", "Compiler"))
+    config.setSectionKey("Core", "coreutils", conf.getSectionValue("Core", "Coreutils"))
+    config.setSectionKey("Core", "tlsLibrary", conf.getSectionValue("Core", "TlsLibrary"))
+    config.setSectionKey("Core", "init", conf.getSectionValue("Core", "Init"))
+    
+    #
+    # Extras
+    #
+    config.setSectionKey("Extras", "extraPackages", conf.getSectionValue("Extras", "ExtraPackages"))
+    
+    config.writeConfig("/etc/kreato-release")
+    
 
 proc initDirectories(buildDirectory: string, arch: string) =
     # Initializes directories.
@@ -178,7 +212,7 @@ proc kreastrap(buildType = "builder", arch = "amd64",
     else:
         error("Config "&buildType&" does not exist!")
 
-    info_msg "kreastrap v3.0.0"
+    info_msg "kreastrap, built with commit "&commitVer
 
     discard update()
 
@@ -376,6 +410,8 @@ proc kreastrap(buildType = "builder", arch = "amd64",
             info_msg "Installing extra packages"
             for i in conf.getSectionValue("Extras", "ExtraPackages").split(" "):
                 kreastrapInstall(i, installWithBinaries, buildDir, useCacheIfPossible)
+
+        initKrelease(conf)
 
 dispatch kreastrap, help = {
                 "buildType": "Specify the build type",
