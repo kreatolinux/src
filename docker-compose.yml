@@ -7,7 +7,7 @@ services:
       - .:/work
       - ./archives:/var/cache/kpkg/archives
       - ./kpkg-repo:/etc/kpkg/repos/main
-    command: sh -c "sh /work/src/scripts/build-ci.sh init && sh /work/src/scripts/build-ci.sh build builder"
+    command: sh -c "sh /work/scripts/build-ci.sh init && sh /work/scripts/build-ci.sh build builder"
 
   server:
     image: ghcr.io/kreatolinux/builder:latest 
@@ -16,7 +16,7 @@ services:
       - .:/work
       - ./archives:/var/cache/kpkg/archives
       - ./kpkg-repo:/etc/kpkg/repos/main
-    command: sh -c "sh /work/src/scripts/build-ci.sh init && sh /work/src/scripts/build-ci.sh build server"
+    command: sh -c "sh /work/scripts/build-ci.sh init && sh /work/scripts/build-ci.sh build server"
   
   nocc:
     image: ghcr.io/kreatolinux/builder:latest 
@@ -25,12 +25,4 @@ services:
       - .:/work
       - ./archives:/var/cache/kpkg/archives
       - ./kpkg-repo:/etc/kpkg/repos/main
-    command: sh -c "sh /work/src/scripts/build-ci.sh init && sh /work/src/scripts/build-ci.sh build nocc"
-  
-  buildPackages:
-    image: ghcr.io/kreatolinux/builder:latest
-    volumes:
-      - .:/work
-      - ./archives:/var/cache/kpkg/archives
-      - ./kpkg-repo:/etc/kpkg/repos/main
-    command: sh -c "git config --global --add safe.directory /etc/kpkg/repos/main && cd /work && make deps && make kreastrap && ./src/kreastrap/kreastrap buildPackages"
+    command: sh -c "sh /work/scripts/build-ci.sh init && sh /work/scripts/build-ci.sh build nocc"
