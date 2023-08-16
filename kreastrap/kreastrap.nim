@@ -45,8 +45,9 @@ proc initKrelease(conf: Config) =
     #
     config.setSectionKey("Extras", "extraPackages", conf.getSectionValue(
             "Extras", "ExtraPackages"))
-    config.writeConfig(conf.getSectionValue("General", "BuildDirectory")&"/etc/kreato-release")
-    
+    config.writeConfig(conf.getSectionValue("General",
+            "BuildDirectory")&"/etc/kreato-release")
+
 proc initDirectories(buildDirectory: string, arch: string) =
     # Initializes directories.
 
