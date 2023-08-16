@@ -20,14 +20,15 @@ clCfg.version = "kreastrap, built with commit "&commitVer
 
 proc initKrelease(conf: Config) =
     # Initialize kreato-release.
-    
+
     var config = newConfig()
 
     #
     # General
     #
     config.setSectionKey("General", "dateBuilt", getDateStr())
-    config.setSectionKey("General", "klinuxVersion", conf.getSectionValue("General", "klinuxVersion", "rolling"))
+    config.setSectionKey("General", "klinuxVersion", conf.getSectionValue(
+            "General", "klinuxVersion", "rolling"))
     config.setSectionKey("General", "srcCommit", commitVer)
 
     #
@@ -38,14 +39,15 @@ proc initKrelease(conf: Config) =
     config.setSectionKey("Core", "coreutils", conf.getSectionValue("Core", "Coreutils"))
     config.setSectionKey("Core", "tlsLibrary", conf.getSectionValue("Core", "TlsLibrary"))
     config.setSectionKey("Core", "init", conf.getSectionValue("Core", "Init"))
-    
+
     #
     # Extras
     #
-    config.setSectionKey("Extras", "extraPackages", conf.getSectionValue("Extras", "ExtraPackages"))
-    
+    config.setSectionKey("Extras", "extraPackages", conf.getSectionValue(
+            "Extras", "ExtraPackages"))
+
     config.writeConfig("/etc/kreato-release")
-    
+
 
 proc initDirectories(buildDirectory: string, arch: string) =
     # Initializes directories.
