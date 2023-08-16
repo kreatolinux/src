@@ -11,7 +11,7 @@ proc checkAll*(repo: string, backend = "repology", autoUpdate = true,
     var failedUpdPackages: seq[string]
     var failedBuildPackages: seq[string]
     var pkgCount: int
-    
+
     case backend:
         of "repology":
             # this sounds stupid but i couldnt think of anything else lol
@@ -23,13 +23,14 @@ proc checkAll*(repo: string, backend = "repology", autoUpdate = true,
 
             for i in toSeq(walkDirs(repo&"/*")):
                 let run = parse_runfile(repo&"/"&i)
-                
+
                 if run.noChkupd:
-                  if execShellCmd("docker run --rm -v "&repo&":/etc/kpkg/repos/main -v /var/cache/kpkg/archives:/var/cache/kpkg/archives ghcr.io/kreatolinux/builder-gnu:latest kpkg build -u -y "&lastPathPart(i)) != 0:
-                    failedBuildPackages = failedBuildPackages&i
-                    echo "couldnt build "&i
-                  continue
-                  
+                    if execShellCmd("docker run --rm -v "&repo&":/etc/kpkg/repos/main -v /var/cache/kpkg/archives:/var/cache/kpkg/archives ghcr.io/kreatolinux/builder-gnu:latest kpkg build -u -y "&lastPathPart(
+                            i)) != 0:
+                        failedBuildPackages = failedBuildPackages&i
+                        echo "couldnt build "&i
+                    continue
+
 
                 if lastPathPart(i) == ".git" or lastPathPart(i) == ".github" or
                         lastPathPart(i) == "builder-essentials":
@@ -64,10 +65,11 @@ proc checkAll*(repo: string, backend = "repology", autoUpdate = true,
                 let run = parse_runfile(repo&"/"&i)
 
                 if run.noChkupd:
-                  if execShellCmd("docker run --rm -v "&repo&":/etc/kpkg/repos/main -v /var/cache/kpkg/archives:/var/cache/kpkg/archives ghcr.io/kreatolinux/builder-gnu:latest kpkg build -u -y "&lastPathPart(i)) != 0:
-                    failedBuildPackages = failedBuildPackages&i
-                    echo "couldnt build "&i
-                  continue
+                    if execShellCmd("docker run --rm -v "&repo&":/etc/kpkg/repos/main -v /var/cache/kpkg/archives:/var/cache/kpkg/archives ghcr.io/kreatolinux/builder-gnu:latest kpkg build -u -y "&lastPathPart(
+                            i)) != 0:
+                        failedBuildPackages = failedBuildPackages&i
+                        echo "couldnt build "&i
+                    continue
 
 
                 if lastPathPart(i) == ".git" or lastPathPart(i) == ".github" or
