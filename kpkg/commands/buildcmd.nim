@@ -153,15 +153,15 @@ proc builder*(package: string, destdir: string,
         if existsPrepare == 0:
             cmd = execShellCmd(sboxWrap(cmdStr))
             cmd2 = execShellCmd(sboxWrap(
-                    ". "&path&"/run && export DESTDIR="&root&" && export ROOT=$DESTDIR && fakeroot -- "&cmd2Str))
+                    ". "&path&"/run && export DESTDIR="&root&" && export ROOT=$DESTDIR && fakeroot -- /bin/sh -c \""&cmd2Str&"\""))
         else:
             cmd = execShellCmd(sboxWrap("cd "&folder[0]&" && "&cmdStr))
             cmd2 = execShellCmd(sboxWrap(
                     ". "&path&"/run && export DESTDIR="&root&" && cd "&folder[
-                            0]&" && export ROOT=$DESTDIR && fakeroot -- "&cmd2Str))
+                            0]&" && export ROOT=$DESTDIR && fakeroot -- /bin/sh -c \""&cmd2Str&"\""))
     else:
         cmd = execShellCmd(sboxWrap(cmdStr))
-        cmd2 = execShellCmd(sboxWrap(". "&path&"/run && export DESTDIR="&root&" && export ROOT=$DESTDIR && fakeroot -- "&cmd2Str))
+        cmd2 = execShellCmd(sboxWrap(". "&path&"/run && export DESTDIR="&root&" && export ROOT=$DESTDIR && fakeroot -- /bin/sh -c \""&cmd2Str&"\""))
 
     if cmd != 0:
         err("build failed")
