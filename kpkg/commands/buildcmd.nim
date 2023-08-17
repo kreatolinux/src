@@ -158,10 +158,10 @@ proc builder*(package: string, destdir: string,
             cmd = execShellCmd(sboxWrap("cd "&folder[0]&" && "&cmdStr))
             cmd2 = execShellCmd(
                     "fakeroot -- /bin/sh -c '. "&path&"/run && export DESTDIR="&root&" && cd "&folder[
-                            0]&" && export ROOT=$DESTDIR && "&cmdStr&"'")
+                            0]&" && export ROOT=$DESTDIR && "&cmd2Str&"'")
     else:
         cmd = execShellCmd(sboxWrap(cmdStr))
-        cmd2 = execShellCmd("fakeroot -- /bin/sh -c '. "&path&"/run && export DESTDIR="&root&" && export ROOT=$DESTDIR && "&cmdStr&"'")
+        cmd2 = execShellCmd("fakeroot -- /bin/sh -c '. "&path&"/run && export DESTDIR="&root&" && export ROOT=$DESTDIR && "&cmd2Str&"'")
 
     if cmd != 0:
         err("build failed")
