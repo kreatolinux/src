@@ -13,6 +13,7 @@ case $1 in
                 #echo "https://dl-cdn.alpinelinux.org/alpine/edge/testing/" >> /etc/apk/repositories
                 #apk update
                 #apk add build-base llvm-libunwind-dev compiler-rt libc++-dev alpine-sdk nimble shadow libarchive-tools perl zlib-dev llvm clang linux-headers openssl-dev binutils-dev gettext-dev xz libgcc gcc
+                git rev-parse --short HEAD
                 make deps
                 rm -f /etc/kpkg/kpkg.conf
                 #make kpkg
