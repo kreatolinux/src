@@ -305,7 +305,9 @@ proc kreastrap(buildType = "builder", arch = "amd64",
                 info_msg "Installing BusyBox as Coreutils"
                 kreastrapInstall("busybox", installWithBinaries, buildDir, useCacheIfPossible)
 
-                if execCmdEx("chroot "&buildDir&" /bin/busybox --install").exitcode != 0:
+                let installBusybox = execCmdEx("chroot "&buildDir&" /bin/busybox --install")
+                if installBusybox.exitcode != 0:
+                    debug installBusybox.output
                     error "Installing busybox failed"
 
             of "gnu":
