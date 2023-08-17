@@ -128,7 +128,6 @@ proc builder*(package: string, destdir: string,
                 it.len != 0)
         discard execProcess("su -s /bin/sh _kpkg -c 'bsdtar -xvf "&filename&"'")
         if pkg.sources.split(";").len == 1:
-            echo $folder
             setCurrentDir(folder[0])
     elif existsPrepare == 0:
         assert execShellCmd("su -s /bin/sh _kpkg -c '. "&path&"/run"&" && prepare'") ==
