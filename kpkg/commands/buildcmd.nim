@@ -56,7 +56,8 @@ proc builder*(package: string, destdir: string,
     createDir(root)
     createDir(srcdir)
 
-    setFilePermissions(root, {fpUserExec, fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
+    setFilePermissions(root, {fpUserExec, fpUserRead, fpGroupExec, fpGroupRead,
+            fpOthersExec, fpOthersRead})
     setFilePermissions(srcdir, {fpOthersWrite, fpOthersRead, fpOthersExec})
 
     # Enter into the source directory
