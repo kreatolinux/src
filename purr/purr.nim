@@ -48,7 +48,7 @@ proc purr(tests = "all", tmpdir = "/tmp/purr") =
     #else:
     #    error("remove test failed")
 
-    if dephandler(toSeq(["sway"])).join(" ") != "pcre expat openssl zlib libxcrypt python libxml2 wayland wayland-protocols libpciaccess libdrm xkeyboard-config libxkbcommon samurai meson libevdev mtdev libudev libinput hwdata seatd ninja pixman libelf python-mako perl m4 autoconf automake libtool libuv libzstd linux-headers libarchive nghttp2 curl cmake flex bison gettext texinfo file binutils gmp isl mpc mpfr gcc llvm mesa wlroots libpng freetype gperf pkgconf fontconfig glib harfbuzz cairo git fribidi pango json-c":
+    if dephandler(toSeq(["sway"])).join(" ") != "pcre expat openssl zlib libxcrypt python libxml2 wayland wayland-protocols libpciaccess libdrm xkeyboard-config libxkbcommon samurai meson libevdev mtdev libudev libinput hwdata seatd ninja pixman libelf python-mako perl m4 autoconf automake libtool libuv libzstd linux-headers libarchive nghttp2 curl cmake flex bison gettext texinfo file binutils gmp isl mpc mpfr gcc llvm mesa wlroots libpng freetype gperf pkgconf fontconfig glib harfbuzz cairo git fribidi pango json-c jetbrains-mono":
         info_msg("dephandler result: "&dephandler(toSeq(["sway"])).join(" "))
         error("dephandler test failed")
     else:
