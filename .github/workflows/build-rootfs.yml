@@ -209,6 +209,7 @@ jobs:
       - name: Build Kreato Linux image
         run: |
           cd $GITHUB_WORKSPACE
+          make deps
           nim c -d:release -d:branch=master --threads:on kreaiso/kreaiso.nim 
           ./kreaiso/kreaiso --rootfs=$GITHUB_WORKSPACE/builder-systemd-rootfs/kreato-linux-builder-systemd-*.tar.gz --output=$PWD
                     
