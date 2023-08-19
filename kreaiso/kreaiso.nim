@@ -74,21 +74,23 @@ proc kreaiso(rootfs: string, output: string) =
     pkgExists("grub")
     pkgExists("grub-efi")
     pkgExists("systemd")
+    pkgExists("lvm2")
+    pkgExists("xorriso")
 
 
-    attemptExec("dd if=/dev/zero of="&tmpDir&"/squashfs-root/LiveOS/rootfs.img bs=1024 count=$(du -s "&tmpDir&"/temp-rootfs | awk '{ print $1 }')", "Creating the rootfs image failed")
+    attemptExec("dd if=/dev/zero of="&tmpDir&"/squashfs-root/LiveOS/rootfs.img bs=1024 count=0 seek=1G", "Creating the rootfs image failed")
     attemptExec("losetup /dev/loop0 "&tmpDir&"/squashfs-root/LiveOS/rootfs.img", "Trying to mount newly-created image failed")
     attemptExec("mkfs.ext4 /dev/loop0", "Trying to format newly-created image as ext4 failed")
     attemptExec("mount /dev/loop0 "&tmpDir&"/mnt", "Trying to mount image failed")
     attemptExec("cp -a "&tmpDir&"/temp-rootfs/. "&tmpDir&"/mnt", "Trying to copy rootfs contents to image failed")
-    attemptExec("umount /mnt", "Trying to unmount failed")
+    attemptExec("umount "&tmpDir&"/mnt", "Trying to unmount failed")
     attemptExec("losetup -d /dev/loop0", "Trying to detach loop0 failed")
 
     attemptExec("mksquashfs "&tmpDir&"/squashfs-root "&tmpDir&"/out/LiveOS/squashfs.img", "Creating squashfs image failed")
-    attemptExec("dracut --tmpdir /tmp -N --kver -m dmsquash-live 6.4.9", "Creating initramfs failed")
+    attemptExec("dracut -f --tmpdir /tmp -N --kver 6.4.9 -m dmsquash-live", "Creating initramfs failed")
     attemptExec("cp -r /boot/ "&tmpDir&"/out", "Copying /boot to out directory failed")
     createDir(tmpDir&"/out/grub")
-    copyFile("grub.cfg", tmpDir&"/out/grub/grub.cfg")
+    copyFile(getAppDir()&"/grub.cfg", tmpDir&"/out/grub/grub.cfg")
     info_msg("Generating final image...")
     attemptExec("grub-mkrescue -o kreatolinux-"&krelease.getSectionValue(
             "General", "dateBuilt")&"-"&krelease.getSectionValue("General",
