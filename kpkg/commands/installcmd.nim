@@ -74,7 +74,7 @@ proc install_pkg*(repo: string, package: string, root: string, binary = false,
             err("postinstall failed")
 
     for i in pkg.optdeps:
-      echo i
+        echo i
 
 proc down_bin(package: string, binrepo: string, root: string, offline: bool) =
     ## Downloads binaries.
