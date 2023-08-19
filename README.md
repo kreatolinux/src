@@ -37,6 +37,9 @@ Jumpstart is Kreato Linux's new service manager/init system. It is similar in st
 ## klinstaller
 klinstaller is Kreato Linux's official installer. Unlike other utilities, it is written in sh. It will be available on every Kreato Linux rootfs. you can install it by running `make install_klinstaller`.
 
+## kreaiso
+kreaiso is kreato Linux's ISO image builder. It currently only supports rootfs' that use systemd. More support is coming soon. Build it by running `make kreaiso`. The binary will be located on `kreaiso/kreaiso`
+
 # License
 Licensed under GPLv3. Check LICENSE file for details
 
