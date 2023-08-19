@@ -6,14 +6,13 @@ import sequtils
 import strutils
 import parsecfg
 import ../common/logging
+import ../common/version
 import ../kpkg/commands/buildcmd
 import ../kpkg/modules/downloader
 import ../kpkg/commands/updatecmd
 import ../kpkg/commands/installcmd
 
 ## Kreato Linux's build tools.
-
-const commitVer = staticExec("git rev-parse --short HEAD 2> /dev/null || echo 'unavailable'")
 
 clCfg.version = "kreastrap, built with commit "&commitVer
 

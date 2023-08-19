@@ -19,6 +19,9 @@ jumpstart:
 kreastrap:
 	nim c -d:release -d:branch=master --threads:on -d:ssl -o=$(SRCDIR)/kreastrap/kreastrap $(SRCDIR)/kreastrap/kreastrap.nim
 
+kreaiso:
+	nim c -d:release -d:branch=master --threads:on -d:ssl -o=$(SRCDIR)/kreaiso/kreaiso $(SRCDIR)/kreaiso/kreaiso
+
 prettify:
 	find $(SRCDIR) -type f -name '*.nim' | xargs nimpretty
 
