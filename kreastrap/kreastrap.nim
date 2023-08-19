@@ -367,7 +367,7 @@ proc kreastrap(buildType = "builder", arch = "amd64",
                 createSymlink("/bin/jumpstart", buildDir&"/sbin/init")
             of "systemd":
                 info_msg "Installing systemd as the init system"
-                kreastrapInstall("systemd", installWithBinaries, buildDir, useCacheIfPossible)
+                kreastrapInstall("dbus-systemd", installWithBinaries, buildDir, useCacheIfPossible)
                 removeFile(buildDir&"/sbin/init")
                 createSymlink("/lib/systemd/systemd", buildDir&"/sbin/init")
 
