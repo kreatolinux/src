@@ -13,6 +13,7 @@ type runFile* = object
     conflicts*: seq[string]
     deps*: seq[string]
     bdeps*: seq[string]
+    optdeps*: seq[string]
     noChkupd*: bool
 
 proc parse_runfile*(path: string, removeLockfileWhenErr = true): runFile =
@@ -74,6 +75,11 @@ proc parse_runfile*(path: string, removeLockfileWhenErr = true): runFile =
                     ("\"", ""),
                     ("'", "")
                     ).split(" ")
+                of "OPTDEPENDS":
+                    ret.optdeps = vars[1].multiReplace(
+                    ("\"", ""),
+                    ("'", "")
+                    ).split(" ;; ")
             if "()" in vars[0]:
                 break
     except CatchableError:
