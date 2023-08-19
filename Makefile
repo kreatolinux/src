@@ -31,3 +31,5 @@ install_klinstaller:
 
 clean:
 	rm -rf $(PREFIX)
+
+.PHONY: $(tasks) jumpstart kreastrap kreaiso
