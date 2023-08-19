@@ -83,6 +83,10 @@ proc builder*(package: string, destdir: string,
     let existsInstall = execCmdEx(". "&path&"/run"&" && command -v package").exitCode
     let existsPackageInstall = execCmdEx(
             ". "&path&"/run"&" && command -v package_"&package).exitCode
+    let existsPackageBuild = execCmdEx(
+            ". "&path&"/run"&" && command -v build_"&package).exitCode
+    let existsBuild = execCmdEx(
+            ". "&path&"/run"&" && command -v build").exitCode
 
     var int = 0
     var usesGit: bool
@@ -140,7 +144,7 @@ proc builder*(package: string, destdir: string,
     discard execProcess("ldconfig")
 
     var cmdStr = ". "&path&"/run"&" && export CC="&getConfigValue("Options",
-            "cc")&" && export CCACHE_DIR=/tmp/kpkg/cache && build"
+            "cc")&" && export CCACHE_DIR=/tmp/kpkg/cache &&"
     var cmd2Str = ". "&path&"/run &&"
 
     if existsPackageInstall == 0:
@@ -149,6 +153,14 @@ proc builder*(package: string, destdir: string,
         cmd2Str = cmd2Str&" package"
     else:
         err "install stage of package doesn't exist, invalid runfile"
+
+    if existsPackageBuild == 0:
+        cmdStr = cmdStr&" build_"&package
+    elif existsBuild == 0:
+        cmdStr = cmdStr&" build"
+    else:
+        err "build stage of package doesn't exist, invalid runfile"
+
 
     if pkg.sources.split(";").len == 1:
         if existsPrepare == 0:
