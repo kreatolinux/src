@@ -63,29 +63,30 @@ proc kreaiso(rootfs: string, output: string) =
         error("Invalid kreato-release, possibly broken rootfs")
 
     if dirExists(getAppDir()&"/overlay"):
-      info_msg("Overlay found, installing contents")
-      
-      setCurrentDir(getAppDir()&"/overlay")
+        info_msg("Overlay found, installing contents")
 
-      for kind, path in walkDir("."):
-          case kind:
-              of pcFile:
-                  debug "Adding the file '"&lastPathPart(
-                          path)&"' to '"&tmpDir&"/temp-rootfs/"&lastPathPart(path)&"'"
-                  copyFile(path, tmpDir&"/temp-rootfs/"&lastPathPart(path))
-              of pcDir:
-                  debug "Adding the directory '"&lastPathPart(
-                          path)&"' to '"&tmpDir&"/temp-rootfs/"&lastPathPart(path)&"'"
-                  copyDir(path, tmpDir&"/temp-rootfs/"&lastPathPart(path))
-              of pcLinkToFile:
-                  debug "Adding the symlinked file '"&lastPathPart( 
-                          path)&"' to '"&tmpDir&"/temp-rootfs/"&lastPathPart(
-                          path)&"' (will not follow symlink)"
-                  copyFile(path, tmpDir&"/temp-rootfs/"&lastPathPart(path), options = {})
-              of pcLinkToDir:
-                  debug "Adding the symlinked directory '"&lastPathPart(
-                          path)&"' to '"&tmpDir&"/temp-rootfs/"&lastPathPart(path)&"'"
-                  copyDir(path, tmpDir&"/temp-rootfs/"&lastPathPart(path))
+        setCurrentDir(getAppDir()&"/overlay")
+
+        for kind, path in walkDir("."):
+            case kind:
+                of pcFile:
+                    debug "Adding the file '"&lastPathPart(
+                            path)&"' to '"&tmpDir&"/temp-rootfs/"&lastPathPart(path)&"'"
+                    copyFile(path, tmpDir&"/temp-rootfs/"&lastPathPart(path))
+                of pcDir:
+                    debug "Adding the directory '"&lastPathPart(
+                            path)&"' to '"&tmpDir&"/temp-rootfs/"&lastPathPart(path)&"'"
+                    copyDir(path, tmpDir&"/temp-rootfs/"&lastPathPart(path))
+                of pcLinkToFile:
+                    debug "Adding the symlinked file '"&lastPathPart(
+                            path)&"' to '"&tmpDir&"/temp-rootfs/"&lastPathPart(
+                            path)&"' (will not follow symlink)"
+                    copyFile(path, tmpDir&"/temp-rootfs/"&lastPathPart(path),
+                            options = {})
+                of pcLinkToDir:
+                    debug "Adding the symlinked directory '"&lastPathPart(
+                            path)&"' to '"&tmpDir&"/temp-rootfs/"&lastPathPart(path)&"'"
+                    copyDir(path, tmpDir&"/temp-rootfs/"&lastPathPart(path))
 
 
     discard update()
@@ -111,26 +112,26 @@ proc kreaiso(rootfs: string, output: string) =
     removeFile(tmpDir&"/temp-rootfs/usr/lib/systemd/system/systemd-firstboot.service")
 
     info_msg("Creating rootfs image")
-    
+
     attemptExec("dd if=/dev/zero of="&tmpDir&"/squashfs-root/LiveOS/rootfs.img bs=1024 count=0 seek=1G", "Creating the rootfs image failed")
     attemptExec("losetup /dev/loop0 "&tmpDir&"/squashfs-root/LiveOS/rootfs.img", "Trying to mount newly-created image failed")
     attemptExec("mkfs.ext4 /dev/loop0", "Trying to format newly-created image as ext4 failed")
     attemptExec("mount /dev/loop0 "&tmpDir&"/mnt", "Trying to mount image failed")
-    
+
     attemptExec("cp -a "&tmpDir&"/temp-rootfs/. "&tmpDir&"/mnt", "Trying to copy rootfs contents to image failed")
     attemptExec("umount "&tmpDir&"/mnt", "Trying to unmount failed")
     attemptExec("losetup -d /dev/loop0", "Trying to detach loop0 failed")
 
     attemptExec("mksquashfs "&tmpDir&"/squashfs-root "&tmpDir&"/out/LiveOS/squashfs.img", "Creating squashfs image failed")
-    
+
     info_msg("Generating initramfs")
     attemptExec("dracut -f --tmpdir /tmp -N --kver 6.4.9 -m dmsquash-live", "Creating initramfs failed")
     attemptExec("cp -r /boot/ "&tmpDir&"/out", "Copying /boot to out directory failed")
     createDir(tmpDir&"/out/boot/grub")
-    
+
     info_msg("Initializing GRUB configuration")
     copyFile(getAppDir()&"/grub.cfg", tmpDir&"/out/boot/grub/grub.cfg")
-    
+
     info_msg("Generating final image...")
     attemptExec("grub-mkrescue -o "&output&"/kreatolinux-"&krelease.getSectionValue(
             "General", "dateBuilt")&"-"&krelease.getSectionValue("General",
