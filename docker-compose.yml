@@ -26,3 +26,17 @@ services:
       - ./archives:/var/cache/kpkg/archives
       - ./kpkg-repo:/etc/kpkg/repos/main
     command: sh -c "sh /work/scripts/build-ci.sh init && sh /work/scripts/build-ci.sh build nocc"
+
+  kreaiso:
+    image: ghcr.io/kreatolinux/builder-systemd:latest
+    privileged: true
+    ulimits:
+      nproc: 65535
+      nofile:
+        soft: 26677
+        hard: 46677
+    volumes:
+      - ./out:/out
+      - .:/work
+      - ./archives:/var/cache/kpkg/archives
+    command: sh -c "cd /work && make kreaiso && ./kreaiso/kreaiso --rootfs=klinux.tar.gz --output=/work"

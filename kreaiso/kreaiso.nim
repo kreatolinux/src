@@ -62,13 +62,39 @@ proc kreaiso(rootfs: string, output: string) =
     except Exception:
         error("Invalid kreato-release, possibly broken rootfs")
 
+    if dirExists(getAppDir()&"/overlay"):
+      info_msg("Overlay found, installing contents")
+      
+      setCurrentDir(getAppDir()&"/overlay")
+
+      for kind, path in walkDir("."):
+          case kind:
+              of pcFile:
+                  debug "Adding the file '"&lastPathPart(
+                          path)&"' to '"&tmpDir&"/temp-rootfs/"&lastPathPart(path)&"'"
+                  copyFile(path, tmpDir&"/temp-rootfs/"&lastPathPart(path))
+              of pcDir:
+                  debug "Adding the directory '"&lastPathPart(
+                          path)&"' to '"&tmpDir&"/temp-rootfs/"&lastPathPart(path)&"'"
+                  copyDir(path, tmpDir&"/temp-rootfs/"&lastPathPart(path))
+              of pcLinkToFile:
+                  debug "Adding the symlinked file '"&lastPathPart( 
+                          path)&"' to '"&tmpDir&"/temp-rootfs/"&lastPathPart(
+                          path)&"' (will not follow symlink)"
+                  copyFile(path, tmpDir&"/temp-rootfs/"&lastPathPart(path), options = {})
+              of pcLinkToDir:
+                  debug "Adding the symlinked directory '"&lastPathPart(
+                          path)&"' to '"&tmpDir&"/temp-rootfs/"&lastPathPart(path)&"'"
+                  copyDir(path, tmpDir&"/temp-rootfs/"&lastPathPart(path))
+
+
     discard update()
 
     pkgExists("squashfs-tools")
     pkgExists("util-linux")
-    pkgExists("util-linux")
     pkgExists("gawk")
     pkgExists("e2fsprogs")
+    pkgExists("mtools")
     pkgExists("dracut")
     pkgExists("linux")
     pkgExists("grub")
@@ -78,23 +104,37 @@ proc kreaiso(rootfs: string, output: string) =
     pkgExists("xorriso")
 
 
+    info_msg("Removing password of root on rootfs")
+    attemptExec("chroot "&tmpDir&"/temp-rootfs /bin/sh -c \"passwd -d root\"", "Removing password failed")
+
+    info_msg("Remove systemd-firstboot")
+    removeFile(tmpDir&"/temp-rootfs/usr/lib/systemd/system/systemd-firstboot.service")
+
+    info_msg("Creating rootfs image")
+    
     attemptExec("dd if=/dev/zero of="&tmpDir&"/squashfs-root/LiveOS/rootfs.img bs=1024 count=0 seek=1G", "Creating the rootfs image failed")
     attemptExec("losetup /dev/loop0 "&tmpDir&"/squashfs-root/LiveOS/rootfs.img", "Trying to mount newly-created image failed")
     attemptExec("mkfs.ext4 /dev/loop0", "Trying to format newly-created image as ext4 failed")
     attemptExec("mount /dev/loop0 "&tmpDir&"/mnt", "Trying to mount image failed")
+    
     attemptExec("cp -a "&tmpDir&"/temp-rootfs/. "&tmpDir&"/mnt", "Trying to copy rootfs contents to image failed")
     attemptExec("umount "&tmpDir&"/mnt", "Trying to unmount failed")
     attemptExec("losetup -d /dev/loop0", "Trying to detach loop0 failed")
 
     attemptExec("mksquashfs "&tmpDir&"/squashfs-root "&tmpDir&"/out/LiveOS/squashfs.img", "Creating squashfs image failed")
+    
+    info_msg("Generating initramfs")
     attemptExec("dracut -f --tmpdir /tmp -N --kver 6.4.9 -m dmsquash-live", "Creating initramfs failed")
     attemptExec("cp -r /boot/ "&tmpDir&"/out", "Copying /boot to out directory failed")
-    createDir(tmpDir&"/out/grub")
-    copyFile(getAppDir()&"/grub.cfg", tmpDir&"/out/grub/grub.cfg")
+    createDir(tmpDir&"/out/boot/grub")
+    
+    info_msg("Initializing GRUB configuration")
+    copyFile(getAppDir()&"/grub.cfg", tmpDir&"/out/boot/grub/grub.cfg")
+    
     info_msg("Generating final image...")
-    attemptExec("grub-mkrescue -o kreatolinux-"&krelease.getSectionValue(
+    attemptExec("grub-mkrescue -o "&output&"/kreatolinux-"&krelease.getSectionValue(
             "General", "dateBuilt")&"-"&krelease.getSectionValue("General",
-            "klinuxVersion")&".iso /out/", "Generating final image failed")
+            "klinuxVersion")&".iso "&tmpDir&"/out/", "Generating final image failed")
 
 
 dispatch kreaiso
