@@ -194,7 +194,9 @@ jobs:
 
   kreaiso:
     runs-on: ubuntu-latest
-    container: ghcr.io/kreatolinux/builder-systemd:latest
+    container: 
+      image: ghcr.io/kreatolinux/builder-systemd:latest
+      options: --privileged
     needs: build
     steps:
 
