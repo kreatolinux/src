@@ -218,7 +218,7 @@ jobs:
           cd $GITHUB_WORKSPACE
           mv *.tar.gz klinux.tar.gz
           make deps
-          nim c -d:release -d:ssl -d:branch=master --threads:on kreaiso/kreaiso.nim 
+          nim c -d:ssl -d:branch=master --threads:on kreaiso/kreaiso.nim 
           ./kreaiso/kreaiso --rootfs=$GITHUB_WORKSPACE/klinux.tar.gz --output=$PWD
                     
       - name: Upload builder-systemd ISO
