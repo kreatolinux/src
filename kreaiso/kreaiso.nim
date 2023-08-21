@@ -113,14 +113,16 @@ proc kreaiso(rootfs: string, output: string) =
 
     info_msg("Creating rootfs image")
 
+    let loopdev = execCmdEx("losetup -f").output
+
     attemptExec("dd if=/dev/zero of="&tmpDir&"/squashfs-root/LiveOS/rootfs.img bs=1024 count=0 seek=1G", "Creating the rootfs image failed")
-    attemptExec("losetup /dev/loop0 "&tmpDir&"/squashfs-root/LiveOS/rootfs.img", "Trying to mount newly-created image failed")
-    attemptExec("mkfs.ext4 /dev/loop0", "Trying to format newly-created image as ext4 failed")
-    attemptExec("mount /dev/loop0 "&tmpDir&"/mnt", "Trying to mount image failed")
+    attemptExec("losetup "&loopdev&" "&tmpDir&"/squashfs-root/LiveOS/rootfs.img", "Trying to mount newly-created image failed")
+    attemptExec("mkfs.ext4 "loopdev, "Trying to format newly-created image as ext4 failed")
+    attemptExec("mount "&loopdev&" "&tmpDir&"/mnt", "Trying to mount image failed")
 
     attemptExec("cp -a "&tmpDir&"/temp-rootfs/. "&tmpDir&"/mnt", "Trying to copy rootfs contents to image failed")
     attemptExec("umount "&tmpDir&"/mnt", "Trying to unmount failed")
-    attemptExec("losetup -d /dev/loop0", "Trying to detach loop0 failed")
+    attemptExec("losetup -d "&loopdev, "Trying to detach "&loopdev&" failed")
 
     attemptExec("mksquashfs "&tmpDir&"/squashfs-root "&tmpDir&"/out/LiveOS/squashfs.img", "Creating squashfs image failed")
 
