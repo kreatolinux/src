@@ -48,26 +48,20 @@ main() {
   printf "\nDo you use Wi-Fi? [no]: "
   read -r wifi
   if [ "$wifi" = "yes" ]; then
-    [ "$pkginstalltype" = "build" ] && kpkg build wpa_supplicant -y
-    [ "$pkginstalltype" = "binary" ] && kpkg install wpa_supplicant -y
+    [ "$pkginstalltype" = "build" ] && kpkg build wpa_supplicant dhcpcd -y
+    [ "$pkginstalltype" = "binary" ] && kpkg install wpa_supplicant dhcpcd -y
   fi
   printf "\nChoose DNS [9.9.9.9]: " 
   read -r choosedns
   echo "# This file is made by Kreato Linux Installer" > /etc/resolv.conf
   [ -z "$choosedns" ] && echo "nameserver 9.9.9.9" >> /etc/resolv.conf 
   [ -n "$choosedns" ] && echo "nameserver $choosedns" >> /etc/resolv.conf 
-  printf "\nWhat kernel do you like to use (available options: distro, custom package, skip) [distro]: "
+  printf "\nWhat kernel do you like to use (available options: distro, skip) [skip]: "
   read -r kernel
-  # code for the Kernel
-  printf "\nChoose the init system you want to use (available options: runit, openrc, jumpstart) [jumpstart]: "
-  read -r init
-  if [ -z "$init" ] || [ "$init" = "runit" ]; then
-    [ "$pkginstalltype" = "build" ] && kpkg build base-runit -y
-    [ "$pkginstalltype" = "binary" ] && kpkg install base-runit -y
-  elif [ -z "$init" ] || [ "$init" = "jumpstart" ]; then
-    [ "$pkginstalltype" = "build" ] && kpkg build openrc -y
-    [ "$pkginstalltype" = "binary" ] && kpkg install openrc -y
-  fi 
+  if [ "$kernel" = "distro" ]; then
+	  [ "$pkginstalltype" = "build" ] && kpkg build linux -y
+	  [ "$pkginstalltype" = "binary" ] && kpkg install linux -y
+  fi
   printf "\nChoose system hostname [klinux]: " 
   read -r hostname
   [ -z "$hostname" ] && hostname = "klinux" 
@@ -80,14 +74,14 @@ main() {
   fi
   printf "\nWhat partition do you want to install the bootloader on? [none]: " 
   read -r part
-  printf "\nWhat bootloader do you want to use (available options: grub, lumine) [lumine]: " 
+  printf "\nWhat bootloader do you want to use (available options: grub, lumine) [grub]: " 
   read -r bootloader
-  if [ -z "$bootloader" ] || [ "$bootloader" = "grub" ];
-	  [ "$pkginstalltype" = "build" ] && kpkg build grub -y
-	  [ "$pkginstalltype" = "binary" ] && kpkg install grub -y
-  else
+  if [ -z "$bootloader" ] || [ "$bootloader" = "lumine" ];
 	  [ "$pkginstalltype" = "build" ] && kpkg build lumine -y
 	  [ "$pkginstalltype" = "binary" ] && kpkg install lumine -y
+  else
+	  [ "$pkginstalltype" = "build" ] && kpkg build grub -y
+	  [ "$pkginstalltype" = "binary" ] && kpkg install grub -y
   fi
   printf "\nAdditional packages you want to install (seperate by space) [none]: " 
   read -r additionalpackages
