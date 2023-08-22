@@ -7,6 +7,7 @@ import osproc
 import cligen
 import parsecfg
 import sequtils
+import strutils
 import ../common/logging
 import ../common/version
 import ../kpkg/commands/buildcmd
@@ -113,7 +114,7 @@ proc kreaiso(rootfs: string, output: string) =
 
     info_msg("Creating rootfs image")
 
-    let loopdev = execCmdEx("losetup -f").output
+    let loopdev = splitWhitespace(execCmdEx("losetup -f").output)[0]
 
     attemptExec("dd if=/dev/zero of="&tmpDir&"/squashfs-root/LiveOS/rootfs.img bs=1024 count=0 seek=1G", "Creating the rootfs image failed")
     attemptExec("losetup "&loopdev&" "&tmpDir&"/squashfs-root/LiveOS/rootfs.img", "Trying to mount newly-created image failed")
