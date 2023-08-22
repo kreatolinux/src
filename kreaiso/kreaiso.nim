@@ -117,7 +117,7 @@ proc kreaiso(rootfs: string, output: string) =
 
     attemptExec("dd if=/dev/zero of="&tmpDir&"/squashfs-root/LiveOS/rootfs.img bs=1024 count=0 seek=1G", "Creating the rootfs image failed")
     attemptExec("losetup "&loopdev&" "&tmpDir&"/squashfs-root/LiveOS/rootfs.img", "Trying to mount newly-created image failed")
-    attemptExec("mkfs.ext4 "loopdev, "Trying to format newly-created image as ext4 failed")
+    attemptExec("mkfs.ext4 "&loopdev, "Trying to format newly-created image as ext4 failed")
     attemptExec("mount "&loopdev&" "&tmpDir&"/mnt", "Trying to mount image failed")
 
     attemptExec("cp -a "&tmpDir&"/temp-rootfs/. "&tmpDir&"/mnt", "Trying to copy rootfs contents to image failed")
