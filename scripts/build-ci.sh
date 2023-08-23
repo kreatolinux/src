@@ -15,7 +15,7 @@ case $1 in
                 #apk update
                 #apk add build-base llvm-libunwind-dev compiler-rt libc++-dev alpine-sdk nimble shadow libarchive-tools perl zlib-dev llvm clang linux-headers openssl-dev binutils-dev gettext-dev xz libgcc gcc
                 make deps
-                rm -f /etc/kpkg/kpkg.conf
+                rm -vf /etc/kpkg/kpkg.conf
                 #make kpkg
                 #./out/kpkg update || true
                 #sed s/gcc/musl-gcc/g -i /etc/kpkg/kpkg.conf
