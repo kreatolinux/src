@@ -44,7 +44,7 @@ proc install_pkg*(repo: string, package: string, root: string, binary = false,
         if dirExists("/var/cache/kpkg/installed/"&i):
             err(i&" conflicts with "&package)
 
-    let tarball = "/var/cache/kpkg/archives/arch/"&hostCPU&"/kpkg-tarball-"&pkg.pkg&"-"&pkg.versionString&".tar.gz"
+    let tarball = "/var/cache/kpkg/archives/arch/"&hostCPU&"/kpkg-tarball-"&package&"-"&pkg.versionString&".tar.gz"
 
     if sha256hexdigest(readAll(open(tarball)))&"  "&tarball != readAll(open(
         tarball&".sum")):
