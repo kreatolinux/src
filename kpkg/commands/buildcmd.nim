@@ -68,9 +68,9 @@ proc builder*(package: string, destdir: string,
         pkg = parse_runfile(path)
     except CatchableError:
         raise
-    if fileExists("/var/cache/kpkg/archives/arch/"&hostCPU&"/kpkg-tarball-"&pkg.pkg&"-"&pkg.versionString&".tar.gz") and
+    if fileExists("/var/cache/kpkg/archives/arch/"&hostCPU&"/kpkg-tarball-"&package&"-"&pkg.versionString&".tar.gz") and
             fileExists(
-            "/var/cache/kpkg/archives/arch/"&hostCPU&"/kpkg-tarball-"&pkg.pkg&"-"&pkg.versionString&".tar.gz.sum") and
+            "/var/cache/kpkg/archives/arch/"&hostCPU&"/kpkg-tarball-"&package&"-"&pkg.versionString&".tar.gz.sum") and
             useCacheIfAvailable == true and dontInstall == false:
         install_pkg(repo, package, "/", true) # Install package on root too
         install_pkg(repo, package, destdir, true)
@@ -181,7 +181,7 @@ proc builder*(package: string, destdir: string,
     if cmd2 != 0:
         err("Installation failed")
 
-    let tarball = "/var/cache/kpkg/archives/arch/"&hostCPU&"/kpkg-tarball-"&pkg.pkg&"-"&pkg.versionString&".tar.gz"
+    let tarball = "/var/cache/kpkg/archives/arch/"&hostCPU&"/kpkg-tarball-"&package&"-"&pkg.versionString&".tar.gz"
 
     discard execProcess("tar -czvf "&tarball&" -C "&root&" .")
 
