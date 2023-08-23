@@ -48,7 +48,7 @@ proc install_pkg*(repo: string, package: string, root: string, binary = false,
 
     if sha256hexdigest(readAll(open(tarball)))&"  "&tarball != readAll(open(
         tarball&".sum")):
-        err("sha256sum doesn't match for "&pkg.pkg, false)
+        err("sha256sum doesn't match for "&package, false)
 
     setCurrentDir("/var/cache/kpkg/archives")
 
@@ -100,7 +100,7 @@ proc down_bin(package: string, binrepo: string, root: string, offline: bool) =
     except CatchableError:
         raise
 
-    let tarball = "kpkg-tarball-"&pkg.pkg&"-"&pkg.versionString&".tar.gz"
+    let tarball = "kpkg-tarball-"&package&"-"&pkg.versionString&".tar.gz"
     let chksum = tarball&".sum"
 
     if fileExists("/var/cache/kpkg/archives/arch/"&hostCPU&"/"&tarball) and
