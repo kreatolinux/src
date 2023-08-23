@@ -30,6 +30,9 @@ proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false,
             else:
                 pkgdeps = pkgrf.deps
 
+            if pkgdeps.len == 0:
+                continue
+
             if not isEmptyOrWhitespace(pkgdeps.join()):
                 for dep in pkgdeps:
 
