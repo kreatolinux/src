@@ -101,7 +101,7 @@ proc parse_runfile*(path: string, removeLockfileWhenErr = true): runFile =
             ("\"", ""),
             ("'", "")
             ))[0]
-    
+
     if not isEmptyOrWhitespace(ret.sha256sum):
         ret.sha256sum = ret.sha256sum.multiReplace(
             ("$NAME", ret.pkg),
