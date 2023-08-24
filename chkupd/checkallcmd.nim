@@ -62,7 +62,7 @@ proc checkAll*(repo: string, backend = "repology", autoUpdate = true,
 
             for i in toSeq(walkDirs(repo&"/*")):
 
-                let run = parse_runfile(repo&"/"&i)
+                let run = parse_runfile(repo&"/"&lastPathPart(i))
 
                 if run.noChkupd:
                     if execShellCmd("docker run --rm -v "&repo&":/etc/kpkg/repos/main -v /var/cache/kpkg/archives:/var/cache/kpkg/archives ghcr.io/kreatolinux/builder-gnu:latest kpkg build -u -y "&lastPathPart(
