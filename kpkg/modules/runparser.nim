@@ -91,7 +91,7 @@ proc parse_runfile*(path: string, removeLockfileWhenErr = true): runFile =
         ret.versionString = ret.version&"-"&ret.release
         ret.epoch = "no"
 
-    when declared(ret.sources):
+    if not isEmptyOrWhitespace(ret.sources):
         ret.sources = splitWhitespace(ret.sources.multiReplace(
             ("$NAME", ret.pkg),
             ("$VERSION", ret.version),
@@ -102,7 +102,7 @@ proc parse_runfile*(path: string, removeLockfileWhenErr = true): runFile =
             ("'", "")
             ))[0]
 
-    when declared(ret.sha256sum)
+    if not isEmptyOrWhitespace(ret.sha256sum):
         ret.sha256sum = ret.sha256sum.multiReplace(
             ("$NAME", ret.pkg),
             ("$VERSION", ret.version),
