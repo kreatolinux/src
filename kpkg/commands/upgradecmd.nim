@@ -17,9 +17,9 @@ proc upgrade*(root = "/",
                 localPkg = parse_runfile(i.path)
             except CatchableError:
                 raise
-            
+
             var isAReplacesPackage: bool
-            
+
             for r in localPkg.replaces:
                 if r == lastPathPart(i.path):
                     isAReplacesPackage = true

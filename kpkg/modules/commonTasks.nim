@@ -8,4 +8,4 @@ proc printReplacesPrompt*(pkgs: seq[string]) =
         for p in parse_runfile(findPkgRepo(i)&"/"&i).replaces:
             if dirExists("/var/cache/kpkg/installed/"&p):
                 echo "'"&i&"' replaces '"&p&"'"
- 
+

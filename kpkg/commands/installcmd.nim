@@ -51,9 +51,10 @@ proc install_pkg*(repo: string, package: string, root: string, binary = false,
 
     for i in pkg.replaces:
         if dirExists("/var/cache/kpkg/installed/"&i):
-           discard removeInternal(i, root)
-           if not symlinkExists("/var/cache/kpkg/installed/"&i):
-               createSymlink("/var/cache/kpkg/installed/"&package, "/var/cache/kpkg/installed/"&i)
+            discard removeInternal(i, root)
+            if not symlinkExists("/var/cache/kpkg/installed/"&i):
+                createSymlink("/var/cache/kpkg/installed/"&package,
+                        "/var/cache/kpkg/installed/"&i)
 
     let tarball = "/var/cache/kpkg/archives/arch/"&hostCPU&"/kpkg-tarball-"&package&"-"&pkg.versionString&".tar.gz"
 
@@ -171,9 +172,9 @@ proc install*(promptPackages: seq[string], root = "/", yes: bool = false,
         deps = dephandler(packages)
     except CatchableError:
         raise
-   
+
     printReplacesPrompt(deps)
-    printReplacesPrompt(packages)   
+    printReplacesPrompt(packages)
 
     echo "Packages: "&deps.join(" ")&" "&packages.join(" ")
 
