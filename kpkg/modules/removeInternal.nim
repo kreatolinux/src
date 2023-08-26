@@ -2,8 +2,12 @@ import os
 import logger
 import strutils
 import sequtils
+import runparser
 
 proc removeInternal*(package: string, root = ""): string =
+
+    let pkgreplaces = parse_runfile(root&"/var/cache/kpkg/installed/"&package).replaces
+
     if not fileExists(root&"/var/cache/kpkg/installed/"&package&"/list_files"):
         err("package "&package&" is not installed", false)
 
@@ -14,4 +18,8 @@ proc removeInternal*(package: string, root = ""): string =
             removeDir(root&"/"&line)
 
     removeDir(root&"/var/cache/kpkg/installed/"&package)
+
+    for i in pkgreplaces:
+        removeDir(root&"/var/cache/kpkg/installed/"&i)
+
     return "kpkg: package "&package&" removed."

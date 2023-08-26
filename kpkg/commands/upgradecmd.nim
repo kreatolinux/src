@@ -17,6 +17,15 @@ proc upgrade*(root = "/",
                 localPkg = parse_runfile(i.path)
             except CatchableError:
                 raise
+            
+            var isAReplacesPackage: bool
+            
+            for r in localPkg.replaces:
+                if r == lastPathPart(i.path):
+                    isAReplacesPackage = true
+
+            if isAReplacesPackage:
+                continue
 
             if localPkg.pkg in getConfigValue("Upgrade", "dontUpgrade").split(" "):
                 echo "skipping "&localPkg.pkg&": selected to not upgrade in kpkg.conf"

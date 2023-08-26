@@ -10,6 +10,7 @@ import ../modules/config
 import ../modules/runparser
 import ../modules/dephandler
 import ../modules/downloader
+import ../modules/commonTasks
 
 const lockfile = "/tmp/kpkg.lock"
 
@@ -221,6 +222,9 @@ proc build*(no = false, yes = false, root = "/",
                 packages, isBuild = true)
     except CatchableError:
         raise
+
+    printReplacesPrompt(deps)
+    printReplacesPrompt(packages)
 
     echo "Packages: "&deps.join(" ")&" "&packages.join(" ")
 

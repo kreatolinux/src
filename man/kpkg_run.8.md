@@ -13,12 +13,13 @@ Runfiles are just named "run" inside the package directory. It is written in POS
 An example runfile structure;
 
 ```sh
-NAME="test"
+NAME="test-v3"
 VERSION="0.0.1"
 RELEASE="1"
 SOURCES="https://test.file/source/testfile.tar.gz;git::https://github.com/kreatolinux/src::543ee30eda806029fa9ea16a1f9767eda7cab4d1"
 DEPENDS="testpackage1 testpackage3 testpackage4"
 NO_CHKUPD="n"
+REPLACES="test-v2"
 BUILD_DEPENDS="testpackage5 testpackage6 testpackage10"
 SHA256SUM="e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  testfile.tar.gz"
 DESCRIPTION="Test package"
@@ -68,6 +69,7 @@ Now lets break it down.
 * postinstall: Post-install function. Will run after the package is installed.
 * package_PACKAGENAME: Install function of PACKAGENAME. With this function you can package multiple things in the same runfile. This may be used for packaging sub-projects easier.
 * NO_CHKUPD: Disables autoupdating thru chkupd. False by default. This will not prevent chkupd from building the package. Will be enabled if it is one of these values; "y, yes, true, 1, on"
+* REPLACES: Replaces packages put in the variable. Seperatated by space.
 
 # AUTHOR
 Written by Kreato.
