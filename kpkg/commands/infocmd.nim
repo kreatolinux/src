@@ -25,7 +25,7 @@ proc info*(package: seq[string], testing = false): string =
     echo "package release: "&pkg.release
     when declared(pkg.epoch):
         echo "package epoch: "&pkg.epoch
-    if dirExists("/var/cache/kpkg/installed/"&pkg.pkg):
+    if dirExists("/var/cache/kpkg/installed/"&package[0]):
         return "installed: yes"
 
     # don't error when package isn't installed during testing
