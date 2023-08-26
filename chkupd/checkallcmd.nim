@@ -25,7 +25,7 @@ proc checkAll*(repo: string, backend = "repology", autoUpdate = true,
                 let run = parse_runfile(repo&"/"&lastPathPart(i))
 
                 if run.noChkupd:
-                    if execShellCmd("docker run --rm -v "&repo&":/etc/kpkg/repos/main -v /var/cache/kpkg/archives:/var/cache/kpkg/archives ghcr.io/kreatolinux/builder-gnu:latest kpkg build -u -y "&lastPathPart(
+                    if execShellCmd("docker run -e QEMU_CPU=max --rm -v "&repo&":/etc/kpkg/repos/main -v /var/cache/kpkg/archives:/var/cache/kpkg/archives ghcr.io/kreatolinux/builder-gnu:latest kpkg build -u -y "&lastPathPart(
                             i)) != 0:
                         failedBuildPackages = failedBuildPackages&i
                         echo "couldnt build "&i
