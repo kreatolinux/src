@@ -19,12 +19,13 @@ An example runfile structure;
 .IP
 .nf
 \f[C]
-NAME=\[dq]test\[dq]
+NAME=\[dq]test-v3\[dq]
 VERSION=\[dq]0.0.1\[dq]
 RELEASE=\[dq]1\[dq]
 SOURCES=\[dq]https://test.file/source/testfile.tar.gz;git::https://github.com/kreatolinux/src::543ee30eda806029fa9ea16a1f9767eda7cab4d1\[dq]
 DEPENDS=\[dq]testpackage1 testpackage3 testpackage4\[dq]
 NO_CHKUPD=\[dq]n\[dq]
+REPLACES=\[dq]test-v2\[dq]
 BUILD_DEPENDS=\[dq]testpackage5 testpackage6 testpackage10\[dq]
 SHA256SUM=\[dq]e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  testfile.tar.gz\[dq]
 DESCRIPTION=\[dq]Test package\[dq]
@@ -109,6 +110,9 @@ False by default.
 This will not prevent chkupd from building the package.
 Will be enabled if it is one of these values; \[lq]y, yes, true, 1,
 on\[rq]
+.IP \[bu] 2
+REPLACES: Replaces packages put in the variable.
+Seperatated by space.
 .SH AUTHOR
 .PP
 Written by Kreato.
