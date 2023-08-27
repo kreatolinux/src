@@ -73,8 +73,8 @@ proc builder*(package: string, destdir: string,
             fileExists(
             "/var/cache/kpkg/archives/arch/"&hostCPU&"/kpkg-tarball-"&package&"-"&pkg.versionString&".tar.gz.sum") and
             useCacheIfAvailable == true and dontInstall == false:
-        install_pkg(repo, package, "/", true) # Install package on root too
-        install_pkg(repo, package, destdir, true)
+        install_pkg(repo, package, "/") # Install package on root too
+        install_pkg(repo, package, destdir)
         removeFile(lockfile)
         return true
 
@@ -197,7 +197,7 @@ proc builder*(package: string, destdir: string,
         install_pkg(repo, package, "/")
 
     if not dontInstall:
-        install_pkg(repo, package, destdir, builddir = root)
+        install_pkg(repo, package, destdir)
 
     removeFile(lockfile)
 

@@ -32,8 +32,7 @@ proc ctrlc() {.noconv.} =
 
 setControlCHook(ctrlc)
 
-proc install_pkg*(repo: string, package: string, root: string, binary = false,
-        builddir = "/tmp/kpkg/build") =
+proc install_pkg*(repo: string, package: string, root: string) =
     ## Installs an package.
 
     var pkg: runFile
@@ -47,7 +46,14 @@ proc install_pkg*(repo: string, package: string, root: string, binary = false,
             err(i&" conflicts with "&package)
 
     if dirExists(root&"/var/cache/kpkg/installed/"&package):
-        discard removeInternal(package, root)
+        
+        echo "kpkg: package already installed, reinstalling"
+
+        createDir("/tmp")
+        createDir("/tmp/kpkg")
+        createDir("/tmp/kpkg/reinstall")
+    
+        moveDir(root&"/var/cache/kpkg/installed/"&package, "/tmp/kpkg/reinstall/"&package&"-old")
 
     for i in pkg.replaces:
         if dirExists(root&"/var/cache/kpkg/installed/"&i) and expandSymlink(
@@ -77,6 +83,12 @@ proc install_pkg*(repo: string, package: string, root: string, binary = false,
 
     # Run ldconfig afterwards for any new libraries
     discard execProcess("ldconfig")
+
+    if dirExists("/tmp/kpkg/reinstall/"&package&"-old"):
+        let cmd = execProcess("grep -xvFf /tmp/kpkg/reinstall/"&package&"-old/list_files /var/cache/kpkg/installed/"&package&"/list_files")
+        writeFile("/tmp/kpkg/reinstall/list_files", cmd)
+        discard removeInternal("reinstall", root, installedDir="/tmp/kpkg", ignoreReplaces=true)
+        removeDir("/tmp/kpkg")
 
     var existsPostinstall = execCmdEx(
             ". "&repo&"/"&package&"/run"&" && command -v postinstall").exitCode
@@ -150,7 +162,7 @@ proc install_bin(packages: seq[string], binrepo: string, root: string,
     if not downloadOnly:
         for i in packages:
             repo = findPkgRepo(i)
-            install_pkg(repo, i, root, true)
+            install_pkg(repo, i, root)
             echo "Installation for "&i&" complete"
 
 proc install*(promptPackages: seq[string], root = "/", yes: bool = false,

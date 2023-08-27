@@ -4,7 +4,6 @@ import installcmd
 import strutils
 import ../modules/config
 import ../modules/runparser
-import ../modules/removeInternal
 
 proc upgrade*(root = "/",
         builddir = "/tmp/kpkg/build", srcdir = "/tmp/kpkg/srcdir"): string =
@@ -58,7 +57,6 @@ proc upgrade*(root = "/",
                     discard install(@[localPkg.pkg], root, true,
                             downloadOnly = true)
 
-                discard removeInternal(localPkg.pkg, root)
                 discard install(@[localPkg.pkg], root, true, offline = true)
 
     return "kpkg: done"
