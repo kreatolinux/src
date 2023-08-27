@@ -46,14 +46,15 @@ proc install_pkg*(repo: string, package: string, root: string) =
             err(i&" conflicts with "&package)
 
     if dirExists(root&"/var/cache/kpkg/installed/"&package):
-        
+
         echo "kpkg: package already installed, reinstalling"
 
         createDir("/tmp")
         createDir("/tmp/kpkg")
         createDir("/tmp/kpkg/reinstall")
-    
-        moveDir(root&"/var/cache/kpkg/installed/"&package, "/tmp/kpkg/reinstall/"&package&"-old")
+
+        moveDir(root&"/var/cache/kpkg/installed/"&package,
+                "/tmp/kpkg/reinstall/"&package&"-old")
 
     for i in pkg.replaces:
         if dirExists(root&"/var/cache/kpkg/installed/"&i) and expandSymlink(
@@ -87,7 +88,8 @@ proc install_pkg*(repo: string, package: string, root: string) =
     if dirExists("/tmp/kpkg/reinstall/"&package&"-old"):
         let cmd = execProcess("grep -xvFf /tmp/kpkg/reinstall/"&package&"-old/list_files /var/cache/kpkg/installed/"&package&"/list_files")
         writeFile("/tmp/kpkg/reinstall/list_files", cmd)
-        discard removeInternal("reinstall", root, installedDir="/tmp/kpkg", ignoreReplaces=true)
+        discard removeInternal("reinstall", root, installedDir = "/tmp/kpkg",
+                ignoreReplaces = true)
         removeDir("/tmp/kpkg")
 
     var existsPostinstall = execCmdEx(
