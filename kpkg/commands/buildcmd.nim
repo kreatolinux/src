@@ -223,8 +223,8 @@ proc build*(no = false, yes = false, root = "/",
     except CatchableError:
         raise
 
-    printReplacesPrompt(deps)
-    printReplacesPrompt(packages)
+    printReplacesPrompt(deps, root)
+    printReplacesPrompt(packages, root)
 
     echo "Packages: "&deps.join(" ")&" "&packages.join(" ")
 

@@ -172,8 +172,8 @@ proc install*(promptPackages: seq[string], root = "/", yes: bool = false,
     except CatchableError:
         raise
 
-    printReplacesPrompt(deps)
-    printReplacesPrompt(packages)
+    printReplacesPrompt(deps, root)
+    printReplacesPrompt(packages, root)
 
     echo "Packages: "&deps.join(" ")&" "&packages.join(" ")
 
