@@ -7,7 +7,7 @@ import runparser
 proc removeInternal*(package: string, root = ""): string =
 
     var actualPackage: string
-    
+
     if symlinkExists(root&"/var/cache/kpkg/installed/"&package):
         actualPackage = expandSymlink(root&"/var/cache/kpkg/installed/"&package)
     else:
