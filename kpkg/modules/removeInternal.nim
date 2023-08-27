@@ -4,8 +4,10 @@ import strutils
 import sequtils
 import runparser
 
-proc removeInternal*(package: string, root = "", installedDir = root&"/var/cache/kpkg/installed", ignoreReplaces = false): string =
-    
+proc removeInternal*(package: string, root = "",
+        installedDir = root&"/var/cache/kpkg/installed",
+        ignoreReplaces = false): string =
+
     var actualPackage: string
 
     if symlinkExists(installedDir&"/"&package):
@@ -23,7 +25,7 @@ proc removeInternal*(package: string, root = "", installedDir = root&"/var/cache
             removeDir(root&"/"&line)
 
     removeDir(installedDir&"/"&package)
-    
+
     if not ignoreReplaces:
         let pkgreplaces = parse_runfile(installedDir&"/"&actualPackage).replaces
         for i in pkgreplaces:
