@@ -43,18 +43,17 @@ proc install_pkg*(repo: string, package: string, root: string, binary = false,
         raise
 
     for i in pkg.conflicts:
-        if dirExists("/var/cache/kpkg/installed/"&i):
+        if dirExists(root&"/var/cache/kpkg/installed/"&i):
             err(i&" conflicts with "&package)
 
-    if dirExists("/var/cache/kpkg/installed/"&package):
+    if dirExists(root&"/var/cache/kpkg/installed/"&package):
         discard removeInternal(package, root)
 
     for i in pkg.replaces:
-        if dirExists("/var/cache/kpkg/installed/"&i):
+        if dirExists(root&"/var/cache/kpkg/installed/"&i):
             discard removeInternal(i, root)
-            if not symlinkExists("/var/cache/kpkg/installed/"&i):
-                createSymlink("/var/cache/kpkg/installed/"&package,
-                        "/var/cache/kpkg/installed/"&i)
+            if not symlinkExists(root&"/var/cache/kpkg/installed/"&i):
+                createSymlink(package, root&"/var/cache/kpkg/installed/"&i)
 
     let tarball = "/var/cache/kpkg/archives/arch/"&hostCPU&"/kpkg-tarball-"&package&"-"&pkg.versionString&".tar.gz"
 
