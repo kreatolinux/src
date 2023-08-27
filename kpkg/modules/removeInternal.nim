@@ -6,12 +6,19 @@ import runparser
 
 proc removeInternal*(package: string, root = ""): string =
 
-    let pkgreplaces = parse_runfile(root&"/var/cache/kpkg/installed/"&package).replaces
+    var actualPackage: string
+    
+    if symlinkExists(root&"/var/cache/kpkg/installed/"&package):
+        actualPackage = expandSymlink(root&"/var/cache/kpkg/installed/"&package)
+    else:
+        actualPackage = package
 
-    if not fileExists(root&"/var/cache/kpkg/installed/"&package&"/list_files"):
+    let pkgreplaces = parse_runfile(root&"/var/cache/kpkg/installed/"&actualPackage).replaces
+
+    if not fileExists(root&"/var/cache/kpkg/installed/"&actualPackage&"/list_files"):
         err("package "&package&" is not installed", false)
 
-    for line in lines root&"/var/cache/kpkg/installed/"&package&"/list_files":
+    for line in lines root&"/var/cache/kpkg/installed/"&actualPackage&"/list_files":
         discard tryRemoveFile(root&"/"&line)
 
         if isEmptyOrWhitespace(toSeq(walkDirRec(root&"/"&line)).join("")):

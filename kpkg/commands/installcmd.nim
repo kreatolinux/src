@@ -50,7 +50,7 @@ proc install_pkg*(repo: string, package: string, root: string, binary = false,
         discard removeInternal(package, root)
 
     for i in pkg.replaces:
-        if dirExists(root&"/var/cache/kpkg/installed/"&i):
+        if dirExists(root&"/var/cache/kpkg/installed/"&i) and expandSymlink(root&"/var/cache/kpkg/installed/"&i) != package:
             discard removeInternal(i, root)
             if not symlinkExists(root&"/var/cache/kpkg/installed/"&i):
                 createSymlink(package, root&"/var/cache/kpkg/installed/"&i)
