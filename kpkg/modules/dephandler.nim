@@ -58,12 +58,12 @@ proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false,
     var deps: seq[string]
 
     for pkg in pkgs:
-        var repo = findPkgRepo(pkg)
-        if repo == "":
-            err("Package "&pkg&" doesn't exist", false)
+      var repo = findPkgRepo(pkg)
+      if repo == "":
+        err("Package "&pkg&" doesn't exist", false)
 
-        let pkgrf = parse_runfile(repo&"/"&pkg)
-        var pkgdeps: seq[string]
+      let pkgrf = parse_runfile(repo&"/"&pkg)
+      var pkgdeps: seq[string]
 
       if bdeps:
           pkgdeps = pkgrf.bdeps
