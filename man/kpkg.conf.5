@@ -22,6 +22,7 @@ cc=gcc
 [Repositories]
 repoDirs=/etc/kpkg/repos/main /etc/kpkg/repos/lockin
 repoLinks=\[dq]https://github.com/kreatolinux/kpkg-repo.git::stable https://github.com/kreatolinux/kpkg-repo-lockin.git::stable\[dq]
+binRepos=\[dq]mirror.kreato.dev\[dq]
 
 [Parallelization]
 threadsUsed=\[dq]4\[dq]
@@ -36,18 +37,23 @@ cc: Set the CC environment variable when the package is building.
 Defaults to gcc.
 .SS REPOSITORIES
 .IP \[bu] 2
-RepoDirs: Repository directories.
-Must line up with RepoLinks.
+repoDirs: Repository directories.
+Must line up with repoLinks.
 Seperate by space.
 .IP \[bu] 2
-RepoLinks: Repository links.
-Must line up with RepoDirs.
+repoLinks: Repository links.
+Must line up with repoDirs.
 Seperate by space.
-Has kpkg-repo and kpkg-repo-bin repositories by default.
+Has kpkg-repo and kpkg-repo-lockin repositories by default.
+.IP \[bu] 2
+binRepos: Binary repository links.
+Is independent from repoDirs/repoLinks.
+Seperate by space.
+Will only accept repositories using HTTPS.
 .PP
 Repositories also support branches/commits like this;
 .PP
-\f[C]RepoLinks=\[dq]https://github.com/kreatolinux/kpkg-repo.git::BRANCHNAME\[dq]\f[R]
+\f[C]repoLinks=\[dq]https://github.com/kreatolinux/kpkg-repo.git::BRANCHNAME\[dq]\f[R]
 .SS PARALLELIZATION
 .PP
 kpkg now supports parallelization, allowing for much faster binary
