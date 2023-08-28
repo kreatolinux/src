@@ -58,29 +58,17 @@ proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false,
     var deps: seq[string]
 
     for pkg in pkgs:
-      var repo = findPkgRepo(pkg)
-      if repo == "":
-          err("Package "&pkg&" doesn't exist", false)
+        var repo = findPkgRepo(pkg)
+        if repo == "":
+            err("Package "&pkg&" doesn't exist", false)
 
-      let pkgrf = parse_runfile(repo&"/"&pkg)
-      var pkgdeps: seq[string]
+        let pkgrf = parse_runfile(repo&"/"&pkg)
+        var pkgdeps: seq[string]
 
-      if bdeps:
-          pkgdeps = pkgrf.bdeps
-      else:
-          pkgdeps = pkgrf.deps
-        
-      if pkgdeps.len == 0:
-        continue
-      
-      if not isEmptyOrWhitespace(pkgdeps.join()):
-        for dep in pkgdeps:
-          
-          if prevPkgName == dep:
-            if isBuild:
-              err("circular dependency detected", false)
-            else:
-              return deps.filterit(it.len != 0)
+        if bdeps:
+            pkgdeps = pkgrf.bdeps
+        else:
+            pkgdeps = pkgrf.deps
 
         if pkgdeps.len == 0:
             continue
@@ -89,27 +77,40 @@ proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false,
             for dep in pkgdeps:
 
                 if prevPkgName == dep:
-                    err("circular dependency detected", false)
+                    if isBuild:
+                        err("circular dependency detected", false)
+                    else:
+                        return deps.filterit(it.len != 0)
 
-                let d = checkVersions(root, dep, repo)
+            if pkgdeps.len == 0:
+                continue
 
-                repo = findPkgRepo(d)
+            if not isEmptyOrWhitespace(pkgdeps.join()):
+                for dep in pkgdeps:
 
-                if repo == "":
-                    err("Package "&d&" doesn't exist", false)
+                    if prevPkgName == dep:
+                        err("circular dependency detected", false)
 
-                let deprf = parse_runfile(repo&"/"&d)
+                    let d = checkVersions(root, dep, repo)
 
-                if not isEmptyOrWhitespace(deprf.bdeps.join()) and isBuild:
-                    deps.add(dephandler(@[d], deps&ignoreDeps, bdeps = true,
-                            isBuild = true, root = root, prevPkgName = pkg))
+                    repo = findPkgRepo(d)
 
-                if d in pkgs or d in deps or isIn(deps, ignoreDeps) or dep in ignoreDeps:
-                    continue
+                    if repo == "":
+                        err("Package "&d&" doesn't exist", false)
 
-                deps.add(dephandler(@[d], deps&ignoreDeps, bdeps = false,
-                        isBuild = isBuild, root = root, prevPkgName = pkg))
+                    let deprf = parse_runfile(repo&"/"&d)
 
-                deps.add(d)
+                    if not isEmptyOrWhitespace(deprf.bdeps.join()) and isBuild:
+                        deps.add(dephandler(@[d], deps&ignoreDeps, bdeps = true,
+                                isBuild = true, root = root, prevPkgName = pkg))
+
+                    if d in pkgs or d in deps or isIn(deps, ignoreDeps) or
+                            dep in ignoreDeps:
+                        continue
+
+                    deps.add(dephandler(@[d], deps&ignoreDeps, bdeps = false,
+                            isBuild = isBuild, root = root, prevPkgName = pkg))
+
+                    deps.add(d)
 
     return deps.filterit(it.len != 0)
