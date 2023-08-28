@@ -28,7 +28,7 @@ proc initializeConfig*(): Config =
       "/etc/kpkg/repos/main /etc/kpkg/repos/lockin") # Seperate by space
   config.setSectionKey("Repositories", "repoLinks",
       "https://github.com/kreatolinux/kpkg-repo.git::"&branch&" https://github.com/kreatolinux/kpkg-repo-lockin.git::"&branch) # Seperate by space, must match RepoDirs
-  
+
   config.setSectionKey("Repositories", "binRepos",
       "mirror.kreato.dev") # Seperate by space
   

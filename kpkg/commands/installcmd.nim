@@ -102,8 +102,9 @@ proc install_pkg*(repo: string, package: string, root: string) =
     for i in pkg.optdeps:
         echo i
 
-proc down_bin(package: string, binrepos: seq[string], root: string, offline: bool) =
-    ## Downloads binaries. 
+proc down_bin(package: string, binrepos: seq[string], root: string,
+        offline: bool) =
+    ## Downloads binaries.
     setMinPoolSize(1)
 
     setMaxPoolSize(threadsUsed)
@@ -117,40 +118,40 @@ proc down_bin(package: string, binrepos: seq[string], root: string, offline: boo
 
     setCurrentDir("/var/cache/kpkg/archives")
     var downSuccess: bool
-    
-    for binrepo in binrepos: 
-      var repo: string
 
-      repo = findPkgRepo(package)
-      var pkg: runFile
+    for binrepo in binrepos:
+        var repo: string
 
-      try:
-          pkg = parse_runfile(repo&"/"&package)
-      except CatchableError:
-          raise
+        repo = findPkgRepo(package)
+        var pkg: runFile
 
-      let tarball = "kpkg-tarball-"&package&"-"&pkg.versionString&".tar.gz"
-      let chksum = tarball&".sum"
+        try:
+            pkg = parse_runfile(repo&"/"&package)
+        except CatchableError:
+            raise
 
-      if fileExists("/var/cache/kpkg/archives/arch/"&hostCPU&"/"&tarball) and
-              fileExists("/var/cache/kpkg/archives/arch/"&hostCPU&"/"&chksum):
-          echo "Tarball already exists, not gonna download again"
-      elif not offline:
-          echo "Downloading tarball for "&package
-          try:
-              download("https://"&binrepo&"/arch/"&hostCPU&"/"&tarball,
-                  "/var/cache/kpkg/archives/arch/"&hostCPU&"/"&tarball)
-              echo "Downloading checksums for "&package
-              download("https://"&binrepo&"/arch/"&hostCPU&"/"&chksum,
-                  "/var/cache/kpkg/archives/arch/"&hostCPU&"/"&chksum)
-              downSuccess = true
-          except CatchableError:
-            discard
-      else:
-          err("attempted to download tarball from binary repository in offline mode", false)
-    
+        let tarball = "kpkg-tarball-"&package&"-"&pkg.versionString&".tar.gz"
+        let chksum = tarball&".sum"
+
+        if fileExists("/var/cache/kpkg/archives/arch/"&hostCPU&"/"&tarball) and
+                fileExists("/var/cache/kpkg/archives/arch/"&hostCPU&"/"&chksum):
+            echo "Tarball already exists, not gonna download again"
+        elif not offline:
+            echo "Downloading tarball for "&package
+            try:
+                download("https://"&binrepo&"/arch/"&hostCPU&"/"&tarball,
+                    "/var/cache/kpkg/archives/arch/"&hostCPU&"/"&tarball)
+                echo "Downloading checksums for "&package
+                download("https://"&binrepo&"/arch/"&hostCPU&"/"&chksum,
+                    "/var/cache/kpkg/archives/arch/"&hostCPU&"/"&chksum)
+                downSuccess = true
+            except CatchableError:
+                discard
+        else:
+            err("attempted to download tarball from binary repository in offline mode", false)
+
     if not downSuccess:
-      err("couldn't download the binary", false)
+        err("couldn't download the binary", false)
 
 proc install_bin(packages: seq[string], binrepos: seq[string], root: string,
         offline: bool, downloadOnly = false) =
@@ -160,9 +161,9 @@ proc install_bin(packages: seq[string], binrepos: seq[string], root: string,
 
     for i in packages:
         if threadsUsed == 1:
-          down_bin(i, binrepos, root, offline)
+            down_bin(i, binrepos, root, offline)
         else:
-          spawn down_bin(i, binrepos, root, offline)
+            spawn down_bin(i, binrepos, root, offline)
 
     if threadsUsed != 1:
         sync()
@@ -174,7 +175,7 @@ proc install_bin(packages: seq[string], binrepos: seq[string], root: string,
             echo "Installation for "&i&" complete"
 
 proc install*(promptPackages: seq[string], root = "/", yes: bool = false,
-        no: bool = false,  offline = false, downloadOnly = false): string =
+        no: bool = false, offline = false, downloadOnly = false): string =
     ## Download and install a package through a binary repository
     if promptPackages.len == 0:
         err("please enter a package name", false)
@@ -218,7 +219,7 @@ proc install*(promptPackages: seq[string], root = "/", yes: bool = false,
 
     for i in depsDelete.split(" ").filterit(it.len != 0):
         deps.delete(deps.find(i))
-    
+
     let binrepos = getConfigValue("Repositories", "binRepos").split(" ")
 
     if not (deps.len == 0 and deps == @[""]):
