@@ -183,7 +183,7 @@ proc install*(promptPackages: seq[string], root = "/", yes: bool = false,
     var packages = promptPackages
 
     try:
-        deps = dephandler(packages)
+        deps = dephandler(packages, root = root)
     except CatchableError:
         raise
 
