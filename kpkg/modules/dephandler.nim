@@ -52,7 +52,7 @@ proc checkVersions(root: string, dependency: string, repo: string, split = @[
 
 
 proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false,
-        isBuild = false, root: string): seq[string] =
+        isBuild = false, root: string, prevPkgName = ""): seq[string] =
     ## takes in a seq of packages and returns what to install.
 
     var deps: seq[string]
@@ -65,39 +65,37 @@ proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false,
         let pkgrf = parse_runfile(repo&"/"&pkg)
         var pkgdeps: seq[string]
 
-        if bdeps:
-            pkgdeps = pkgrf.bdeps
-        else:
-            pkgdeps = pkgrf.deps
+      if bdeps:
+          pkgdeps = pkgrf.bdeps
+      else:
+          pkgdeps = pkgrf.deps
+        
+      if pkgdeps.len == 0:
+        continue
+      
+      if not isEmptyOrWhitespace(pkgdeps.join()):
+        for dep in pkgdeps:
+          
+          if prevPkgName == dep:
+            err("circular dependency detected", false)
 
-        if pkgdeps.len == 0:
+          let d = checkVersions(root, dep, repo) 
+            
+          repo = findPkgRepo(d)
+            
+          if repo == "":
+            err("Package "&d&" doesn't exist", false) 
+          
+          let deprf = parse_runfile(repo&"/"&d)
+          
+          if not isEmptyOrWhitespace(deprf.bdeps.join()) and isBuild:
+            deps.add(dephandler(@[d], deps&ignoreDeps, bdeps = true, isBuild = true, root = root, prevPkgName = pkg))
+          
+          if d in pkgs or d in deps or isIn(deps, ignoreDeps) or dep in ignoreDeps:
             continue
-
-        if not isEmptyOrWhitespace(pkgdeps.join()):
-            for dep in pkgdeps:
-
-                if pkg == dep:
-                    err("circular dependency detected", false)
-
-                let d = checkVersions(root, dep, repo)
-
-                repo = findPkgRepo(d)
-
-                if repo == "":
-                    err("Package "&d&" doesn't exist", false)
-
-                let deprf = parse_runfile(repo&"/"&d)
-
-                if not isEmptyOrWhitespace(deprf.bdeps.join()) and isBuild:
-                    deps.add(dephandler(@[d], deps&ignoreDeps, bdeps = true,
-                            isBuild = true, root = root))
-
-                if d in pkgs or d in deps or isIn(deps, ignoreDeps) or dep in ignoreDeps:
-                    continue
-
-                deps.add(dephandler(@[d], deps&ignoreDeps, bdeps = false,
-                        isBuild = isBuild, root = root))
-
-                deps.add(d)
+          
+          deps.add(dephandler(@[d], deps&ignoreDeps, bdeps = false, isBuild = isBuild, root = root, prevPkgName = pkg))
+          
+          deps.add(d)
 
     return deps.filterit(it.len != 0)
