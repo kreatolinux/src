@@ -41,7 +41,6 @@ dispatchMulti(
     "root": "The directory the package is gonna be installed to",
     "yes": "Automatically say 'yes' to every question",
     "no": "Automatically say 'no' to every question",
-    "binrepo": "The kpkg binary mirror",
     "offline": "Offline mode, errors out if tarball is attempted to get downloaded off binrepo",
     }
   ],

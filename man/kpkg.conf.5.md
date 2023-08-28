@@ -16,6 +16,7 @@ cc=gcc
 [Repositories]
 repoDirs=/etc/kpkg/repos/main /etc/kpkg/repos/lockin
 repoLinks="https://github.com/kreatolinux/kpkg-repo.git::stable https://github.com/kreatolinux/kpkg-repo-lockin.git::stable"
+binRepos="mirror.kreato.dev"
 
 [Parallelization]
 threadsUsed="4"
@@ -28,12 +29,13 @@ buildByDefault=yes
 * cc: Set the CC environment variable when the package is building. Defaults to gcc.
 
 ## REPOSITORIES
-* RepoDirs: Repository directories. Must line up with RepoLinks. Seperate by space.
-* RepoLinks: Repository links. Must line up with RepoDirs. Seperate by space. Has kpkg-repo and kpkg-repo-bin repositories by default.
+* repoDirs: Repository directories. Must line up with repoLinks. Seperate by space.
+* repoLinks: Repository links. Must line up with repoDirs. Seperate by space. Has kpkg-repo and kpkg-repo-lockin repositories by default.
+* binRepos: Binary repository links. Is independent from repoDirs/repoLinks. Seperate by space. Will only accept repositories using HTTPS.
 
 Repositories also support branches/commits like this;
 
-`RepoLinks="https://github.com/kreatolinux/kpkg-repo.git::BRANCHNAME"`
+`repoLinks="https://github.com/kreatolinux/kpkg-repo.git::BRANCHNAME"`
 
 ## PARALLELIZATION
 kpkg now supports parallelization, allowing for much faster binary package installations. This feature is only on the `install` command for now.

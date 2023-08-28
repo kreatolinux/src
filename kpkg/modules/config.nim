@@ -29,6 +29,9 @@ proc initializeConfig*(): Config =
   config.setSectionKey("Repositories", "repoLinks",
       "https://github.com/kreatolinux/kpkg-repo.git::"&branch&" https://github.com/kreatolinux/kpkg-repo-lockin.git::"&branch) # Seperate by space, must match RepoDirs
   
+  config.setSectionKey("Repositories", "binRepos",
+      "mirror.kreato.dev") # Seperate by space
+  
   # [Parallelization]
   config.setSectionKey("Parallelization", "threadsUsed", "4")
 
