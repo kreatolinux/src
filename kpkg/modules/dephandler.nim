@@ -65,10 +65,22 @@ proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false,
         let pkgrf = parse_runfile(repo&"/"&pkg)
         var pkgdeps: seq[string]
 
-        if bdeps:
-            pkgdeps = pkgrf.bdeps
-        else:
-            pkgdeps = pkgrf.deps
+      if bdeps:
+          pkgdeps = pkgrf.bdeps
+      else:
+          pkgdeps = pkgrf.deps
+        
+      if pkgdeps.len == 0:
+        continue
+      
+      if not isEmptyOrWhitespace(pkgdeps.join()):
+        for dep in pkgdeps:
+          
+          if prevPkgName == dep:
+            if isBuild:
+              err("circular dependency detected", false)
+            else:
+              return deps.filterit(it.len != 0)
 
         if pkgdeps.len == 0:
             continue
