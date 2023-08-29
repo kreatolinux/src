@@ -11,6 +11,7 @@ proc checkAll*(repo: string, backend = "repology", autoUpdate = true,
     var failedUpdPackages: seq[string]
     var failedBuildPackages: seq[string]
     var pkgCount: int
+    let cmdStr = "docker run -e QEMU_CPU=max --rm -v "&repo&":/etc/kpkg/repos/main -v /var/cache/kpkg/archives:/var/cache/kpkg/archives ghcr.io/kreatolinux/builder-gnu:latest kpkg build -u -y "
 
     case backend:
         of "repology":
@@ -25,8 +26,9 @@ proc checkAll*(repo: string, backend = "repology", autoUpdate = true,
                 let run = parse_runfile(repo&"/"&lastPathPart(i))
 
                 if run.noChkupd:
-                    if execShellCmd("docker run -e QEMU_CPU=max --rm -v "&repo&":/etc/kpkg/repos/main -v /var/cache/kpkg/archives:/var/cache/kpkg/archives ghcr.io/kreatolinux/builder-gnu:latest kpkg build -u -y "&lastPathPart(
-                            i)) != 0:
+                    let cmd = execCmdEx(cmdStr&lastPathPart(i))
+                    if cmd.exitCode != 0:
+                        writeFile("failed-log-"&lastPathPart(i)".log", cmd.output)
                         failedBuildPackages = failedBuildPackages&i
                         echo "couldnt build "&i
                     continue
@@ -50,8 +52,9 @@ proc checkAll*(repo: string, backend = "repology", autoUpdate = true,
                     echo "couldnt update "&i
 
                 if not pkgFailed and autoBuild:
-                    if execShellCmd("docker run -e QEMU_CPU=max --rm -v "&repo&":/etc/kpkg/repos/main -v /var/cache/kpkg/archives:/var/cache/kpkg/archives ghcr.io/kreatolinux/builder-gnu:latest kpkg build -u -y "&lastPathPart(
-                            i)) != 0:
+                    let cmd = execCmdEx(cmdStr&lastPathPart(i))
+                    if cmd.exitCode != 0:
+                        writeFile("failed-log-"&lastPathPart(i)".log", cmd.output)
                         failedBuildPackages = failedBuildPackages&i
                         echo "couldnt build "&i
                     else:
@@ -65,8 +68,9 @@ proc checkAll*(repo: string, backend = "repology", autoUpdate = true,
                 let run = parse_runfile(repo&"/"&lastPathPart(i))
 
                 if run.noChkupd:
-                    if execShellCmd("docker run -e QEMU_CPU=max --rm -v "&repo&":/etc/kpkg/repos/main -v /var/cache/kpkg/archives:/var/cache/kpkg/archives ghcr.io/kreatolinux/builder-gnu:latest kpkg build -u -y "&lastPathPart(
-                            i)) != 0:
+                    let cmd = execCmdEx(cmdStr&lastPathPart(i))
+                    if cmd.exitCode != 0:
+                        writeFile("failed-log-"&lastPathPart(i)".log", cmd.output)
                         failedBuildPackages = failedBuildPackages&i
                         echo "couldnt build "&i
                     continue
@@ -87,10 +91,11 @@ proc checkAll*(repo: string, backend = "repology", autoUpdate = true,
                     echo "couldnt update "&i
 
                 if not pkgFailed and autoBuild:
-                    if execShellCmd("docker run -e QEMU_CPU=max --rm -v "&repo&":/etc/kpkg/repos/main -v /var/cache/kpkg/archives:/var/cache/kpkg/archives ghcr.io/kreatolinux/builder-gnu:latest kpkg build -u -y "&lastPathPart(
-                            i)) != 0:
-                        failedBuildPackages = failedBuildPackages&i
-                        echo "couldnt build "&i
+                  let cmd = execCmdEx(cmdStr&lastPathPart(i))
+                  if cmd.exitCode != 0:
+                     writeFile("failed-log-"&lastPathPart(i)".log", cmd.output)
+                     failedBuildPackages = failedBuildPackages&i
+                     echo "couldnt build "&i
 
         else:
             echo "Not supported"
