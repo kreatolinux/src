@@ -91,11 +91,11 @@ proc checkAll*(repo: string, backend = "repology", autoUpdate = true,
                     echo "couldnt update "&i
 
                 if not pkgFailed and autoBuild:
-                  let cmd = execCmdEx(cmdStr&lastPathPart(i))
-                  if cmd.exitCode != 0:
-                     writeFile("failed-log-"&lastPathPart(i)".log", cmd.output)
-                     failedBuildPackages = failedBuildPackages&i
-                     echo "couldnt build "&i
+                    let cmd = execCmdEx(cmdStr&lastPathPart(i))
+                    if cmd.exitCode != 0:
+                        writeFile("failed-log-"&lastPathPart(i)".log", cmd.output)
+                        failedBuildPackages = failedBuildPackages&i
+                        echo "couldnt build "&i
 
         else:
             echo "Not supported"
