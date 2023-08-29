@@ -48,7 +48,7 @@ proc upgrade*(root = "/",
               upstreamPkg.release or (localPkg.epoch != "no" and
                       localPkg.epoch < upstreamPkg.epoch):
 
-                echo "Upgrading "&localPkg.pkg&" from "&localPkg.versionString&" to "&upstreamPkg.versionString
+                echo "Upgrading "&lastPathpart(i.path)&" from "&localPkg.versionString&" to "&upstreamPkg.versionString
 
                 if getConfigValue("Upgrade", "buildByDefault") == "yes":
                     discard build(yes = true, packages = @[lastPathpart(
