@@ -26,7 +26,7 @@ import commands/installcmd
 import ../common/version
 
 const ver {.strdefine.}: string = "v5"
-  
+
 if commitVer != "unavailable":
   clCfg.version = "kpkg "&ver&", commit "&commitVer
 else:
