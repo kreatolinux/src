@@ -23,8 +23,14 @@ import commands/updatecmd
 import commands/removecmd
 import commands/upgradecmd
 import commands/installcmd
+import ../common/version
 
-clCfg.version = "kpkg v5"
+const ver {.strdefine.}: string = "v5"
+  
+if commitVer != "unavailable":
+  clCfg.version = "kpkg "&ver&", commit "&commitVer
+else:
+  clCfg.version = "kpkg "&ver
 
 dispatchMulti(
   [
