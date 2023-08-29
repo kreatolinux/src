@@ -150,7 +150,7 @@ proc down_bin(package: string, binrepos: seq[string], root: string,
         else:
             err("attempted to download tarball from binary repository in offline mode", false)
 
-    if not downSuccess:
+    if not downSuccess and not offline:
         err("couldn't download the binary", false)
 
 proc install_bin(packages: seq[string], binrepos: seq[string], root: string,
