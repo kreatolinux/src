@@ -82,35 +82,27 @@ proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false,
                     else:
                         return deps.filterit(it.len != 0)
 
-            if pkgdeps.len == 0:
-                continue
 
-            if not isEmptyOrWhitespace(pkgdeps.join()):
-                for dep in pkgdeps:
+                let d = checkVersions(root, dep, repo)
 
-                    if prevPkgName == dep:
-                        err("circular dependency detected", false)
+                repo = findPkgRepo(d)
 
-                    let d = checkVersions(root, dep, repo)
+                if repo == "":
+                    err("Package "&d&" doesn't exist", false)
 
-                    repo = findPkgRepo(d)
+                let deprf = parse_runfile(repo&"/"&d)
 
-                    if repo == "":
-                        err("Package "&d&" doesn't exist", false)
+                if not isEmptyOrWhitespace(deprf.bdeps.join()) and isBuild:
+                    deps.add(dephandler(@[d], deps&ignoreDeps, bdeps = true,
+                            isBuild = true, root = root, prevPkgName = pkg))
 
-                    let deprf = parse_runfile(repo&"/"&d)
+                if d in pkgs or d in deps or isIn(deps, ignoreDeps) or
+                        dep in ignoreDeps:
+                    continue
 
-                    if not isEmptyOrWhitespace(deprf.bdeps.join()) and isBuild:
-                        deps.add(dephandler(@[d], deps&ignoreDeps, bdeps = true,
-                                isBuild = true, root = root, prevPkgName = pkg))
+                deps.add(dephandler(@[d], deps&ignoreDeps, bdeps = false,
+                        isBuild = isBuild, root = root, prevPkgName = pkg))
 
-                    if d in pkgs or d in deps or isIn(deps, ignoreDeps) or
-                            dep in ignoreDeps:
-                        continue
-
-                    deps.add(dephandler(@[d], deps&ignoreDeps, bdeps = false,
-                            isBuild = isBuild, root = root, prevPkgName = pkg))
-
-                    deps.add(d)
+                deps.add(d)
 
     return deps.filterit(it.len != 0)
