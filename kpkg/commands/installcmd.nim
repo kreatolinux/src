@@ -136,6 +136,7 @@ proc down_bin(package: string, binrepos: seq[string], root: string,
         if fileExists("/var/cache/kpkg/archives/arch/"&hostCPU&"/"&tarball) and
                 fileExists("/var/cache/kpkg/archives/arch/"&hostCPU&"/"&chksum):
             echo "Tarball already exists, not gonna download again"
+            downSuccess = true
         elif not offline:
             echo "Downloading tarball for "&package
             try:
@@ -150,7 +151,7 @@ proc down_bin(package: string, binrepos: seq[string], root: string,
         else:
             err("attempted to download tarball from binary repository in offline mode", false)
 
-    if not downSuccess and not offline:
+    if not downSuccess:
         err("couldn't download the binary", false)
 
 proc install_bin(packages: seq[string], binrepos: seq[string], root: string,
