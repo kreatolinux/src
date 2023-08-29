@@ -51,12 +51,13 @@ proc upgrade*(root = "/",
                 echo "Upgrading "&localPkg.pkg&" from "&localPkg.versionString&" to "&upstreamPkg.versionString
 
                 if getConfigValue("Upgrade", "buildByDefault") == "yes":
-                    discard build(yes = true, packages = @[lastPathpart(i.path)],
-                            root = root, dontInstall = true)
+                    discard build(yes = true, packages = @[lastPathpart(
+                            i.path)], root = root, dontInstall = true)
                 else:
                     discard install(@[lastPathpart(i.path)], root, true,
                             downloadOnly = true)
 
-                discard install(@[lastPathpart(i.path)], root, true, offline = true)
+                discard install(@[lastPathpart(i.path)], root, true,
+                        offline = true)
 
     return "kpkg: done"
