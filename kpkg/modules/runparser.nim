@@ -26,10 +26,10 @@ proc parse_runfile*(path: string, removeLockfileWhenErr = true): runFile =
     try:
         for i in lines path&"/run":
             if i.split('=').len >= 3:
-              vars = i.split('"')
+                vars = i.split('"')
             else:
-              vars = i.split('=')
-              vars[0] = replace(vars[0], "=")
+                vars = i.split('=')
+                vars[0] = replace(vars[0], "=")
             case vars[0]:
                 of "NAME":
                     ret.pkg = vars[1].multiReplace(
