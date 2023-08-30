@@ -19,6 +19,7 @@ case $1 in
                 make kpkg
                 ./out/kpkg update || true
                 ./out/kpkg build shadow -y
+                ./out/kpkg install shadow -y
                 command -v su
                 #sed s/gcc/musl-gcc/g -i /etc/kpkg/kpkg.conf
                 rm -f /var/cache/kpkg/archives/*kpkg*
