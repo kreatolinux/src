@@ -48,7 +48,8 @@ proc install_pkg*(repo: string, package: string, root: string) =
     if dirExists(root&"/var/cache/kpkg/installed/"&package):
 
         echo "kpkg: package already installed, reinstalling"
-
+        
+        removeDir("/tmp/kpkg")
         createDir("/tmp")
         createDir("/tmp/kpkg")
         createDir("/tmp/kpkg/reinstall")
@@ -87,12 +88,11 @@ proc install_pkg*(repo: string, package: string, root: string) =
 
     if dirExists("/tmp/kpkg/reinstall/"&package&"-old"):
         let cmd = execProcess("grep -xvFf /tmp/kpkg/reinstall/"&package&"-old/list_files /var/cache/kpkg/installed/"&package&"/list_files")
-        echo cmd
         if not isEmptyOrWhitespace(cmd):
             writeFile("/tmp/kpkg/reinstall/list_files", cmd)
             discard removeInternal("reinstall", root,
                     installedDir = "/tmp/kpkg", ignoreReplaces = true)
-            removeDir("/tmp/kpkg")
+        removeDir("/tmp/kpkg")
 
     var existsPostinstall = execCmdEx(
             ". "&repo&"/"&package&"/run"&" && command -v postinstall").exitCode
