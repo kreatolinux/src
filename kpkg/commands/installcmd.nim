@@ -48,7 +48,7 @@ proc install_pkg*(repo: string, package: string, root: string) =
     if dirExists(root&"/var/cache/kpkg/installed/"&package):
 
         echo "kpkg: package already installed, reinstalling"
-        
+
         removeDir("/tmp/kpkg")
         createDir("/tmp")
         createDir("/tmp/kpkg")
