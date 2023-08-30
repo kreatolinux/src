@@ -55,7 +55,7 @@ proc checkAll*(repo: string, backend = "repology", autoUpdate = true,
                 if not pkgFailed and autoBuild:
                     let cmd = execCmdEx(cmdStr&lastPathPart(i))
                     if cmd.exitCode != 0:
-                        writeFile("failed-log-"&lastPathPart(i)".log", cmd.output)
+                        writeFile("failed-log-"&lastPathPart(i)&".log", cmd.output)
                         failedBuildPackages = failedBuildPackages&i
                         echo "couldnt build "&i
                     else:
@@ -71,7 +71,7 @@ proc checkAll*(repo: string, backend = "repology", autoUpdate = true,
                 if run.noChkupd:
                     let cmd = execCmdEx(cmdStr&lastPathPart(i))
                     if cmd.exitCode != 0:
-                        writeFile("failed-log-"&lastPathPart(i)".log", cmd.output)
+                        writeFile("failed-log-"&lastPathPart(i)&".log", cmd.output)
                         failedBuildPackages = failedBuildPackages&i
                         echo "couldnt build "&i
                     continue
@@ -94,7 +94,7 @@ proc checkAll*(repo: string, backend = "repology", autoUpdate = true,
                 if not pkgFailed and autoBuild:
                     let cmd = execCmdEx(cmdStr&lastPathPart(i))
                     if cmd.exitCode != 0:
-                        writeFile("failed-log-"&lastPathPart(i)".log", cmd.output)
+                        writeFile("failed-log-"&lastPathPart(i)&".log", cmd.output)
                         failedBuildPackages = failedBuildPackages&i
                         echo "couldnt build "&i
 
