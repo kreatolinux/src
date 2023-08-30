@@ -1,5 +1,6 @@
 import os
 import json
+import osproc
 import sequtils
 import backends/arch
 import backends/repology
