@@ -60,8 +60,8 @@ proc install_pkg*(repo: string, package: string, root: string) =
         if dirExists(root&"/var/cache/kpkg/installed/"&i) and expandSymlink(
                 root&"/var/cache/kpkg/installed/"&i) != package:
             discard removeInternal(i, root)
-            if not symlinkExists(root&"/var/cache/kpkg/installed/"&i):
-                createSymlink(package, root&"/var/cache/kpkg/installed/"&i)
+        if not symlinkExists(root&"/var/cache/kpkg/installed/"&i):
+            createSymlink(package, root&"/var/cache/kpkg/installed/"&i)
 
     let tarball = "/var/cache/kpkg/archives/arch/"&hostCPU&"/kpkg-tarball-"&package&"-"&pkg.versionString&".tar.gz"
 
@@ -87,10 +87,12 @@ proc install_pkg*(repo: string, package: string, root: string) =
 
     if dirExists("/tmp/kpkg/reinstall/"&package&"-old"):
         let cmd = execProcess("grep -xvFf /tmp/kpkg/reinstall/"&package&"-old/list_files /var/cache/kpkg/installed/"&package&"/list_files")
-        writeFile("/tmp/kpkg/reinstall/list_files", cmd)
-        discard removeInternal("reinstall", root, installedDir = "/tmp/kpkg",
-                ignoreReplaces = true)
-        removeDir("/tmp/kpkg")
+        echo cmd
+        if not isEmptyOrWhitespace(cmd):
+          writeFile("/tmp/kpkg/reinstall/list_files", cmd)
+          discard removeInternal("reinstall", root, installedDir = "/tmp/kpkg",
+                  ignoreReplaces = true)
+          #removeDir("/tmp/kpkg")
 
     var existsPostinstall = execCmdEx(
             ". "&repo&"/"&package&"/run"&" && command -v postinstall").exitCode
