@@ -89,10 +89,10 @@ proc install_pkg*(repo: string, package: string, root: string) =
         let cmd = execProcess("grep -xvFf /tmp/kpkg/reinstall/"&package&"-old/list_files /var/cache/kpkg/installed/"&package&"/list_files")
         echo cmd
         if not isEmptyOrWhitespace(cmd):
-          writeFile("/tmp/kpkg/reinstall/list_files", cmd)
-          discard removeInternal("reinstall", root, installedDir = "/tmp/kpkg",
-                  ignoreReplaces = true)
-          #removeDir("/tmp/kpkg")
+            writeFile("/tmp/kpkg/reinstall/list_files", cmd)
+            discard removeInternal("reinstall", root,
+                    installedDir = "/tmp/kpkg", ignoreReplaces = true)
+            #removeDir("/tmp/kpkg")
 
     var existsPostinstall = execCmdEx(
             ". "&repo&"/"&package&"/run"&" && command -v postinstall").exitCode
