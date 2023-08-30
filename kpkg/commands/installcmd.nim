@@ -52,7 +52,7 @@ proc install_pkg*(repo: string, package: string, root: string) =
         createDir("/tmp")
         createDir("/tmp/kpkg")
         createDir("/tmp/kpkg/reinstall")
-
+  
         moveDir(root&"/var/cache/kpkg/installed/"&package,
                 "/tmp/kpkg/reinstall/"&package&"-old")
 
@@ -92,7 +92,7 @@ proc install_pkg*(repo: string, package: string, root: string) =
             writeFile("/tmp/kpkg/reinstall/list_files", cmd)
             discard removeInternal("reinstall", root,
                     installedDir = "/tmp/kpkg", ignoreReplaces = true)
-            #removeDir("/tmp/kpkg")
+            removeDir("/tmp/kpkg")
 
     var existsPostinstall = execCmdEx(
             ". "&repo&"/"&package&"/run"&" && command -v postinstall").exitCode
