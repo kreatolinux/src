@@ -52,7 +52,7 @@ proc install_pkg*(repo: string, package: string, root: string) =
         createDir("/tmp")
         createDir("/tmp/kpkg")
         createDir("/tmp/kpkg/reinstall")
-  
+
         moveDir(root&"/var/cache/kpkg/installed/"&package,
                 "/tmp/kpkg/reinstall/"&package&"-old")
 
