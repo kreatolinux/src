@@ -133,7 +133,12 @@ proc builder*(package: string, destdir: string,
                 it.len != 0)
         discard execProcess("su -s /bin/sh _kpkg -c 'bsdtar -xvf "&filename&"'")
         if pkg.sources.split(";").len == 1:
-            setCurrentDir(folder[0])
+            try:
+              setCurrentDir(folder[0])
+            except Exception:
+              when not defined(release):
+                echo folder
+              raise
     elif existsPrepare == 0:
         assert execShellCmd("su -s /bin/sh _kpkg -c '. "&path&"/run"&" && prepare'") ==
                 0, "prepare failed"
