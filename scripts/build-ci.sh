@@ -16,8 +16,10 @@ case $1 in
                 #apk add build-base llvm-libunwind-dev compiler-rt libc++-dev alpine-sdk nimble shadow libarchive-tools perl zlib-dev llvm clang linux-headers openssl-dev binutils-dev gettext-dev xz libgcc gcc
                 make deps
                 rm -vf /etc/kpkg/kpkg.conf
-                #make kpkg
-                #./out/kpkg update || true
+                make kpkg
+                ./out/kpkg update || true
+                ./out/kpkg build shadow -y
+                command -v su
                 #sed s/gcc/musl-gcc/g -i /etc/kpkg/kpkg.conf
                 rm -f /var/cache/kpkg/archives/*kpkg*
                 nim c -d:branch=master --passC:-no-pie --threads:on -d:ssl -o=kreastrap/kreastrap kreastrap/kreastrap.nim
