@@ -23,6 +23,7 @@ case $1 in
                 #command -v su
                 #sed s/gcc/musl-gcc/g -i /etc/kpkg/kpkg.conf
                 #rm -f /var/cache/kpkg/archives/*kpkg*
+                rm -rf /tmp/kpkg
                 nim c -d:branch=master --passC:-no-pie --threads:on -d:ssl -o=kreastrap/kreastrap kreastrap/kreastrap.nim
                 #make kreastrap
         ;;
