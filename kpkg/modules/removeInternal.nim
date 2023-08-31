@@ -24,11 +24,11 @@ proc removeInternal*(package: string, root = "",
         if isEmptyOrWhitespace(toSeq(walkDirRec(root&"/"&line)).join("")):
             removeDir(root&"/"&line)
 
-    removeDir(installedDir&"/"&package)
-
     if not ignoreReplaces:
         let pkgreplaces = parse_runfile(installedDir&"/"&actualPackage).replaces
         for i in pkgreplaces:
             removeDir(installedDir&"/"&i)
+    
+    removeDir(installedDir&"/"&package)
 
     return "kpkg: package "&package&" removed."
