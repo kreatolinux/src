@@ -39,7 +39,7 @@ dispatchMulti(
     "root": "The directory the package is gonna be installed to",
     "yes": "Automatically say 'yes' to every question",
     "no": "Automatically say 'no' to every question",
-    "useCacheIfAvailable": "Uses cached build (if available)"  
+    "useCacheIfAvailable": "Uses cached build (if available)", 
     "dontInstall": "Only build, don't install",
     "forceInstallAll": "Force reinstall every dependency"  
   }
