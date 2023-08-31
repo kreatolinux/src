@@ -42,7 +42,7 @@ proc diff(a: seq[string], b: seq[string]): seq[string] =
 
     return r
 
-proc install_pkg*(repo: string, package: string, root: string) =
+proc install_pkg*(repo: string, package: string, root: string, built = false) =
     ## Installs an package.
 
     var pkg: runFile
@@ -55,10 +55,8 @@ proc install_pkg*(repo: string, package: string, root: string) =
         if dirExists(root&"/var/cache/kpkg/installed/"&i):
             err(i&" conflicts with "&package)
     
-    removeDir("/tmp/kpkg")
     createDir("/tmp")
     createDir("/tmp/kpkg")
-    createDir("/tmp/kpkg/extractDir")
 
     if dirExists(root&"/var/cache/kpkg/installed/"&package):
 
@@ -83,14 +81,20 @@ proc install_pkg*(repo: string, package: string, root: string) =
     removeDir(root&"/var/cache/kpkg/installed/"&package)
     copyDir(repo&"/"&package, root&"/var/cache/kpkg/installed/"&package)
     
-    if execCmdEx("tar -xf "&tarball&" -C /tmp/kpkg/extractDir").exitCode != 0:
-      err("extracting the tarball failed for "&package, false)
+    if not built:  
+      createDir("/tmp/kpkg/extractDir")
+      if execCmdEx("tar -xf "&tarball&" -C /tmp/kpkg/extractDir").exitCode != 0:
+        err("extracting the tarball failed for "&package, false)
     
     for i in pkg.replaces:
       if dirExists("/var/cache/kpkg/installed/"&i):
         discard removeInternal(i, root)
-
-    writeFile(root&"/var/cache/kpkg/installed/"&package&"/list_files", mv("/tmp/kpkg/extractDir", root).join("\n"))
+      createSymlink(package, root&"/var/cache/kpkg/installed/"&i)
+    
+    if built:
+      writeFile(root&"/var/cache/kpkg/installed/"&package&"/list_files", mv("/tmp/kpkg/build", root).join("\n"))
+    else:
+      writeFile(root&"/var/cache/kpkg/installed/"&package&"/list_files", mv("/tmp/kpkg/extractDir", root).join("\n"))
 
     removeDir("/tmp/kpkg/extractDir")
 
