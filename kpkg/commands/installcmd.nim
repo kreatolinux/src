@@ -87,7 +87,7 @@ proc install_pkg*(repo: string, package: string, root: string) =
     
     var listFiles: seq[string]
 
-    extractAll("kpkg-tarball-kmod-30-3.tar.gz", "/tmp/kpkg/extractDir")
+    extractAll(tarball, "/tmp/kpkg/extractDir")
     setCurrentDir("/tmp/kpkg/extractDir")
     for i in walkDirRec(".", {pcFile, pcLinkToFile, pcDir, pcLinkToDir}):
       listFiles = listFiles&listFiles
