@@ -100,7 +100,7 @@ proc install_pkg*(repo: string, package: string, root: string, built = false) =
     else:
         mv("/tmp/kpkg/extractDir", root)
 
-    writeFile(root&"/var/cache/kpkg/installed/"&package&"/list_files", cmd)
+    writeFile(root&"/var/cache/kpkg/installed/"&package&"/list_files", cmd.output)
 
     removeDir("/tmp/kpkg/extractDir")
 
