@@ -5,7 +5,6 @@ import strutils
 import sequtils
 import threadpool
 import libsha/sha256
-import zippy/tarballs
 import ../modules/config
 import ../modules/logger
 import ../modules/runparser
@@ -59,6 +58,7 @@ proc install_pkg*(repo: string, package: string, root: string) =
     removeDir("/tmp/kpkg")
     createDir("/tmp")
     createDir("/tmp/kpkg")
+    createDir("/tmp/kpkg/extractDir")
 
     if dirExists(root&"/var/cache/kpkg/installed/"&package):
 
@@ -68,10 +68,6 @@ proc install_pkg*(repo: string, package: string, root: string) =
 
         moveDir(root&"/var/cache/kpkg/installed/"&package,
                 "/tmp/kpkg/reinstall/"&package&"-old")
-
-    for i in pkg.replaces:
-      if dirExists("/var/cache/kpkg/installed/"&i):
-        discard removeInternal(i, root)
 
     let tarball = "/var/cache/kpkg/archives/arch/"&hostCPU&"/kpkg-tarball-"&package&"-"&pkg.versionString&".tar.gz"
 
@@ -86,10 +82,12 @@ proc install_pkg*(repo: string, package: string, root: string) =
     discard existsOrCreateDir(root&"/var/cache/kpkg/installed")
     removeDir(root&"/var/cache/kpkg/installed/"&package)
     copyDir(repo&"/"&package, root&"/var/cache/kpkg/installed/"&package)
-
-    var listFiles: seq[string]
-
-    extractAll(tarball, "/tmp/kpkg/extractDir")
+    
+    execProcess("tar -xf "&tarball&" -C /tmp/kpkg/extractDir")
+    
+    for i in pkg.replaces:
+      if dirExists("/var/cache/kpkg/installed/"&i):
+        discard removeInternal(i, root)
 
     writeFile(root&"/var/cache/kpkg/installed/"&package&"/list_files", mv("/tmp/kpkg/extractDir", root).join("\n"))
 
@@ -103,7 +101,6 @@ proc install_pkg*(repo: string, package: string, root: string) =
                 "\n"), readFile(
                 "/var/cache/kpkg/installed/"&package&"/list_files").split("\n"))
         if d.len != 0:
-            echo d.join("\n")
             writeFile("/tmp/kpkg/reinstall/list_files", d.join("\n"))
             discard removeInternal("reinstall", root,
                     installedDir = "/tmp/kpkg", ignoreReplaces = true)

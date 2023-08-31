@@ -207,7 +207,6 @@ proc builder*(package: string, destdir: string,
     removeFile(lockfile)
 
     removeDir(srcdir)
-    removeDir(root)
     removeDir(homeDir)
 
     return false
