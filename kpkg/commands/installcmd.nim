@@ -55,14 +55,15 @@ proc install_pkg*(repo: string, package: string, root: string) =
     for i in pkg.conflicts:
         if dirExists(root&"/var/cache/kpkg/installed/"&i):
             err(i&" conflicts with "&package)
+    
+    removeDir("/tmp/kpkg")
+    createDir("/tmp")
+    createDir("/tmp/kpkg")
 
     if dirExists(root&"/var/cache/kpkg/installed/"&package):
 
         echo "kpkg: package already installed, reinstalling"
 
-        removeDir("/tmp/kpkg")
-        createDir("/tmp")
-        createDir("/tmp/kpkg")
         createDir("/tmp/kpkg/reinstall")
 
         moveDir(root&"/var/cache/kpkg/installed/"&package,
@@ -106,7 +107,8 @@ proc install_pkg*(repo: string, package: string, root: string) =
             writeFile("/tmp/kpkg/reinstall/list_files", d.join("\n"))
             discard removeInternal("reinstall", root,
                     installedDir = "/tmp/kpkg", ignoreReplaces = true)
-        removeDir("/tmp/kpkg")
+    
+    removeDir("/tmp/kpkg")
 
     var existsPostinstall = execCmdEx(
             ". "&repo&"/"&package&"/run"&" && command -v postinstall").exitCode
