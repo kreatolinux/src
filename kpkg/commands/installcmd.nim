@@ -1,9 +1,11 @@
 import os
+import diff
 import osproc
 import strutils
 import sequtils
 import threadpool
 import libsha/sha256
+import zippy/tarballs
 import ../modules/config
 import ../modules/logger
 import ../modules/runparser
@@ -22,15 +24,24 @@ try:
 except Exception:
     threadsUsed = 4
 
-proc ctrlc() {.noconv.} =
-    for path in walkFiles("/var/cache/kpkg/archives/arch/"&hostCPU&"/*.partial"):
-        removeFile(path)
-
-    echo ""
-    echo "kpkg: ctrl+c pressed, shutting down"
-    quit(130)
-
 setControlCHook(ctrlc)
+
+proc diff(a: seq[string], b: seq[string]): seq[string] =
+  ## Returns the differences b has in a string.
+  var result: seq[string]
+  
+  for span in spanSlices(a, b):
+    case span.tag
+    of tagReplace:
+      for text in span.b:
+        result = result&text
+    of tagInsert:
+      for text in span.b:
+        result = result&text
+    else:
+      discard
+  
+  return result
 
 proc install_pkg*(repo: string, package: string, root: string) =
     ## Installs an package.
@@ -58,11 +69,7 @@ proc install_pkg*(repo: string, package: string, root: string) =
                 "/tmp/kpkg/reinstall/"&package&"-old")
 
     for i in pkg.replaces:
-        if dirExists(root&"/var/cache/kpkg/installed/"&i) and expandSymlink(
-                root&"/var/cache/kpkg/installed/"&i) != package:
-            discard removeInternal(i, root)
-        if not symlinkExists(root&"/var/cache/kpkg/installed/"&i):
-            createSymlink(package, root&"/var/cache/kpkg/installed/"&i)
+      discard removeInternal(i, root)
 
     let tarball = "/var/cache/kpkg/archives/arch/"&hostCPU&"/kpkg-tarball-"&package&"-"&pkg.versionString&".tar.gz"
 
@@ -77,19 +84,29 @@ proc install_pkg*(repo: string, package: string, root: string) =
     discard existsOrCreateDir(root&"/var/cache/kpkg/installed")
     removeDir(root&"/var/cache/kpkg/installed/"&package)
     copyDir(repo&"/"&package, root&"/var/cache/kpkg/installed/"&package)
+    
+    var listFiles: seq[string]
 
-    writeFile(root&"/var/cache/kpkg/installed/"&package&"/list_files",
-            execProcess("tar -tf"&tarball))
-
-    discard execProcess("tar -hxf"&tarball&" -C "&root)
+    createDir("/tmp/kpkg/extractDir")
+    extractAll("kpkg-tarball-kmod-30-3.tar.gz", "/tmp/kpkg/extractDir")
+    setCurrentDir("/tmp/kpkg/extractDir")
+    for i in walkDirRec(".", {pcFile, pcLinkToFile, pcDir, pcLinkToDir}):
+      listFiles = listFiles&listFiles
+    
+    writeFile(root&"/var/cache/kpkg/installed/"&package&"/list_files", listFiles.join("\n"))
+    
+    mv("/tmp/kpkg/extractDir", root)
+    
+    removeDir("/tmp/kpkg/extractDir")
 
     # Run ldconfig afterwards for any new libraries
     discard execProcess("ldconfig")
 
     if dirExists("/tmp/kpkg/reinstall/"&package&"-old"):
-        let cmd = execProcess("grep -xvFf /tmp/kpkg/reinstall/"&package&"-old/list_files /var/cache/kpkg/installed/"&package&"/list_files")
-        if not isEmptyOrWhitespace(cmd):
-            writeFile("/tmp/kpkg/reinstall/list_files", cmd)
+        let d = diff(readFile("/tmp/kpkg/reinstall/"&package&"-old/list_files").split("\n"), readFile("/var/cache/kpkg/installed/"&package&"/list_files").split("\n"))
+        if d.len != 0:
+            echo d.join("\n")
+            writeFile("/tmp/kpkg/reinstall/list_files", d.join("\n"))
             discard removeInternal("reinstall", root,
                     installedDir = "/tmp/kpkg", ignoreReplaces = true)
         removeDir("/tmp/kpkg")
