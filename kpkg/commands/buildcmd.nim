@@ -216,7 +216,7 @@ proc builder*(package: string, destdir: string,
 
 proc build*(no = false, yes = false, root = "/",
     packages: seq[string],
-            useCacheIfAvailable = false, forceInstallAll = false,
+            useCacheIfAvailable = true, forceInstallAll = false,
                     dontInstall = false): string =
     ## Build and install packages
     var deps: seq[string]
