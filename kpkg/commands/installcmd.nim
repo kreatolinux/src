@@ -88,14 +88,8 @@ proc install_pkg*(repo: string, package: string, root: string) =
     var listFiles: seq[string]
 
     extractAll(tarball, "/tmp/kpkg/extractDir")
-    setCurrentDir("/tmp/kpkg/extractDir")
-    for i in walkDirRec(".", {pcFile, pcLinkToFile, pcDir, pcLinkToDir}):
-        listFiles = listFiles&listFiles
 
-    writeFile(root&"/var/cache/kpkg/installed/"&package&"/list_files",
-            listFiles.join("\n"))
-
-    mv("/tmp/kpkg/extractDir", root)
+    writeFile(root&"/var/cache/kpkg/installed/"&package&"/list_files", mv("/tmp/kpkg/extractDir", root).join("\n"))
 
     removeDir("/tmp/kpkg/extractDir")
 

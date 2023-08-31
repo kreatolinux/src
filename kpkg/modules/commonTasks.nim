@@ -2,9 +2,10 @@ import os
 import config
 import runparser
 
-proc mv*(f: string, t: string) =
-    ## Moves files and directories.
+proc mv*(f: string, t: string): seq[string] =
+    ## Moves files and directories and sends the list of files as a seq[string].
     var d: string
+    var r: seq[string]
 
     setCurrentDir(f)
 
@@ -21,6 +22,7 @@ proc mv*(f: string, t: string) =
         when not defined(release):
           echo "kpkg: debug: moveDir from "&i&" to "&d
         moveDir(i, d)
+      r = r&i
 
 proc ctrlc*() {.noconv.} =
     for path in walkFiles("/var/cache/kpkg/archives/arch/"&hostCPU&"/*.partial"):
