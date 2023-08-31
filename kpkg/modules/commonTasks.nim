@@ -5,10 +5,10 @@ import runparser
 proc mv*(f: string, t: string) =
     ## Moves files and directories.
     for kind, path in walkDir(f&"/."):
-      if kind == pcFile or kind == pcLinkToFile:
-        moveFile(path, t&"/"&lastPathPart(path))
-      elif kind == pcDir or kind == pcLinkToDir:
-        moveDir(path, t&"/"&lastPathPart(path))
+        if kind == pcFile or kind == pcLinkToFile:
+            moveFile(path, t&"/"&lastPathPart(path))
+        elif kind == pcDir or kind == pcLinkToDir:
+            moveDir(path, t&"/"&lastPathPart(path))
 
     return
 

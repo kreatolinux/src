@@ -27,21 +27,21 @@ except Exception:
 setControlCHook(ctrlc)
 
 proc diff(a: seq[string], b: seq[string]): seq[string] =
-  ## Returns the differences b has in a string.
-  var r: seq[string]
-  
-  for span in spanSlices(a, b):
-    case span.tag
-    of tagReplace:
-      for text in span.b:
-        r = r&text
-    of tagInsert:
-      for text in span.b:
-        r = r&text
-    else:
-      discard
-  
-  return r
+    ## Returns the differences b has in a string.
+    var r: seq[string]
+
+    for span in spanSlices(a, b):
+        case span.tag
+        of tagReplace:
+            for text in span.b:
+                r = r&text
+        of tagInsert:
+            for text in span.b:
+                r = r&text
+        else:
+            discard
+
+    return r
 
 proc install_pkg*(repo: string, package: string, root: string) =
     ## Installs an package.
@@ -69,7 +69,7 @@ proc install_pkg*(repo: string, package: string, root: string) =
                 "/tmp/kpkg/reinstall/"&package&"-old")
 
     for i in pkg.replaces:
-      discard removeInternal(i, root)
+        discard removeInternal(i, root)
 
     let tarball = "/var/cache/kpkg/archives/arch/"&hostCPU&"/kpkg-tarball-"&package&"-"&pkg.versionString&".tar.gz"
 
@@ -84,25 +84,28 @@ proc install_pkg*(repo: string, package: string, root: string) =
     discard existsOrCreateDir(root&"/var/cache/kpkg/installed")
     removeDir(root&"/var/cache/kpkg/installed/"&package)
     copyDir(repo&"/"&package, root&"/var/cache/kpkg/installed/"&package)
-    
+
     var listFiles: seq[string]
 
     extractAll(tarball, "/tmp/kpkg/extractDir")
     setCurrentDir("/tmp/kpkg/extractDir")
     for i in walkDirRec(".", {pcFile, pcLinkToFile, pcDir, pcLinkToDir}):
-      listFiles = listFiles&listFiles
-    
-    writeFile(root&"/var/cache/kpkg/installed/"&package&"/list_files", listFiles.join("\n"))
-    
+        listFiles = listFiles&listFiles
+
+    writeFile(root&"/var/cache/kpkg/installed/"&package&"/list_files",
+            listFiles.join("\n"))
+
     mv("/tmp/kpkg/extractDir", root)
-    
+
     removeDir("/tmp/kpkg/extractDir")
 
     # Run ldconfig afterwards for any new libraries
     discard execProcess("ldconfig")
 
     if dirExists("/tmp/kpkg/reinstall/"&package&"-old"):
-        let d = diff(readFile("/tmp/kpkg/reinstall/"&package&"-old/list_files").split("\n"), readFile("/var/cache/kpkg/installed/"&package&"/list_files").split("\n"))
+        let d = diff(readFile("/tmp/kpkg/reinstall/"&package&"-old/list_files").split(
+                "\n"), readFile(
+                "/var/cache/kpkg/installed/"&package&"/list_files").split("\n"))
         if d.len != 0:
             echo d.join("\n")
             writeFile("/tmp/kpkg/reinstall/list_files", d.join("\n"))
