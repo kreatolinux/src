@@ -39,7 +39,10 @@ dispatchMulti(
     "root": "The directory the package is gonna be installed to",
     "yes": "Automatically say 'yes' to every question",
     "no": "Automatically say 'no' to every question",
-    }
+    "useCacheIfAvailable": "Uses cached build (if available)"  
+    "dontInstall": "Only build, don't install"  
+    "forceInstallAll": "Force reinstall every dependency"  
+  }
   ],
 
   [
@@ -48,6 +51,7 @@ dispatchMulti(
     "yes": "Automatically say 'yes' to every question",
     "no": "Automatically say 'no' to every question",
     "offline": "Offline mode, errors out if tarball is attempted to get downloaded off binrepo",
+    "downloadOnly": "Only download the binary, don't install"
     }
   ],
   [
@@ -69,11 +73,15 @@ dispatchMulti(
   upgrade, help = {
     "root": "The directory the packages are gonna be upgraded on",
     "builddir": "Set a custom build directory",
+    "yes": "Automatically say 'yes' to every question",
+    "no": "Automatically say 'no' to every question",
     "srcdir": "Set a custom source directory"
     }
   ],
 
   [
-  info
+  info, help = {
+  "testing": "Don't error if package isn't installed"
+  }
   ]
 )

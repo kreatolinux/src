@@ -33,7 +33,7 @@ proc update*(repo = "",
                 discard execProcess("git clone "&i.link&" "&i.dir)
 
     if path != "" and repo != "":
-        echo "cloning "&path&" from "&repo
+        echo "kpkg: cloning "&path&" from "&repo&"::"&branch
         discard execProcess("git clone "&repo&" "&path)
         if not (repo in repolinks and path in repodirs):
             if branch != "master":
