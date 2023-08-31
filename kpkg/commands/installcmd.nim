@@ -81,20 +81,26 @@ proc install_pkg*(repo: string, package: string, root: string, built = false) =
     removeDir(root&"/var/cache/kpkg/installed/"&package)
     copyDir(repo&"/"&package, root&"/var/cache/kpkg/installed/"&package)
     
+    var cmd: tuple[output: string, exitCode: int]
     if not built:  
       createDir("/tmp/kpkg/extractDir")
-      if execCmdEx("tar -xf "&tarball&" -C /tmp/kpkg/extractDir").exitCode != 0:
+      cmd = execCmdEx("tar -xf "&tarball&" -C /tmp/kpkg/extractDir")
+      if cmd.exitCode != 0:
         err("extracting the tarball failed for "&package, false)
-    
+    else:
+      cmd = execCmdEx("tar -tf "&tarball)
+
     for i in pkg.replaces:
       if dirExists("/var/cache/kpkg/installed/"&i):
         discard removeInternal(i, root)
       createSymlink(package, root&"/var/cache/kpkg/installed/"&i)
     
     if built:
-      writeFile(root&"/var/cache/kpkg/installed/"&package&"/list_files", mv("/tmp/kpkg/build", root).join("\n"))
+      mv("/tmp/kpkg/build", root)
     else:
-      writeFile(root&"/var/cache/kpkg/installed/"&package&"/list_files", mv("/tmp/kpkg/extractDir", root).join("\n"))
+      mv("/tmp/kpkg/extractDir", root)
+    
+    writeFile(root&"/var/cache/kpkg/installed/"&package&"/list_files", cmd)
 
     removeDir("/tmp/kpkg/extractDir")
 
