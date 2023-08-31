@@ -222,9 +222,9 @@ proc install*(promptPackages: seq[string], root = "/", yes: bool = false,
     let fullRootPath = expandFilename(root)
 
     for i in promptPackages:
-      if findPkgRepo(i&"-"&init) != "":
-        packages = packages&(i&"-"&init)
-    
+        if findPkgRepo(i&"-"&init) != "":
+            packages = packages&(i&"-"&init)
+
     printReplacesPrompt(deps, root)
     printReplacesPrompt(packages, root)
 

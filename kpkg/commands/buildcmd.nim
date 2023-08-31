@@ -232,12 +232,12 @@ proc build*(no = false, yes = false, root = "/",
         raise
 
     printReplacesPrompt(deps, root)
-    
+
     var p = packages
 
     for i in packages:
-      if findPkgRepo(i&"-"&init) != "":
-        p = p&(i&"-"&init)
+        if findPkgRepo(i&"-"&init) != "":
+            p = p&(i&"-"&init)
 
     printReplacesPrompt(p, root)
     printPackagesPrompt(deps.join(" ")&" "&p.join(" "), yes, no)

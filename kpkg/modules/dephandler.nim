@@ -91,9 +91,9 @@ proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false,
 
                 if repo == "":
                     err("Package "&d&" doesn't exist", false)
-                
+
                 if findPkgRepo(dep&"-"&init) != "":
-                  deps.add(dep&"-"&init)
+                    deps.add(dep&"-"&init)
 
                 let deprf = parse_runfile(repo&"/"&d)
 
