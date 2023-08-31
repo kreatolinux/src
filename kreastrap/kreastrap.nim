@@ -169,7 +169,7 @@ proc initDirectories(buildDirectory: string, arch: string) =
     createSymlink("usr/bin", buildDirectory&"/sbin")
     createSymlink("bin", buildDirectory&"/usr/sbin")
     createSymlink("usr/bin", buildDirectory&"/bin")
-    createSymlink("usr/lib", buildDirectory&"/lib") 
+    createSymlink("usr/lib", buildDirectory&"/lib")
 
     info_msg "Root directory structure created."
 
