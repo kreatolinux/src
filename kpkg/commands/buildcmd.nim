@@ -247,10 +247,11 @@ proc build*(no = false, yes = false, root = "/",
                 discard builder(i, fullRootPath, offline = false,
                         useCacheIfAvailable = useCacheIfAvailable)
 
-            if findPkgRepo(i&"-"&init) != "" and not dirExists(fullRootPath&"/var/cache/kpkg/installed/"&i&"-"&init):
+            if findPkgRepo(i&"-"&init) != "" and not dirExists(
+                    fullRootPath&"/var/cache/kpkg/installed/"&i&"-"&init):
                 discard builder(i&"-"&init, fullRootPath, offline = false,
                         useCacheIfAvailable = useCacheIfAvailable)
-              
+
             echo("kpkg: installed "&i&" successfully")
 
         except CatchableError:
@@ -261,10 +262,11 @@ proc build*(no = false, yes = false, root = "/",
             discard builder(i, fullRootPath, offline = false,
                     useCacheIfAvailable = useCacheIfAvailable,
                     dontInstall = dontInstall)
-            if findPkgRepo(i&"-"&init) != "" and not dirExists(fullRootPath&"/var/cache/kpkg/installed/"&i&"-"&init):
-              discard builder(i&"-"&init, fullRootPath, offline = false,
-                      useCacheIfAvailable = useCacheIfAvailable,
-                      dontInstall = dontInstall)
+            if findPkgRepo(i&"-"&init) != "" and not dirExists(
+                    fullRootPath&"/var/cache/kpkg/installed/"&i&"-"&init):
+                discard builder(i&"-"&init, fullRootPath, offline = false,
+                        useCacheIfAvailable = useCacheIfAvailable,
+                        dontInstall = dontInstall)
 
             echo("kpkg: installed "&i&" successfully")
 
