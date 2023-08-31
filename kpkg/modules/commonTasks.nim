@@ -4,8 +4,6 @@ import runparser
 
 proc mv*(f: string, t: string) =
     ## Moves files and directories.
-    var fullPath: string
-
     for kind, path in walkDir(f&"/."):
       if kind == pcFile or kind == pcLinkToFile:
         moveFile(path, t&"/"&lastPathPart(path))

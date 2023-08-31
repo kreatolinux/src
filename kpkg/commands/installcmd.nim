@@ -28,20 +28,20 @@ setControlCHook(ctrlc)
 
 proc diff(a: seq[string], b: seq[string]): seq[string] =
   ## Returns the differences b has in a string.
-  var result: seq[string]
+  var r: seq[string]
   
   for span in spanSlices(a, b):
     case span.tag
     of tagReplace:
       for text in span.b:
-        result = result&text
+        r = r&text
     of tagInsert:
       for text in span.b:
-        result = result&text
+        r = r&text
     else:
       discard
   
-  return result
+  return r
 
 proc install_pkg*(repo: string, package: string, root: string) =
     ## Installs an package.
