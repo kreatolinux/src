@@ -84,7 +84,7 @@ proc install_pkg*(repo: string, package: string, root: string, built = false) =
     var cmd: tuple[output: string, exitCode: int]
     if not built:
         createDir("/tmp/kpkg/extractDir")
-        cmd = execCmdEx("tar -xf "&tarball&" -C /tmp/kpkg/extractDir")
+        cmd = execCmdEx("tar -xvf "&tarball&" -C /tmp/kpkg/extractDir")
         if cmd.exitCode != 0:
             err("extracting the tarball failed for "&package, false)
     else:
