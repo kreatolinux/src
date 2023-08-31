@@ -8,11 +8,11 @@ import commonTasks
 proc removeInternal*(package: string, root = "",
         installedDir = root&"/var/cache/kpkg/installed",
         ignoreReplaces = false): string =
-    
+
     let init = getInit(root)
-    
+
     if dirExists(installedDir&"/"&package&"-"&init):
-      discard removeInternal(package&"-"&init, root, installedDir, ignoreReplaces)
+        discard removeInternal(package&"-"&init, root, installedDir, ignoreReplaces)
 
     var actualPackage: string
 
