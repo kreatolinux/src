@@ -169,7 +169,7 @@ proc initDirectories(buildDirectory: string, arch: string) =
     createSymlink("usr/bin", buildDirectory&"/sbin")
     createSymlink("bin", buildDirectory&"/usr/sbin")
     createSymlink("usr/bin", buildDirectory&"/bin")
-    createSymlink("usr/lib", buildDirectory&"/lib")
+    createSymlink("usr/lib", buildDirectory&"/lib") 
 
     info_msg "Root directory structure created."
 
@@ -257,6 +257,8 @@ proc kreastrap(buildType = "builder", arch = "amd64",
             installWithBinaries = false
         else:
             installWithBinaries = true
+
+        initKrelease(conf)
 
         # Installation of TLS library
         case conf.getSectionValue("Core", "TlsLibrary").normalize():
@@ -414,8 +416,6 @@ proc kreastrap(buildType = "builder", arch = "amd64",
             info_msg "Installing extra packages"
             for i in conf.getSectionValue("Extras", "ExtraPackages").split(" "):
                 kreastrapInstall(i, installWithBinaries, buildDir, useCacheIfPossible)
-
-        initKrelease(conf)
 
 dispatch kreastrap, help = {
                 "buildType": "Specify the build type",
