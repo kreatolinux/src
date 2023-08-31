@@ -83,7 +83,8 @@ proc install_pkg*(repo: string, package: string, root: string) =
     removeDir(root&"/var/cache/kpkg/installed/"&package)
     copyDir(repo&"/"&package, root&"/var/cache/kpkg/installed/"&package)
     
-    execProcess("tar -xf "&tarball&" -C /tmp/kpkg/extractDir")
+    if execCmdEx("tar -xf "&tarball&" -C /tmp/kpkg/extractDir").exitCode != 0:
+      err("extracting the tarball failed for "&package, false)
     
     for i in pkg.replaces:
       if dirExists("/var/cache/kpkg/installed/"&i):
