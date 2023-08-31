@@ -23,6 +23,8 @@ proc mv*(f: string, t: string): seq[string] =
           echo "kpkg: debug: moveDir from "&i&" to "&d
         moveDir(i, d)
       r = r&i
+    
+    return r
 
 proc ctrlc*() {.noconv.} =
     for path in walkFiles("/var/cache/kpkg/archives/arch/"&hostCPU&"/*.partial"):
