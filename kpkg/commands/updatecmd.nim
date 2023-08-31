@@ -39,12 +39,12 @@ proc update*(repo = "",
             if branch != "master":
                 setCurrentDir(path)
                 discard execProcess("git checkout "&branch)
-                setConfigValue("Repositories", "RepoLinks",
+                setConfigValue("Repositories", "repoLinks",
                         repolinks&" "&repo&"::"&branch)
-                setConfigValue("Repositories", "RepoDirs", repodirs&" "&path)
+                setConfigValue("Repositories", "repoDirs", repodirs&" "&path)
             else:
-                setConfigValue("Repositories", "RepoLinks", repolinks&" "&repo)
-                setConfigValue("Repositories", "RepoDirs", repodirs&" "&path)
+                setConfigValue("Repositories", "repoLinks", repolinks&" "&repo)
+                setConfigValue("Repositories", "repoDirs", repodirs&" "&path)
 
 
     return "kpkg: updated all repositories"
