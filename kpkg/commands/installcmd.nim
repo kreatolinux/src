@@ -69,6 +69,7 @@ proc install_pkg*(repo: string, package: string, root: string) =
                 "/tmp/kpkg/reinstall/"&package&"-old")
 
     for i in pkg.replaces:
+      if dirExists("/var/cache/kpkg/installed/"&i):
         discard removeInternal(i, root)
 
     let tarball = "/var/cache/kpkg/archives/arch/"&hostCPU&"/kpkg-tarball-"&package&"-"&pkg.versionString&".tar.gz"
