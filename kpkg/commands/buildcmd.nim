@@ -235,8 +235,6 @@ proc build*(no = false, yes = false, root = "/",
 
     printPackagesPrompt(deps.join(" ")&" "&packages.join(" "), yes, no)
 
-    var cacheAvailable = true
-    var builderOutput: bool
     let fullRootPath = expandFilename(root)
 
     for i in deps:
@@ -245,23 +243,17 @@ proc build*(no = false, yes = false, root = "/",
                     not forceInstallAll:
                 continue
             else:
-                builderOutput = builder(i, fullRootPath, offline = false,
-                        useCacheIfAvailable = useCacheIfAvailable)
-
-            if not builderOutput:
-                cacheAvailable = false
+                discard builder(i, fullRootPath, offline = false, useCacheIfAvailable = useCacheIfAvailable)
 
             echo("kpkg: installed "&i&" successfully")
 
         except CatchableError:
             raise
 
-        cacheAvailable = cacheAvailable and useCacheIfAvailable;
-
     for i in packages:
         try:
             discard builder(i, fullRootPath, offline = false,
-                    useCacheIfAvailable = cacheAvailable,
+                    useCacheIfAvailable = useCacheIfAvailable,
                     dontInstall = dontInstall)
             echo("kpkg: installed "&i&" successfully")
 
