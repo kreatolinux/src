@@ -4,13 +4,23 @@ import runparser
 
 proc mv*(f: string, t: string) =
     ## Moves files and directories.
-    for kind, path in walkDir(f&"/."):
-        if kind == pcFile or kind == pcLinkToFile:
-            moveFile(path, t&"/"&lastPathPart(path))
-        elif kind == pcDir or kind == pcLinkToDir:
-            moveDir(path, t&"/"&lastPathPart(path))
+    var d: string
 
-    return
+    setCurrentDir(f)
+
+    for i in walkDirRec("."):
+      d = t&"/"&splitFile(i).dir
+      if dirExists(d):
+        when not defined(release):
+          echo "kpkg: debug: "&d&" dir exists"
+          echo "kpkg: debug: creating directory to "&d
+          echo "kpkg: debug: going to move file "&i&" to "&t&"/"&i
+        createDir(d)
+        moveFile(i, t&"/"&i)
+      else:
+        when not defined(release):
+          echo "kpkg: debug: moveDir from "&i&" to "&d
+        moveDir(i, d)
 
 proc ctrlc*() {.noconv.} =
     for path in walkFiles("/var/cache/kpkg/archives/arch/"&hostCPU&"/*.partial"):
