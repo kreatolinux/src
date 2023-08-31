@@ -219,6 +219,7 @@ proc build*(no = false, yes = false, root = "/",
             useCacheIfAvailable = true, forceInstallAll = false,
                     dontInstall = false): string =
     ## Build and install packages
+    let init = getInit(root)
     var deps: seq[string]
 
     if packages.len == 0:
@@ -246,6 +247,10 @@ proc build*(no = false, yes = false, root = "/",
                 discard builder(i, fullRootPath, offline = false,
                         useCacheIfAvailable = useCacheIfAvailable)
 
+            if findPkgRepo(i&"-"&init) != "" and not dirExists(fullRootPath&"/var/cache/kpkg/installed/"&i&"-"&init):
+                discard builder(i&"-"&init, fullRootPath, offline = false,
+                        useCacheIfAvailable = useCacheIfAvailable)
+              
             echo("kpkg: installed "&i&" successfully")
 
         except CatchableError:
@@ -256,6 +261,11 @@ proc build*(no = false, yes = false, root = "/",
             discard builder(i, fullRootPath, offline = false,
                     useCacheIfAvailable = useCacheIfAvailable,
                     dontInstall = dontInstall)
+            if findPkgRepo(i&"-"&init) != "" and not dirExists(fullRootPath&"/var/cache/kpkg/installed/"&i&"-"&init):
+              discard builder(i&"-"&init, fullRootPath, offline = false,
+                      useCacheIfAvailable = useCacheIfAvailable,
+                      dontInstall = dontInstall)
+
             echo("kpkg: installed "&i&" successfully")
 
         except CatchableError:

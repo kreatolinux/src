@@ -181,7 +181,7 @@ proc down_bin(package: string, binrepos: seq[string], root: string,
         err("couldn't download the binary", false)
 
 proc install_bin(packages: seq[string], binrepos: seq[string], root: string,
-        offline: bool, downloadOnly = false) =
+        offline: bool, downloadOnly = false, init = "") =
     ## Downloads and installs binaries.
 
     var repo: string
@@ -191,6 +191,16 @@ proc install_bin(packages: seq[string], binrepos: seq[string], root: string,
             down_bin(i, binrepos, root, offline)
         else:
             spawn down_bin(i, binrepos, root, offline)
+        
+        if isEmptyOrWhitespace(init):
+          continue
+
+        if findPkgRepo(i&"-"&init) != "" and not dirExists(root&"/var/cache/kpkg/installed/"&i&"-"&init):
+          if threadsUsed == 1:
+              down_bin(i&"-"&init, binrepos, root, offline)
+          else:
+              spawn down_bin(i&"-"&init, binrepos, root, offline)
+
 
     if threadsUsed != 1:
         sync()
@@ -199,6 +209,13 @@ proc install_bin(packages: seq[string], binrepos: seq[string], root: string,
         for i in packages:
             repo = findPkgRepo(i)
             install_pkg(repo, i, root)
+  
+            if isEmptyOrWhitespace(init):
+              continue
+
+            if findPkgRepo(i&"-"&init) != "" and not dirExists(root&"/var/cache/kpkg/installed/"&i&"-"&init):
+              install_pkg(repo, i&"-"&init, root)
+
             echo "Installation for "&i&" complete"
 
 proc install*(promptPackages: seq[string], root = "/", yes: bool = false,
@@ -211,6 +228,7 @@ proc install*(promptPackages: seq[string], root = "/", yes: bool = false,
         err("you have to be root for this action.", false)
 
     var deps: seq[string]
+    let init = getInit(root)
 
     var packages = promptPackages
 
@@ -239,8 +257,8 @@ proc install*(promptPackages: seq[string], root = "/", yes: bool = false,
 
     if not (deps.len == 0 and deps == @[""]):
         install_bin(deps, binrepos, fullRootPath, offline,
-                downloadOnly = downloadOnly)
+                downloadOnly = downloadOnly, init = init)
         install_bin(packages, binrepos, fullRootPath, offline,
-                downloadOnly = downloadOnly)
+                downloadOnly = downloadOnly, init = init)
 
     return "kpkg: done"

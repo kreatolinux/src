@@ -1,7 +1,16 @@
 import os
 import config
+import logger
 import strutils
+import parsecfg
 import runparser
+
+proc getInit*(root: string): string =
+  ## Returns the init system.
+  try:
+    return loadConfig(root&"/etc/kreato-release").getSectionValue("Core", "init")
+  except CatchableError:
+    err("couldn't load "&root&"/etc/kreato-release")
 
 proc mv*(f: string, t: string) =
     ## Moves files and directories.
