@@ -73,10 +73,10 @@ proc builder*(package: string, destdir: string,
             fileExists(
             "/var/cache/kpkg/archives/arch/"&hostCPU&"/kpkg-tarball-"&package&"-"&pkg.versionString&".tar.gz.sum") and
             useCacheIfAvailable == true and dontInstall == false:
-        
+
         if destdir != "/":
-          install_pkg(repo, package, "/") # Install package on root too
-        
+            install_pkg(repo, package, "/") # Install package on root too
+
         install_pkg(repo, package, destdir)
         removeFile(lockfile)
         return true
@@ -232,36 +232,40 @@ proc build*(no = false, yes = false, root = "/",
 
     printReplacesPrompt(deps, root)
     printReplacesPrompt(packages, root)
-    
+
     printPackagesPrompt(deps.join(" ")&" "&packages.join(" "), yes, no)
 
     var cacheAvailable = true
     var builderOutput: bool
     let fullRootPath = expandFilename(root)
-    
+
     for i in deps:
-      try:
-        if dirExists(fullRootPath&"/var/cache/kpkg/installed/"&i) and not forceInstallAll:
-          continue
-        else:
-            builderOutput = builder(i, fullRootPath, offline = false, useCacheIfAvailable = useCacheIfAvailable)
-        
-        if not builderOutput:
-            cacheAvailable = false
+        try:
+            if dirExists(fullRootPath&"/var/cache/kpkg/installed/"&i) and
+                    not forceInstallAll:
+                continue
+            else:
+                builderOutput = builder(i, fullRootPath, offline = false,
+                        useCacheIfAvailable = useCacheIfAvailable)
 
-        echo("kpkg: installed "&i&" successfully")
+            if not builderOutput:
+                cacheAvailable = false
 
-      except CatchableError:
-        raise
+            echo("kpkg: installed "&i&" successfully")
 
-      cacheAvailable = cacheAvailable and useCacheIfAvailable;
+        except CatchableError:
+            raise
+
+        cacheAvailable = cacheAvailable and useCacheIfAvailable;
 
     for i in packages:
-      try:
-        discard builder(i, fullRootPath, offline = false, useCacheIfAvailable = cacheAvailable, dontInstall = dontInstall)
-        echo("kpkg: installed "&i&" successfully")
+        try:
+            discard builder(i, fullRootPath, offline = false,
+                    useCacheIfAvailable = cacheAvailable,
+                    dontInstall = dontInstall)
+            echo("kpkg: installed "&i&" successfully")
 
-      except CatchableError:
-          raise
-      
+        except CatchableError:
+            raise
+
     return "kpkg: built all packages successfully"

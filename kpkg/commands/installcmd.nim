@@ -221,7 +221,7 @@ proc install*(promptPackages: seq[string], root = "/", yes: bool = false,
 
     printReplacesPrompt(deps, root)
     printReplacesPrompt(packages, root)
-    
+
     printPackagesPrompt(deps.join(" ")&" "&packages.join(" "), yes, no)
 
     var depsDelete: string
