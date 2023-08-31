@@ -16,13 +16,13 @@ proc mv*(f: string, t: string) =
         when not defined(release):
             echo "kpkg: debug: creating directory to "&d
             echo "kpkg: debug: going to move file/dir "&i&" to "&t&"/"&i
-
+            
         if dirExists(i) and not dirExists(t&"/"&i):
             moveDir(i, t&"/"&i)
 
         createDir(d)
 
-        if fileExists(i):
+        if fileExists(i) or symlinkExists(i):
             moveFile(i, t&"/"&i)
 
 proc ctrlc*() {.noconv.} =
