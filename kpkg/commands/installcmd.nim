@@ -181,7 +181,7 @@ proc down_bin(package: string, binrepos: seq[string], root: string,
         err("couldn't download the binary", false)
 
 proc install_bin(packages: seq[string], binrepos: seq[string], root: string,
-        offline: bool, downloadOnly = false, init = "") =
+        offline: bool, downloadOnly = false) =
     ## Downloads and installs binaries.
 
     var repo: string
@@ -191,18 +191,6 @@ proc install_bin(packages: seq[string], binrepos: seq[string], root: string,
             down_bin(i, binrepos, root, offline)
         else:
             spawn down_bin(i, binrepos, root, offline)
-
-        if isEmptyOrWhitespace(init):
-            continue
-
-        if findPkgRepo(i&"-"&init) != "" and not dirExists(
-                root&"/var/cache/kpkg/installed/"&i&"-"&init):
-            if threadsUsed == 1:
-                down_bin(i&"-"&init, binrepos, root, offline)
-            else:
-                spawn down_bin(i&"-"&init, binrepos, root, offline)
-
-
     if threadsUsed != 1:
         sync()
 
@@ -210,14 +198,6 @@ proc install_bin(packages: seq[string], binrepos: seq[string], root: string,
         for i in packages:
             repo = findPkgRepo(i)
             install_pkg(repo, i, root)
-
-            if isEmptyOrWhitespace(init):
-                continue
-
-            if findPkgRepo(i&"-"&init) != "" and not dirExists(
-                    root&"/var/cache/kpkg/installed/"&i&"-"&init):
-                install_pkg(repo, i&"-"&init, root)
-
             echo "Installation for "&i&" complete"
 
 proc install*(promptPackages: seq[string], root = "/", yes: bool = false,
@@ -239,14 +219,18 @@ proc install*(promptPackages: seq[string], root = "/", yes: bool = false,
     except CatchableError:
         raise
 
+    let fullRootPath = expandFilename(root)
+
+    for i in promptPackages:
+      if findPkgRepo(i&"-"&init) != "":
+        packages = packages&(i&"-"&init)
+    
     printReplacesPrompt(deps, root)
     printReplacesPrompt(packages, root)
 
     printPackagesPrompt(deps.join(" ")&" "&packages.join(" "), yes, no)
 
     var depsDelete: string
-
-    let fullRootPath = expandFilename(root)
 
     for i in deps:
         if dirExists(fullRootPath&"/var/cache/kpkg/installed/"&i):
@@ -259,8 +243,8 @@ proc install*(promptPackages: seq[string], root = "/", yes: bool = false,
 
     if not (deps.len == 0 and deps == @[""]):
         install_bin(deps, binrepos, fullRootPath, offline,
-                downloadOnly = downloadOnly, init = init)
+                downloadOnly = downloadOnly)
         install_bin(packages, binrepos, fullRootPath, offline,
-                downloadOnly = downloadOnly, init = init)
+                downloadOnly = downloadOnly)
 
     return "kpkg: done"

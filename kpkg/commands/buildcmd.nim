@@ -232,9 +232,15 @@ proc build*(no = false, yes = false, root = "/",
         raise
 
     printReplacesPrompt(deps, root)
-    printReplacesPrompt(packages, root)
+    
+    var p = packages
 
-    printPackagesPrompt(deps.join(" ")&" "&packages.join(" "), yes, no)
+    for i in packages:
+      if findPkgRepo(i&"-"&init) != "":
+        p = p&(i&"-"&init)
+
+    printReplacesPrompt(p, root)
+    printPackagesPrompt(deps.join(" ")&" "&p.join(" "), yes, no)
 
     let fullRootPath = expandFilename(root)
 
@@ -246,28 +252,16 @@ proc build*(no = false, yes = false, root = "/",
             else:
                 discard builder(i, fullRootPath, offline = false,
                         useCacheIfAvailable = useCacheIfAvailable)
-
-            if findPkgRepo(i&"-"&init) != "" and not dirExists(
-                    fullRootPath&"/var/cache/kpkg/installed/"&i&"-"&init):
-                discard builder(i&"-"&init, fullRootPath, offline = false,
-                        useCacheIfAvailable = useCacheIfAvailable)
-
             echo("kpkg: installed "&i&" successfully")
 
         except CatchableError:
             raise
 
-    for i in packages:
+    for i in p:
         try:
             discard builder(i, fullRootPath, offline = false,
                     useCacheIfAvailable = useCacheIfAvailable,
                     dontInstall = dontInstall)
-            if findPkgRepo(i&"-"&init) != "" and not dirExists(
-                    fullRootPath&"/var/cache/kpkg/installed/"&i&"-"&init):
-                discard builder(i&"-"&init, fullRootPath, offline = false,
-                        useCacheIfAvailable = useCacheIfAvailable,
-                        dontInstall = dontInstall)
-
             echo("kpkg: installed "&i&" successfully")
 
         except CatchableError:

@@ -4,6 +4,7 @@ import logger
 import sequtils
 import strutils
 import runparser
+import commonTasks
 
 proc isIn(one: seq[string], two: seq[string]): bool =
     ## Checks if a variable is in another.
@@ -56,6 +57,7 @@ proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false,
     ## takes in a seq of packages and returns what to install.
 
     var deps: seq[string]
+    let init = getInit(root)
 
     for pkg in pkgs:
         var repo = findPkgRepo(pkg)
@@ -89,6 +91,9 @@ proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false,
 
                 if repo == "":
                     err("Package "&d&" doesn't exist", false)
+                
+                if findPkgRepo(dep&"-"&init) != "":
+                  deps.add(dep&"-"&init)
 
                 let deprf = parse_runfile(repo&"/"&d)
 
