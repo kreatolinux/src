@@ -221,20 +221,8 @@ proc install*(promptPackages: seq[string], root = "/", yes: bool = false,
 
     printReplacesPrompt(deps, root)
     printReplacesPrompt(packages, root)
-
-    echo "Packages: "&deps.join(" ")&" "&packages.join(" ")
-
-    var output: string
-    if yes:
-        output = "y"
-    elif no:
-        output = "n"
-    else:
-        stdout.write "Do you want to continue? (y/N) "
-        output = readLine(stdin)
-
-    if output.toLower() != "y":
-        return "kpkg: exiting"
+    
+    printPackagesPrompt(deps.join(" ")&" "&packages.join(" "), yes, no)
 
     var depsDelete: string
 

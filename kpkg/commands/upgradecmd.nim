@@ -6,9 +6,12 @@ import ../modules/config
 import ../modules/runparser
 
 proc upgrade*(root = "/",
-        builddir = "/tmp/kpkg/build", srcdir = "/tmp/kpkg/srcdir"): string =
+        builddir = "/tmp/kpkg/build", srcdir = "/tmp/kpkg/srcdir", yes = false, no = false): string =
     ## Upgrade packages
+    
+    var packages: seq[string]
     var repo: string
+
     for i in walkDir("/var/cache/kpkg/installed"):
         if i.kind == pcDir:
             var localPkg: runFile
@@ -47,18 +50,14 @@ proc upgrade*(root = "/",
             if localPkg.version < upstreamPkg.version or localPkg.release <
               upstreamPkg.release or (localPkg.epoch != "no" and
                       localPkg.epoch < upstreamPkg.epoch):
+                packages=packages&lastPathpart(i.path)
+    
+    if packages.len == 0 and isEmptyOrWhitespace(packages.join("")):
+      return "kpkg: done"
 
-                echo "Upgrading "&lastPathpart(
-                        i.path)&" from "&localPkg.versionString&" to "&upstreamPkg.versionString
-
-                if getConfigValue("Upgrade", "buildByDefault") == "yes":
-                    discard build(yes = true, packages = @[lastPathpart(
-                            i.path)], root = root, dontInstall = true)
-                else:
-                    discard install(@[lastPathpart(i.path)], root, true,
-                            downloadOnly = true)
-
-                discard install(@[lastPathpart(i.path)], root, true,
-                        offline = true)
+    if getConfigValue("Upgrade", "buildByDefault") == "yes":
+      discard build(yes = yes, no = no, packages = packages, root = root, dontInstall = true)
+    else:
+      discard install(packages, root, yes = yes, no = no, downloadOnly = true)
 
     return "kpkg: done"

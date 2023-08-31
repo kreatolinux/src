@@ -1,8 +1,8 @@
 import os
 import osproc
-import installcmd
 import strutils
 import sequtils
+import installcmd
 import libsha/sha256
 import ../modules/logger
 import ../modules/shadow
@@ -73,7 +73,10 @@ proc builder*(package: string, destdir: string,
             fileExists(
             "/var/cache/kpkg/archives/arch/"&hostCPU&"/kpkg-tarball-"&package&"-"&pkg.versionString&".tar.gz.sum") and
             useCacheIfAvailable == true and dontInstall == false:
-        install_pkg(repo, package, "/") # Install package on root too
+        
+        if destdir != "/":
+          install_pkg(repo, package, "/") # Install package on root too
+        
         install_pkg(repo, package, destdir)
         removeFile(lockfile)
         return true
@@ -229,49 +232,36 @@ proc build*(no = false, yes = false, root = "/",
 
     printReplacesPrompt(deps, root)
     printReplacesPrompt(packages, root)
+    
+    printPackagesPrompt(deps.join(" ")&" "&packages.join(" "), yes, no)
 
-    echo "Packages: "&deps.join(" ")&" "&packages.join(" ")
+    var cacheAvailable = true
+    var builderOutput: bool
+    let fullRootPath = expandFilename(root)
+    
+    for i in deps:
+      try:
+        if dirExists(fullRootPath&"/var/cache/kpkg/installed/"&i) and not forceInstallAll:
+          continue
+        else:
+            builderOutput = builder(i, fullRootPath, offline = false, useCacheIfAvailable = useCacheIfAvailable)
+        
+        if not builderOutput:
+            cacheAvailable = false
 
-    var output = ""
-    if yes:
-        output = "y"
-    elif no:
-        output = "n"
+        echo("kpkg: installed "&i&" successfully")
 
-    if isEmptyOrWhitespace(output):
-        stdout.write "Do you want to continue? (y/N) "
-        output = readLine(stdin)
+      except CatchableError:
+        raise
 
-    if output.toLower() == "y":
-        var cacheAvailable = true
-        var builderOutput: bool
-        let fullRootPath = expandFilename(root)
-        for i in deps:
-            try:
-                if dirExists(fullRootPath&"/var/cache/kpkg/installed/"&i) and
-                        not forceInstallAll:
-                    discard
-                else:
-                    builderOutput = builder(i, fullRootPath, offline = false,
-                            useCacheIfAvailable = useCacheIfAvailable)
-                    if not builderOutput:
-                        cacheAvailable = false
+      cacheAvailable = cacheAvailable and useCacheIfAvailable;
 
-                    echo("kpkg: installed "&i&" successfully")
+    for i in packages:
+      try:
+        discard builder(i, fullRootPath, offline = false, useCacheIfAvailable = cacheAvailable, dontInstall = dontInstall)
+        echo("kpkg: installed "&i&" successfully")
 
-            except CatchableError:
-                raise
-
-        cacheAvailable = cacheAvailable and useCacheIfAvailable;
-
-        for i in packages:
-            try:
-                discard builder(i, fullRootPath, offline = false,
-                            useCacheIfAvailable = cacheAvailable,
-                            dontInstall = dontInstall)
-                echo("kpkg: installed "&i&" successfully")
-
-            except CatchableError:
-                raise
-        return "kpkg: built all packages successfully"
-    return "kpkg: exiting"
+      except CatchableError:
+          raise
+      
+    return "kpkg: built all packages successfully"

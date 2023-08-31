@@ -1,5 +1,6 @@
 import os
 import config
+import strutils
 import runparser
 
 proc mv*(f: string, t: string) =
@@ -24,6 +25,25 @@ proc mv*(f: string, t: string) =
 
         if fileExists(i) or symlinkExists(i):
             moveFile(i, t&"/"&i)
+
+proc printPackagesPrompt*(packages: string, yes: bool, no: bool) =
+  ## Prints the packages summary prompt.
+
+  echo "Packages: "&packages
+
+  var output: string
+
+  if yes:
+      output = "y"
+  elif no:
+      output = "n"
+  else:
+      stdout.write "Do you want to continue? (y/N) "
+      output = readLine(stdin)
+
+  if output.toLower() != "y":
+      echo "kpkg: exiting"
+      quit(0)
 
 proc ctrlc*() {.noconv.} =
     for path in walkFiles("/var/cache/kpkg/archives/arch/"&hostCPU&"/*.partial"):
