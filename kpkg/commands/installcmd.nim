@@ -54,7 +54,7 @@ proc install_pkg*(repo: string, package: string, root: string, built = false) =
     for i in pkg.conflicts:
         if dirExists(root&"/var/cache/kpkg/installed/"&i):
             err(i&" conflicts with "&package)
-    
+
     createDir("/tmp")
     createDir("/tmp/kpkg")
 
@@ -80,26 +80,26 @@ proc install_pkg*(repo: string, package: string, root: string, built = false) =
     discard existsOrCreateDir(root&"/var/cache/kpkg/installed")
     removeDir(root&"/var/cache/kpkg/installed/"&package)
     copyDir(repo&"/"&package, root&"/var/cache/kpkg/installed/"&package)
-    
+
     var cmd: tuple[output: string, exitCode: int]
-    if not built:  
-      createDir("/tmp/kpkg/extractDir")
-      cmd = execCmdEx("tar -xf "&tarball&" -C /tmp/kpkg/extractDir")
-      if cmd.exitCode != 0:
-        err("extracting the tarball failed for "&package, false)
+    if not built:
+        createDir("/tmp/kpkg/extractDir")
+        cmd = execCmdEx("tar -xf "&tarball&" -C /tmp/kpkg/extractDir")
+        if cmd.exitCode != 0:
+            err("extracting the tarball failed for "&package, false)
     else:
-      cmd = execCmdEx("tar -tf "&tarball)
+        cmd = execCmdEx("tar -tf "&tarball)
 
     for i in pkg.replaces:
-      if dirExists("/var/cache/kpkg/installed/"&i):
-        discard removeInternal(i, root)
-      createSymlink(package, root&"/var/cache/kpkg/installed/"&i)
-    
+        if dirExists("/var/cache/kpkg/installed/"&i):
+            discard removeInternal(i, root)
+        createSymlink(package, root&"/var/cache/kpkg/installed/"&i)
+
     if built:
-      mv("/tmp/kpkg/build", root)
+        mv("/tmp/kpkg/build", root)
     else:
-      mv("/tmp/kpkg/extractDir", root)
-    
+        mv("/tmp/kpkg/extractDir", root)
+
     writeFile(root&"/var/cache/kpkg/installed/"&package&"/list_files", cmd)
 
     removeDir("/tmp/kpkg/extractDir")
@@ -115,7 +115,7 @@ proc install_pkg*(repo: string, package: string, root: string, built = false) =
             writeFile("/tmp/kpkg/reinstall/list_files", d.join("\n"))
             discard removeInternal("reinstall", root,
                     installedDir = "/tmp/kpkg", ignoreReplaces = true)
-    
+
     removeDir("/tmp/kpkg")
 
     var existsPostinstall = execCmdEx(

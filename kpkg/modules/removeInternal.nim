@@ -28,8 +28,8 @@ proc removeInternal*(package: string, root = "",
         let pkgreplaces = parse_runfile(installedDir&"/"&actualPackage).replaces
         for i in pkgreplaces:
             if symlinkExists(installedDir&"/"&i):
-              removeFile(installedDir&"/"&i)
-    
+                removeFile(installedDir&"/"&i)
+
     removeDir(installedDir&"/"&package)
 
     return "kpkg: package "&package&" removed."

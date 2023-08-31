@@ -7,24 +7,24 @@ proc mv*(f: string, t: string) =
     var d: string
 
     setCurrentDir(f)
-    
+
     for i in walkFiles("."):
         moveFile(i, t&"/"&i)
 
     for i in walkDirRec(".", {pcFile, pcLinkToFile, pcDir, pcLinkToDir}):
         d = t&"/"&splitFile(i).dir
         when not defined(release):
-          echo "kpkg: debug: creating directory to "&d
-          echo "kpkg: debug: going to move file/dir "&i&" to "&t&"/"&i
-          
+            echo "kpkg: debug: creating directory to "&d
+            echo "kpkg: debug: going to move file/dir "&i&" to "&t&"/"&i
+
         if dirExists(i) and not dirExists(t&"/"&i):
-          moveDir(i, t&"/"&i)
-          
+            moveDir(i, t&"/"&i)
+
         createDir(d)
-          
-        if fileExists(i):  
-          moveFile(i, t&"/"&i)
-    
+
+        if fileExists(i):
+            moveFile(i, t&"/"&i)
+
 proc ctrlc*() {.noconv.} =
     for path in walkFiles("/var/cache/kpkg/archives/arch/"&hostCPU&"/*.partial"):
         removeFile(path)
