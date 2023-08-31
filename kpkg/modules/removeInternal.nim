@@ -27,7 +27,8 @@ proc removeInternal*(package: string, root = "",
     if not ignoreReplaces:
         let pkgreplaces = parse_runfile(installedDir&"/"&actualPackage).replaces
         for i in pkgreplaces:
-            removeDir(installedDir&"/"&i)
+            if existsDir(installedDir&"/"&i):
+              removeDir(installedDir&"/"&i)
     
     removeDir(installedDir&"/"&package)
 
