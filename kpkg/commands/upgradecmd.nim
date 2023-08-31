@@ -57,9 +57,8 @@ proc upgrade*(root = "/",
         return "kpkg: done"
 
     if getConfigValue("Upgrade", "buildByDefault") == "yes":
-        discard build(yes = yes, no = no, packages = packages, root = root,
-                dontInstall = true)
+        discard build(yes = yes, no = no, packages = packages, root = root)
     else:
-        discard install(packages, root, yes = yes, no = no, downloadOnly = true)
+        discard install(packages, root, yes = yes, no = no)
 
     return "kpkg: done"
