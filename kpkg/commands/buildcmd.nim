@@ -243,7 +243,8 @@ proc build*(no = false, yes = false, root = "/",
                     not forceInstallAll:
                 continue
             else:
-                discard builder(i, fullRootPath, offline = false, useCacheIfAvailable = useCacheIfAvailable)
+                discard builder(i, fullRootPath, offline = false,
+                        useCacheIfAvailable = useCacheIfAvailable)
 
             echo("kpkg: installed "&i&" successfully")
 
