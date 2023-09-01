@@ -91,7 +91,7 @@ proc install_pkg*(repo: string, package: string, root: string, built = false) =
         cmd = execCmdEx("tar -tf "&tarball)
 
     for i in pkg.replaces:
-        if dirExists("/var/cache/kpkg/installed/"&i):
+        if dirExists(root&"/var/cache/kpkg/installed/"&i):
             discard removeInternal(i, root)
         createSymlink(package, root&"/var/cache/kpkg/installed/"&i)
 
