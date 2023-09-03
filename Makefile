@@ -2,12 +2,12 @@ SRCDIR = $(shell pwd)
 PREFIX = ./out
 
 nimbuild = nim c -d:release -d:branch=master --threads:on -d:ssl -o=$(PREFIX)/$1 $(SRCDIR)/$1/$1.nim
-tasks = kpkg chkupd mari purr
+tasks = kpkg chkupd purr
 
 all: $(tasks)
 
 deps:
-	nimble install diff cligen libsha httpbeast fusion -y
+	nimble install diff cligen libsha fusion -y
 
 $(tasks)::
 	$(call nimbuild,$@)
