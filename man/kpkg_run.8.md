@@ -69,7 +69,7 @@ Now lets break it down.
 * postinstall: Post-install function. Will run after the package is installed.
 * package_PACKAGENAME: Install function of PACKAGENAME. With this function you can package multiple things in the same runfile. This may be used for packaging sub-projects easier.
 * NO_CHKUPD: Disables autoupdating thru chkupd. False by default. This will not prevent chkupd from building the package. Will be enabled if it is one of these values; "y, yes, true, 1, on"
-* REPLACES: Replaces packages put in the variable. Seperatated by space.
+* REPLACES: Replaces packages put in the variable. Seperated by space.
 
 # AUTHOR
 Written by Kreato.
