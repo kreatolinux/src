@@ -305,13 +305,6 @@ proc kreastrap(buildType = "builder", arch = "amd64",
             of "busybox":
                 info_msg "Installing BusyBox as Coreutils"
                 kreastrapInstall("busybox", installWithBinaries, buildDir, useCacheIfPossible)
-
-                let installBusybox = execCmdEx(
-                        "chroot "&buildDir&" /bin/busybox --install")
-                if installBusybox.exitcode != 0:
-                    debug installBusybox.output
-                    error "Installing busybox failed"
-
             of "gnu":
                 info_msg "Installing GNU Coreutils as Coreutils"
                 kreastrapInstall("gnu-coreutils", installWithBinaries,
@@ -401,16 +394,6 @@ proc kreastrap(buildType = "builder", arch = "amd64",
             ok "Generated CA certificates"
 
         removeFile(buildDir&"/certdata.txt")
-
-        kreastrapInstall("python", installWithBinaries, buildDir, useCacheIfPossible)
-
-        let ensurePip = execCmdEx("chroot "&buildDir&" /bin/sh -c 'python -m ensurepip'")
-
-        if ensurePip.exitcode != 0:
-            debug "ensurePip output: "&ensurePip.output
-            error "Installing pip failed"
-        else:
-            ok "Installed pip"
 
         if conf.getSectionValue("Extras", "ExtraPackages") != "":
             info_msg "Installing extra packages"
