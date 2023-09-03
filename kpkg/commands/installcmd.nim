@@ -55,7 +55,7 @@ proc install_pkg*(repo: string, package: string, root: string, built = false) =
         if dirExists(root&"/var/cache/kpkg/installed/"&i):
             err(i&" conflicts with "&package)
 
-    removeDir("/tmp/kpkg/"&package&"-old")
+    removeDir("/tmp/kpkg/reinstall/"&package&"-old")
     createDir("/tmp")
     createDir("/tmp/kpkg")
 
