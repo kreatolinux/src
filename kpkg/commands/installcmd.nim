@@ -55,6 +55,7 @@ proc install_pkg*(repo: string, package: string, root: string, built = false) =
         if dirExists(root&"/var/cache/kpkg/installed/"&i):
             err(i&" conflicts with "&package)
 
+    removeDir("/tmp/kpkg/"&package&"-old")
     createDir("/tmp")
     createDir("/tmp/kpkg")
 
@@ -91,7 +92,9 @@ proc install_pkg*(repo: string, package: string, root: string, built = false) =
         cmd = execCmdEx("tar -tf "&tarball)
 
     for i in pkg.replaces:
-        if dirExists(root&"/var/cache/kpkg/installed/"&i):
+        if symlinkExists(root&"/var/cache/kpkg/installed/"&i):
+            removeFile(root&"/var/cache/kpkg/installed/"&i)
+        elif dirExists(root&"/var/cache/kpkg/installed/"&i):
             discard removeInternal(i, root)
         createSymlink(package, root&"/var/cache/kpkg/installed/"&i)
 
