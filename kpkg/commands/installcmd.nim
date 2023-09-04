@@ -90,7 +90,7 @@ proc install_pkg*(repo: string, package: string, root: string, built = false) =
         createSymlink(package, root&"/var/cache/kpkg/installed/"&i)
 
     let cmd = execCmdEx("tar -xvf "&tarball&" -C "&root)
-    
+
     if cmd.exitCode != 0:
         err("extracting the tarball failed for "&package, built)
 
