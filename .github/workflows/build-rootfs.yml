@@ -93,17 +93,15 @@ jobs:
         
       - name: Prepare for Docker
         run: |
-            mkdir /tmp/docker.tmp /tmp/docker.tmp.nocc /tmp/docker.tmp.builder-gnu /tmp/docker.tmp.server /tmp/docker.tmp.builder-systemd
+            mkdir /tmp/docker.tmp /tmp/docker.tmp.nocc /tmp/docker.tmp.builder-gnu /tmp/docker.tmp.builder-systemd
             cp $GITHUB_WORKSPACE/docker/Dockerfile /tmp/docker.tmp.nocc || exit 1
             cp $GITHUB_WORKSPACE/docker/Dockerfile /tmp/docker.tmp/ || exit 1
             cp $GITHUB_WORKSPACE/docker/Dockerfile /tmp/docker.tmp.builder-gnu || exit 1
-            cp $GITHUB_WORKSPACE/docker/Dockerfile /tmp/docker.tmp.server || exit 1
             cp $GITHUB_WORKSPACE/docker/Dockerfile /tmp/docker.tmp.builder-systemd || exit 1
             tar -xvpf $GITHUB_WORKSPACE/builder-gnu-rootfs/kreato-linux-builder-gnu-*.tar.gz -C "/tmp/docker.tmp.builder-gnu"
             tar -xvpf $GITHUB_WORKSPACE/builder-systemd-rootfs/kreato-linux-builder-systemd-*.tar.gz -C "/tmp/docker.tmp.builder-systemd"
             tar -xvpf $GITHUB_WORKSPACE/builder-rootfs/kreato-linux-builder-*.tar.gz -C "/tmp/docker.tmp"
             tar -xvpf $GITHUB_WORKSPACE/nocc-rootfs/kreato-linux-nocc-*.tar.gz -C "/tmp/docker.tmp.nocc"
-            tar -xvpf $GITHUB_WORKSPACE/server-rootfs/kreato-linux-server-*.tar.gz -C "/tmp/docker.tmp.server"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
@@ -146,18 +144,6 @@ jobs:
           sudo rm -rf /tmp/docker.tmp.nocc
           sudo docker rmi ghcr.io/kreatolinux/nocc kreato/linux -f    
       
-      - name: Build and push server image
-        uses: docker/build-push-action@v3
-        with:
-          context: /tmp/docker.tmp.server
-          push: true
-          tags: kreato/server:latest,ghcr.io/kreatolinux/server:latest,git.kreato.dev/kreatolinux/server:latest
-
-      - name: Remove server image
-        run: |
-            sudo rm -rf /tmp/docker.tmp.server
-            sudo docker rmi ghcr.io/kreatolinux/server kreato/server -f   
-          
       - name: Build and push builder-gnu image
         uses: docker/build-push-action@v3
         with:
