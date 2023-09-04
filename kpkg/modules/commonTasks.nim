@@ -12,29 +12,6 @@ proc getInit*(root: string): string =
   except CatchableError:
     err("couldn't load "&root&"/etc/kreato-release")
 
-proc mv*(f: string, t: string) =
-  ## Moves files and directories.
-  var d: string
-
-  setCurrentDir(f)
-
-  for i in walkFiles("."):
-    moveFile(i, t&"/"&i)
-
-  for i in walkDirRec(".", {pcFile, pcLinkToFile, pcDir, pcLinkToDir}):
-    d = t&"/"&splitFile(i).dir
-    when not defined(release):
-      echo "kpkg: debug: creating directory to "&d
-      echo "kpkg: debug: going to move file/dir "&i&" to "&t&"/"&i
-
-    if dirExists(i) and not dirExists(t&"/"&i):
-      moveDir(i, t&"/"&i)
-
-    createDir(d)
-
-    if fileExists(i) or symlinkExists(i):
-      moveFile(i, t&"/"&i)
-
 proc printPackagesPrompt*(packages: string, yes: bool, no: bool) =
   ## Prints the packages summary prompt.
 
