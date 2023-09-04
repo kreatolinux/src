@@ -7,7 +7,7 @@ tasks = kpkg chkupd purr
 all: $(tasks)
 
 deps:
-	nimble install diff cligen libsha fusion -y
+	nimble install cligen libsha fusion -y
 
 $(tasks)::
 	$(call nimbuild,$@)

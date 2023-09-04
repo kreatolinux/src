@@ -1,5 +1,4 @@
 import os
-import diff
 import osproc
 import strutils
 import sequtils
@@ -25,22 +24,15 @@ except Exception:
 
 setControlCHook(ctrlc)
 
-proc diff(a: seq[string], b: seq[string]): seq[string] =
-    ## Returns the differences b has in a string.
+proc diff(one: seq[string], two: seq[string]): seq[string] = 
+    ## Returns the differences in a string.
     var r: seq[string]
+    
+    for i in one:
+        if not (i in two):
+            r = r&i
 
-    for span in spanSlices(a, b):
-        case span.tag
-        of tagReplace:
-            for text in span.b:
-                r = r&text
-        of tagInsert:
-            for text in span.b:
-                r = r&text
-        else:
-            discard
-
-    return r
+    return r.filterit(it.len != 0)
 
 proc install_pkg*(repo: string, package: string, root: string, built = false) =
     ## Installs an package.
