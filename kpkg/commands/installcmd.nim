@@ -24,10 +24,10 @@ except Exception:
 
 setControlCHook(ctrlc)
 
-proc diff(one: seq[string], two: seq[string]): seq[string] = 
+proc diff(one: seq[string], two: seq[string]): seq[string] =
     ## Returns the differences in a string.
     var r: seq[string]
-    
+
     for i in one:
         if not (i in two):
             r = r&i
