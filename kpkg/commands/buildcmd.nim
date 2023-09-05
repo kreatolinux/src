@@ -226,8 +226,8 @@ proc build*(no = false, yes = false, root = "/",
         err("please enter a package name", false)
 
     try:
-        deps = dephandler(packages, bdeps = true, isBuild = true,
-                root = root)&dephandler(packages, isBuild = true, root = root)
+        deps = deduplicate(dephandler(packages, bdeps = true, isBuild = true,
+                root = root)&dephandler(packages, isBuild = true, root = root))
     except CatchableError:
         raise
 
