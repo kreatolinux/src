@@ -20,6 +20,7 @@ SOURCES="https://test.file/source/testfile.tar.gz;git::https://github.com/kreato
 DEPENDS="testpackage1 testpackage3 testpackage4"
 NO_CHKUPD="n"
 REPLACES="test-v2"
+OPTDEPENDS="optional-dependency: This is a test optional dependency ;; optional-dependency-2: This is a second optional dependency."
 BUILD_DEPENDS="testpackage5 testpackage6 testpackage10"
 SHA256SUM="e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  testfile.tar.gz"
 DESCRIPTION="Test package"
@@ -70,6 +71,7 @@ Now lets break it down.
 * package_PACKAGENAME: Install function of PACKAGENAME. With this function you can package multiple things in the same runfile. This may be used for packaging sub-projects easier.
 * NO_CHKUPD: Disables autoupdating thru chkupd. False by default. This will not prevent chkupd from building the package. Will be enabled if it is one of these values; "y, yes, true, 1, on"
 * REPLACES: Replaces packages put in the variable. Seperated by space.
+* OPTDEPENDS: Optional dependencies for the package. Seperated by ';;' like on the example. 
 
 # AUTHOR
 Written by Kreato.
