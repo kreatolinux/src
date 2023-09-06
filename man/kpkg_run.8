@@ -26,6 +26,7 @@ SOURCES=\[dq]https://test.file/source/testfile.tar.gz;git::https://github.com/kr
 DEPENDS=\[dq]testpackage1 testpackage3 testpackage4\[dq]
 NO_CHKUPD=\[dq]n\[dq]
 REPLACES=\[dq]test-v2\[dq]
+OPTDEPENDS=\[dq]optional-dependency: This is a test optional dependency ;; optional-dependency-2: This is a second optional dependency.\[dq]
 BUILD_DEPENDS=\[dq]testpackage5 testpackage6 testpackage10\[dq]
 SHA256SUM=\[dq]e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  testfile.tar.gz\[dq]
 DESCRIPTION=\[dq]Test package\[dq]
@@ -116,6 +117,9 @@ on\[rq]
 .IP \[bu] 2
 REPLACES: Replaces packages put in the variable.
 Seperated by space.
+.IP \[bu] 2
+OPTDEPENDS: Optional dependencies for the package.
+Seperated by `;;' like on the example.
 .SH AUTHOR
 .PP
 Written by Kreato.
