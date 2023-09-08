@@ -28,12 +28,14 @@ proc mv*(f: string, t: string) =
       echo "kpkg: debug: going to move file/dir "&i&" to "&t&"/"&i
 
     if dirExists(i) and not dirExists(t&"/"&i):
-      moveDir(i, t&"/"&i)
+      copyDirWithPermissions(i, t&"/"&i)
+      removeDir(i)
 
     createDir(d)
 
     if fileExists(i) or symlinkExists(i):
-      moveFile(i, t&"/"&i)
+      copyFileWithPermissions(i, t&"/"&i)
+      removeDir(i)
 
 proc printPackagesPrompt*(packages: string, yes: bool, no: bool) =
   ## Prints the packages summary prompt.
