@@ -102,7 +102,9 @@ proc install_pkg*(repo: string, package: string, root: string, built = false) =
     # Run ldconfig afterwards for any new libraries
     discard execProcess("ldconfig")
 
-    if dirExists("/tmp/kpkg/reinstall/"&package&"-old") and fileExists("/tmp/kpkg/reinstall/"&package&"-old/list_files") and fileExists("/tmp/kpkg/reinstall/"&package&"-old/run"):
+    if dirExists("/tmp/kpkg/reinstall/"&package&"-old") and fileExists(
+            "/tmp/kpkg/reinstall/"&package&"-old/list_files") and fileExists(
+            "/tmp/kpkg/reinstall/"&package&"-old/run"):
         let d = diff(readFile("/tmp/kpkg/reinstall/"&package&"-old/list_files").split(
                 "\n"), readFile(
                 "/var/cache/kpkg/installed/"&package&"/list_files").split("\n"))
