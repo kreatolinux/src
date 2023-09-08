@@ -33,7 +33,7 @@ proc cp*(f: string, t: string) =
     createDir(d)
 
     if fileExists(i) or symlinkExists(i):
-      
+
       if fileExists(t&"/"&i):
         removeFile(t&"/"&i)
       elif dirExists(t&"/"&i):
