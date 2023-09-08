@@ -34,7 +34,7 @@ proc cp*(f: string, t: string) =
 
     if fileExists(i) or symlinkExists(i):
 
-      if fileExists(t&"/"&i):
+      if fileExists(t&"/"&i) or symlinkExists(t&"/"&i):
         removeFile(t&"/"&i)
       elif dirExists(t&"/"&i):
         removeDir(t&"/"&i)
