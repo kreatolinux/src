@@ -19,7 +19,7 @@ proc cp*(f: string, t: string) =
   setCurrentDir(f)
 
   for i in walkFiles("."):
-    moveFile(i, t&"/"&i)
+    copyFileWithPermissions(i, t&"/"&i)
 
   for i in walkDirRec(".", {pcFile, pcLinkToFile, pcDir, pcLinkToDir}):
     d = t&"/"&splitFile(i).dir
@@ -33,8 +33,13 @@ proc cp*(f: string, t: string) =
     createDir(d)
 
     if fileExists(i) or symlinkExists(i):
+      
       if fileExists(t&"/"&i):
         removeFile(t&"/"&i)
+      elif dirExists(t&"/"&i):
+        removeDir(t&"/"&i)
+      fi
+
       copyFileWithPermissions(i, t&"/"&i)
 
 proc printPackagesPrompt*(packages: string, yes: bool, no: bool) =
