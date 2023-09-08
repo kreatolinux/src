@@ -38,7 +38,6 @@ proc cp*(f: string, t: string) =
         removeFile(t&"/"&i)
       elif dirExists(t&"/"&i):
         removeDir(t&"/"&i)
-      fi
 
       copyFileWithPermissions(i, t&"/"&i)
 
