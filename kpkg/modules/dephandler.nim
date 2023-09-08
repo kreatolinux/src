@@ -6,13 +6,6 @@ import strutils
 import runparser
 import commonTasks
 
-proc isIn(one: seq[string], two: seq[string]): bool =
-    ## Checks if a variable is in another.
-    for i in one:
-        if i in two:
-            return true
-    return false
-
 proc checkVersions(root: string, dependency: string, repo: string, split = @[
         "<=", ">=", "<", ">", "="]): string =
     ## Internal proc for checking versions on dependencies (if it exists)

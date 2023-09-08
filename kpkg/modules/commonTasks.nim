@@ -12,7 +12,7 @@ proc getInit*(root: string): string =
   except CatchableError:
     err("couldn't load "&root&"/etc/kreato-release")
 
-proc mv*(f: string, t: string) =
+proc cp*(f: string, t: string) =
   ## Moves files and directories.
   var d: string
 
@@ -29,13 +29,13 @@ proc mv*(f: string, t: string) =
 
     if dirExists(i) and not dirExists(t&"/"&i):
       copyDirWithPermissions(i, t&"/"&i)
-      removeDir(i)
 
     createDir(d)
 
     if fileExists(i) or symlinkExists(i):
+      if fileExists(t&"/"&i):
+        removeFile(t&"/"&i)
       copyFileWithPermissions(i, t&"/"&i)
-      removeDir(i)
 
 proc printPackagesPrompt*(packages: string, yes: bool, no: bool) =
   ## Prints the packages summary prompt.

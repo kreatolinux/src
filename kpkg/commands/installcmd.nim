@@ -91,9 +91,9 @@ proc install_pkg*(repo: string, package: string, root: string, built = false) =
         createSymlink(package, root&"/var/cache/kpkg/installed/"&i)
 
     if built:
-        mv("/tmp/kpkg/build", root)
+        cp("/tmp/kpkg/build", root)
     else:
-        mv("/tmp/kpkg/extractDir", root)
+        cp("/tmp/kpkg/extractDir", root)
 
     writeFile(root&"/var/cache/kpkg/installed/"&package&"/list_files", cmd.output)
 
