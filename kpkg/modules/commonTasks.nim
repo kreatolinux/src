@@ -19,26 +19,30 @@ proc cp*(f: string, t: string) =
   setCurrentDir(f)
 
   for i in walkFiles("."):
+    debug "copying "&i&" to "t&"/"&i
     copyFileWithPermissions(i, t&"/"&i, options = {cfSymlinkAsIs})
 
   for i in walkDirRec(".", {pcFile, pcLinkToFile, pcDir, pcLinkToDir}):
     d = t&"/"&splitFile(i).dir
-    when not defined(release):
-      echo "kpkg: debug: creating directory to "&d
-      echo "kpkg: debug: going to move file/dir "&i&" to "&t&"/"&i
 
     if dirExists(i) and not dirExists(t&"/"&i):
+      debug "going to copy dir "&i&" to "&t&"/"&i
       copyDirWithPermissions(i, t&"/"&i)
-
+    
+    debug "creating directory to "&d
     createDir(d)
 
     if fileExists(i) or symlinkExists(i):
+      debug i&" is a symlink or a file"
 
       if fileExists(t&"/"&i) or symlinkExists(t&"/"&i):
+        debug t&"/"&i" exists as a symlink/file, removing"
         removeFile(t&"/"&i)
       elif dirExists(t&"/"&i):
+        debug t&"/"&i" exists as a directory, removing"
         removeDir(t&"/"&i)
 
+      debug "copying "&i&" to "t&"/"&i
       copyFileWithPermissions(i, t&"/"&i, options = {cfSymlinkAsIs})
 
 proc printPackagesPrompt*(packages: string, yes: bool, no: bool) =
@@ -57,15 +61,14 @@ proc printPackagesPrompt*(packages: string, yes: bool, no: bool) =
     output = readLine(stdin)
 
   if output.toLower() != "y":
-    echo "kpkg: exiting"
-    quit(0)
+    info("exiting", true)
 
 proc ctrlc*() {.noconv.} =
   for path in walkFiles("/var/cache/kpkg/archives/arch/"&hostCPU&"/*.partial"):
     removeFile(path)
 
   echo ""
-  echo "kpkg: ctrl+c pressed, shutting down"
+  info "ctrl+c pressed, shutting down"
   quit(130)
 
 proc printReplacesPrompt*(pkgs: seq[string], root: string) =
@@ -74,5 +77,5 @@ proc printReplacesPrompt*(pkgs: seq[string], root: string) =
     for p in parse_runfile(findPkgRepo(i)&"/"&i).replaces:
       if dirExists(root&"/var/cache/kpkg/installed/"&p) and not symlinkExists(
           root&"/var/cache/installed/"&p):
-        echo "kpkg: '"&i&"' replaces '"&p&"'"
+        info "'"&i&"' replaces '"&p&"'"
 
