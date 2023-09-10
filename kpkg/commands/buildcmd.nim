@@ -271,7 +271,7 @@ proc build*(no = false, yes = false, root = "/",
             when defined(release):
                 err("Undefined error occured, please open an issue", true)
             else:
-              raise
-    
+                raise
+
     success("built all packages successfully")
     return 0
