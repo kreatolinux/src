@@ -79,6 +79,7 @@ proc install_pkg*(repo: string, package: string, root: string, built = false) =
         createDir("/tmp/kpkg/extractDir")
         cmd = execCmdEx("tar -xvf "&tarball&" -C /tmp/kpkg/extractDir")
         if cmd.exitCode != 0:
+            removeDir(root&"/var/cache/kpkg/installed/"&package)
             err("extracting the tarball failed for "&package, false)
     else:
         cmd = execCmdEx("tar -tf "&tarball)
