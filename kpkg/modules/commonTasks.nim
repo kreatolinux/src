@@ -28,7 +28,7 @@ proc cp*(f: string, t: string) =
     if dirExists(i) and not dirExists(t&"/"&i):
       debug "going to copy dir "&i&" to "&t&"/"&i
       copyDirWithPermissions(i, t&"/"&i)
-    
+
     debug "creating directory to "&d
     createDir(d)
 

@@ -22,7 +22,7 @@ proc warn*(warn: string) =
 proc debug*(debug: string) =
     ## Handles debug messages.
     when not defined(release):
-      styledEcho("kpkg: ", fgYellow, "debug: ", fgDefault, debug)
+        styledEcho("kpkg: ", fgYellow, "debug: ", fgDefault, debug)
 
 proc success*(success: string, exitAfterwards = false) =
     ## Handles success messages.
