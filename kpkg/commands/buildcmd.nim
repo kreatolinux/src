@@ -231,7 +231,7 @@ proc build*(no = false, yes = false, root = "/",
     except CatchableError:
         raise
 
-    printReplacesPrompt(deps, root)
+    printReplacesPrompt(deps, root, true)
 
     var p = packages
 

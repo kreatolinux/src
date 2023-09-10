@@ -71,10 +71,12 @@ proc ctrlc*() {.noconv.} =
   info "ctrl+c pressed, shutting down"
   quit(130)
 
-proc printReplacesPrompt*(pkgs: seq[string], root: string) =
+proc printReplacesPrompt*(pkgs: seq[string], root: string, isDeps = false) =
   ## Prints a replacesPrompt.
   for i in pkgs:
     for p in parse_runfile(findPkgRepo(i)&"/"&i).replaces:
+      if isDeps and dirExists(root&"/var/cache/kpkg/installed/"&p):
+        continue
       if dirExists(root&"/var/cache/kpkg/installed/"&p) and not symlinkExists(
           root&"/var/cache/installed/"&p):
         info "'"&i&"' replaces '"&p&"'"

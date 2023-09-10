@@ -223,7 +223,7 @@ proc install*(promptPackages: seq[string], root = "/", yes: bool = false,
         if findPkgRepo(i&"-"&init) != "":
             packages = packages&(i&"-"&init)
 
-    printReplacesPrompt(deps, root)
+    printReplacesPrompt(deps, root, true)
     printReplacesPrompt(packages, root)
 
     printPackagesPrompt(deps.join(" ")&" "&packages.join(" "), yes, no)
