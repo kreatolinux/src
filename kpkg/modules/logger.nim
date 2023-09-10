@@ -16,8 +16,12 @@ proc warn*(warn: string) =
 proc success*(success: string, exitAfterwards = false) =
     ## Handles success messages.
     styledEcho("kpkg: ", fgGreen, "success: ", fgDefault, success)
+    if exitAfterwards:
+      quit(0)
 
-proc info*(info: string) =
+proc info*(info: string, exitAfterwards = false) =
     ## Handles info messages.
     styledEcho("kpkg: ", fgBlue, "info: ", fgDefault, info)
-    
+    if exitAfterwards:
+      quit(0)
+      
