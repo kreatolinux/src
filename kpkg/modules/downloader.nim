@@ -13,7 +13,7 @@ proc onProgressChanged(total, progress, speed: BiggestInt) =
   stdout.write(p)
   stdout.flushFile
 
-proc download*(url: string, file: string, instantErrorIfFail=false) =
+proc download*(url: string, file: string, instantErrorIfFail = false) =
   try:
     var client = newHttpClient()
     client.onProgressChanged = onProgressChanged
