@@ -3,11 +3,12 @@ import buildcmd
 import installcmd
 import strutils
 import ../modules/config
+import ../modules/logger
 import ../modules/runparser
 
 proc upgrade*(root = "/",
         builddir = "/tmp/kpkg/build", srcdir = "/tmp/kpkg/srcdir", yes = false,
-                no = false): string =
+                no = false) =
     ## Upgrade packages
 
     var packages: seq[string]
@@ -31,7 +32,7 @@ proc upgrade*(root = "/",
                 continue
 
             if localPkg.pkg in getConfigValue("Upgrade", "dontUpgrade").split(" "):
-                echo "skipping "&localPkg.pkg&": selected to not upgrade in kpkg.conf"
+                info "skipping "&localPkg.pkg&": selected to not upgrade in kpkg.conf"
                 continue
 
             when declared(localPkg.epoch):
@@ -39,7 +40,7 @@ proc upgrade*(root = "/",
 
             repo = findPkgRepo(lastPathPart(i.path))
             if isEmptyOrWhitespace(repo):
-                echo "skipping "&localPkg.pkg&": not found in available repositories"
+                warn "skipping "&localPkg.pkg&": not found in available repositories"
                 continue
 
             var upstreamPkg: runFile
@@ -54,11 +55,11 @@ proc upgrade*(root = "/",
                 packages = packages&lastPathpart(i.path)
 
     if packages.len == 0 and isEmptyOrWhitespace(packages.join("")):
-        return "kpkg: done"
+        success("done", true)
 
     if getConfigValue("Upgrade", "buildByDefault") == "yes":
         discard build(yes = yes, no = no, packages = packages, root = root)
     else:
         discard install(packages, root, yes = yes, no = no)
 
-    return "kpkg: done"
+    success("done", true)

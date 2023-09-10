@@ -6,7 +6,7 @@ import ../modules/logger
 import ../modules/config
 
 proc update*(repo = "",
-    path = "", branch = "master"): string =
+    path = "", branch = "master") =
     ## Update repositories
 
     if not isAdmin():
@@ -24,16 +24,16 @@ proc update*(repo = "",
                 err("failed to update repositories!", false)
         else:
             if "::" in i.link:
-                echo "kpkg: repository on "&i.dir&" not found, cloning them now..."
+                info "repository on "&i.dir&" not found, cloning them now..."
                 discard execProcess("git clone "&i.link.split("::")[0]&" "&i.dir)
                 setCurrentDir(i.dir)
                 discard execProcess("git checkout "&i.link.split("::")[1])
             else:
-                echo "kpkg: repository on "&i.dir&" not found, cloning them now..."
+                info "repository on "&i.dir&" not found, cloning them now..."
                 discard execProcess("git clone "&i.link&" "&i.dir)
 
     if path != "" and repo != "":
-        echo "kpkg: cloning "&path&" from "&repo&"::"&branch
+        info "cloning "&path&" from "&repo&"::"&branch
         discard execProcess("git clone "&repo&" "&path)
         if not (repo in repolinks and path in repodirs):
             if branch != "master":
@@ -47,4 +47,4 @@ proc update*(repo = "",
                 setConfigValue("Repositories", "repoDirs", repodirs&" "&path)
 
 
-    return "kpkg: updated all repositories"
+    success("updated all repositories", true)

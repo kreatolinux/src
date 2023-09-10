@@ -17,7 +17,7 @@ var threadsUsed: int
 try:
     threadsUsed = parseInt(getConfigValue("Parallelization", "threadsUsed"))
     if threadsUsed < 1:
-        echo "kpkg: warning: threadsUsed in /etc/kpkg/kpkg.conf can't be below 1. Please update your configuration."
+        warn "threadsUsed in /etc/kpkg/kpkg.conf can't be below 1. Please update your configuration."
         raise
 except Exception:
     threadsUsed = 4
@@ -53,7 +53,7 @@ proc install_pkg*(repo: string, package: string, root: string, built = false) =
 
     if dirExists(root&"/var/cache/kpkg/installed/"&package):
 
-        echo "kpkg: package already installed, reinstalling"
+        info "package already installed, reinstalling"
 
         createDir("/tmp/kpkg/reinstall")
 
@@ -199,7 +199,7 @@ proc install_bin(packages: seq[string], binrepos: seq[string], root: string,
             echo "Installation for "&i&" complete"
 
 proc install*(promptPackages: seq[string], root = "/", yes: bool = false,
-        no: bool = false, offline = false, downloadOnly = false): string =
+        no: bool = false, offline = false, downloadOnly = false) =
     ## Download and install a package through a binary repository
     if promptPackages.len == 0:
         err("please enter a package name", false)
@@ -245,4 +245,4 @@ proc install*(promptPackages: seq[string], root = "/", yes: bool = false,
         install_bin(packages, binrepos, fullRootPath, offline,
                 downloadOnly = downloadOnly)
 
-    return "kpkg: done"
+    info("done", true)

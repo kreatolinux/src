@@ -30,7 +30,7 @@ proc builder*(package: string, destdir: string,
     if fileExists(lockfile):
         err("lockfile exists, will not proceed", false)
 
-    echo "kpkg: starting build for "&package
+    info "starting build for "&package
 
     writeFile(lockfile, "") # Create lockfile
 
@@ -217,7 +217,7 @@ proc builder*(package: string, destdir: string,
 proc build*(no = false, yes = false, root = "/",
     packages: seq[string],
             useCacheIfAvailable = true, forceInstallAll = false,
-                    dontInstall = false): string =
+                    dontInstall = false) =
     ## Build and install packages
     let init = getInit(root)
     var deps: seq[string]
@@ -252,7 +252,7 @@ proc build*(no = false, yes = false, root = "/",
             else:
                 discard builder(i, fullRootPath, offline = false,
                         useCacheIfAvailable = useCacheIfAvailable)
-            echo("kpkg: installed "&i&" successfully")
+            success("installed "&i&" successfully")
 
         except CatchableError:
             when defined(release):
@@ -265,12 +265,12 @@ proc build*(no = false, yes = false, root = "/",
             discard builder(i, fullRootPath, offline = false,
                     useCacheIfAvailable = useCacheIfAvailable,
                     dontInstall = dontInstall)
-            echo("kpkg: installed "&i&" successfully")
+            success("installed "&i&" successfully")
 
         except CatchableError:
             when defined(release):
               err("Undefined error occured, please open an issue", true)
             else:
               raise
-
-    return "kpkg: built all packages successfully"
+    
+    success("built all packages successfully", true)

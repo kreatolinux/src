@@ -7,7 +7,7 @@ import commonTasks
 
 proc removeInternal*(package: string, root = "",
         installedDir = root&"/var/cache/kpkg/installed",
-        ignoreReplaces = false): string =
+        ignoreReplaces = false) =
 
     let init = getInit(root)
 
@@ -38,4 +38,4 @@ proc removeInternal*(package: string, root = "",
 
     removeDir(installedDir&"/"&package)
 
-    return "kpkg: package "&package&" removed."
+    success("package "&package&" removed.")
