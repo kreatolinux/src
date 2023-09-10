@@ -12,7 +12,7 @@ proc removeInternal*(package: string, root = "",
     let init = getInit(root)
 
     if dirExists(installedDir&"/"&package&"-"&init):
-        discard removeInternal(package&"-"&init, root, installedDir, ignoreReplaces)
+        removeInternal(package&"-"&init, root, installedDir, ignoreReplaces)
 
     var actualPackage: string
 

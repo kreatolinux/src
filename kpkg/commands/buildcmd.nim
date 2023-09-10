@@ -217,7 +217,7 @@ proc builder*(package: string, destdir: string,
 proc build*(no = false, yes = false, root = "/",
     packages: seq[string],
             useCacheIfAvailable = true, forceInstallAll = false,
-                    dontInstall = false) =
+                    dontInstall = false): int =
     ## Build and install packages
     let init = getInit(root)
     var deps: seq[string]
@@ -271,6 +271,7 @@ proc build*(no = false, yes = false, root = "/",
             when defined(release):
                 err("Undefined error occured, please open an issue", true)
             else:
-                raise
-
-    success("built all packages successfully", true)
+              raise
+    
+    success("built all packages successfully")
+    return 0

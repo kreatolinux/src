@@ -24,7 +24,7 @@ proc remove*(packages: seq[string], yes = false, root = ""): string =
 
     if output.toLower() == "y":
         for i in packages:
-            echo removeInternal(i, root)
+            removeInternal(i, root)
         success("done", true)
 
     info("exiting", true)

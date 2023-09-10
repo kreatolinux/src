@@ -88,7 +88,7 @@ proc install_pkg*(repo: string, package: string, root: string, built = false) =
         if symlinkExists(root&"/var/cache/kpkg/installed/"&i):
             removeFile(root&"/var/cache/kpkg/installed/"&i)
         elif dirExists(root&"/var/cache/kpkg/installed/"&i):
-            discard removeInternal(i, root)
+            removeInternal(i, root)
         createSymlink(package, root&"/var/cache/kpkg/installed/"&i)
 
     if built:
@@ -111,7 +111,7 @@ proc install_pkg*(repo: string, package: string, root: string, built = false) =
                 "/var/cache/kpkg/installed/"&package&"/list_files").split("\n"))
         if d.len != 0:
             writeFile("/tmp/kpkg/reinstall/list_files", d.join("\n"))
-            discard removeInternal("reinstall", root,
+            removeInternal("reinstall", root,
                     installedDir = "/tmp/kpkg", ignoreReplaces = true)
 
     removeDir("/tmp/kpkg")
@@ -199,7 +199,7 @@ proc install_bin(packages: seq[string], binrepos: seq[string], root: string,
             echo "Installation for "&i&" complete"
 
 proc install*(promptPackages: seq[string], root = "/", yes: bool = false,
-        no: bool = false, offline = false, downloadOnly = false) =
+        no: bool = false, offline = false, downloadOnly = false): int =
     ## Download and install a package through a binary repository
     if promptPackages.len == 0:
         err("please enter a package name", false)
@@ -245,4 +245,5 @@ proc install*(promptPackages: seq[string], root = "/", yes: bool = false,
         install_bin(packages, binrepos, fullRootPath, offline,
                 downloadOnly = downloadOnly)
 
-    info("done", true)
+    info("done")
+    return 0

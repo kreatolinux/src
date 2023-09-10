@@ -6,7 +6,7 @@ import ../modules/logger
 import ../modules/config
 
 proc update*(repo = "",
-    path = "", branch = "master") =
+    path = "", branch = "master"): int =
     ## Update repositories
 
     if not isAdmin():
@@ -47,4 +47,5 @@ proc update*(repo = "",
                 setConfigValue("Repositories", "repoDirs", repodirs&" "&path)
 
 
-    success("updated all repositories", true)
+    success("updated all repositories")
+    return 0
