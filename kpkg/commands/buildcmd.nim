@@ -255,7 +255,10 @@ proc build*(no = false, yes = false, root = "/",
             echo("kpkg: installed "&i&" successfully")
 
         except CatchableError:
-            raise
+            when defined(release):
+              err("Undefined error occured, please open an issue", true)
+            else:
+              raise
 
     for i in p:
         try:
@@ -265,6 +268,9 @@ proc build*(no = false, yes = false, root = "/",
             echo("kpkg: installed "&i&" successfully")
 
         except CatchableError:
-            raise
+            when defined(release):
+              err("Undefined error occured, please open an issue", true)
+            else:
+              raise
 
     return "kpkg: built all packages successfully"
