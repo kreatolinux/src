@@ -92,7 +92,7 @@ proc install_pkg*(repo: string, package: string, root: string, built = false) =
         createSymlink(package, root&"/var/cache/kpkg/installed/"&i)
 
     if built:
-        cp("/tmp/kpkg/build", root)
+        cp("/opt/kpkg/build", root)
     else:
         cp("/tmp/kpkg/extractDir", root)
 
@@ -115,6 +115,7 @@ proc install_pkg*(repo: string, package: string, root: string, built = false) =
                     installedDir = "/tmp/kpkg", ignoreReplaces = true)
 
     removeDir("/tmp/kpkg")
+    removeDir("/opt/kpkg")
 
     var existsPostinstall = execCmdEx(
             ". "&repo&"/"&package&"/run"&" && command -v postinstall").exitCode

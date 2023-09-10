@@ -20,7 +20,7 @@ proc cleanUp() {.noconv.} =
     quit(0)
 
 proc builder*(package: string, destdir: string,
-    root = "/tmp/kpkg/build", srcdir = "/tmp/kpkg/srcdir", offline = false,
+    root = "/opt/kpkg/build", srcdir = "/opt/kpkg/srcdir", offline = false,
             dontInstall = false, useCacheIfAvailable = false): bool =
     ## Builds the packages.
 
@@ -153,7 +153,7 @@ proc builder*(package: string, destdir: string,
     discard execProcess("ldconfig")
 
     var cmdStr = ". "&path&"/run"&" && export CC="&getConfigValue("Options",
-            "cc")&" && export CCACHE_DIR=/tmp/kpkg/cache &&"
+            "cc")&" && export CCACHE_DIR=/opt/kpkg/cache &&"
     var cmd2Str = ". "&path&"/run &&"
 
     if existsPackageInstall == 0:
