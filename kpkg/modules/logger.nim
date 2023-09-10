@@ -5,13 +5,18 @@ proc err*(error: string, removeLockFile = true) =
     ## Handles errors.
     styledEcho("kpkg: ", fgRed, "error: ", fgDefault, error)
     if removeLockFile:
-        echo "kpkg: removing lockfile"
+        info "removing lockfile"
         removeFile("/tmp/kpkg.lock")
     quit(1)
 
 proc warn*(warn: string) =
     ## Handles warnings.
     styledEcho("kpkg: ", fgYellow, "warning: ", fgDefault, warn)
+
+proc debug*(debug: string) =
+    ## Handles debug messages.
+    when not defined(release):
+      styledEcho("kpkg: ", fgYellow, "debug: ", fgDefault, debug)
 
 proc success*(success: string, exitAfterwards = false) =
     ## Handles success messages.
