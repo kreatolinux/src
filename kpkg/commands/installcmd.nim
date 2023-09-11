@@ -86,7 +86,7 @@ proc install_pkg*(repo: string, package: string, root: string) =
 
 
     var cmd: tuple[output: string, exitCode: int]
-    cmd = execCmdEx("tar -xvf "&tarball&" -C "&root)
+    cmd = execCmdEx("tar -hxf "&tarball&" -C "&root)
     if cmd.exitCode != 0:
         debug cmd.output
         removeDir(root&"/var/cache/kpkg/installed/"&package)
