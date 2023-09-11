@@ -5,7 +5,7 @@ proc onProgressChanged(total, progress, speed: BiggestInt) =
   stdout.eraseLine
   var p = "Downloaded "&formatSize(progress)
   if formatSize(total) != "0B":
-    p = p&" of "&formatSize(total) 
+    p = p&" of "&formatSize(total)
 
   p = p&" at "&formatSize(speed)&"/s"
 
