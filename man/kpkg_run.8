@@ -40,7 +40,7 @@ build() {
     echo \[dq]Insert build instructions here\[dq]
 }
 
-test() {
+check() {
     ninja -C build test
 }
 
@@ -106,7 +106,7 @@ EPOCH: Only use this when the versioning logic fail for the package.
 prepare(): Files downloaded from SOURCES are extracted by default.
 Use prepare() to prevent this and have custom prepare procedure.
 .IP \[bu] 2
-test(): Test the package.
+check(): Test the package.
 .IP \[bu] 2
 postinstall: Post-install function.
 Will run after the package is installed.
