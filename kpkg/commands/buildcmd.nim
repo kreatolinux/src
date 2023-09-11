@@ -101,8 +101,9 @@ proc builder*(package: string, destdir: string,
     for i in pkg.sources.split(";"):
         if i == "":
             continue
-        
-        filename = "/var/cache/kpkg/sources/"&package&"/"&extractFilename(i).strip()
+
+        filename = "/var/cache/kpkg/sources/"&package&"/"&extractFilename(
+                i).strip()
 
         try:
             if i.startsWith("git::"):
