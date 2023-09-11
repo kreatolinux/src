@@ -25,6 +25,7 @@ proc remove*(packages: seq[string], yes = false, root = ""): string =
     if output.toLower() == "y":
         for i in packages:
             removeInternal(i, root)
+            success("package "&i&" removed")
         success("done", true)
 
     info("exiting", true)

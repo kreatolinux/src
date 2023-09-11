@@ -37,5 +37,3 @@ proc removeInternal*(package: string, root = "",
                 removeFile(installedDir&"/"&i)
 
     removeDir(installedDir&"/"&package)
-
-    success("package "&package&" removed.")
