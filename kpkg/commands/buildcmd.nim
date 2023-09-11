@@ -20,11 +20,11 @@ proc cleanUp() {.noconv.} =
     quit(0)
 
 proc fakerootWrap(path: string, root: string, input: string, autocd = "",
-        isTest = false, existsTest = 1): int =
+        tests = false, isTest = false, existsTest = 1): int =
     ## Wraps command with fakeroot and executes it.
-
-    if isTest and existsTest != 0:
-        return 0
+    
+    if (isTest and not tests) or (tests and existsTest != 0):
+      return 0
 
     if isEmptyOrWhitespace(autocd):
         return execShellCmd("fakeroot -- /bin/sh -c '. "&path&"/run && export DESTDIR="&root&" && export ROOT=$DESTDIR && cd "&autocd&" && "&input&"'")
@@ -202,18 +202,18 @@ proc builder*(package: string, destdir: string,
     if pkg.sources.split(";").len == 1:
         if existsPrepare == 0:
             cmd = execShellCmd(sboxWrap(cmdStr))
-            cmd2 = fakerootWrap(path, root, "test", isTest = tests,
+            cmd2 = fakerootWrap(path, root, "test", tests = tests, isTest = true,
                     existsTest = existsTest)
             cmd3 = fakerootWrap(path, root, cmd3Str)
         else:
             cmd = execShellCmd(sboxWrap("cd "&folder[0]&" && "&cmdStr))
-            cmd2 = fakerootWrap(path, root, "test", folder[0], isTest = tests,
+            cmd2 = fakerootWrap(path, root, "test", folder[0], tests = tests, isTest = true,
                     existsTest = existsTest)
             cmd3 = fakerootWrap(path, root, cmd3Str, folder[0])
 
     else:
         cmd = execShellCmd(sboxWrap(cmdStr))
-        cmd2 = fakerootWrap(path, root, "test", isTest = tests,
+        cmd2 = fakerootWrap(path, root, "test", tests = tests, isTest = true,
                 existsTest = existsTest)
         cmd3 = fakerootWrap(path, root, cmd3Str)
 
