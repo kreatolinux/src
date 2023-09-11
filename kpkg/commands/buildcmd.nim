@@ -128,6 +128,9 @@ proc builder*(package: string, destdir: string,
                 var expectedDigest = pkg.sha256sum.split(";")[int]
                 if expectedDigest != actualDigest:
                     err "sha256sum doesn't match for "&i&"\nExpected: "&expectedDigest&"\nActual: "&actualDigest
+                  
+                # Add symlink for compatibility purposes
+                createSymlink(filename, extractFilename(i).strip())
 
                 int = int+1
         except CatchableError:
