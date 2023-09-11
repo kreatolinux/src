@@ -27,7 +27,7 @@ proc fakerootWrap(srcdir: string, path: string, root: string, input: string,
         return 0
 
     if not isEmptyOrWhitespace(autocd):
-        return execShellCmd("fakeroot -- /bin/sh -c '. "&path&"/run && export DESTDIR="&root&" && export ROOT=$DESTDIR && cd "&srcdir&"/"&autocd&" && "&input&"'")
+        return execShellCmd("fakeroot -- /bin/sh -c '. "&path&"/run && export DESTDIR="&root&" && export ROOT=$DESTDIR && cd "&autocd&" && "&input&"'")
 
     return execShellCmd("fakeroot -- /bin/sh -c '. "&path&"/run && export DESTDIR="&root&" && export ROOT=$DESTDIR && cd '"&srcdir&"' && "&input&"'")
 
