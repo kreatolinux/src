@@ -34,7 +34,7 @@ proc diff(one: seq[string], two: seq[string]): seq[string] =
 
     return r.filterit(it.len != 0)
 
-proc install_pkg*(repo: string, package: string, root: string, built = false) =
+proc install_pkg*(repo: string, package: string, root: string) =
     ## Installs an package.
 
     var pkg: runFile
@@ -74,15 +74,7 @@ proc install_pkg*(repo: string, package: string, root: string, built = false) =
     removeDir(root&"/var/cache/kpkg/installed/"&package)
     copyDir(repo&"/"&package, root&"/var/cache/kpkg/installed/"&package)
 
-    var cmd: tuple[output: string, exitCode: int]
-    if not built:
-        createDir("/tmp/kpkg/extractDir")
-        cmd = execCmdEx("tar -xvf "&tarball&" -C /tmp/kpkg/extractDir")
-        if cmd.exitCode != 0:
-            removeDir(root&"/var/cache/kpkg/installed/"&package)
-            err("extracting the tarball failed for "&package, false)
-    else:
-        cmd = execCmdEx("tar -tf "&tarball)
+
 
     for i in pkg.replaces:
         if symlinkExists(root&"/var/cache/kpkg/installed/"&i):
@@ -91,14 +83,15 @@ proc install_pkg*(repo: string, package: string, root: string, built = false) =
             removeInternal(i, root)
         createSymlink(package, root&"/var/cache/kpkg/installed/"&i)
 
-    if built:
-        cp("/opt/kpkg/build", root)
-    else:
-        cp("/tmp/kpkg/extractDir", root)
+
+    var cmd: tuple[output: string, exitCode: int]
+    cmd = execCmdEx("tar -xvf "&tarball&" -C "&root)
+    if cmd.exitCode != 0:
+        debug cmd.output
+        removeDir(root&"/var/cache/kpkg/installed/"&package)
+        err("extracting the tarball failed for "&package, false)
 
     writeFile(root&"/var/cache/kpkg/installed/"&package&"/list_files", cmd.output)
-
-    removeDir("/tmp/kpkg/extractDir")
 
     # Run ldconfig afterwards for any new libraries
     discard execProcess("ldconfig")

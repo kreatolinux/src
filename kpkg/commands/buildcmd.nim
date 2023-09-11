@@ -238,10 +238,10 @@ proc builder*(package: string, destdir: string,
     # because the dep is installed to destdir but not root.
     if destdir != "/" and not dirExists(
             "/var/cache/kpkg/installed/"&package) and (not dontInstall):
-        install_pkg(repo, package, "/", true)
+        install_pkg(repo, package, "/")
 
     if not dontInstall:
-        install_pkg(repo, package, destdir, true)
+        install_pkg(repo, package, destdir)
 
     removeFile(lockfile)
 
