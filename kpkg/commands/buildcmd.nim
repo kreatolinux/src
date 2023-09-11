@@ -19,9 +19,20 @@ proc cleanUp() {.noconv.} =
     removeFile(lockfile)
     quit(0)
 
+proc fakerootWrap(path: string, root: string, input: string, autocd = "", isTest = false, existsTest = 1): int =
+    ## Wraps command with fakeroot and executes it.
+
+    if isTest and existsTest == 1:
+      return 0
+
+    if isEmptyOrWhitespace(autocd):
+      return execShellCmd("fakeroot -- /bin/sh -c '. "&path&"/run && export DESTDIR="&root&" && export ROOT=$DESTDIR && cd "&autocd&" && "&input&"'")
+    
+    return execShellCmd("fakeroot -- /bin/sh -c '. "&path&"/run && export DESTDIR="&root&" && export ROOT=$DESTDIR && "&input&"'")
+
 proc builder*(package: string, destdir: string,
     root = "/opt/kpkg/build", srcdir = "/opt/kpkg/srcdir", offline = false,
-            dontInstall = false, useCacheIfAvailable = false): bool =
+            dontInstall = false, useCacheIfAvailable = false, tests = false): bool =
     ## Builds the packages.
 
     if not isAdmin():
@@ -87,6 +98,7 @@ proc builder*(package: string, destdir: string,
 
     let existsPrepare = execCmdEx(". "&path&"/run"&" && command -v prepare").exitCode
     let existsInstall = execCmdEx(". "&path&"/run"&" && command -v package").exitCode
+    let existsTest = execCmdEx(". "&path&"/run"&" && command -v test").exitCode
     let existsPackageInstall = execCmdEx(
             ". "&path&"/run"&" && command -v package_"&package).exitCode
     let existsPackageBuild = execCmdEx(
@@ -151,9 +163,9 @@ proc builder*(package: string, destdir: string,
                 setCurrentDir(folder[0])
             except Exception:
                 when defined(release):
-                    err("Unknown error occured while trying to enter the source directory")
-
-                debug folder
+                  err("Unknown error occured while trying to enter the source directory")
+                
+                debug $folder
                 raise
     elif existsPrepare == 0:
         if execShellCmd("su -s /bin/sh _kpkg -c '. "&path&"/run"&" && prepare'") != 0:
@@ -161,18 +173,19 @@ proc builder*(package: string, destdir: string,
 
     var cmd: int
     var cmd2: int
+    var cmd3: int
 
     # Run ldconfig beforehand for any errors
     discard execProcess("ldconfig")
 
-    var cmdStr = ". "&path&"/run"&" && export CC="&getConfigValue("Options",
+    var cmdStr = "export CC="&getConfigValue("Options",
             "cc")&" && export CCACHE_DIR=/opt/kpkg/cache &&"
-    var cmd2Str = ". "&path&"/run &&"
+    var cmd3Str: string
 
     if existsPackageInstall == 0:
-        cmd2Str = cmd2Str&" package_"&package
+        cmd3Str = "package_"&package
     elif existsInstall == 0:
-        cmd2Str = cmd2Str&" package"
+        cmd3Str = "package"
     else:
         err "install stage of package doesn't exist, invalid runfile"
 
@@ -187,20 +200,25 @@ proc builder*(package: string, destdir: string,
     if pkg.sources.split(";").len == 1:
         if existsPrepare == 0:
             cmd = execShellCmd(sboxWrap(cmdStr))
-            cmd2 = execShellCmd("fakeroot -- /bin/sh -c '. "&path&"/run && export DESTDIR="&root&" && export ROOT=$DESTDIR && "&cmd2Str&"'")
+            cmd2 = fakerootWrap(path, root, "test", isTest=tests, existsTest=existsTest)
+            cmd3 = fakerootWrap(path, root, cmd3Str)
         else:
             cmd = execShellCmd(sboxWrap("cd "&folder[0]&" && "&cmdStr))
-            cmd2 = execShellCmd(
-                    "fakeroot -- /bin/sh -c '. "&path&"/run && export DESTDIR="&root&" && cd "&folder[
-                            0]&" && export ROOT=$DESTDIR && "&cmd2Str&"'")
+            cmd2 = fakerootWrap(path, root, "test", folder[0], isTest=tests, existsTest=existsTest)
+            cmd3 = fakerootWrap(path, root, cmd3Str, folder[0])
+
     else:
         cmd = execShellCmd(sboxWrap(cmdStr))
-        cmd2 = execShellCmd("fakeroot -- /bin/sh -c '. "&path&"/run && export DESTDIR="&root&" && export ROOT=$DESTDIR && "&cmd2Str&"'")
+        cmd2 = fakerootWrap(path, root, "test", isTest=tests, existsTest=existsTest)
+        cmd3 = fakerootWrap(path, root, cmd3Str)
 
     if cmd != 0:
         err("build failed")
 
     if cmd2 != 0:
+        err("Tests failed")
+
+    if cmd3 != 0:
         err("Installation failed")
 
     let tarball = "/var/cache/kpkg/archives/arch/"&hostCPU&"/kpkg-tarball-"&package&"-"&pkg.versionString&".tar.gz"
@@ -230,7 +248,7 @@ proc builder*(package: string, destdir: string,
 proc build*(no = false, yes = false, root = "/",
     packages: seq[string],
             useCacheIfAvailable = true, forceInstallAll = false,
-                    dontInstall = false): int =
+                    dontInstall = false, tests = true): int =
     ## Build and install packages
     let init = getInit(root)
     var deps: seq[string]
@@ -264,7 +282,7 @@ proc build*(no = false, yes = false, root = "/",
                 continue
             else:
                 discard builder(i, fullRootPath, offline = false,
-                        useCacheIfAvailable = useCacheIfAvailable)
+                        useCacheIfAvailable = useCacheIfAvailable, tests = tests)
             success("installed "&i&" successfully")
 
         except CatchableError:
@@ -277,7 +295,7 @@ proc build*(no = false, yes = false, root = "/",
         try:
             discard builder(i, fullRootPath, offline = false,
                     useCacheIfAvailable = useCacheIfAvailable,
-                    dontInstall = dontInstall)
+                    dontInstall = dontInstall, tests = tests)
             success("installed "&i&" successfully")
 
         except CatchableError:

@@ -42,6 +42,7 @@ dispatchMulti(
     "no": "Automatically say 'no' to every question",
     "useCacheIfAvailable": "Uses cached build (if available)",
     "dontInstall": "Only build, don't install",
+    "tests": "Enable/Disable Tests on packages",
     "forceInstallAll": "Force reinstall every dependency"
   }
   ],
