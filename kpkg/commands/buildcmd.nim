@@ -50,6 +50,8 @@ proc builder*(package: string, destdir: string,
     discard existsOrCreateDir("/var/cache")
     discard existsOrCreateDir("/var/cache/kpkg")
     discard existsOrCreateDir("/var/cache/kpkg/archives")
+    discard existsOrCreateDir("/var/cache/kpkg/sources")
+    discard existsOrCreateDir("/var/cache/kpkg/sources/"&package)
     discard existsOrCreateDir("/var/cache/kpkg/archives/arch")
     discard existsOrCreateDir("/var/cache/kpkg/archives/arch/"&hostCPU)
 
@@ -99,7 +101,9 @@ proc builder*(package: string, destdir: string,
     for i in pkg.sources.split(";"):
         if i == "":
             continue
-        filename = extractFilename(i).strip()
+        
+        filename = "/var/cache/kpkg/sources/"&package&"/"&extractFilename(i).strip()
+
         try:
             if i.startsWith("git::"):
                 usesGit = true
@@ -112,6 +116,8 @@ proc builder*(package: string, destdir: string,
             else:
                 if fileExists(path&"/"&i):
                     copyFile(path&"/"&i, extractFilename(i))
+                elif fileExists(filename):
+                    discard
                 else:
                     download(i, filename)
 
