@@ -3,8 +3,11 @@ import terminal, math, strutils, os, logger
 
 proc onProgressChanged(total, progress, speed: BiggestInt) =
   stdout.eraseLine
-  var p = "Downloaded "&formatSize(progress)&" of "&formatSize(
-      total)&" at "&formatSize(speed)&"/s"
+  var p = "Downloaded "&formatSize(progress)
+  if formatSize(total) != "0B":
+    p = p&" of "&formatSize(total) 
+
+  p = p&" at "&formatSize(speed)&"/s"
 
   if $round(int(progress) / int(total)*100) != "inf":
     p = p&" "&formatBiggestFloat(round(int(progress) / int(total)*100),
