@@ -19,8 +19,8 @@ proc cleanUp() {.noconv.} =
     removeFile(lockfile)
     quit(0)
 
-proc fakerootWrap(srcdir: string, path: string, root: string, input: string, autocd = "",
-        tests = false, isTest = false, existsTest = 1): int =
+proc fakerootWrap(srcdir: string, path: string, root: string, input: string,
+        autocd = "", tests = false, isTest = false, existsTest = 1): int =
     ## Wraps command with fakeroot and executes it.
 
     setCurrentDir(srcdir)
@@ -209,14 +209,14 @@ proc builder*(package: string, destdir: string,
             cmd3 = fakerootWrap(srcdir, path, root, cmd3Str)
         else:
             cmd = execShellCmd(sboxWrap("cd "&folder[0]&" && "&cmdStr))
-            cmd2 = fakerootWrap(srcdir, path, root, "check", folder[0], tests = tests,
-                    isTest = true, existsTest = existsTest)
+            cmd2 = fakerootWrap(srcdir, path, root, "check", folder[0],
+                    tests = tests, isTest = true, existsTest = existsTest)
             cmd3 = fakerootWrap(srcdir, path, root, cmd3Str, folder[0])
 
     else:
         cmd = execShellCmd(sboxWrap(cmdStr))
-        cmd2 = fakerootWrap(srcdir, path, root, "check", tests = tests, isTest = true,
-                existsTest = existsTest)
+        cmd2 = fakerootWrap(srcdir, path, root, "check", tests = tests,
+                isTest = true, existsTest = existsTest)
         cmd3 = fakerootWrap(srcdir, path, root, cmd3Str)
 
     if cmd != 0:
