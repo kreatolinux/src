@@ -10,6 +10,7 @@ proc info*(info: string, exitAfterwards = false) =
 proc err*(error: string, removeLockFile = true) =
     ## Handles errors.
     styledEcho("kpkg: ", fgRed, "error: ", fgDefault, error)
+    echo "kpkg: if you think this is a bug, please open an issue at https://github.com/kreatolinux/src"
     if removeLockFile:
         info "removing lockfile"
         removeFile("/tmp/kpkg.lock")
