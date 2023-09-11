@@ -23,7 +23,7 @@ proc fakerootWrap(path: string, root: string, input: string, autocd = "",
         isTest = false, existsTest = 1): int =
     ## Wraps command with fakeroot and executes it.
 
-    if isTest and existsTest == 1:
+    if isTest and existsTest != 0:
         return 0
 
     if isEmptyOrWhitespace(autocd):
