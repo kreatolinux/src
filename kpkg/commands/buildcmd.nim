@@ -124,7 +124,7 @@ proc builder*(package: string, destdir: string,
 
                 # git cloning doesn't support sha256sum checking
                 var actualDigest = sha256hexdigest(readAll(open(
-                        filename)))&"  "&filename
+                        filename)))&"  "&extractFilename(filename)
                 var expectedDigest = pkg.sha256sum.split(";")[int]
                 if expectedDigest != actualDigest:
                     err "sha256sum doesn't match for "&i&"\nExpected: "&expectedDigest&"\nActual: "&actualDigest
