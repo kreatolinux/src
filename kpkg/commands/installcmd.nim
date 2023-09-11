@@ -51,7 +51,8 @@ proc install_pkg*(repo: string, package: string, root: string) =
     createDir("/tmp")
     createDir("/tmp/kpkg")
 
-    if dirExists(root&"/var/cache/kpkg/installed/"&package) and not symlinkExists(root&"/var/cache/kpkg/installed/"&package):
+    if dirExists(root&"/var/cache/kpkg/installed/"&package) and
+            not symlinkExists(root&"/var/cache/kpkg/installed/"&package):
 
         info "package already installed, reinstalling"
 
