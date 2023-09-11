@@ -19,20 +19,22 @@ proc cleanUp() {.noconv.} =
     removeFile(lockfile)
     quit(0)
 
-proc fakerootWrap(path: string, root: string, input: string, autocd = "", isTest = false, existsTest = 1): int =
+proc fakerootWrap(path: string, root: string, input: string, autocd = "",
+        isTest = false, existsTest = 1): int =
     ## Wraps command with fakeroot and executes it.
 
     if isTest and existsTest == 1:
-      return 0
+        return 0
 
     if isEmptyOrWhitespace(autocd):
-      return execShellCmd("fakeroot -- /bin/sh -c '. "&path&"/run && export DESTDIR="&root&" && export ROOT=$DESTDIR && cd "&autocd&" && "&input&"'")
-    
+        return execShellCmd("fakeroot -- /bin/sh -c '. "&path&"/run && export DESTDIR="&root&" && export ROOT=$DESTDIR && cd "&autocd&" && "&input&"'")
+
     return execShellCmd("fakeroot -- /bin/sh -c '. "&path&"/run && export DESTDIR="&root&" && export ROOT=$DESTDIR && "&input&"'")
 
 proc builder*(package: string, destdir: string,
     root = "/opt/kpkg/build", srcdir = "/opt/kpkg/srcdir", offline = false,
-            dontInstall = false, useCacheIfAvailable = false, tests = false): bool =
+            dontInstall = false, useCacheIfAvailable = false,
+                    tests = false): bool =
     ## Builds the packages.
 
     if not isAdmin():
@@ -163,8 +165,8 @@ proc builder*(package: string, destdir: string,
                 setCurrentDir(folder[0])
             except Exception:
                 when defined(release):
-                  err("Unknown error occured while trying to enter the source directory")
-                
+                    err("Unknown error occured while trying to enter the source directory")
+
                 debug $folder
                 raise
     elif existsPrepare == 0:
@@ -200,16 +202,19 @@ proc builder*(package: string, destdir: string,
     if pkg.sources.split(";").len == 1:
         if existsPrepare == 0:
             cmd = execShellCmd(sboxWrap(cmdStr))
-            cmd2 = fakerootWrap(path, root, "test", isTest=tests, existsTest=existsTest)
+            cmd2 = fakerootWrap(path, root, "test", isTest = tests,
+                    existsTest = existsTest)
             cmd3 = fakerootWrap(path, root, cmd3Str)
         else:
             cmd = execShellCmd(sboxWrap("cd "&folder[0]&" && "&cmdStr))
-            cmd2 = fakerootWrap(path, root, "test", folder[0], isTest=tests, existsTest=existsTest)
+            cmd2 = fakerootWrap(path, root, "test", folder[0], isTest = tests,
+                    existsTest = existsTest)
             cmd3 = fakerootWrap(path, root, cmd3Str, folder[0])
 
     else:
         cmd = execShellCmd(sboxWrap(cmdStr))
-        cmd2 = fakerootWrap(path, root, "test", isTest=tests, existsTest=existsTest)
+        cmd2 = fakerootWrap(path, root, "test", isTest = tests,
+                existsTest = existsTest)
         cmd3 = fakerootWrap(path, root, cmd3Str)
 
     if cmd != 0:
