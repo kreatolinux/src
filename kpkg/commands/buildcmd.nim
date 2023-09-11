@@ -32,8 +32,6 @@ proc builder*(package: string, destdir: string,
 
     info "starting build for "&package
 
-    writeFile(lockfile, "") # Create lockfile
-
     setControlCHook(cleanUp)
 
     # Actual building start here
@@ -82,6 +80,8 @@ proc builder*(package: string, destdir: string,
         install_pkg(repo, package, destdir)
         removeFile(lockfile)
         return true
+
+    writeFile(lockfile, "") # Create lockfile
 
     var filename: string
 
@@ -134,7 +134,8 @@ proc builder*(package: string, destdir: string,
 
                 int = int+1
         except CatchableError:
-            raise
+            when defined(release): 
+              err "Unknown error occured while trying to download the sources"
 
     # Create homedir of _kpkg temporarily
     createDir(homeDir)
@@ -149,12 +150,14 @@ proc builder*(package: string, destdir: string,
             try:
                 setCurrentDir(folder[0])
             except Exception:
-                when not defined(release):
-                    echo folder
+                when defined(release):
+                  err("Unknown error occured while trying to enter the source directory")
+                
+                debug folder
                 raise
     elif existsPrepare == 0:
-        assert execShellCmd("su -s /bin/sh _kpkg -c '. "&path&"/run"&" && prepare'") ==
-                0, "prepare failed"
+        if execShellCmd("su -s /bin/sh _kpkg -c '. "&path&"/run"&" && prepare'") != 0:
+          err("prepare failed", true)
 
     var cmd: int
     var cmd2: int
@@ -266,7 +269,7 @@ proc build*(no = false, yes = false, root = "/",
 
         except CatchableError:
             when defined(release):
-                err("Undefined error occured, please open an issue", true)
+                err("Undefined error occured", true)
             else:
                 raise
 
@@ -279,7 +282,7 @@ proc build*(no = false, yes = false, root = "/",
 
         except CatchableError:
             when defined(release):
-                err("Undefined error occured, please open an issue", true)
+                err("Undefined error occured", true)
             else:
                 raise
 
