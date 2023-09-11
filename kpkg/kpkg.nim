@@ -23,6 +23,7 @@ import commands/updatecmd
 import commands/removecmd
 import commands/upgradecmd
 import commands/installcmd
+import commands/cleancmd
 import ../common/version
 
 const ver {.strdefine.}: string = "v5"
@@ -83,5 +84,13 @@ dispatchMulti(
   info, help = {
   "testing": "Don't error if package isn't installed"
   }
+  ],
+
+  [
+  clean, help = {
+    "sources": "Remove source tarballs from cache",
+    "binaries": "Remove binary tarballs from cache"
+  }
   ]
+
 )
