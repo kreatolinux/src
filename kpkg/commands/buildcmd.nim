@@ -100,7 +100,7 @@ proc builder*(package: string, destdir: string,
 
     let existsPrepare = execCmdEx(". "&path&"/run"&" && command -v prepare").exitCode
     let existsInstall = execCmdEx(". "&path&"/run"&" && command -v package").exitCode
-    let existsTest = execCmdEx(". "&path&"/run"&" && command -v test").exitCode
+    let existsTest = execCmdEx(". "&path&"/run"&" && command -v check").exitCode
     let existsPackageInstall = execCmdEx(
             ". "&path&"/run"&" && command -v package_"&package).exitCode
     let existsPackageBuild = execCmdEx(
@@ -202,18 +202,18 @@ proc builder*(package: string, destdir: string,
     if pkg.sources.split(";").len == 1:
         if existsPrepare == 0:
             cmd = execShellCmd(sboxWrap(cmdStr))
-            cmd2 = fakerootWrap(path, root, "test", tests = tests,
-                    isTest = true, existsTest = existsTest)
+            cmd2 = fakerootWrap(path, root, "check", tests = tests, isTest = true,
+                    existsTest = existsTest)
             cmd3 = fakerootWrap(path, root, cmd3Str)
         else:
             cmd = execShellCmd(sboxWrap("cd "&folder[0]&" && "&cmdStr))
-            cmd2 = fakerootWrap(path, root, "test", folder[0], tests = tests,
-                    isTest = true, existsTest = existsTest)
+            cmd2 = fakerootWrap(path, root, "check", folder[0], tests = tests, isTest = true,
+                    existsTest = existsTest)
             cmd3 = fakerootWrap(path, root, cmd3Str, folder[0])
 
     else:
         cmd = execShellCmd(sboxWrap(cmdStr))
-        cmd2 = fakerootWrap(path, root, "test", tests = tests, isTest = true,
+        cmd2 = fakerootWrap(path, root, "check", tests = tests, isTest = true,
                 existsTest = existsTest)
         cmd3 = fakerootWrap(path, root, cmd3Str)
 
