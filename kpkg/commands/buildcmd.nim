@@ -180,7 +180,7 @@ proc builder*(package: string, destdir: string,
     # Run ldconfig beforehand for any errors
     discard execProcess("ldconfig")
 
-    var cmdStr = "export CC="&getConfigValue("Options",
+    var cmdStr = ". "&path&"/run"&" && export CC="&getConfigValue("Options",
             "cc")&" && export CCACHE_DIR=/opt/kpkg/cache &&"
     var cmd3Str: string
 
