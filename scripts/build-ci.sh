@@ -23,8 +23,10 @@ case $1 in
                 ./out/kpkg build llvm -y
                 rm -rf /var/cache/kpkg/archives/arch/amd64/kpkg-tarball-llvm-*
                 rm -rf /etc/kpkg/repos/*
-                sed s/gcc/clang/g -i /etc/kpkg/kpkg.conf
                 sed s/stable/master/g -i /etc/kpkg/kpkg.conf
+                ./out/kpkg update
+                ./out/kpkg build gcc -yu
+                
                 #rm -f /var/cache/kpkg/archives/*kpkg*
                 rm -rf /tmp/kpkg
                 nim c -d:branch=master --passC:-no-pie --threads:on -d:ssl -o=kreastrap/kreastrap kreastrap/kreastrap.nim
