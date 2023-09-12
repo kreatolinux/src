@@ -192,7 +192,7 @@ proc kreastrapInstall(package: string, installWithBinaries: bool,
 
 proc set_default_cc(buildDir: string, cc: string) =
     ## Sets the default compiler.
-    let files = ["/bin/cc", "/bin/c99", "/bin/g++", "/bin/c++"]
+    let files = ["/bin/gcc", "/bin/cc", "/bin/c99", "/bin/g++", "/bin/c++"]
     var file: string
     for i in files:
         file = buildDir&i
