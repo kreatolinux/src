@@ -16,12 +16,14 @@ case $1 in
                 #apk add build-base llvm-libunwind-dev compiler-rt libc++-dev alpine-sdk nimble shadow libarchive-tools perl zlib-dev llvm clang linux-headers openssl-dev binutils-dev gettext-dev xz libgcc gcc
                 make deps
                 rm -vf /etc/kpkg/kpkg.conf
-                #make kpkg
-                #./out/kpkg update || true
-                #./out/kpkg build shadow -y
-                #./out/kpkg install shadow -y
-                #command -v su
-                #sed s/gcc/musl-gcc/g -i /etc/kpkg/kpkg.conf
+                make kpkg
+                
+                # Temporary
+                ./out/kpkg update
+                ./out/kpkg build llvm -y
+                rm -rf /var/cache/kpkg/archives/arch/amd64/kpkg-tarball-llvm-*
+                sed s/gcc/clang/g -i /etc/kpkg/kpkg.conf
+                
                 #rm -f /var/cache/kpkg/archives/*kpkg*
                 rm -rf /tmp/kpkg
                 nim c -d:branch=master --passC:-no-pie --threads:on -d:ssl -o=kreastrap/kreastrap kreastrap/kreastrap.nim

@@ -9,7 +9,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    container: ghcr.io/kreatolinux/builder@sha256:b5bf7f8bbc0291d46a10dbb795e01e0d34469eba56779577d828152ca9a78efa
+    container: ghcr.io/kreatolinux/builder:latest
 
     steps:
 
