@@ -85,8 +85,8 @@ proc install_pkg*(repo: string, package: string, root: string) =
         createSymlink(package, root&"/var/cache/kpkg/installed/"&i)
 
 
-    debug "Executing 'tar -hxf "&tarball&" -C "&root&"'"
-    let cmd = execCmdEx("tar -hxf "&tarball&" -C "&root)
+    debug "Executing 'tar -hxvf "&tarball&" -C "&root&"'"
+    let cmd = execCmdEx("tar -hxvf "&tarball&" -C "&root)
     if cmd.exitCode != 0:
         debug cmd.output
         removeDir(root&"/var/cache/kpkg/installed/"&package)
