@@ -102,9 +102,9 @@ proc builder*(package: string, destdir: string,
     let existsInstall = execCmdEx(". "&path&"/run"&" && command -v package").exitCode
     let existsTest = execCmdEx(". "&path&"/run"&" && command -v check").exitCode
     let existsPackageInstall = execCmdEx(
-            ". "&path&"/run"&" && command -v package_"&package).exitCode
+            ". "&path&"/run"&" && command -v package_"&replace(package, '-', '_')).exitCode
     let existsPackageBuild = execCmdEx(
-            ". "&path&"/run"&" && command -v build_"&package).exitCode
+            ". "&path&"/run"&" && command -v build_"&replace(package, '-', '_')).exitCode
     let existsBuild = execCmdEx(
             ". "&path&"/run"&" && command -v build").exitCode
 
@@ -185,14 +185,14 @@ proc builder*(package: string, destdir: string,
     var cmd3Str: string
 
     if existsPackageInstall == 0:
-        cmd3Str = "package_"&package
+        cmd3Str = "package_"&replace(package, '-', '_')
     elif existsInstall == 0:
         cmd3Str = "package"
     else:
         err "install stage of package doesn't exist, invalid runfile"
 
     if existsPackageBuild == 0:
-        cmdStr = cmdStr&" build_"&package
+        cmdStr = cmdStr&" build_"&replace(package, '-', '_')
     elif existsBuild == 0:
         cmdStr = cmdStr&" build"
     else:
