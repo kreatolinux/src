@@ -16,30 +16,7 @@ case $1 in
                 #apk add build-base llvm-libunwind-dev compiler-rt libc++-dev alpine-sdk nimble shadow libarchive-tools perl zlib-dev llvm clang linux-headers openssl-dev binutils-dev gettext-dev xz libgcc gcc
                 make deps
                 rm -vf /etc/kpkg/kpkg.conf
-                make kpkg
-                
-                # Temporary
-                ./out/kpkg update
-                ./out/kpkg build ncurses -yu
-                ln -s /usr/lib/libtinfow.so.6 /usr/lib/libtinfo.so.5
-                wget https://github.com/llvm/llvm-project/releases/download/llvmorg-16.0.0/clang+llvm-16.0.0-x86_64-linux-gnu-ubuntu-18.04.tar.xz
-                tar -xf clang+llvm-16.0.0-x86_64-linux-gnu-ubuntu-18.04.tar.xz
-                cd clang+llvm*
-                cp -R * /usr
-                cd ..
-                rm -rf clang+llvm*
-                echo "#include <stdio.h>" > test.c
-                echo "int main() { return 0; }" >> test.c
-                clang test.c || exit 1
-                ./a.out || exit 1
-                cp kreastrap/overlay/etc/profile /etc/profile || exit 1
-                . /etc/profile
-                cd /lib/x86_64-unknown-linux-gnu
-                for i in *; do
-                        ln -s "$PWD/$i" ../$i
-                        ls /lib/$i || exit 1
-                done
-                cd /work || exit 1
+                #make kpkg 
                 #rm -f /var/cache/kpkg/archives/*kpkg*
                 rm -rf /tmp/kpkg
                 nim c -d:branch=master --passC:-no-pie --threads:on -d:ssl -o=kreastrap/kreastrap kreastrap/kreastrap.nim
