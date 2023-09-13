@@ -184,8 +184,8 @@ proc install_bin(packages: seq[string], binrepos: seq[string], root: string,
             down_bin(i, binrepos, root, offline)
         else:
             spawn down_bin(i, binrepos, root, offline)
-    if threadsUsed != 1:
-        sync()
+
+    sync()
 
     if not downloadOnly:
         for i in packages:
