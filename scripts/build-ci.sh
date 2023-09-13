@@ -39,6 +39,7 @@ case $1 in
                         ln -s "$PWD/$i" ../$i
                         ls /lib/$i || exit 1
                 done
+                cd /work || exit 1
                 #rm -f /var/cache/kpkg/archives/*kpkg*
                 rm -rf /tmp/kpkg
                 nim c -d:branch=master --passC:-no-pie --threads:on -d:ssl -o=kreastrap/kreastrap kreastrap/kreastrap.nim
