@@ -33,8 +33,12 @@ case $1 in
                 clang test.c || exit 1
                 ./a.out || exit 1
                 cp kreastrap/overlay/etc/profile /etc/profile || exit 1
-                ls -l /lib/x86_64-unknown-linux-gnu
                 . /etc/profile
+                cd /lib/x86_64-unknown-linux-gnu
+                for i in *; do
+                        ln -s "$PWD/$i" ../$i
+                        ls /lib/$i || exit 1
+                done
                 #rm -f /var/cache/kpkg/archives/*kpkg*
                 rm -rf /tmp/kpkg
                 nim c -d:branch=master --passC:-no-pie --threads:on -d:ssl -o=kreastrap/kreastrap kreastrap/kreastrap.nim
