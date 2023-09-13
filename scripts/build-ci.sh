@@ -20,7 +20,7 @@ case $1 in
                 
                 # Temporary
                 ./out/kpkg update
-                ./out/kpkg build ncurses -y
+                ./out/kpkg build ncurses -yu
                 ln -s /usr/lib/libtinfow.so.6 /usr/lib/libtinfo.so.5
                 wget https://github.com/llvm/llvm-project/releases/download/llvmorg-16.0.0/clang+llvm-16.0.0-x86_64-linux-gnu-ubuntu-18.04.tar.xz
                 tar -xf clang+llvm-16.0.0-x86_64-linux-gnu-ubuntu-18.04.tar.xz
