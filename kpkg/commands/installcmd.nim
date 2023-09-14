@@ -94,6 +94,9 @@ proc install_pkg*(repo: string, package: string, root: string) =
 
     writeFile(root&"/var/cache/kpkg/installed/"&package&"/list_files", cmd.output)
 
+    # Run ldconfig afterwards for any new libraries
+    discard execProcess("ldconfig")
+
     if dirExists("/tmp/kpkg/reinstall/"&package&"-old") and fileExists(
             "/tmp/kpkg/reinstall/"&package&"-old/list_files") and fileExists(
             "/tmp/kpkg/reinstall/"&package&"-old/run"):
