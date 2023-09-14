@@ -145,7 +145,7 @@ proc builder*(package: string, destdir: string,
 
                 # Add symlink for compatibility purposes
                 if not fileExists(path&"/"&i):
-                  createSymlink(filename, extractFilename(i).strip())
+                    createSymlink(filename, extractFilename(i).strip())
 
                 int = int+1
         except CatchableError:
