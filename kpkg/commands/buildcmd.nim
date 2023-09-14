@@ -150,6 +150,8 @@ proc builder*(package: string, destdir: string,
         except CatchableError:
             when defined(release):
                 err "Unknown error occured while trying to download the sources"
+            debug "Unknown error while trying to download sources"
+            raise
 
     # Create homedir of _kpkg temporarily
     createDir(homeDir)
