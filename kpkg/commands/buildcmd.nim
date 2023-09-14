@@ -144,7 +144,8 @@ proc builder*(package: string, destdir: string,
                     err "sha256sum doesn't match for "&i&"\nExpected: "&expectedDigest&"\nActual: "&actualDigest
 
                 # Add symlink for compatibility purposes
-                createSymlink(filename, extractFilename(i).strip())
+                if not fileExists(path&"/"&i):
+                  createSymlink(filename, extractFilename(i).strip())
 
                 int = int+1
         except CatchableError:
