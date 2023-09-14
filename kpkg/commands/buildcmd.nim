@@ -131,6 +131,7 @@ proc builder*(package: string, destdir: string,
             else:
                 if fileExists(path&"/"&i):
                     copyFile(path&"/"&i, extractFilename(i))
+                    filename = path&"/"&i
                 elif fileExists(filename):
                     discard
                 else:
