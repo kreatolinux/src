@@ -1,0 +1,6 @@
+#!/bin/sh
+while read i; do
+  if [ "${i##*.}" = "nim" ]; then
+    nimpretty "$i"
+  fi
+done <$(git diff --cached --name-only --diff-filter=ACM)
