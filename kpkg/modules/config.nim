@@ -33,7 +33,7 @@ proc initializeConfig*(): Config =
       "mirror.kreato.dev") # Seperate by space
   
   # [Parallelization]
-  config.setSectionKey("Parallelization", "threadsUsed", "4")
+  config.setSectionKey("Parallelization", "threadsUsed", "1")
 
   # [Upgrade]
   config.setSectionKey("Upgrade", "buildByDefault", "yes") # Build packages by default
