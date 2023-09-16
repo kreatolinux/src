@@ -10,7 +10,6 @@ proc removeInternal*(package: string, root = "",
         ignoreReplaces = false) =
 
     let init = getInit(root)
-    let pkg = parse_runfile(installedDir&"/"&actualPackage)
 
     if dirExists(installedDir&"/"&package&"-"&init):
         removeInternal(package&"-"&init, root, installedDir, ignoreReplaces)
@@ -22,6 +21,7 @@ proc removeInternal*(package: string, root = "",
     else:
         actualPackage = package
 
+    let pkg = parse_runfile(installedDir&"/"&actualPackage)
 
     if not pkg.isGroup:
         if not fileExists(installedDir&"/"&actualPackage&"/list_files"):
