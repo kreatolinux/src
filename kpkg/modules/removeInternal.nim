@@ -6,16 +6,21 @@ import runparser
 import dephandler
 import commonTasks
 
-proc dependencyCheck(package: string, installedDir: string, root: string) =
+proc dependencyCheck(package: string, installedDir: string, root: string, force: bool) =
   ## Checks if a package is a dependency on another package.
-  let d = dephandler(toSeq(walkDirs(installedDir&"/*")), root = root)
-  for i in d:
-    if i == package:
-      err(i&" is dependent on "&package)
+  setCurrentDir(installedDir)
+  for i in toSeq(walkDirs("*")):
+    let d = dephandler(@[i], root = root)
+    for a in d:
+      if a == package:
+        if force:
+          warn(i&" is dependent on "&package&", removing anyway")
+        else:
+          err(i&" is dependent on "&package)
 
 proc removeInternal*(package: string, root = "",
         installedDir = root&"/var/cache/kpkg/installed",
-        ignoreReplaces = false) =
+        ignoreReplaces = false, force = false) =
 
   let init = getInit(root)
 
@@ -34,7 +39,7 @@ proc removeInternal*(package: string, root = "",
 
   let pkg = parse_runfile(installedDir&"/"&actualPackage)
 
-  dependencyCheck(package, installedDir, root)
+  dependencyCheck(package, installedDir, root, force)
 
   if not pkg.isGroup:
     if not fileExists(installedDir&"/"&actualPackage&"/list_files"):
