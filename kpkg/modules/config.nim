@@ -22,6 +22,7 @@ proc initializeConfig*(): Config =
   var config = newConfig()
   # [Options]
   config.setSectionKey("Options", "cc", "gcc") # GCC works the best right now
+  config.setSectionKey("Options", "cxx", "g++") # GCC works the best right now
   
   # [Repositories]
   config.setSectionKey("Repositories", "repoDirs",
