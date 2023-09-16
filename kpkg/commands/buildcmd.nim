@@ -290,6 +290,15 @@ proc build*(no = false, yes = false, root = "/",
 
     deps = deduplicate(deps&p)
 
+    var depsDelete: string
+
+    for i in deps:
+        if dirExists(root&"/var/cache/kpkg/installed/"&i):
+            depsDelete = depsDelete&" "&i
+
+    for i in depsDelete.split(" ").filterit(it.len != 0):
+        deps.delete(deps.find(i))
+
     printReplacesPrompt(p, root)
     printPackagesPrompt(deps.join(" "), yes, no)
 
@@ -297,14 +306,9 @@ proc build*(no = false, yes = false, root = "/",
 
     for i in deps:
         try:
-            if dirExists(fullRootPath&"/var/cache/kpkg/installed/"&i) and
-                    not forceInstallAll:
-                continue
-            else:
-                discard builder(i, fullRootPath, offline = false,
-                        useCacheIfAvailable = useCacheIfAvailable, tests = tests)
+            discard builder(i, fullRootPath, offline = false,
+                    useCacheIfAvailable = useCacheIfAvailable, tests = tests)
             success("installed "&i&" successfully")
-
         except CatchableError:
             when defined(release):
                 err("Undefined error occured", true)

@@ -234,10 +234,6 @@ proc install*(promptPackages: seq[string], root = "/", yes: bool = false,
     printReplacesPrompt(deps, root, true)
     printReplacesPrompt(packages, root)
 
-    deps = deduplicate(deps&packages)
-
-    printPackagesPrompt(deps.join(" "), yes, no)
-
     var depsDelete: string
 
     for i in deps:
@@ -248,6 +244,9 @@ proc install*(promptPackages: seq[string], root = "/", yes: bool = false,
         deps.delete(deps.find(i))
 
     let binrepos = getConfigValue("Repositories", "binRepos").split(" ")
+
+    deps = deduplicate(deps&packages)
+    printPackagesPrompt(deps.join(" "), yes, no)
 
     if not (deps.len == 0 and deps == @[""]):
         install_bin(deps, binrepos, fullRootPath, offline,
