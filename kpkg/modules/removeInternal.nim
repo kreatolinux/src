@@ -20,7 +20,8 @@ proc dependencyCheck(package: string, installedDir: string, root: string, force:
 
 proc removeInternal*(package: string, root = "",
         installedDir = root&"/var/cache/kpkg/installed",
-        ignoreReplaces = false, force = true, depCheck = false) =
+        ignoreReplaces = false, force = true, depCheck = false,
+            noRunfile = false) =
 
   let init = getInit(root)
 
@@ -37,16 +38,19 @@ proc removeInternal*(package: string, root = "",
   if not dirExists(installedDir&"/"&actualPackage):
     err("package "&package&" is not installed", false)
 
-  let pkg = parse_runfile(installedDir&"/"&actualPackage)
+  var pkg: runFile
 
-  if depCheck:
-    dependencyCheck(package, installedDir, root, force)
+  if not noRunfile:
+    pkg = parse_runfile(installedDir&"/"&actualPackage)
 
-  if not pkg.isGroup:
-    if not fileExists(installedDir&"/"&actualPackage&"/list_files"):
-      warn "Package doesn't have a file list. Possibly broken package? Removing anyway."
-      removeDir(installedDir&"/"&package)
-      return
+    if depCheck:
+      dependencyCheck(package, installedDir, root, force)
+
+    if not pkg.isGroup:
+      if not fileExists(installedDir&"/"&actualPackage&"/list_files"):
+        warn "Package doesn't have a file list. Possibly broken package? Removing anyway."
+        removeDir(installedDir&"/"&package)
+        return
 
     for line in lines installedDir&"/"&actualPackage&"/list_files":
       discard tryRemoveFile(root&"/"&line)
@@ -54,7 +58,7 @@ proc removeInternal*(package: string, root = "",
       if isEmptyOrWhitespace(toSeq(walkDirRec(root&"/"&line)).join("")):
         removeDir(root&"/"&line)
 
-  if not ignoreReplaces:
+  if not ignoreReplaces and not noRunfile:
     for i in pkg.replaces:
       if symlinkExists(installedDir&"/"&i):
         removeFile(installedDir&"/"&i)

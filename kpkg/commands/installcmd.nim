@@ -116,7 +116,8 @@ proc install_pkg*(repo: string, package: string, root: string, runf = runFile(
         if d.len != 0:
             writeFile("/tmp/kpkg/reinstall/list_files", d.join("\n"))
             removeInternal("reinstall", root,
-                    installedDir = "/tmp/kpkg", ignoreReplaces = true)
+                    installedDir = "/tmp/kpkg", ignoreReplaces = true,
+                    noRunfile = true)
 
     removeDir("/tmp/kpkg")
     removeDir("/opt/kpkg")
