@@ -77,6 +77,8 @@ Now lets break it down.
 * NO_CHKUPD: Disables autoupdating thru chkupd. False by default. This will not prevent chkupd from building the package. Will be enabled if it is one of these values; "y, yes, true, 1, on"
 * REPLACES: Replaces packages put in the variable. Seperated by space.
 * OPTDEPENDS: Optional dependencies for the package. Seperated by ';;' like on the example. 
+* CONFLICTS: Specify conflicts to the package. Seperated by a space like DEPENDS. 
+* IS_GROUP: Specify if the package is a group package or not. False by default. Will be enabled if it is one of these values; "y, yes, true, 1, on"
 
 # AUTHOR
 Written by Kreato.

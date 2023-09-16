@@ -12,6 +12,7 @@ The default configuration file currently looks like this;
 ```ini
 [Options]
 cc=gcc
+cxx=g++
 
 [Repositories]
 repoDirs=/etc/kpkg/repos/main /etc/kpkg/repos/lockin
@@ -19,7 +20,7 @@ repoLinks="https://github.com/kreatolinux/kpkg-repo.git::stable https://github.c
 binRepos="mirror.kreato.dev"
 
 [Parallelization]
-threadsUsed="4"
+threadsUsed="1"
 
 [Upgrade]
 buildByDefault=yes
@@ -27,6 +28,7 @@ buildByDefault=yes
 
 ## OPTIONS
 * cc: Set the CC environment variable when the package is building. Defaults to gcc.
+* cxx: Set the CXX environment variable when the package is building. Defaults to g++.
 
 ## REPOSITORIES
 * repoDirs: Repository directories. Must line up with repoLinks. Seperate by space.
