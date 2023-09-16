@@ -38,10 +38,13 @@ proc install_pkg*(repo: string, package: string, root: string) =
     ## Installs an package.
 
     var pkg: runFile
+
     try:
         pkg = parse_runfile(repo&"/"&package)
     except CatchableError:
         raise
+
+    let isGroup = pkg.isGroup
 
     for i in pkg.conflicts:
         if dirExists(root&"/var/cache/kpkg/installed/"&i):
@@ -52,7 +55,7 @@ proc install_pkg*(repo: string, package: string, root: string) =
     createDir("/tmp/kpkg")
 
     if dirExists(root&"/var/cache/kpkg/installed/"&package) and
-            not symlinkExists(root&"/var/cache/kpkg/installed/"&package):
+            not symlinkExists(root&"/var/cache/kpkg/installed/"&package) and not isGroup:
 
         info "package already installed, reinstalling"
 
@@ -61,11 +64,14 @@ proc install_pkg*(repo: string, package: string, root: string) =
         moveDir(root&"/var/cache/kpkg/installed/"&package,
                 "/tmp/kpkg/reinstall/"&package&"-old")
 
-    let tarball = "/var/cache/kpkg/archives/arch/"&hostCPU&"/kpkg-tarball-"&package&"-"&pkg.versionString&".tar.gz"
+    var tarball: string
 
-    if sha256hexdigest(readAll(open(tarball)))&"  "&tarball != readAll(open(
-        tarball&".sum")):
-        err("sha256sum doesn't match for "&package, false)
+    if not isGroup:
+        tarball = "/var/cache/kpkg/archives/arch/"&hostCPU&"/kpkg-tarball-"&package&"-"&pkg.versionString&".tar.gz"
+
+        if sha256hexdigest(readAll(open(tarball)))&"  "&tarball != readAll(open(
+            tarball&".sum")):
+            err("sha256sum doesn't match for "&package, false)
 
     setCurrentDir("/var/cache/kpkg/archives")
 
@@ -76,7 +82,6 @@ proc install_pkg*(repo: string, package: string, root: string) =
     copyDir(repo&"/"&package, root&"/var/cache/kpkg/installed/"&package)
 
 
-
     for i in pkg.replaces:
         if symlinkExists(root&"/var/cache/kpkg/installed/"&i):
             removeFile(root&"/var/cache/kpkg/installed/"&i)
@@ -85,14 +90,15 @@ proc install_pkg*(repo: string, package: string, root: string) =
         createSymlink(package, root&"/var/cache/kpkg/installed/"&i)
 
 
-    debug "Executing 'tar -hxvf "&tarball&" -C "&root&"'"
-    let cmd = execCmdEx("tar -hxvf "&tarball&" -C "&root)
-    if cmd.exitCode != 0:
-        debug cmd.output
-        removeDir(root&"/var/cache/kpkg/installed/"&package)
-        err("extracting the tarball failed for "&package, false)
+    if not isGroup:
+        debug "Executing 'tar -hxvf "&tarball&" -C "&root&"'"
+        let cmd = execCmdEx("tar -hxvf "&tarball&" -C "&root)
+        if cmd.exitCode != 0:
+            debug cmd.output
+            removeDir(root&"/var/cache/kpkg/installed/"&package)
+            err("extracting the tarball failed for "&package, false)
 
-    writeFile(root&"/var/cache/kpkg/installed/"&package&"/list_files", cmd.output)
+        writeFile(root&"/var/cache/kpkg/installed/"&package&"/list_files", cmd.output)
 
     # Run ldconfig afterwards for any new libraries
     discard execProcess("ldconfig")
@@ -119,7 +125,7 @@ proc install_pkg*(repo: string, package: string, root: string) =
             err("postinstall failed")
 
     for i in pkg.optdeps:
-        echo "kpkg: "&i
+        info(i)
 
 proc down_bin(package: string, binrepos: seq[string], root: string,
         offline: bool) =
@@ -148,6 +154,9 @@ proc down_bin(package: string, binrepos: seq[string], root: string,
             pkg = parse_runfile(repo&"/"&package)
         except CatchableError:
             raise
+
+        if pkg.isGroup:
+            return
 
         let tarball = "kpkg-tarball-"&package&"-"&pkg.versionString&".tar.gz"
         let chksum = tarball&".sum"

@@ -91,7 +91,14 @@ proc builder*(package: string, destdir: string,
             install_pkg(repo, package, "/") # Install package on root too
 
         install_pkg(repo, package, destdir)
-        removeFile(lockfile)
+        removeDir(root)
+        removeDir(srcdir)
+        return true
+
+    if pkg.isGroup:
+        install_pkg(repo, package, destdir)
+        removeDir(root)
+        removeDir(srcdir)
         return true
 
     writeFile(lockfile, "") # Create lockfile

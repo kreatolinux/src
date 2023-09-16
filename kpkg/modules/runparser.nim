@@ -16,6 +16,7 @@ type runFile* = object
     optdeps*: seq[string]
     replaces*: seq[string]
     noChkupd*: bool
+    isGroup*: bool
 
 proc parse_runfile*(path: string, removeLockfileWhenErr = true): runFile =
     ## Parse an runfile.
@@ -85,6 +86,11 @@ proc parse_runfile*(path: string, removeLockfileWhenErr = true): runFile =
                     ("\"", ""),
                     ("'", "")
                     ).split(" ;; ")
+                of "IS_GROUP":
+                    ret.isGroup = parseBool(vars[1].multiReplace(
+                    ("\"", ""),
+                    ("'", "")
+                    ))
                 of "REPLACES":
                     ret.replaces = vars[1].multiReplace(
                     ("\"", ""),
