@@ -287,8 +287,10 @@ proc build*(no = false, yes = false, root = "/",
         if findPkgRepo(i&"-"&init) != "":
             p = p&(i&"-"&init)
 
+    deps = deduplicate(deps&p)
+
     printReplacesPrompt(p, root)
-    printPackagesPrompt(deps.join(" ")&" "&p.join(" "), yes, no)
+    printPackagesPrompt(deps.join(" "), yes, no)
 
     let fullRootPath = expandFilename(root)
 
@@ -300,19 +302,6 @@ proc build*(no = false, yes = false, root = "/",
             else:
                 discard builder(i, fullRootPath, offline = false,
                         useCacheIfAvailable = useCacheIfAvailable, tests = tests)
-            success("installed "&i&" successfully")
-
-        except CatchableError:
-            when defined(release):
-                err("Undefined error occured", true)
-            else:
-                raise
-
-    for i in p:
-        try:
-            discard builder(i, fullRootPath, offline = false,
-                    useCacheIfAvailable = useCacheIfAvailable,
-                    dontInstall = dontInstall, tests = tests)
             success("installed "&i&" successfully")
 
         except CatchableError:

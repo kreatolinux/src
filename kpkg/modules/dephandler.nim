@@ -94,7 +94,7 @@ proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false,
                     deps.add(dephandler(@[d], deps&ignoreDeps, bdeps = true,
                             isBuild = true, root = root, prevPkgName = pkg))
 
-                if d in pkgs or d in deps or d in ignoreDeps:
+                if d in deps or d in ignoreDeps:
                     continue
 
                 deps.add(dephandler(@[d], deps&ignoreDeps, bdeps = false,

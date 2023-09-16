@@ -234,7 +234,9 @@ proc install*(promptPackages: seq[string], root = "/", yes: bool = false,
     printReplacesPrompt(deps, root, true)
     printReplacesPrompt(packages, root)
 
-    printPackagesPrompt(deps.join(" ")&" "&packages.join(" "), yes, no)
+    deps = deduplicate(deps&packages)
+
+    printPackagesPrompt(deps.join(" "), yes, no)
 
     var depsDelete: string
 
@@ -249,8 +251,6 @@ proc install*(promptPackages: seq[string], root = "/", yes: bool = false,
 
     if not (deps.len == 0 and deps == @[""]):
         install_bin(deps, binrepos, fullRootPath, offline,
-                downloadOnly = downloadOnly)
-        install_bin(packages, binrepos, fullRootPath, offline,
                 downloadOnly = downloadOnly)
 
     info("done")
