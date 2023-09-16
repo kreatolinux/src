@@ -3,7 +3,8 @@ import strutils
 import ../modules/logger
 import ../modules/removeInternal
 
-proc remove*(packages: seq[string], yes = false, root = ""): string =
+proc remove*(packages: seq[string], yes = false, root = "",
+        force = false): string =
     ## Remove packages
 
     # bail early if user isn't admin
@@ -24,7 +25,7 @@ proc remove*(packages: seq[string], yes = false, root = ""): string =
 
     if output.toLower() == "y":
         for i in packages:
-            removeInternal(i, root)
+            removeInternal(i, root, force = force)
             success("package "&i&" removed")
         success("done", true)
 
