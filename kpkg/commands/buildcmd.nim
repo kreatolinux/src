@@ -82,21 +82,22 @@ proc builder*(package: string, destdir: string,
         pkg = parse_runfile(path)
     except CatchableError:
         raise
+
     if fileExists("/var/cache/kpkg/archives/arch/"&hostCPU&"/kpkg-tarball-"&package&"-"&pkg.versionString&".tar.gz") and
             fileExists(
             "/var/cache/kpkg/archives/arch/"&hostCPU&"/kpkg-tarball-"&package&"-"&pkg.versionString&".tar.gz.sum") and
             useCacheIfAvailable == true and dontInstall == false:
 
         if destdir != "/":
-            install_pkg(repo, package, "/") # Install package on root too
+            install_pkg(repo, package, "/", pkg) # Install package on root too
 
-        install_pkg(repo, package, destdir)
+        install_pkg(repo, package, destdir, pkg)
         removeDir(root)
         removeDir(srcdir)
         return true
 
     if pkg.isGroup:
-        install_pkg(repo, package, destdir)
+        install_pkg(repo, package, destdir, pkg)
         removeDir(root)
         removeDir(srcdir)
         return true
@@ -249,10 +250,10 @@ proc builder*(package: string, destdir: string,
     # because the dep is installed to destdir but not root.
     if destdir != "/" and not dirExists(
             "/var/cache/kpkg/installed/"&package) and (not dontInstall):
-        install_pkg(repo, package, "/")
+        install_pkg(repo, package, "/", pkg)
 
     if not dontInstall:
-        install_pkg(repo, package, destdir)
+        install_pkg(repo, package, destdir, pkg)
 
     removeFile(lockfile)
 

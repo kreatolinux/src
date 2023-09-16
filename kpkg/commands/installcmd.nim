@@ -34,13 +34,17 @@ proc diff(one: seq[string], two: seq[string]): seq[string] =
 
     return r.filterit(it.len != 0)
 
-proc install_pkg*(repo: string, package: string, root: string) =
+proc install_pkg*(repo: string, package: string, root: string, runf = runFile(
+        isParsed: false)) =
     ## Installs an package.
 
     var pkg: runFile
 
     try:
-        pkg = parse_runfile(repo&"/"&package)
+        if runf.isParsed:
+            pkg = runf
+        else:
+            pkg = parse_runfile(repo&"/"&package)
     except CatchableError:
         raise
 

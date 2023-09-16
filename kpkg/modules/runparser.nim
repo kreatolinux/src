@@ -17,6 +17,7 @@ type runFile* = object
     replaces*: seq[string]
     noChkupd*: bool
     isGroup*: bool
+    isParsed*: bool
 
 proc parse_runfile*(path: string, removeLockfileWhenErr = true): runFile =
     ## Parse an runfile.
@@ -128,5 +129,7 @@ proc parse_runfile*(path: string, removeLockfileWhenErr = true): runFile =
             ("\"", ""),
             ("'", "")
             )
+
+    ret.isParsed = true
 
     return ret
