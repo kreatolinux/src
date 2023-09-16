@@ -21,10 +21,10 @@ proc removeInternal*(package: string, root = "",
     else:
         actualPackage = package
 
-    let pkg = parse_runfile(installedDir&"/"&actualPackage)
-
     if not dirExists(installedDir&"/"&actualPackage):
         err("package "&package&" is not installed", false)
+
+    let pkg = parse_runfile(installedDir&"/"&actualPackage)
 
     if not pkg.isGroup:
         if not fileExists(installedDir&"/"&actualPackage&"/list_files"):
