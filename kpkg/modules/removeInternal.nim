@@ -20,7 +20,7 @@ proc dependencyCheck(package: string, installedDir: string, root: string, force:
 
 proc removeInternal*(package: string, root = "",
         installedDir = root&"/var/cache/kpkg/installed",
-        ignoreReplaces = false, force = false) =
+        ignoreReplaces = false, force = true, depCheck = false) =
 
   let init = getInit(root)
 
@@ -39,7 +39,8 @@ proc removeInternal*(package: string, root = "",
 
   let pkg = parse_runfile(installedDir&"/"&actualPackage)
 
-  dependencyCheck(package, installedDir, root, force)
+  if depCheck:
+    dependencyCheck(package, installedDir, root, force)
 
   if not pkg.isGroup:
     if not fileExists(installedDir&"/"&actualPackage&"/list_files"):
