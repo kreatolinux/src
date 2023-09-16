@@ -16,7 +16,7 @@ proc dependencyCheck(package: string, installedDir: string, root: string, force:
         if force:
           warn(i&" is dependent on "&package&", removing anyway")
         else:
-          err(i&" is dependent on "&package)
+          err(i&" is dependent on "&package, false)
 
 proc removeInternal*(package: string, root = "",
         installedDir = root&"/var/cache/kpkg/installed",
