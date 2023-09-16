@@ -204,7 +204,7 @@ proc install_bin(packages: seq[string], binrepos: seq[string], root: string,
         for i in packages:
             repo = findPkgRepo(i)
             install_pkg(repo, i, root)
-            echo "Installation for "&i&" complete"
+            info "Installation for "&i&" complete"
 
 proc install*(promptPackages: seq[string], root = "/", yes: bool = false,
         no: bool = false, offline = false, downloadOnly = false): int =
