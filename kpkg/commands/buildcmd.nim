@@ -288,8 +288,6 @@ proc build*(no = false, yes = false, root = "/",
         if findPkgRepo(i&"-"&init) != "":
             p = p&(i&"-"&init)
 
-    deps = deduplicate(deps&p)
-
     var depsDelete: string
 
     for i in deps:
@@ -298,6 +296,8 @@ proc build*(no = false, yes = false, root = "/",
 
     for i in depsDelete.split(" ").filterit(it.len != 0):
         deps.delete(deps.find(i))
+
+    deps = deduplicate(deps&p)
 
     printReplacesPrompt(p, root)
     printPackagesPrompt(deps.join(" "), yes, no)
