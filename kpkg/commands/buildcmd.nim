@@ -193,8 +193,8 @@ proc builder*(package: string, destdir: string,
     discard execProcess("ldconfig")
 
     var cmdStr = ". "&path&"/run"&" && export CC="&getConfigValue("Options",
-            "cxx")&" && export CXX="&getConfigValue("Options",
-                    "cc")&" && export CCACHE_DIR=/opt/kpkg/cache &&"
+            "cc")&" && export CXX="&getConfigValue("Options",
+                    "cxx")&" && export CCACHE_DIR=/opt/kpkg/cache &&"
     var cmd3Str: string
 
     if existsPackageInstall == 0:
