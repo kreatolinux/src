@@ -182,11 +182,7 @@ proc down_bin(package: string, binrepos: seq[string], root: string,
             except CatchableError:
                 discard
         else:
-            when defined(release):
-                err("attempted to download tarball from binary repository in offline mode", false)
-
-            debug("attempted to download tarball from binary repository in offline mode")
-            raise
+            err("attempted to download tarball from binary repository in offline mode", false)
 
     if not downSuccess:
         err("couldn't download the binary", false)
