@@ -20,7 +20,7 @@ proc upgrade*(root = "/",
             try:
                 localPkg = parse_runfile(i.path)
             except CatchableError:
-                raise
+                err("Unknown error while reading installed package", false)
 
             var isAReplacesPackage: bool
 
@@ -47,7 +47,7 @@ proc upgrade*(root = "/",
             try:
                 upstreamPkg = parse_runfile(repo&"/"&lastPathpart(i.path))
             except CatchableError:
-                raise
+                err("Unknown error while reading package on repository, possibly broken repo?", false)
 
             if localPkg.version < upstreamPkg.version or localPkg.release <
               upstreamPkg.release or (localPkg.epoch != "no" and

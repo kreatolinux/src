@@ -81,7 +81,7 @@ proc builder*(package: string, destdir: string,
     try:
         pkg = parse_runfile(path)
     except CatchableError:
-        raise
+        err("Unknown error while trying to parse package on repository, possibly broken repo?", false)
 
     if fileExists("/var/cache/kpkg/archives/arch/"&hostCPU&"/kpkg-tarball-"&package&"-"&pkg.versionString&".tar.gz") and
             fileExists(

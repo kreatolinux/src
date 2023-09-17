@@ -14,13 +14,11 @@ import ../modules/removeInternal
 
 var threadsUsed: int
 
-try:
-    threadsUsed = parseInt(getConfigValue("Parallelization", "threadsUsed"))
-    if threadsUsed < 1:
-        warn "threadsUsed in /etc/kpkg/kpkg.conf can't be below 1. Please update your configuration."
-        raise
-except Exception:
-    threadsUsed = 4
+threadsUsed = parseInt(getConfigValue("Parallelization", "threadsUsed"))
+if threadsUsed < 1:
+    warn "threadsUsed in /etc/kpkg/kpkg.conf can't be below 1. Please update your configuration."
+    info "Setting threadsUsed to 1"
+    threadsUsed = 1
 
 setControlCHook(ctrlc)
 
@@ -46,7 +44,7 @@ proc install_pkg*(repo: string, package: string, root: string, runf = runFile(
         else:
             pkg = parse_runfile(repo&"/"&package)
     except CatchableError:
-        raise
+        err("Unknown error while trying to parse package on repository, possibly broken repo?", false)
 
     let isGroup = pkg.isGroup
 
@@ -158,7 +156,7 @@ proc down_bin(package: string, binrepos: seq[string], root: string,
         try:
             pkg = parse_runfile(repo&"/"&package)
         except CatchableError:
-            raise
+            err("Unknown error while trying to parse package on repository, possibly broken repo?", false)
 
         if pkg.isGroup:
             return
@@ -224,7 +222,7 @@ proc install*(promptPackages: seq[string], root = "/", yes: bool = false,
     try:
         deps = dephandler(packages, root = root)
     except CatchableError:
-        raise
+        err("Dependency detection failed", false)
 
     let fullRootPath = expandFilename(root)
 
