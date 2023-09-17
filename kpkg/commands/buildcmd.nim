@@ -288,14 +288,15 @@ proc build*(no = false, yes = false, root = "/",
         if findPkgRepo(i&"-"&init) != "":
             p = p&(i&"-"&init)
 
-    var depsDelete: string
+    if not forceInstallAll:
+        var depsDelete: string
 
-    for i in deps:
-        if dirExists(root&"/var/cache/kpkg/installed/"&i):
-            depsDelete = depsDelete&" "&i
+        for i in deps:
+            if dirExists(root&"/var/cache/kpkg/installed/"&i):
+                depsDelete = depsDelete&" "&i
 
-    for i in depsDelete.split(" ").filterit(it.len != 0):
-        deps.delete(deps.find(i))
+        for i in depsDelete.split(" ").filterit(it.len != 0):
+            deps.delete(deps.find(i))
 
     deps = deduplicate(deps&p)
 
