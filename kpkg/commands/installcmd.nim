@@ -120,10 +120,17 @@ proc install_pkg*(repo: string, package: string, root: string, runf = runFile(
     removeDir("/tmp/kpkg")
     removeDir("/opt/kpkg")
 
+    var existsPkgPostinstall = execCmdEx(
+            ". "&repo&"/"&package&"/run"&" && command -v postinstall_"&replace(
+                    package, '-', '_')).exitCode
     var existsPostinstall = execCmdEx(
             ". "&repo&"/"&package&"/run"&" && command -v postinstall").exitCode
 
-    if existsPostinstall == 0:
+    if existsPkgPostinstall == 0:
+        if execShellCmd(". "&repo&"/"&package&"/run"&" && postinstall_"&replace(
+                package, '-', '_')) != 0:
+            err("postinstall failed")
+    elif existsPostinstall == 0:
         if execShellCmd(". "&repo&"/"&package&"/run"&" && postinstall") != 0:
             err("postinstall failed")
 
