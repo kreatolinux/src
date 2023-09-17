@@ -381,6 +381,9 @@ proc kreastrap(buildType = "builder", arch = "amd64",
         kreastrapInstall("p11-kit", installWithBinaries, buildDir, useCacheIfPossible)
         kreastrapInstall("make-ca", installWithBinaries, buildDir, useCacheIfPossible)
 
+        # Install timezone database
+        kreastrapInstall("tzdb", installWithBinaries, buildDir, useCacheIfPossible)
+
 
         # Generate certdata here
         info_msg "Generating CA certificates"
