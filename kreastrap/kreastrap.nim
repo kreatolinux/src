@@ -401,7 +401,7 @@ proc kreastrap(buildType = "builder", arch = "amd64",
 
         removeFile(buildDir&"/certdata.txt")
 
-        info "Installing Python"
+        info_msg "Installing Python"
         kreastrapInstall("python", installWithBinaries, buildDir, useCacheIfPossible)
         let ensurePip = execCmdEx("chroot "&buildDir&" /bin/sh -c 'python -m ensurepip'")
 
