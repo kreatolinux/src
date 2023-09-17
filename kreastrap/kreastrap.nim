@@ -384,7 +384,6 @@ proc kreastrap(buildType = "builder", arch = "amd64",
         # Install timezone database
         kreastrapInstall("tzdb", installWithBinaries, buildDir, useCacheIfPossible)
 
-
         # Generate certdata here
         info_msg "Generating CA certificates"
 
@@ -401,6 +400,16 @@ proc kreastrap(buildType = "builder", arch = "amd64",
             ok "Generated CA certificates"
 
         removeFile(buildDir&"/certdata.txt")
+
+        info "Installing Python"
+        kreastrapInstall("python", installWithBinaries, buildDir, useCacheIfPossible)
+        let ensurePip = execCmdEx("chroot "&buildDir&" /bin/sh -c 'python -m ensurepip'")
+
+        if ensurePip.exitcode != 0:
+            debug "ensurePip output: "&ensurePip.output
+            error "Installing pip failed"
+        else:
+            ok "Installed pip"
 
         if conf.getSectionValue("Extras", "ExtraPackages") != "":
             info_msg "Installing extra packages"
