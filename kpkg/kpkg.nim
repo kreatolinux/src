@@ -23,6 +23,7 @@ import commands/updatecmd
 import commands/removecmd
 import commands/upgradecmd
 import commands/installcmd
+import commands/searchcmd
 import commands/cleancmd
 import ../common/version
 
@@ -55,6 +56,9 @@ dispatchMulti(
     "offline": "Offline mode, errors out if tarball is attempted to get downloaded off binrepo",
     "downloadOnly": "Only download the binary, don't install"
     }
+  ],
+  [
+  search
   ],
   [
   remove, help = {

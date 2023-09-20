@@ -8,6 +8,7 @@ type runFile* = object
     release*: string
     sha256sum*: string
     epoch*: string
+    desc*: string
     versionString*: string
     conflicts*: seq[string]
     deps*: seq[string]
@@ -34,6 +35,11 @@ proc parse_runfile*(path: string, removeLockfileWhenErr = true): runFile =
             case vars[0]:
                 of "NAME":
                     ret.pkg = vars[1].multiReplace(
+                    ("\"", ""),
+                    ("'", "")
+                    )
+                of "DESCRIPTION":
+                    ret.desc = vars[1].multiReplace(
                     ("\"", ""),
                     ("'", "")
                     )
