@@ -1,4 +1,9 @@
 NAME="Kreato Linux"
-PRETTY_NAME="Kreato Linux"
+PRETTY_NAME="Kreato Linux illusion/rolling"
 ID=klinux
 BUILD_ID=rolling
+HOME_URL="https://linux.kreato.dev"
+BUG_REPORT_URL="https://github.com/kreatolinux/kpkg-repo/issues/new/choose"
+DOCUMENTATION_URL="https://wiki.linux.kreato.dev"
+DEFAULT_HOSTNAME="klinux"
+
