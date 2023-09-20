@@ -20,14 +20,17 @@ proc printResult(repo: string, package: string): string =
     if pkgrunf.isGroup:
       r = "g"&r
     else:
-      r = r&" "      
+      r = r&" " 
  
     r = r&repo&"/"&package&"-"&pkgrunf.versionString
     
     for i in 1 .. 40 - (package.len + 1 + pkgrunf.versionString.len):
       r = r&" "
-
-    return r&pkgrunf.desc 
+     
+    if isEmptyOrWhitespace(pkgrunf.desc):
+      return r&"No description available"
+    else:
+      return r&pkgrunf.desc 
 
 proc search*(keyword: seq[string]) =
     ## Search packages.
