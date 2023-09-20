@@ -52,11 +52,10 @@ proc removeInternal*(package: string, root = "",
         removeDir(installedDir&"/"&package)
         return
 
-    for line in lines installedDir&"/"&actualPackage&"/list_files":
-      discard tryRemoveFile(root&"/"&line)
-
-      if isEmptyOrWhitespace(toSeq(walkDirRec(root&"/"&line)).join("")):
-        removeDir(root&"/"&line)
+  for line in lines installedDir&"/"&actualPackage&"/list_files":
+    discard tryRemoveFile(root&"/"&line)
+    if isEmptyOrWhitespace(toSeq(walkDirRec(root&"/"&line)).join("")):
+      removeDir(root&"/"&line)
 
   if not ignoreReplaces and not noRunfile:
     for i in pkg.replaces:

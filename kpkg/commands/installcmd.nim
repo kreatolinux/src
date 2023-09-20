@@ -106,8 +106,7 @@ proc install_pkg*(repo: string, package: string, root: string, runf = runFile(
     discard execProcess("ldconfig")
 
     if dirExists("/tmp/kpkg/reinstall/"&package&"-old") and fileExists(
-            "/tmp/kpkg/reinstall/"&package&"-old/list_files") and fileExists(
-            "/tmp/kpkg/reinstall/"&package&"-old/run"):
+            "/tmp/kpkg/reinstall/"&package&"-old/list_files"):
         let d = diff(readFile("/tmp/kpkg/reinstall/"&package&"-old/list_files").split(
                 "\n"), readFile(
                 "/var/cache/kpkg/installed/"&package&"/list_files").split("\n"))
