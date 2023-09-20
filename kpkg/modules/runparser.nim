@@ -6,7 +6,6 @@ type runFile* = object
     sources*: string
     version*: string
     release*: string
-    buildAsRoot*: bool
     sha256sum*: string
     epoch*: string
     versionString*: string
@@ -45,11 +44,6 @@ proc parse_runfile*(path: string, removeLockfileWhenErr = true): runFile =
                     ("\"", ""),
                     ("'", "")
                     )
-                of "BUILD_AS_ROOT":
-                    ret.buildAsRoot = parseBool(vars[1].multiReplace(
-                    ("\"", ""),
-                    ("'", "")
-                    ))
                 of "RELEASE":
                     ret.release = vars[1].multiReplace(
                     ("\"", ""),
