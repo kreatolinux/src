@@ -276,7 +276,7 @@ proc build*(no = false, yes = false, root = "/",
 
     try:
         deps = deduplicate(dephandler(packages, bdeps = true, isBuild = true,
-                root = root)&dephandler(packages, isBuild = true, root = root))
+                root = root, forceInstallAll = forceInstallAll)&dephandler(packages, isBuild = true, root = root, forceInstallAll = forceInstallAll))
     except CatchableError:
         raise
 
@@ -287,16 +287,6 @@ proc build*(no = false, yes = false, root = "/",
     for i in packages:
         if findPkgRepo(i&"-"&init) != "":
             p = p&(i&"-"&init)
-
-    if not forceInstallAll:
-        var depsDelete: string
-
-        for i in deps:
-            if dirExists(root&"/var/cache/kpkg/installed/"&i):
-                depsDelete = depsDelete&" "&i
-
-        for i in depsDelete.split(" ").filterit(it.len != 0):
-            deps.delete(deps.find(i))
 
     deps = deduplicate(deps&p)
 

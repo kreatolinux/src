@@ -7,7 +7,7 @@ import runparser
 import commonTasks
 
 proc checkVersions(root: string, dependency: string, repo: string, split = @[
-        "<=", ">=", "<", ">", "="]): string =
+        "<=", ">=", "<", ">", "="]): seq[string] =
     ## Internal proc for checking versions on dependencies (if it exists)
 
     for i in split:
@@ -16,37 +16,59 @@ proc checkVersions(root: string, dependency: string, repo: string, split = @[
             let dSplit = dependency.split(i)
             var deprf: runFile
 
-            if dirExists(root&"/var/cache/kpkg/installed/"&dependency):
+            if dirExists(root&"/var/cache/kpkg/installed/"&dSplit[0]):
                 deprf = parse_runfile(root&"/var/cache/kpkg/installed/"&dSplit[0])
             else:
                 deprf = parse_runfile(repo&"/"&dSplit[0])
 
-            const errName = "required dependency version not found"
+            let warnName = "Required dependency version for "&dSplit[0]&" not found, upgrading"
+            let errName = "Required dependency version for "&dSplit[0]&" not found on repositories, cannot continue"
+           
 
             case i:
                 of "<=":
                     if not (deprf.versionString <= dSplit[1]):
-                        err(errName, false)
+                        if dirExists(root&"/var/cache/kpkg/installed/"&dSplit[0]):
+                            warn(warnName)
+                            return @["upgrade", dSplit[0]]
+                        else:
+                            err(errName, false)
                 of ">=":
                     if not (deprf.versionString >= dSplit[1]):
-                        err(errName, false)
+                        if dirExists(root&"/var/cache/kpkg/installed/"&dSplit[0]):
+                            warn(warnName)
+                            return @["upgrade", dSplit[0]]
+                        else:
+                            err(errName, false)
                 of "<":
                     if not (deprf.versionString < dSplit[1]):
-                        err(errName, false)
+                        if dirExists(root&"/var/cache/kpkg/installed/"&dSplit[0]):
+                            warn(warnName)
+                            return @["upgrade", dSplit[0]]
+                        else:
+                            err(errName, false)                       
                 of ">":
                     if not (deprf.versionString > dSplit[1]):
-                        err(errName, false)
+                        if dirExists(root&"/var/cache/kpkg/installed/"&dSplit[0]):
+                            warn(warnName)
+                            return @["upgrade", dSplit[0]]
+                        else:
+                            err(errName, false)                       
                 of "=":
                     if deprf.versionString != dSplit[1]:
-                        err(errName, false)
+                        if dirExists(root&"/var/cache/kpkg/installed/"&dSplit[0]):
+                            warn(warnName)
+                            return @["upgrade", dSplit[0]]
+                        else:
+                            err(errName, false)                       
 
-            return dSplit[0]
+            return @["noupgrade", dSplit[0]]
 
-    return dependency
+    return @["noupgrade", dependency]
 
 
 proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false,
-        isBuild = false, root: string, prevPkgName = ""): seq[string] =
+        isBuild = false, root: string, prevPkgName = "", forceInstallAll = false): seq[string] =
     ## takes in a seq of packages and returns what to install.
 
     var deps: seq[string]
@@ -78,8 +100,12 @@ proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false,
                         return deps.filterit(it.len != 0)
 
 
-                let d = checkVersions(root, dep, repo)
+                let chkVer = checkVersions(root, dep, repo)
+                let d = chkVer[1]
 
+                if dirExists("/var/cache/kpkg/installed/"&d) and chkVer[0] != "upgrade" and not forceInstallAll:
+                    continue
+                
                 repo = findPkgRepo(d)
 
                 if repo == "":

@@ -240,15 +240,6 @@ proc install*(promptPackages: seq[string], root = "/", yes: bool = false,
     printReplacesPrompt(deps, root, true)
     printReplacesPrompt(packages, root)
 
-    var depsDelete: string
-
-    for i in deps:
-        if dirExists(fullRootPath&"/var/cache/kpkg/installed/"&i):
-            depsDelete = depsDelete&" "&i
-
-    for i in depsDelete.split(" ").filterit(it.len != 0):
-        deps.delete(deps.find(i))
-
     let binrepos = getConfigValue("Repositories", "binRepos").split(" ")
 
     deps = deduplicate(deps&packages)
