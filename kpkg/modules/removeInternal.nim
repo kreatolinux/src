@@ -1,4 +1,5 @@
 import os
+import osproc
 import logger
 import strutils
 import sequtils
@@ -62,4 +63,10 @@ proc removeInternal*(package: string, root = "",
       if symlinkExists(installedDir&"/"&i):
         removeFile(installedDir&"/"&i)
 
+  if execCmdEx(". "&installedDir&"/"&actualPackage&"/run && command -v postremove > /dev/null").exitCode == 0:
+    if execCmdEx(". "&installedDir&"/"&actualPackage&"/run && postremove").exitCode != 0:
+      err "postremove failed"
+
   removeDir(installedDir&"/"&package)
+
+
