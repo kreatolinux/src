@@ -129,7 +129,7 @@ proc parseRunfile*(path: string, removeLockfileWhenErr = true): runFile =
         ret.epoch = "no"
 
     if not isEmptyOrWhitespace(ret.sources):
-        ret.sources = splitWhitespace(ret.sources.multiReplace(
+        ret.sources = ret.sources.multiReplace(
             ("$NAME", ret.pkg),
             ("$VERSION", ret.version),
             ("$RELEASE", ret.release),
@@ -137,7 +137,7 @@ proc parseRunfile*(path: string, removeLockfileWhenErr = true): runFile =
             ("$SHA256SUM", ret.sha256sum),
             ("\"", ""),
             ("'", "")
-            ))[0]
+            )
 
     if not isEmptyOrWhitespace(ret.sha256sum):
         ret.sha256sum = ret.sha256sum.multiReplace(
