@@ -30,7 +30,7 @@ proc autoUpdater*(pkg: runFile, packageDir: string, newVersion: string,
                 writeFile(packageDir&"/run", readFile(
                                 packageDir&"/run").replace(pkg.sha256sum.split(
                                 ";")[c], sha256hexdigest(readFile(
-                                filename)))
+                                filename))))
                 c = c+1
 
                 # Replace the version
