@@ -58,6 +58,10 @@ package_test2() {
 postinstall() {
     echo \[dq]Insert postinstall instructions here\[dq]
 }
+
+postremove() {
+    echo \[dq]Insert postremove instructions here\[dq]
+}
 \f[R]
 .fi
 .PP
@@ -98,7 +102,7 @@ DESCRIPTION: Description of the package.
 It will be on the info command.
 .SS FUNCTIONS
 .IP \[bu] 2
-package: The install function.
+package(): The install function.
 .SS OPTIONAL FUNCTIONS AND VARIABLES
 .IP \[bu] 2
 build(): The main build function.
@@ -113,10 +117,13 @@ Use prepare() to prevent this and have custom prepare procedure.
 .IP \[bu] 2
 check(): Test the package.
 .IP \[bu] 2
-postinstall: Post-install function.
+postinstall(): Post-install function.
 Will run after the package is installed.
 .IP \[bu] 2
-package_PACKAGENAME: Install function of PACKAGENAME.
+postremove(): Post-remove function.
+Will run after the package is removed.
+.IP \[bu] 2
+package_PACKAGENAME(): Install function of PACKAGENAME.
 With this function you can package multiple things in the same runfile.
 This may be used for packaging sub-projects easier.
 .IP \[bu] 2
