@@ -21,7 +21,7 @@ type runFile* = object
     isParsed*: bool
 
 proc parseRunfile*(path: string, removeLockfileWhenErr = true): runFile =
-    ## Parse an runfile.
+    ## Parse a runfile.
 
     var vars: seq[string]
     var ret: runFile
