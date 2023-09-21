@@ -24,6 +24,7 @@ VERSION=\[dq]0.0.1\[dq]
 RELEASE=\[dq]1\[dq]
 SOURCES=\[dq]https://test.file/source/testfile.tar.gz;git::https://github.com/kreatolinux/src::543ee30eda806029fa9ea16a1f9767eda7cab4d1\[dq]
 DEPENDS=\[dq]testpackage1 testpackage3 testpackage4\[dq]
+DEPENDS_TEST2+=\[dq]testpackage5 testpackage6\[dq]
 NO_CHKUPD=\[dq]n\[dq]
 REPLACES=\[dq]test-v2\[dq]
 OPTDEPENDS=\[dq]optional-dependency: This is a test optional dependency ;; optional-dependency-2: This is a second optional dependency.\[dq]
@@ -96,10 +97,13 @@ DESCRIPTION: Description of the package.
 It will be on the info command.
 .SS FUNCTIONS
 .IP \[bu] 2
-build: The main function.
-.IP \[bu] 2
 package: The install function.
 .SS OPTIONAL FUNCTIONS AND VARIABLES
+.IP \[bu] 2
+build(): The main build function.
+Only time this doesn\[cq]t need to be used is for things such as binary
+packages (eg.
+linux-firmware) that doesn\[cq]t need to be built.
 .IP \[bu] 2
 EPOCH: Only use this when the versioning logic fail for the package.
 .IP \[bu] 2
@@ -134,6 +138,13 @@ IS_GROUP: Specify if the package is a group package or not.
 False by default.
 Will be enabled if it is one of these values; \[lq]y, yes, true, 1,
 on\[rq]
+.IP \[bu] 2
+DEPENDS_PACKAGENAME: Change PACKAGENAME with the package name.
+You can add/remove dependencies, depending on the usecase like
+\f[C]DEPENDS_PACKAGENAME+=\[dq]packagename\[dq]\f[R],
+\f[C]DEPENDS_PACKAGENAME-=\[dq]packagename\[dq]\f[R], and you can set
+the dependencies completely with
+\f[C]DEPENDS_PACKAGENAME=\[dq]packagename\[dq]\f[R]
 .SH AUTHOR
 .PP
 Written by Kreato.
