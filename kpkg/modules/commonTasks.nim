@@ -1,4 +1,5 @@
 import os
+import posix
 import config
 import logger
 import strutils
@@ -12,6 +13,36 @@ proc getInit*(root: string): string =
   except CatchableError:
     err("couldn't load "&root&"/etc/kreato-release")
 
+
+
+proc copyFileWithPermissionsAndOwnership(f: string, t: string) =
+  # Copies file with permissions and ownership.
+  if not isAdmin():
+    err "You need to be root for this action."
+
+  let fc: cstring = f
+  var s: Stat
+
+  discard stat(fc, s)
+  copyFileWithPermissions(f, t, options = {cfSymlinkAsIs})
+
+  discard chown(f, s.st_uid, s.st_gid)
+
+proc copyDirWithPermissionsAndOwnership(f: string, t: string) =
+  # Copies file with permissions and ownership.
+  if not isAdmin():
+    err "You need to be root for this action."
+
+  let fc: cstring = f
+  var s: Stat
+
+  discard stat(fc, s)
+  copyDirWithPermissions(f, t)
+
+  discard chown(f, s.st_uid, s.st_gid)
+
+
+
 proc cp*(f: string, t: string) =
   ## Moves files and directories.
   var d: string
@@ -20,14 +51,14 @@ proc cp*(f: string, t: string) =
 
   for i in walkFiles("."):
     debug "copying "&i&" to "&t&"/"&i
-    copyFileWithPermissions(i, t&"/"&i, options = {cfSymlinkAsIs})
+    copyFileWithPermissionsAndOwnership(i, t&"/"&i)
 
   for i in walkDirRec(".", {pcFile, pcLinkToFile, pcDir, pcLinkToDir}):
     d = t&"/"&splitFile(i).dir
 
     if dirExists(i) and not dirExists(t&"/"&i):
       debug "going to copy dir "&i&" to "&t&"/"&i
-      copyDirWithPermissions(i, t&"/"&i)
+      copyDirWithPermissionsAndOwnership(i, t&"/"&i)
 
     debug "creating directory to "&d
     createDir(d)
@@ -43,7 +74,7 @@ proc cp*(f: string, t: string) =
         removeDir(t&"/"&i)
 
       debug "copying "&i&" to "&t&"/"&i
-      copyFileWithPermissions(i, t&"/"&i, options = {cfSymlinkAsIs})
+      copyFileWithPermissionsAndOwnership(i, t&"/"&i)
 
 proc printPackagesPrompt*(packages: string, yes: bool, no: bool) =
   ## Prints the packages summary prompt.
