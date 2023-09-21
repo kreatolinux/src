@@ -1,3 +1,4 @@
+import os
 import logger
 import strutils
 
@@ -99,6 +100,25 @@ proc parse_runfile*(path: string, removeLockfileWhenErr = true): runFile =
                     ).split(" ")
             if "()" in vars[0]:
                 break
+
+            if vars[0].toLower == "depends_"&replace(lastPathPart(path), '-', '_')&"+":
+                ret.deps = ret.deps&vars[1].multiReplace(
+                ("\"", ""),
+                ("'", "")
+                ).split(" ")
+            elif vars[0].toLower == "depends_"&replace(lastPathPart(path), '-', '_')&"-":
+                for i in vars[1].multiReplace(
+                ("\"", ""),
+                ("'", "")
+                ).split(" "):
+                    if ret.deps.find(i) != -1:
+                        ret.deps.delete(ret.deps.find(i))
+            elif vars[0].toLower == "depends_"&replace(lastPathPart(path), '-', '_'):
+                ret.deps = vars[1].multiReplace(
+                ("\"", ""),
+                ("'", "")
+                ).split(" ")
+
     except CatchableError:
         err(path&" doesn't seem to have a runfile. possibly a broken package?", removeLockfileWhenErr)
 

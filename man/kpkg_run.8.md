@@ -18,6 +18,7 @@ VERSION="0.0.1"
 RELEASE="1"
 SOURCES="https://test.file/source/testfile.tar.gz;git::https://github.com/kreatolinux/src::543ee30eda806029fa9ea16a1f9767eda7cab4d1"
 DEPENDS="testpackage1 testpackage3 testpackage4"
+DEPENDS_TEST2+="testpackage5 testpackage6"
 NO_CHKUPD="n"
 REPLACES="test-v2"
 OPTDEPENDS="optional-dependency: This is a test optional dependency ;; optional-dependency-2: This is a second optional dependency."
@@ -65,10 +66,10 @@ Now lets break it down.
 * DESCRIPTION: Description of the package. It will be on the info command.
 
 ## FUNCTIONS
-* build: The main function.
 * package: The install function.
 
 ## OPTIONAL FUNCTIONS AND VARIABLES
+* build(): The main build function. Only time this doesn't need to be used is for things such as binary packages (eg. linux-firmware) that doesn't need to be built.
 * EPOCH: Only use this when the versioning logic fail for the package.
 * prepare(): Files downloaded from SOURCES are extracted by default. Use prepare() to prevent this and have custom prepare procedure.
 * check(): Test the package.
@@ -79,6 +80,7 @@ Now lets break it down.
 * OPTDEPENDS: Optional dependencies for the package. Seperated by ';;' like on the example. 
 * CONFLICTS: Specify conflicts to the package. Seperated by a space like DEPENDS. 
 * IS_GROUP: Specify if the package is a group package or not. False by default. Will be enabled if it is one of these values; "y, yes, true, 1, on"
+* DEPENDS_PACKAGENAME: Change PACKAGENAME with the package name. You can add/remove dependencies, depending on the usecase like `DEPENDS_PACKAGENAME+="packagename"`, `DEPENDS_PACKAGENAME-="packagename"`, and you can set the dependencies completely with `DEPENDS_PACKAGENAME="packagename"` 
 
 # AUTHOR
 Written by Kreato.
