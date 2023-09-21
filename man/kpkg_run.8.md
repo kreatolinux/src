@@ -52,6 +52,10 @@ package_test2() {
 postinstall() {
     echo "Insert postinstall instructions here"
 }
+
+postremove() {
+    echo "Insert postremove instructions here"
+}
 ```
 Now lets break it down.
 
@@ -66,15 +70,16 @@ Now lets break it down.
 * DESCRIPTION: Description of the package. It will be on the info command.
 
 ## FUNCTIONS
-* package: The install function.
+* package(): The install function.
 
 ## OPTIONAL FUNCTIONS AND VARIABLES
 * build(): The main build function. Only time this doesn't need to be used is for things such as binary packages (eg. linux-firmware) that doesn't need to be built.
 * EPOCH: Only use this when the versioning logic fail for the package.
 * prepare(): Files downloaded from SOURCES are extracted by default. Use prepare() to prevent this and have custom prepare procedure.
 * check(): Test the package.
-* postinstall: Post-install function. Will run after the package is installed.
-* package_PACKAGENAME: Install function of PACKAGENAME. With this function you can package multiple things in the same runfile. This may be used for packaging sub-projects easier.
+* postinstall(): Post-install function. Will run after the package is installed.
+* postremove(): Post-remove function. Will run after the package is removed.
+* package_PACKAGENAME(): Install function of PACKAGENAME. With this function you can package multiple things in the same runfile. This may be used for packaging sub-projects easier.
 * NO_CHKUPD: Disables autoupdating thru chkupd. False by default. This will not prevent chkupd from building the package. Will be enabled if it is one of these values; "y, yes, true, 1, on"
 * REPLACES: Replaces packages put in the variable. Seperated by space.
 * OPTDEPENDS: Optional dependencies for the package. Seperated by ';;' like on the example. 
