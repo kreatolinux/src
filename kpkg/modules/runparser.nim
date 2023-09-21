@@ -33,67 +33,67 @@ proc parseRunfile*(path: string, removeLockfileWhenErr = true): runFile =
                 vars[0] = replace(vars[0], "=")
             else:
                 vars = i.split('=')
-            case vars[0]:
-                of "NAME":
+            case vars[0].toLower:
+                of "name":
                     ret.pkg = vars[1].multiReplace(
                     ("\"", ""),
                     ("'", "")
                     )
-                of "DESCRIPTION":
+                of "description":
                     ret.desc = vars[1].multiReplace(
                     ("\"", ""),
                     ("'", "")
                     )
-                of "SOURCES":
+                of "sources":
                     ret.sources = vars[1]
-                of "VERSION":
+                of "version":
                     ret.version = vars[1].multiReplace(
                     ("\"", ""),
                     ("'", "")
                     )
-                of "RELEASE":
+                of "release":
                     ret.release = vars[1].multiReplace(
                     ("\"", ""),
                     ("'", "")
                     )
-                of "NO_CHKUPD":
+                of "no_chkupd", "nochkupd", "no-chkupd":
                     ret.noChkupd = parseBool(vars[1].multiReplace(
                     ("\"", ""),
                     ("'", "")
                     ))
-                of "EPOCH":
+                of "epoch":
                     ret.epoch = vars[1].multiReplace(
                     ("\"", ""),
                     ("'", "")
                     )
-                of "SHA256SUM":
+                of "sha256sum":
                     ret.sha256sum = vars[1]
-                of "CONFLICTS":
+                of "conflicts":
                     ret.conflicts = vars[1].multiReplace(
                     ("\"", ""),
                     ("'", "")
                     ).split(" ")
-                of "DEPENDS":
+                of "depends":
                     ret.deps = vars[1].multiReplace(
                     ("\"", ""),
                     ("'", "")
                     ).split(" ")
-                of "BUILD_DEPENDS":
+                of "build_depends", "builddepends", "build-depends":
                     ret.bdeps = vars[1].multiReplace(
                     ("\"", ""),
                     ("'", "")
                     ).split(" ")
-                of "OPTDEPENDS":
+                of "optdepends", "opt-depends", "opt_depends":
                     ret.optdeps = vars[1].multiReplace(
                     ("\"", ""),
                     ("'", "")
                     ).split(" ;; ")
-                of "IS_GROUP":
+                of "is_group", "is-group", "isgroup":
                     ret.isGroup = parseBool(vars[1].multiReplace(
                     ("\"", ""),
                     ("'", "")
                     ))
-                of "REPLACES":
+                of "replaces":
                     ret.replaces = vars[1].multiReplace(
                     ("\"", ""),
                     ("'", "")
@@ -101,19 +101,25 @@ proc parseRunfile*(path: string, removeLockfileWhenErr = true): runFile =
             if "()" in vars[0]:
                 break
 
-            if vars[0].toLower == "depends_"&replace(lastPathPart(path), '-', '_')&"+":
+            # There gotta be a cleaner way to do this, hmu if you know one -kreato
+            let p = replace(lastPathPart(path), '-', '_')
+
+            if vars[0].toLower == "depends_"&p&"+" or vars[0].toLower ==
+                    "depends-"&p&"+" or vars[0].toLower == "depends"&p&"+":
                 ret.deps = ret.deps&vars[1].multiReplace(
                 ("\"", ""),
                 ("'", "")
                 ).split(" ")
-            elif vars[0].toLower == "depends_"&replace(lastPathPart(path), '-', '_')&"-":
+            elif vars[0].toLower == "depends_"&p&"-" or vars[0].toLower ==
+                    "depends-"&p&"-" or vars[0].toLower == "depends"&p&"-":
                 for i in vars[1].multiReplace(
                 ("\"", ""),
                 ("'", "")
                 ).split(" "):
                     if ret.deps.find(i) != -1:
                         ret.deps.delete(ret.deps.find(i))
-            elif vars[0].toLower == "depends_"&replace(lastPathPart(path), '-', '_'):
+            elif vars[0].toLower == "depends_"&p or vars[0].toLower ==
+                    "depends-"&p or vars[0].toLower == "depends"&p:
                 ret.deps = vars[1].multiReplace(
                 ("\"", ""),
                 ("'", "")
@@ -131,10 +137,20 @@ proc parseRunfile*(path: string, removeLockfileWhenErr = true): runFile =
     if not isEmptyOrWhitespace(ret.sources):
         ret.sources = ret.sources.multiReplace(
             ("$NAME", ret.pkg),
+            ("$Name", ret.pkg),
+            ("$name", ret.pkg),
             ("$VERSION", ret.version),
+            ("$Version", ret.version),
+            ("$version", ret.version),
             ("$RELEASE", ret.release),
+            ("$release", ret.release),
+            ("$Release", ret.release),
             ("$EPOCH", ret.epoch),
+            ("$epoch", ret.epoch),
+            ("$Epoch", ret.epoch),
             ("$SHA256SUM", ret.sha256sum),
+            ("$sha256sum", ret.sha256sum),
+            ("$Sha256sum", ret.sha256sum),
             ("\"", ""),
             ("'", "")
             )
@@ -142,10 +158,20 @@ proc parseRunfile*(path: string, removeLockfileWhenErr = true): runFile =
     if not isEmptyOrWhitespace(ret.sha256sum):
         ret.sha256sum = ret.sha256sum.multiReplace(
             ("$NAME", ret.pkg),
+            ("$Name", ret.pkg),
+            ("$name", ret.pkg),
             ("$VERSION", ret.version),
+            ("$Version", ret.version),
+            ("$version", ret.version),
             ("$RELEASE", ret.release),
+            ("$release", ret.release),
+            ("$Release", ret.release),
             ("$EPOCH", ret.epoch),
+            ("$epoch", ret.epoch),
+            ("$Epoch", ret.epoch),
             ("$SHA256SUM", ret.sha256sum),
+            ("$sha256sum", ret.sha256sum),
+            ("$Sha256sum", ret.sha256sum),
             ("\"", ""),
             ("'", "")
             )
