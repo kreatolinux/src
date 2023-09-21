@@ -120,7 +120,7 @@ proc builder*(package: string, destdir: string,
     var usesGit: bool
     var folder: seq[string]
 
-    for i in pkg.sources.split(";"):
+    for i in pkg.sources.split(" "):
         if i == "":
             continue
 
@@ -149,7 +149,7 @@ proc builder*(package: string, destdir: string,
                 var actualDigest = sha256hexdigest(readAll(open(
                         filename)))
 
-                var expectedDigest = pkg.sha256sum.split(";")[int]
+                var expectedDigest = pkg.sha256sum.split(" ")[int]
 
                 if expectedDigest != actualDigest:
                     err "sha256sum doesn't match for "&i&"\nExpected: "&expectedDigest&"\nActual: "&actualDigest
@@ -174,7 +174,7 @@ proc builder*(package: string, destdir: string,
                 "su -s /bin/sh _kpkg -c \"bsdtar -tzf "&filename&" 2>/dev/null | head -1 | cut -f1 -d'/'\"")).splitWhitespace.filterit(
                 it.len != 0)
         discard execProcess("su -s /bin/sh _kpkg -c 'bsdtar -xvf "&filename&"'")
-        if pkg.sources.split(";").len == 1:
+        if pkg.sources.split(" ").len == 1:
             try:
                 setCurrentDir(folder[0])
             except Exception:
@@ -213,7 +213,7 @@ proc builder*(package: string, destdir: string,
     else:
         cmdStr = "true"
 
-    if pkg.sources.split(";").len == 1:
+    if pkg.sources.split(" ").len == 1:
         if existsPrepare == 0:
             cmd = execShellCmd(sboxWrap(cmdStr))
             cmd2 = fakerootWrap(srcdir, path, root, "check", tests = tests,

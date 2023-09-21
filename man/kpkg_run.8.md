@@ -59,10 +59,10 @@ Now lets break it down.
 * NAME: Name of your package. Will show this name on the info command.
 * VERSION: Version of your package. It will be on the info command and updating it will result in kpkg upgrading the package.
 * RELEASE: Release of your package. It will also be on the info command and updating it will result in kpkg upgrading the package.
-* SOURCES: Source URL's of your package. Can be seperated by ';' like `test.url;testurl2`. Also supports git URL's as shown by the second source.
+* SOURCES: Source URL's of your package. Can be seperated by ' ' like `https://test.url https://test.url2`. Also supports git URL's as shown by the second source.
 * DEPENDS: Dependencies of your package. Seperated by space. You can also specify versions for your dependencies such as `test<=1.8.1`, `test=1.8.1`, `test>=1.8.1`, `test<1.8.1`, `test>1.8.1`.
 * BUILD_DEPENDS: Build dependencies of your package. Seperated by space. 
-* SHA256SUM: sha256sum output of the sources. Should align with sources. Can also be seperated by ';'. Doesnt support git URL's yet.
+* SHA256SUM: sha256sum output of the sources. Should align with sources. Can also be seperated by ' '. Doesnt support git URL's yet.
 * DESCRIPTION: Description of the package. It will be on the info command.
 
 ## FUNCTIONS
