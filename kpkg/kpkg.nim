@@ -57,9 +57,11 @@ dispatchMulti(
     "downloadOnly": "Only download the binary, don't install"
     }
   ],
+
   [
   search
   ],
+
   [
   remove, help = {
     "yes": "Automatically say 'yes' to every question",
@@ -87,16 +89,15 @@ dispatchMulti(
   ],
 
   [
-  info, help = {
-  "testing": "Don't error if package isn't installed"
-  }
-  ],
-
-  [
   clean, help = {
     "sources": "Remove source tarballs from cache",
     "binaries": "Remove binary tarballs from cache"
   }
-  ]
+  ],
 
+  [
+  info, help = {
+  "testing": "Don't error if package isn't installed"
+  }
+  ]
 )
