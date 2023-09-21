@@ -153,6 +153,14 @@ You can add/remove dependencies, depending on the usecase like
 \f[C]DEPENDS_PACKAGENAME-=\[dq]packagename\[dq]\f[R], and you can set
 the dependencies completely with
 \f[C]DEPENDS_PACKAGENAME=\[dq]packagename\[dq]\f[R]
+.SS VARIABLE NAMING
+.PP
+Runfile variables are case insensitive.
+They also support popular variable styles such as camelCase, PascalCase,
+kebab-case and snake_case.
+.PP
+Please keep in mind that functions themselves are NOT case insensitive,
+and do not support this flexibility.
 .SH AUTHOR
 .PP
 Written by Kreato.
