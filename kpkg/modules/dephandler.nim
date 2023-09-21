@@ -97,7 +97,8 @@ proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false,
             for dep in pkgdeps:
 
                 if prevPkgName == dep:
-                    if isBuild:
+                    if isBuild and not dirExists(
+                            "/var/cache/kpkg/installed/"&dep):
                         err("circular dependency detected", false)
                     else:
                         return deps.filterit(it.len != 0)
