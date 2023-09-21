@@ -20,7 +20,7 @@ type runFile* = object
     isGroup*: bool
     isParsed*: bool
 
-proc parse_runfile*(path: string, removeLockfileWhenErr = true): runFile =
+proc parseRunfile*(path: string, removeLockfileWhenErr = true): runFile =
     ## Parse an runfile.
 
     var vars: seq[string]

@@ -41,7 +41,7 @@ proc removeInternal*(package: string, root = "",
   var pkg: runFile
 
   if not noRunfile:
-    pkg = parse_runfile(installedDir&"/"&actualPackage)
+    pkg = parseRunfile(installedDir&"/"&actualPackage)
 
     if depCheck:
       dependencyCheck(package, installedDir, root, force)

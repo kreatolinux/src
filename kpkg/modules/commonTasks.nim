@@ -105,7 +105,7 @@ proc ctrlc*() {.noconv.} =
 proc printReplacesPrompt*(pkgs: seq[string], root: string, isDeps = false) =
   ## Prints a replacesPrompt.
   for i in pkgs:
-    for p in parse_runfile(findPkgRepo(i)&"/"&i).replaces:
+    for p in parseRunfile(findPkgRepo(i)&"/"&i).replaces:
       if isDeps and dirExists(root&"/var/cache/kpkg/installed/"&p):
         continue
       if dirExists(root&"/var/cache/kpkg/installed/"&p) and not symlinkExists(

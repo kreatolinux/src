@@ -17,13 +17,15 @@ proc checkVersions(root: string, dependency: string, repo: string, split = @[
             var deprf: runFile
 
             if dirExists(root&"/var/cache/kpkg/installed/"&dSplit[0]):
-                deprf = parse_runfile(root&"/var/cache/kpkg/installed/"&dSplit[0])
+                deprf = parseRunfile(root&"/var/cache/kpkg/installed/"&dSplit[0])
             else:
-                deprf = parse_runfile(repo&"/"&dSplit[0])
+                deprf = parseRunfile(repo&"/"&dSplit[0])
 
-            let warnName = "Required dependency version for "&dSplit[0]&" not found, upgrading"
-            let errName = "Required dependency version for "&dSplit[0]&" not found on repositories, cannot continue"
-           
+            let warnName = "Required dependency version for "&dSplit[
+                    0]&" not found, upgrading"
+            let errName = "Required dependency version for "&dSplit[
+                    0]&" not found on repositories, cannot continue"
+
 
             case i:
                 of "<=":
@@ -46,21 +48,21 @@ proc checkVersions(root: string, dependency: string, repo: string, split = @[
                             warn(warnName)
                             return @["upgrade", dSplit[0]]
                         else:
-                            err(errName, false)                       
+                            err(errName, false)
                 of ">":
                     if not (deprf.versionString > dSplit[1]):
                         if dirExists(root&"/var/cache/kpkg/installed/"&dSplit[0]):
                             warn(warnName)
                             return @["upgrade", dSplit[0]]
                         else:
-                            err(errName, false)                       
+                            err(errName, false)
                 of "=":
                     if deprf.versionString != dSplit[1]:
                         if dirExists(root&"/var/cache/kpkg/installed/"&dSplit[0]):
                             warn(warnName)
                             return @["upgrade", dSplit[0]]
                         else:
-                            err(errName, false)                       
+                            err(errName, false)
 
             return @["noupgrade", dSplit[0]]
 
@@ -68,7 +70,8 @@ proc checkVersions(root: string, dependency: string, repo: string, split = @[
 
 
 proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false,
-        isBuild = false, root: string, prevPkgName = "", forceInstallAll = false): seq[string] =
+        isBuild = false, root: string, prevPkgName = "",
+                forceInstallAll = false): seq[string] =
     ## takes in a seq of packages and returns what to install.
 
     var deps: seq[string]
@@ -79,7 +82,7 @@ proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false,
         if repo == "":
             err("Package "&pkg&" doesn't exist", false)
 
-        let pkgrf = parse_runfile(repo&"/"&pkg)
+        let pkgrf = parseRunfile(repo&"/"&pkg)
         var pkgdeps: seq[string]
 
         if bdeps:
@@ -103,9 +106,10 @@ proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false,
                 let chkVer = checkVersions(root, dep, repo)
                 let d = chkVer[1]
 
-                if dirExists("/var/cache/kpkg/installed/"&d) and chkVer[0] != "upgrade" and not forceInstallAll:
+                if dirExists("/var/cache/kpkg/installed/"&d) and chkVer[0] !=
+                        "upgrade" and not forceInstallAll:
                     continue
-                
+
                 repo = findPkgRepo(d)
 
                 if repo == "":
@@ -114,7 +118,7 @@ proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false,
                 if findPkgRepo(dep&"-"&init) != "":
                     deps.add(dep&"-"&init)
 
-                let deprf = parse_runfile(repo&"/"&d)
+                let deprf = parseRunfile(repo&"/"&d)
 
                 if not isEmptyOrWhitespace(deprf.bdeps.join()) and isBuild:
                     deps.add(dephandler(@[d], deps&ignoreDeps, bdeps = true,

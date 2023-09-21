@@ -79,7 +79,7 @@ proc builder*(package: string, destdir: string,
 
     var pkg: runFile
     try:
-        pkg = parse_runfile(path)
+        pkg = parseRunfile(path)
     except CatchableError:
         err("Unknown error while trying to parse package on repository, possibly broken repo?", false)
 
@@ -89,15 +89,15 @@ proc builder*(package: string, destdir: string,
             useCacheIfAvailable == true and dontInstall == false:
 
         if destdir != "/":
-            install_pkg(repo, package, "/", pkg) # Install package on root too
+            installPkg(repo, package, "/", pkg) # Install package on root too
 
-        install_pkg(repo, package, destdir, pkg)
+        installPkg(repo, package, destdir, pkg)
         removeDir(root)
         removeDir(srcdir)
         return true
 
     if pkg.isGroup:
-        install_pkg(repo, package, destdir, pkg)
+        installPkg(repo, package, destdir, pkg)
         removeDir(root)
         removeDir(srcdir)
         return true
@@ -252,10 +252,10 @@ proc builder*(package: string, destdir: string,
     # because the dep is installed to destdir but not root.
     if destdir != "/" and not dirExists(
             "/var/cache/kpkg/installed/"&package) and (not dontInstall):
-        install_pkg(repo, package, "/", pkg)
+        installPkg(repo, package, "/", pkg)
 
     if not dontInstall:
-        install_pkg(repo, package, destdir, pkg)
+        installPkg(repo, package, destdir, pkg)
 
     removeFile(lockfile)
 

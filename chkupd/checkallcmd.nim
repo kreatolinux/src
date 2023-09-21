@@ -24,7 +24,7 @@ proc checkAll*(repo: string, backend = "repology", autoUpdate = true,
                     quit(1)
 
             for i in toSeq(walkDirs(repo&"/*")):
-                let run = parse_runfile(repo&"/"&lastPathPart(i))
+                let run = parseRunfile(repo&"/"&lastPathPart(i))
 
                 if run.noChkupd:
                     let cmd = execCmdEx(cmdStr&lastPathPart(i))
@@ -66,7 +66,7 @@ proc checkAll*(repo: string, backend = "repology", autoUpdate = true,
 
             for i in toSeq(walkDirs(repo&"/*")):
 
-                let run = parse_runfile(repo&"/"&lastPathPart(i))
+                let run = parseRunfile(repo&"/"&lastPathPart(i))
 
                 if run.noChkupd:
                     let cmd = execCmdEx(cmdStr&lastPathPart(i))

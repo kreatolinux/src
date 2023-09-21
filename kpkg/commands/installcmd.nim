@@ -32,7 +32,7 @@ proc diff(one: seq[string], two: seq[string]): seq[string] =
 
     return r.filterit(it.len != 0)
 
-proc install_pkg*(repo: string, package: string, root: string, runf = runFile(
+proc installPkg*(repo: string, package: string, root: string, runf = runFile(
         isParsed: false)) =
     ## Installs an package.
 
@@ -42,7 +42,7 @@ proc install_pkg*(repo: string, package: string, root: string, runf = runFile(
         if runf.isParsed:
             pkg = runf
         else:
-            pkg = parse_runfile(repo&"/"&package)
+            pkg = parseRunfile(repo&"/"&package)
     except CatchableError:
         err("Unknown error while trying to parse package on repository, possibly broken repo?", false)
 
@@ -160,7 +160,7 @@ proc down_bin(package: string, binrepos: seq[string], root: string,
         var pkg: runFile
 
         try:
-            pkg = parse_runfile(repo&"/"&package)
+            pkg = parseRunfile(repo&"/"&package)
         except CatchableError:
             err("Unknown error while trying to parse package on repository, possibly broken repo?", false)
 
