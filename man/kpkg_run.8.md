@@ -87,6 +87,11 @@ Now lets break it down.
 * IS_GROUP: Specify if the package is a group package or not. False by default. Will be enabled if it is one of these values; "y, yes, true, 1, on"
 * DEPENDS_PACKAGENAME: Change PACKAGENAME with the package name. You can add/remove dependencies, depending on the usecase like `DEPENDS_PACKAGENAME+="packagename"`, `DEPENDS_PACKAGENAME-="packagename"`, and you can set the dependencies completely with `DEPENDS_PACKAGENAME="packagename"` 
 
+## VARIABLE NAMING
+Runfile variables are case insensitive. They also support popular variable styles such as camelCase, PascalCase, kebab-case and snake_case.
+
+Please keep in mind that functions themselves are NOT case insensitive, and do not support this flexibility.
+
 # AUTHOR
 Written by Kreato.
 
