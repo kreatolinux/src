@@ -11,15 +11,18 @@ It includes multiple tools to accomplish this goal. You will find them below.
 There are a couple of build variables;
 
 * -d:branch: Repository branch that is gonna be used for the default repositories, is set to `stable` by default
+* -d:ver: Specify version manually. Is set to `v6.0` by default.
 
 # Projects
 
 ## kpkg
-`kpkg` is a rewrite of the nyaa2 package manager. It is written in Nim, and is mainly for use with Kreato Linux. 
+`kpkg` is a feature-complete package manager, that is a rewrite of nyaa2. It is written in Nim, and is mainly for use with Kreato Linux.\
+It is meant to be a much simpler to use package manager compared to the alternatives.\ 
 `kpkg` is heavily inspired by package managers such as `kiss`, `dnf` and `pacman`. Run `make kpkg` to build.
 
 ## kreastrap
-There is also kreastrap v3, a rootfs building utility.
+Kreastrap v3 is a rootfs building utility.\
+It uses kpkg internally to build Kreato Linux systems.\
 You can build it by running `make kreastrap`. The binary will be located on `kreastrap/kreastrap`.
 
 ## purr
