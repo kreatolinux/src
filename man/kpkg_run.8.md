@@ -22,7 +22,7 @@ NO_CHKUPD="n"
 REPLACES="test-v2"
 OPTDEPENDS="optional-dependency: This is a test optional dependency ;; optional-dependency-2: This is a second optional dependency."
 BUILD_DEPENDS="testpackage5 testpackage6 testpackage10"
-SHA256SUM="e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  testfile.tar.gz"
+SHA256SUM="e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 DESCRIPTION="Test package"
 
 prepare() {

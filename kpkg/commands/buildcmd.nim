@@ -147,8 +147,10 @@ proc builder*(package: string, destdir: string,
 
                 # git cloning doesn't support sha256sum checking
                 var actualDigest = sha256hexdigest(readAll(open(
-                        filename)))&"  "&extractFilename(filename)
+                        filename)))
+
                 var expectedDigest = pkg.sha256sum.split(";")[int]
+
                 if expectedDigest != actualDigest:
                     err "sha256sum doesn't match for "&i&"\nExpected: "&expectedDigest&"\nActual: "&actualDigest
 
@@ -209,8 +211,7 @@ proc builder*(package: string, destdir: string,
     elif existsBuild == 0:
         cmdStr = cmdStr&" build"
     else:
-        err "build stage of package doesn't exist, invalid runfile"
-
+        cmdStr = "true"
 
     if pkg.sources.split(";").len == 1:
         if existsPrepare == 0:
@@ -276,7 +277,9 @@ proc build*(no = false, yes = false, root = "/",
 
     try:
         deps = deduplicate(dephandler(packages, bdeps = true, isBuild = true,
-                root = root, forceInstallAll = forceInstallAll)&dephandler(packages, isBuild = true, root = root, forceInstallAll = forceInstallAll))
+                root = root, forceInstallAll = forceInstallAll)&dephandler(
+                        packages, isBuild = true, root = root,
+                        forceInstallAll = forceInstallAll))
     except CatchableError:
         raise
 
