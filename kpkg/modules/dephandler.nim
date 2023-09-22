@@ -107,8 +107,8 @@ proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false,
                 let chkVer = checkVersions(root, dep, repo)
                 let d = chkVer[1]
 
-                if dirExists("/var/cache/kpkg/installed/"&d) and chkVer[0] !=
-                        "upgrade" and not forceInstallAll:
+                if dirExists(root&"/var/cache/kpkg/installed/"&d) and chkVer[
+                        0] !="upgrade" and not forceInstallAll:
                     continue
 
                 repo = findPkgRepo(d)
