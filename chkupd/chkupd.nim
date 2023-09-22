@@ -36,5 +36,6 @@ dispatchMulti(
         cleanUp, help = {
           "verbose": "Enable verbose output.",
           "dir": "Set directory of archives (eg. /var/cache/kpkg/archives/arch/amd64)."
+        }
         ]
 )
