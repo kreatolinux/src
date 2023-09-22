@@ -373,7 +373,9 @@ proc kreastrap(buildType = "builder", arch = "amd64",
         # Install shadow, and enable it
         kreastrapInstall("shadow", installWithBinaries, buildDir, useCacheIfPossible)
 
-        if execCmdEx("chroot "&buildDir&" /usr/sbin/pwconv").exitcode != 0:
+        let enableShadowedPw = execCmdEx("chroot "&buildDir&" /usr/sbin/pwconv")
+        if enableShadowedPw.exitcode != 0:
+            debug enableShadowedPw.output
             error "Enabling shadow failed"
 
         # Install kpkg, p11-kit and make-ca here
