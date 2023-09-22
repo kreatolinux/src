@@ -2,6 +2,7 @@ import cligen
 import backends/repology
 import backends/arch
 import checkallcmd
+import cleanupcmd
 
 clCfg.version = "chkupd v3.1"
 
@@ -30,5 +31,10 @@ dispatchMulti(
            "autoBuild": "Build packages on a seperate container each time.",
            "jsonPath": "Json output location (defaults to chkupd.json)"
         }
+        ],
+        [
+        cleanUp, help = {
+          "verbose": "Enable verbose output.",
+          "dir": "Set directory of archives (eg. /var/cache/kpkg/archives/arch/amd64)."
         ]
 )
