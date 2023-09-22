@@ -16,7 +16,8 @@ proc onProgressChanged(total, progress, speed: BiggestInt) =
   stdout.write(p)
   stdout.flushFile
 
-proc download*(url: string, file: string, instantErrorIfFail = false) =
+proc download*(url: string, file: string, instantErrorIfFail = false,
+    errWhenFail = true) =
   try:
     var client = newHttpClient()
     client.onProgressChanged = onProgressChanged
@@ -24,7 +25,7 @@ proc download*(url: string, file: string, instantErrorIfFail = false) =
     moveFile(file&".partial", file)
     echo ""
   except Exception:
-    if instantErrorIfFail:
+    if instantErrorIfFail and errWhenFail:
       err "download failed"
     warn "download failed, retrying"
     download(url, file, true)
