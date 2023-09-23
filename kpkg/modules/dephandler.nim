@@ -71,14 +71,20 @@ proc checkVersions(root: string, dependency: string, repo: string, split = @[
 
 proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false,
         isBuild = false, root: string, prevPkgName = "",
-                forceInstallAll = false): seq[string] =
+                forceInstallAll = false, chkInstalledDirInstead = false): seq[string] =
     ## takes in a seq of packages and returns what to install.
 
     var deps: seq[string]
     let init = getInit(root)
 
     for pkg in pkgs:
-        var repo = findPkgRepo(pkg)
+        var repo: string
+
+        if not chkInstalledDirInstead:
+            repo = findPkgRepo(pkg)
+        else:
+            repo = root&"/var/cache/kpkg/installed"
+
         if repo == "":
             err("Package "&pkg&" doesn't exist", false)
 

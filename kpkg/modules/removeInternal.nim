@@ -11,7 +11,8 @@ proc dependencyCheck(package: string, installedDir: string, root: string, force:
   ## Checks if a package is a dependency on another package.
   setCurrentDir(installedDir)
   for i in toSeq(walkDirs("*")):
-    let d = dephandler(@[i], root = root)
+    let d = dephandler(@[i], root = root, forceInstallAll = true,
+        chkInstalledDirInstead = true)
     for a in d:
       if a == package:
         if force:
@@ -45,6 +46,8 @@ proc removeInternal*(package: string, root = "",
     pkg = parseRunfile(installedDir&"/"&actualPackage)
 
     if depCheck:
+      debug "Dependency check starting"
+      debug package&" "&installedDir&" "&root
       dependencyCheck(package, installedDir, root, force)
 
     if not pkg.isGroup:
