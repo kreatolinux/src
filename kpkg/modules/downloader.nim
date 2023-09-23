@@ -31,4 +31,4 @@ proc download*(url: string, file: string, instantErrorIfFail = false,
       else:
         err "download failed"
     warn "download failed, retrying"
-    download(url, file, true)
+    download(url, file, true, raiseWhenFail)
