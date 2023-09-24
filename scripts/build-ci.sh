@@ -18,16 +18,11 @@ case $1 in
                 #rm -f /var/cache/kpkg/archives/*kpkg*
 	
   		# Temporary
-   		wget https://github.com/kreatolinux/src/archive/refs/tags/v6.0.1.tar.gz
-     		tar -xvf v6.0.1.tar.gz
-       		cd src-v6.0.1 || exit 1
-	 	wget https://github.com/kreatolinux/src/commit/810318f50a446650e263744d8ba34a86a596117e.patch
-   		patch -p1 < 810318f50a446650e263744d8ba34a86a596117e.patch || exit 1
-	 	make deps kpkg
-		./out/kpkg update
-  		./out/kpkg install xz-utils -y
-    
-		./out/kpkg build llvm -y
+    		wget https://github.com/llvm/llvm-project/releases/download/llvmorg-16.0.0/clang+llvm-16.0.0-x86_64-linux-gnu-ubuntu-18.04.tar.xz
+      		tar -hxvf clang+llvm* -C /
+		rm -f clang+llvm*
+  
+		#kpkg build llvm -y
   		make deps
                 rm -vf /etc/kpkg/kpkg.conf
                 rm -rf /tmp/kpkg
