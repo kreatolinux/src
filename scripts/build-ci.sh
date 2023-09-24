@@ -16,11 +16,16 @@ case $1 in
                 #apk add build-base llvm-libunwind-dev compiler-rt libc++-dev alpine-sdk nimble shadow libarchive-tools perl zlib-dev llvm clang linux-headers openssl-dev binutils-dev gettext-dev xz libgcc gcc
                 #make kpkg 
                 #rm -f /var/cache/kpkg/archives/*kpkg*
-		kpkg
-  		sed -i s/stable/master/g /etc/kpkg/kpkg.conf
-		kpkg update
-  		kpkg install xz-utils -y
-		kpkg build llvm -y
+	
+  		# Temporary
+   		wget https://github.com/kreatolinux/src/archive/refs/tags/v6.0.1.tar.gz
+     		tar -xvf v6.0.1.tar.gz
+       		cd src-v6.0.1 || exit 1
+	 	make deps kpkg
+		./out/kpkg update
+  		./out/kpkg install xz-utils -y
+    
+		./out/kpkg build llvm -y
   		make deps
                 rm -vf /etc/kpkg/kpkg.conf
                 rm -rf /tmp/kpkg
