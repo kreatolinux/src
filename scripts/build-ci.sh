@@ -24,7 +24,7 @@ case $1 in
   		cp -R * /usr
 		cd ..
   		rm -rf clang*
-    		ln -s /lib/libncursesw.so.6 /lib/libtinfo.so.5 # maybe?
+    		ln -s /lib/libncursesw.so.6 /lib/libtinfo.so.6 # maybe?
   
 		#kpkg build llvm -y
   		make deps
