@@ -169,11 +169,17 @@ proc builder*(package: string, destdir: string,
 
     # Create homedir of _kpkg temporarily
     createDir(homeDir)
-    setFilePermissions(homeDir, {fpOthersWrite, fpOthersRead, fpOthersExec})
+    setFilePermissions(homeDir, {fpUserExec, fpUserWrite, fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
+    discard posix.chown(homeDir, 999, 999)
 
     if existsPrepare != 0 and not usesGit:
         folder = extract(filename)
         folder[0] = absolutePath(replace(folder[0], "/", ""))
+        setFilePermissions(folder[0], {fpUserExec, fpUserWrite, fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
+        discard posix.chown(folder[0], 999, 999)
+        for i in toSeq(walkDirRec(folder[0], {pcFile, pcLinkToFile, pcDir, pcLinkToDir})):
+          discard posix.chown(i, 999, 999)
+
         if pkg.sources.split(" ").len == 1:
             try:
                 setCurrentDir(folder[0])
@@ -220,7 +226,6 @@ proc builder*(package: string, destdir: string,
                     isTest = true, existsTest = existsTest)
             cmd3 = fakerootWrap(srcdir, path, root, cmd3Str)
         else:
-            discard posix.chown(cstring(folder[0]), 999, 999)
             cmd = execShellCmd(sboxWrap("cd "&folder[0]&" && "&cmdStr))
             cmd2 = fakerootWrap(srcdir, path, root, "check", folder[0],
                     tests = tests, isTest = true, existsTest = existsTest)
