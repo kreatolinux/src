@@ -105,29 +105,29 @@ proc createArchive*(fileName: string, path = getCurrentDir()) =
 
   archive = archiveWriteNew()
   
-  if archive_write_set_format_filter_by_ext(archive, fileName) != ARCHIVE_OK:
+  if archiveWriteSetFormatFilterByExt(archive, fileName) != ARCHIVE_OK:
     raise newException(OSError, "Couldn't guess file format by extension")
 
-  discard archive_write_open_filename(archive, filename)
+  discard archiveWriteOpenFilename(archive, filename)
 
   discard chdir(path)
 
   for i in toSeq(walkDirRec(path, {pcFile, pcLinkToFile, pcDir, pcLinkToDir})):
     
-    var disk = archive_read_disk_new()
+    var disk = archiveReadDiskNew()
     
-    discard archive_read_disk_set_standard_lookup(disk)
+    discard archiveReadDiskSetStandardLookup(disk)
     
-    r = archive_read_disk_open(disk, cstring(relativePath(i, getCurrentDir())))
+    r = archiveReadDiskOpen(disk, cstring(relativePath(i, getCurrentDir())))
     
     if r != ARCHIVE_OK:
       raise newException(LibarchiveError, $archive_error_string(disk))
     
-    discard archive_read_disk_set_symlink_physical(disk)
+    discard archiveReadDiskSetSymlinkPhysical(disk)
     
     while true:
       entry = archive_entry_new()
-      r = archive_read_next_header2(disk, entry)
+      r = archiveReadNextHeader2(disk, entry)
       
       if r == ARCHIVE_EOF:
         break
@@ -135,24 +135,24 @@ proc createArchive*(fileName: string, path = getCurrentDir()) =
       if r != ARCHIVE_OK:
         raise newException(LibarchiveError, $archive_error_string(disk))
       
-      discard archive_read_disk_descend(disk)
+      discard archiveReadDiskDescend(disk)
       
-      r = archive_write_header(archive, entry)
+      r = archiveWriteHeader(archive, entry)
       
       if r < ARCHIVE_OK:
-        debugWarn("", $archive_error_string(archive))
+        debugWarn("", $archiveErrorString(archive))
       
       if r == ARCHIVE_FATAL:
         quit(1)
       
       if r > ARCHIVE_FAILED and fileExists(i):
-        file = open($archive_entry_sourcepath(entry))
+        file = open($archiveEntrySourcepath(entry))
         length = culong(readBuffer(file, buffer, sizeof(buffer)))
         while length > 0:
-          discard archive_write_data(archive, buffer, length)
+          discard archiveWriteData(archive, buffer, length)
           length = culong(readBuffer(file, buffer, sizeof(buffer)))
-      archive_entry_free(entry)
-    discard archive_read_close(disk)
-    discard archive_read_free(disk)
-  discard archive_write_close(archive)
-  discard archive_write_free(archive)
+      archiveEntryFree(entry)
+    discard archiveReadClose(disk)
+    discard archiveReadFree(disk)
+  discard archiveWriteClose(archive)
+  discard archiveWriteFree(archive)
