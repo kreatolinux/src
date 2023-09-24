@@ -21,8 +21,7 @@ case $1 in
     		wget https://github.com/kreatolinux/src/archive/refs/tags/v6.0.1.tar.gz
       		tar -xvf v6.0.1.tar.gz
 		cd src-v6.0.1
-  		wget https://github.com/kreatolinux/src/commit/3c108cae16bb04cf68148c8bc8c8cafae421f15b.patch
-    		patch -p1 < 3c108cae16bb04cf68148c8bc8c8cafae421f15b.patch || exit 1
+  		sed -i 's#raise#raise getCurrentException()#g'
   		sed -i s/release/debug/g Makefile
     		make deps kpkg
 		./out/kpkg update
