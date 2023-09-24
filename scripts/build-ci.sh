@@ -18,19 +18,18 @@ case $1 in
                 #rm -f /var/cache/kpkg/archives/*kpkg*
 	
   		# Temporary
-    		wget https://mirror.sunred.org/archlinux/extra/os/x86_64/llvm-16.0.6-1-x86_64.pkg.tar.zst
-      		tar -hxvf llvm-* -C /
-		rm -f llvm-*
-      		wget https://mirror.sunred.org/archlinux/extra/os/x86_64/llvm-libs-16.0.6-1-x86_64.pkg.tar.zst
-		tar -hxvf llvm-* -C /
-		rm -f llvm-*
-  		wget https://mirror.sunred.org/archlinux/extra/os/x86_64/clang-16.0.6-1-x86_64.pkg.tar.zst
-      		tar -hxvf clang* -C /
-		rm -f clang*
-    		ln -s /lib/libncursesw.so.6 /lib/libtinfo.so.6 # maybe?
-  
-		#kpkg build llvm -y
-  		make deps
+    		wget https://github.com/kreatolinux/src/archive/refs/tags/v6.0.1.tar.gz
+      		tar -xvf v6.0.1.tar.gz
+		cd src-v6.0.1
+  		wget https://github.com/kreatolinux/src/commit/3c108cae16bb04cf68148c8bc8c8cafae421f15b.patch
+    		patch -p1 < 3c108cae16bb04cf68148c8bc8c8cafae421f15b.patch || exit 1
+  		sed -i s/release/debug/g Makefile
+    		make deps kpkg
+		./out/kpkg update
+  		./out/kpkg build llvm -y
+  		cd ..
+    
+    		make deps
                 rm -vf /etc/kpkg/kpkg.conf
                 rm -rf /tmp/kpkg
                 nim c -d:branch=master --passC:-no-pie --threads:on -d:ssl -o=kreastrap/kreastrap kreastrap/kreastrap.nim
