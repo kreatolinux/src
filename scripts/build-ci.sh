@@ -14,11 +14,11 @@ case $1 in
                 #echo "https://dl-cdn.alpinelinux.org/alpine/edge/testing/" >> /etc/apk/repositories
                 #apk update
                 #apk add build-base llvm-libunwind-dev compiler-rt libc++-dev alpine-sdk nimble shadow libarchive-tools perl zlib-dev llvm clang linux-headers openssl-dev binutils-dev gettext-dev xz libgcc gcc
-                make deps
-                rm -vf /etc/kpkg/kpkg.conf
-                make kpkg 
+                #make kpkg 
                 #rm -f /var/cache/kpkg/archives/*kpkg*
-		./out/kpkg build llvm -y
+		kpkg build llvm -y
+  		make deps
+                rm -vf /etc/kpkg/kpkg.conf
                 rm -rf /tmp/kpkg
                 nim c -d:branch=master --passC:-no-pie --threads:on -d:ssl -o=kreastrap/kreastrap kreastrap/kreastrap.nim
                 cat /etc/group | grep tty || addgroup tty
