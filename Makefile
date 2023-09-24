@@ -1,13 +1,13 @@
 SRCDIR = $(shell pwd)
 PREFIX = ./out
 
-nimbuild = nim c -d:release -d:branch=master --threads:on -d:ssl -o=$(PREFIX)/$1 $(SRCDIR)/$1/$1.nim
+nimbuild = nim c -d:release --passL:-larchive -d:branch=master --threads:on -d:ssl -o=$(PREFIX)/$1 $(SRCDIR)/$1/$1.nim
 tasks = kpkg chkupd purr
 
 all: $(tasks)
 
 deps:
-	nimble install fuzzy cligen libsha fusion -y
+	nimble install fuzzy futhark cligen libsha fusion -y
 
 $(tasks)::
 	$(call nimbuild,$@)

@@ -9,6 +9,7 @@ import ../modules/logger
 import ../modules/runparser
 import ../modules/downloader
 import ../modules/dephandler
+import ../modules/libarchive
 import ../modules/commonTasks
 import ../modules/removeInternal
 
@@ -93,14 +94,14 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
 
 
     if not isGroup:
-        debug "Executing 'tar -hxvf "&tarball&" -C "&root&"'"
-        let cmd = execCmdEx("tar -hxvf "&tarball&" -C "&root)
-        if cmd.exitCode != 0:
-            debug cmd.output
+        var extractTarball: seq[string]
+        try:
+          extractTarball = extract(tarball, root)
+        except Exception:
             removeDir(root&"/var/cache/kpkg/installed/"&package)
             err("extracting the tarball failed for "&package, false)
 
-        writeFile(root&"/var/cache/kpkg/installed/"&package&"/list_files", cmd.output)
+        writeFile(root&"/var/cache/kpkg/installed/"&package&"/list_files", extractTarball.join("\n"))
 
     # Run ldconfig afterwards for any new libraries
     discard execProcess("ldconfig")
@@ -203,7 +204,7 @@ proc install_bin(packages: seq[string], binrepos: seq[string], root: string,
         else:
             spawn down_bin(i, binrepos, root, offline)
 
-    sync()
+    threadpool.sync()
 
     if not downloadOnly:
         for i in packages:

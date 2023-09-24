@@ -9,6 +9,7 @@ import ../modules/shadow
 import ../modules/config
 import ../modules/runparser
 import ../modules/dephandler
+import ../modules/libarchive
 import ../modules/downloader
 import ../modules/commonTasks
 
@@ -170,10 +171,8 @@ proc builder*(package: string, destdir: string,
     setFilePermissions(homeDir, {fpOthersWrite, fpOthersRead, fpOthersExec})
 
     if existsPrepare != 0 and not usesGit:
-        folder = absolutePath(execProcess(
-                "su -s /bin/sh _kpkg -c \"bsdtar -tzf "&filename&" 2>/dev/null | head -1 | cut -f1 -d'/'\"")).splitWhitespace.filterit(
-                it.len != 0)
-        discard execProcess("su -s /bin/sh _kpkg -c 'bsdtar -xvf "&filename&"'")
+        folder = extract(filename)
+        folder[0] = absolutePath(replace(folder[0], "/", ""))
         if pkg.sources.split(" ").len == 1:
             try:
                 setCurrentDir(folder[0])
@@ -242,7 +241,7 @@ proc builder*(package: string, destdir: string,
 
     let tarball = "/var/cache/kpkg/archives/arch/"&hostCPU&"/kpkg-tarball-"&package&"-"&pkg.versionString&".tar.gz"
 
-    discard execProcess("tar -czvf "&tarball&" -C "&root&" .")
+    createArchive(tarball, root)
 
     writeFile(tarball&".sum", sha256hexdigest(readAll(open(
         tarball)))&"  "&tarball)
