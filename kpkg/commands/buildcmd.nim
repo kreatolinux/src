@@ -165,7 +165,7 @@ proc builder*(package: string, destdir: string,
             when defined(release):
                 err "Unknown error occured while trying to download the sources"
             debug "Unknown error while trying to download sources"
-            raise
+            raise getCurrentException()
 
     # Create homedir of _kpkg temporarily
     createDir(homeDir)
@@ -182,7 +182,7 @@ proc builder*(package: string, destdir: string,
                     err("Unknown error occured while trying to enter the source directory")
 
                 debug $folder
-                raise
+                raise getCurrentException()
     elif existsPrepare == 0:
         if execShellCmd("su -s /bin/sh _kpkg -c '. "&path&"/run"&" && prepare'") != 0:
             err("prepare failed", true)
@@ -282,7 +282,7 @@ proc build*(no = false, yes = false, root = "/",
                         packages, isBuild = true, root = root,
                         forceInstallAll = forceInstallAll))
     except CatchableError:
-        raise
+        raise getCurrentException()
 
     printReplacesPrompt(deps, root, true)
 
@@ -308,7 +308,7 @@ proc build*(no = false, yes = false, root = "/",
             when defined(release):
                 err("Undefined error occured", true)
             else:
-                raise
+                raise getCurrentException()
 
     success("built all packages successfully")
     return 0
