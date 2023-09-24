@@ -18,12 +18,15 @@ case $1 in
                 #rm -f /var/cache/kpkg/archives/*kpkg*
 	
   		# Temporary
-    		wget https://github.com/llvm/llvm-project/releases/download/llvmorg-16.0.4/clang+llvm-16.0.4-x86_64-linux-gnu-ubuntu-22.04.tar.xz
-      		tar -hxvf clang*
-		cd clang*
-  		cp -R * /usr
-		cd ..
-  		rm -rf clang*
+    		wget https://mirror.sunred.org/archlinux/extra/os/x86_64/llvm-16.0.6-1-x86_64.pkg.tar.zst
+      		tar -hxvf llvm-* -C /
+		rm -f llvm-*
+      		wget https://mirror.sunred.org/archlinux/extra/os/x86_64/llvm-libs-16.0.6-1-x86_64.pkg.tar.zst
+		tar -hxvf llvm-* -C /
+		rm -f llvm-*
+  		wget https://mirror.sunred.org/archlinux/extra/os/x86_64/clang-16.0.6-1-x86_64.pkg.tar.zst
+      		tar -hxvf clang* -C /
+		rm -f clang*
     		ln -s /lib/libncursesw.so.6 /lib/libtinfo.so.6 # maybe?
   
 		#kpkg build llvm -y
