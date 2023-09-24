@@ -19,8 +19,11 @@ case $1 in
 	
   		# Temporary
     		wget https://github.com/llvm/llvm-project/releases/download/llvmorg-16.0.0/clang+llvm-16.0.0-x86_64-linux-gnu-ubuntu-18.04.tar.xz
-      		tar -hxvf clang+llvm* -C /usr
-		rm -f clang+llvm*
+      		tar -hxvf clang*
+		cd clang*
+  		cp -R * /usr
+		cd ..
+  		rm -rf clang*
   
 		#kpkg build llvm -y
   		make deps
