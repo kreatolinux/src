@@ -78,13 +78,6 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
 
     setCurrentDir("/var/cache/kpkg/archives")
 
-    discard existsOrCreateDir(root&"/var/cache")
-    discard existsOrCreateDir(root&"/var/cache/kpkg")
-    discard existsOrCreateDir(root&"/var/cache/kpkg/installed")
-    removeDir(root&"/var/cache/kpkg/installed/"&package)
-    copyDir(repo&"/"&package, root&"/var/cache/kpkg/installed/"&package)
-
-
     for i in pkg.replaces:
         if symlinkExists(root&"/var/cache/kpkg/installed/"&i):
             removeFile(root&"/var/cache/kpkg/installed/"&i)
@@ -92,6 +85,11 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
             removeInternal(i, root)
         createSymlink(package, root&"/var/cache/kpkg/installed/"&i)
 
+    discard existsOrCreateDir(root&"/var/cache")
+    discard existsOrCreateDir(root&"/var/cache/kpkg")
+    discard existsOrCreateDir(root&"/var/cache/kpkg/installed")
+    removeDir(root&"/var/cache/kpkg/installed/"&package)
+    copyDir(repo&"/"&package, root&"/var/cache/kpkg/installed/"&package)
 
     if not isGroup:
         var extractTarball: seq[string]
