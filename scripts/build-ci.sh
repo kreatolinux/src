@@ -18,7 +18,7 @@ case $1 in
                 #rm -f /var/cache/kpkg/archives/*kpkg*
 	
   		# Temporary
-    		wget https://github.com/llvm/llvm-project/releases/download/llvmorg-16.0.0/clang+llvm-16.0.0-x86_64-linux-gnu-ubuntu-18.04.tar.xz
+    		wget https://github.com/llvm/llvm-project/releases/download/llvmorg-16.0.4/clang+llvm-16.0.4-x86_64-linux-gnu-ubuntu-22.04.tar.xz
       		tar -hxvf clang*
 		cd clang*
   		cp -R * /usr
