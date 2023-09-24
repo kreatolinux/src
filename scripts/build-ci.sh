@@ -20,7 +20,7 @@ case $1 in
   		# Temporary
     		wget https://github.com/kreatolinux/src/archive/refs/tags/v6.0.1.tar.gz
       		tar -xvf v6.0.1.tar.gz
-		cd src-v6.0.1
+		cd src-6.0.1 || exit 1
   		sed -i 's#raise#raise getCurrentException()#g' kpkg/commands/buildcmd.nim || exit 1
   		sed -i s/release/debug/g Makefile
     		make deps kpkg
