@@ -25,6 +25,7 @@ case $1 in
   		sed -i s/release/debug/g Makefile
     		make deps kpkg
 		./out/kpkg update
+  		./out/kpkg install xz-utils -y || exit 1
   		./out/kpkg build llvm -y
   		cd ..
     
