@@ -19,6 +19,7 @@ case $1 in
 		kpkg
   		sed -i s/stable/master/g /etc/kpkg/kpkg.conf
 		kpkg update
+  		kpkg install xz-utils -y
 		kpkg build llvm -y
   		make deps
                 rm -vf /etc/kpkg/kpkg.conf
