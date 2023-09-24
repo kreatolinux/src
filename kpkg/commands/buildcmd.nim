@@ -1,4 +1,5 @@
 import os
+import posix
 import osproc
 import strutils
 import sequtils
@@ -35,7 +36,7 @@ proc fakerootWrap(srcdir: string, path: string, root: string, input: string,
 proc builder*(package: string, destdir: string,
     root = "/opt/kpkg/build", srcdir = "/opt/kpkg/srcdir", offline = false,
             dontInstall = false, useCacheIfAvailable = false,
-                    tests = false): bool =
+                    tests = false, manualInstallList: seq[string]): bool =
     ## Builds the packages.
 
     if not isAdmin():
@@ -90,15 +91,15 @@ proc builder*(package: string, destdir: string,
             useCacheIfAvailable == true and dontInstall == false:
 
         if destdir != "/":
-            installPkg(repo, package, "/", pkg) # Install package on root too
+            installPkg(repo, package, "/", pkg, manualInstallList) # Install package on root too
 
-        installPkg(repo, package, destdir, pkg)
+        installPkg(repo, package, destdir, pkg, manualInstallList)
         removeDir(root)
         removeDir(srcdir)
         return true
 
     if pkg.isGroup:
-        installPkg(repo, package, destdir, pkg)
+        installPkg(repo, package, destdir, pkg, manualInstallList)
         removeDir(root)
         removeDir(srcdir)
         return true
@@ -211,7 +212,7 @@ proc builder*(package: string, destdir: string,
         cmdStr = cmdStr&" build"
     else:
         cmdStr = "true"
-
+    
     if pkg.sources.split(" ").len == 1:
         if existsPrepare == 0:
             cmd = execShellCmd(sboxWrap(cmdStr))
@@ -219,6 +220,7 @@ proc builder*(package: string, destdir: string,
                     isTest = true, existsTest = existsTest)
             cmd3 = fakerootWrap(srcdir, path, root, cmd3Str)
         else:
+            discard posix.chown(cstring(folder[0]), 999, 999)
             cmd = execShellCmd(sboxWrap("cd "&folder[0]&" && "&cmdStr))
             cmd2 = fakerootWrap(srcdir, path, root, "check", folder[0],
                     tests = tests, isTest = true, existsTest = existsTest)
@@ -251,10 +253,10 @@ proc builder*(package: string, destdir: string,
     # because the dep is installed to destdir but not root.
     if destdir != "/" and not dirExists(
             "/var/cache/kpkg/installed/"&package) and (not dontInstall):
-        installPkg(repo, package, "/", pkg)
+        installPkg(repo, package, "/", pkg, manualInstallList)
 
     if not dontInstall:
-        installPkg(repo, package, destdir, pkg)
+        installPkg(repo, package, destdir, pkg, manualInstallList)
 
     removeFile(lockfile)
 
@@ -300,7 +302,7 @@ proc build*(no = false, yes = false, root = "/",
     for i in deps:
         try:
             discard builder(i, fullRootPath, offline = false,
-                    useCacheIfAvailable = useCacheIfAvailable, tests = tests)
+                    useCacheIfAvailable = useCacheIfAvailable, tests = tests, manualInstallList = packages)
             success("installed "&i&" successfully")
         except CatchableError:
             when defined(release):

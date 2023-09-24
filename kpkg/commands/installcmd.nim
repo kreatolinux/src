@@ -34,7 +34,7 @@ proc diff(one: seq[string], two: seq[string]): seq[string] =
     return r.filterit(it.len != 0)
 
 proc installPkg*(repo: string, package: string, root: string, runf = runFile(
-        isParsed: false)) =
+        isParsed: false), manualInstallList: seq[string]) =
     ## Installs an package.
 
     var pkg: runFile
@@ -120,6 +120,10 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
     removeDir("/tmp/kpkg")
     removeDir("/opt/kpkg")
 
+    if package in manualInstallList:
+      info "Setting as manually installed"
+      writeFile("/var/cache/kpkg/installed/"&package&"/manualInstall", "")
+
     var existsPkgPostinstall = execCmdEx(
             ". "&repo&"/"&package&"/run"&" && command -v postinstall_"&replace(
                     package, '-', '_')).exitCode
@@ -193,7 +197,7 @@ proc down_bin(package: string, binrepos: seq[string], root: string,
         err("couldn't download the binary", false)
 
 proc install_bin(packages: seq[string], binrepos: seq[string], root: string,
-        offline: bool, downloadOnly = false) =
+        offline: bool, downloadOnly = false, manualInstallList: seq[string]) =
     ## Downloads and installs binaries.
 
     var repo: string
@@ -209,7 +213,7 @@ proc install_bin(packages: seq[string], binrepos: seq[string], root: string,
     if not downloadOnly:
         for i in packages:
             repo = findPkgRepo(i)
-            install_pkg(repo, i, root)
+            install_pkg(repo, i, root, manualInstallList = manualInstallList)
             info "Installation for "&i&" complete"
 
 proc install*(promptPackages: seq[string], root = "/", yes: bool = false,
@@ -247,7 +251,7 @@ proc install*(promptPackages: seq[string], root = "/", yes: bool = false,
 
     if not (deps.len == 0 and deps == @[""]):
         install_bin(deps, binrepos, fullRootPath, offline,
-                downloadOnly = downloadOnly)
+                downloadOnly = downloadOnly, manualInstallList = promptPackages)
 
     info("done")
     return 0
