@@ -27,6 +27,7 @@ DEPENDS=\[dq]testpackage1 testpackage3 testpackage4\[dq]
 DEPENDS_TEST2+=\[dq]testpackage5 testpackage6\[dq]
 NO_CHKUPD=\[dq]n\[dq]
 REPLACES=\[dq]test-v2\[dq]
+BACKUP=\[dq]etc/test-v3/main.conf etc/test/settings.conf\[dq]
 OPTDEPENDS=\[dq]optional-dependency: This is a test optional dependency ;; optional-dependency-2: This is a second optional dependency.\[dq]
 BUILD_DEPENDS=\[dq]testpackage5 testpackage6 testpackage10\[dq]
 SHA256SUM=\[dq]e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\[dq]
@@ -153,6 +154,12 @@ You can add/remove dependencies, depending on the usecase like
 \f[C]DEPENDS_PACKAGENAME-=\[dq]packagename\[dq]\f[R], and you can set
 the dependencies completely with
 \f[C]DEPENDS_PACKAGENAME=\[dq]packagename\[dq]\f[R]
+.IP \[bu] 2
+BACKUP: preserves stuff such as configuration files.
+Don\[cq]t put / in the path name (eg.
+\f[C]etc/bluetooth/main.conf\f[R] instead of
+\f[C]/etc/bluetooth/main.conf\f[R]).
+Seperate by space.
 .SS VARIABLE NAMING
 .PP
 Runfile variables are case insensitive.
