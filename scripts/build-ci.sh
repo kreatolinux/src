@@ -61,7 +61,8 @@ EOF
   		./out/kpkg install xz-utils -y || exit 1
   		./out/kpkg build llvm -y
   		cd ..
-    
+
+      		export PATH=$PATH:$HOME/.nimble/bin
     		make deps
                 rm -vf /etc/kpkg/kpkg.conf
                 rm -rf /tmp/kpkg
