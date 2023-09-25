@@ -16,8 +16,11 @@ jumpstart:
 	nim c -d:debug --threads:on -o=$(PREFIX)/jumpstart $(SRCDIR)/jumpstart/jumpstart.nim
 	nim c -d:debug -o=$(PREFIX)/jumpctl $(SRCDIR)/jumpstart/jumpctl.nim
 
+genpkglist:
+	nim c -d:release -d:branch=master -o=$(PREFIX)/genpkglist $(SRCDIR)/genpkglist/main.nim
+
 kreastrap:
-	nim c -d:release -d:branch=master --threads:on -d:ssl -o=$(SRCDIR)/kreastrap/kreastrap $(SRCDIR)/kreastrap/kreastrap.nim
+	nim c -d:release --passL:-larchive -d:branch=master --threads:on -d:ssl -o=$(SRCDIR)/kreastrap/kreastrap $(SRCDIR)/kreastrap/kreastrap.nim
 
 kreaiso:
 	nim c -d:release -d:branch=master --threads:on -d:ssl -o=$(SRCDIR)/kreaiso/kreaiso $(SRCDIR)/kreaiso/kreaiso
@@ -32,4 +35,4 @@ install_klinstaller:
 clean:
 	rm -rf $(PREFIX)
 
-.PHONY: $(tasks) jumpstart kreastrap kreaiso
+.PHONY: $(tasks) jumpstart kreastrap kreaiso genpkglist
