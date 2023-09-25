@@ -66,7 +66,7 @@ EOF
     		make deps
                 rm -vf /etc/kpkg/kpkg.conf
                 rm -rf /tmp/kpkg
-                nim c -d:branch=master --passC:-no-pie --threads:on -d:ssl -o=kreastrap/kreastrap kreastrap/kreastrap.nim
+                nim c -d:branch=master --passL:-larchive --passC:-no-pie --threads:on -d:ssl -o=kreastrap/kreastrap kreastrap/kreastrap.nim
                 cat /etc/group | grep tty || addgroup tty
 		#make kreastrap
         ;;
