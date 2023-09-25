@@ -5,7 +5,7 @@ import ../modules/removeInternal
 
 proc remove*(packages: seq[string], yes = false, root = "",
         force = false, autoRemove = false, configRemove = false): string =
-    # Remove packages
+    ## Remove packages
 
     # bail early if user isn't admin
     if not isAdmin():

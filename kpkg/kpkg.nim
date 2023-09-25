@@ -66,7 +66,9 @@ dispatchMulti(
   remove, help = {
     "yes": "Automatically say 'yes' to every question",
     "root": "The directory the package is gonna be removed from",
-    "force": "Ignore dependency checks"
+    "force": "Ignore dependency checks",
+    "autoRemove": "Remove unused dependencies",
+    "configRemove": "Remove configuration"
     }
   ],
 
