@@ -27,7 +27,7 @@ import commands/searchcmd
 import commands/cleancmd
 import ../common/version
 
-const ver {.strdefine.}: string = "v6.1"
+const ver {.strdefine.}: string = "v6.2"
 
 if commitVer != "unavailable":
   clCfg.version = "kpkg "&ver&", commit "&commitVer
