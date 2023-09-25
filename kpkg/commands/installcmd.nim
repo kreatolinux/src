@@ -94,7 +94,7 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
     if not isGroup:
         var extractTarball: seq[string]
         try:
-          extractTarball = extract(tarball, root)
+          extractTarball = extract(tarball, root, pkg.backup)
         except Exception:
             removeDir(root&"/var/cache/kpkg/installed/"&package)
             err("extracting the tarball failed for "&package, false)

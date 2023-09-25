@@ -39,7 +39,7 @@ proc bloatDepends*(package: string, installedDir: string, root: string): seq[str
 proc removeInternal*(package: string, root = "",
         installedDir = root&"/var/cache/kpkg/installed",
         ignoreReplaces = false, force = true, depCheck = false,
-            noRunfile = false, fullPkgList = @[""]) =
+            noRunfile = false, fullPkgList = @[""], removeConfigs = false) =
 
   let init = getInit(root)
 
@@ -73,8 +73,15 @@ proc removeInternal*(package: string, root = "",
         return
 
   for line in lines installedDir&"/"&actualPackage&"/list_files":
-    discard tryRemoveFile(root&"/"&line)
-    if isEmptyOrWhitespace(toSeq(walkDirRec(root&"/"&line)).join("")):
+    if not removeConfigs and not noRunfile:
+      if not (line in pkg.backup):
+        discard tryRemoveFile(root&"/"&line)
+    else:
+      discard tryRemoveFile(root&"/"&line)
+
+  # Double check so every empty dir gets removed
+  for line in lines installedDir&"/"&actualPackage&"/list_files":
+    if isEmptyOrWhitespace(toSeq(walkDirRec(root&"/"&line)).join("")) and dirExists(root&"/"&line):
       removeDir(root&"/"&line)
 
   if not ignoreReplaces and not noRunfile:

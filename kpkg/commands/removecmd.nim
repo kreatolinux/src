@@ -4,7 +4,7 @@ import ../modules/logger
 import ../modules/removeInternal
 
 proc remove*(packages: seq[string], yes = false, root = "",
-        force = false, autoRemove = false): string =
+        force = false, autoRemove = false, configRemove = false): string =
     # Remove packages
 
     # bail early if user isn't admin
@@ -32,7 +32,7 @@ proc remove*(packages: seq[string], yes = false, root = "",
 
     if output.toLower() == "y":
         for i in packagesFinal:
-            removeInternal(i, root, force = force, depCheck = true, fullPkgList = packages)
+            removeInternal(i, root, force = force, depCheck = true, fullPkgList = packages, removeConfigs = configRemove)
             success("package "&i&" removed")
         success("done", true)
 

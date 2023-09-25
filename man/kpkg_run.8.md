@@ -21,6 +21,7 @@ DEPENDS="testpackage1 testpackage3 testpackage4"
 DEPENDS_TEST2+="testpackage5 testpackage6"
 NO_CHKUPD="n"
 REPLACES="test-v2"
+BACKUP="etc/test-v3/main.conf etc/test/settings.conf"
 OPTDEPENDS="optional-dependency: This is a test optional dependency ;; optional-dependency-2: This is a second optional dependency."
 BUILD_DEPENDS="testpackage5 testpackage6 testpackage10"
 SHA256SUM="e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
@@ -86,6 +87,7 @@ Now lets break it down.
 * CONFLICTS: Specify conflicts to the package. Seperated by a space like DEPENDS. 
 * IS_GROUP: Specify if the package is a group package or not. False by default. Will be enabled if it is one of these values; "y, yes, true, 1, on"
 * DEPENDS_PACKAGENAME: Change PACKAGENAME with the package name. You can add/remove dependencies, depending on the usecase like `DEPENDS_PACKAGENAME+="packagename"`, `DEPENDS_PACKAGENAME-="packagename"`, and you can set the dependencies completely with `DEPENDS_PACKAGENAME="packagename"` 
+* BACKUP: preserves stuff such as configuration files. Don't put / in the path name (eg. `etc/bluetooth/main.conf` instead of `/etc/bluetooth/main.conf`). Seperate by space.
 
 ## VARIABLE NAMING
 Runfile variables are case insensitive. They also support popular variable styles such as camelCase, PascalCase, kebab-case and snake_case.

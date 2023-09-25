@@ -14,6 +14,7 @@ type runFile* = object
     conflicts*: seq[string]
     deps*: seq[string]
     bdeps*: seq[string]
+    backup*: seq[string]
     optdeps*: seq[string]
     replaces*: seq[string]
     noChkupd*: bool
@@ -66,6 +67,11 @@ proc parseRunfile*(path: string, removeLockfileWhenErr = true): runFile =
                     ("\"", ""),
                     ("'", "")
                     )
+                of "backup":
+                    ret.backup = vars[1].multiReplace(
+                    ("\"", ""),
+                    ("'", "")
+                    ).split(" ")
                 of "sha256sum":
                     ret.sha256sum = vars[1]
                 of "conflicts":

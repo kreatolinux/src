@@ -1,4 +1,5 @@
 import os
+import logger
 import sequtils
 import futhark
 
@@ -35,7 +36,7 @@ proc copyData(ar: ptr structarchive, aw: ptr structarchive): int =
       debugWarn("archive_write_data_block()", $archive_error_string(aw))
       return r
 
-proc extract*(fileName: string, path = getCurrentDir()): seq[string] =
+proc extract*(fileName: string, path = getCurrentDir(), ignoreFiles = @[""]): seq[string] =
   # Extracts a file to a directory.
   # Based on untar.c in libarchive/examples
 
@@ -75,6 +76,10 @@ proc extract*(fileName: string, path = getCurrentDir()): seq[string] =
     if not ($archiveEntryPathname(entry) in resultStr):
       resultStr = resultStr&($archiveEntryPathname(entry))
     
+    if $archiveEntryPathname(entry) in ignoreFiles and fileExists(path&"/"&($archiveEntryPathname(entry))):
+      debug($archiveEntryPathname(entry)&" in ignoreFiles, ignoring")
+      continue
+
     r = archiveWriteHeader(ext, entry)
     if r != ARCHIVE_OK:
       debugWarn("archive_write_header()", $archiveErrorString(ext))
