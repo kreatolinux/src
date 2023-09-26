@@ -26,8 +26,8 @@ jobs:
       - name: Install Nim and other related dependencies
         run: |
           sudo apt update
-          sudo apt install build-essential -y
           sudo bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)"
+          sudo apt install build-essential libclang-dev libclang1 -y
           wget -O nim.tar.xz "https://nim-lang.org/download/nim-$NIM_VERSION-linux_x64.tar.xz"
           tar -xvf nim.tar.xz
           cd "nim-$NIM_VERSION"
