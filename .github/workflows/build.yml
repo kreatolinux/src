@@ -14,8 +14,10 @@ jobs:
   ci:
     # The type of runner that the job will run on
     runs-on: ubuntu-latest
-    container: ghcr.io/kreatolinux/builder:latest
-
+    env:
+      HUGO_VERSION: 0.119.0
+      NIM_VERSION: 2.0.0
+      
     steps:
 
       - name: Checkout
@@ -28,9 +30,23 @@ jobs:
           path: /var/cache/kpkg/archives
           key: binary-cache
 
-      - name: Install dependencies
+      - name: Install Nim and other related dependencies
         run: |
-          kpkg build llvm -y
+          sudo apt update
+          sudo apt install build-essential -y
+          bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)"
+          wget -O nim.tar.xz "https://nim-lang.org/download/nim-$NIM_VERSION-linux_x64.tar.xz"
+          tar -xvf nim.tar.xz
+          cd "nim-$NIM_VERSION"
+          sudo mkdir -p "/usr/include" "/usr/bin" "/etc/nim" "/usr/lib/nim"
+          sudo cp -r lib/ "/usr/lib/nim"
+          sudo cp -r compiler/ "/usr/lib/nim"
+          sudo cp -rf config/* -t "/etc/nim"
+          sudo cp -rf bin/* -t "/usr/bin"
+          sudo cp -rf "/usr/lib/nim/"*.h "/usr/include" || true
+          cd ..
+          rm -rf nim-*
+
 
       - name: build (amd64)
         run: |
