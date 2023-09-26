@@ -23,16 +23,6 @@ if threadsUsed < 1:
 
 setControlCHook(ctrlc)
 
-proc diff(one: seq[string], two: seq[string]): seq[string] =
-    ## Returns the differences in a string.
-    var r: seq[string]
-
-    for i in one:
-        if not (i in two):
-            r = r&i
-
-    return r.filterit(it.len != 0)
-
 proc installPkg*(repo: string, package: string, root: string, runf = runFile(
         isParsed: false), manualInstallList: seq[string]) =
     ## Installs an package.
@@ -61,11 +51,8 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
             not symlinkExists(root&"/var/cache/kpkg/installed/"&package) and not isGroup:
 
         info "package already installed, reinstalling"
-
-        createDir("/tmp/kpkg/reinstall")
-
-        moveDir(root&"/var/cache/kpkg/installed/"&package,
-                "/tmp/kpkg/reinstall/"&package&"-old")
+        
+        removeInternal(package)
 
     var tarball: string
 
@@ -103,17 +90,6 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
 
     # Run ldconfig afterwards for any new libraries
     discard execProcess("ldconfig")
-
-    if dirExists("/tmp/kpkg/reinstall/"&package&"-old") and fileExists(
-            "/tmp/kpkg/reinstall/"&package&"-old/list_files"):
-        let d = diff(readFile("/tmp/kpkg/reinstall/"&package&"-old/list_files").split(
-                "\n"), readFile(
-                "/var/cache/kpkg/installed/"&package&"/list_files").split("\n"))
-        if d.len != 0:
-            writeFile("/tmp/kpkg/reinstall/list_files", d.join("\n"))
-            removeInternal("reinstall", root,
-                    installedDir = "/tmp/kpkg", ignoreReplaces = true,
-                    noRunfile = true)
 
     removeDir("/tmp/kpkg")
     removeDir("/opt/kpkg")

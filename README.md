@@ -11,7 +11,7 @@ It includes multiple tools to accomplish this goal. You will find them below.
 There are a couple of build variables;
 
 * -d:branch: Repository branch that is gonna be used for the default repositories, is set to `stable` by default
-* -d:ver: Specify version manually. Is set to `v6.0` by default.
+* -d:ver: Specify version manually. Is set to the major version by default.
 
 # Projects
 
