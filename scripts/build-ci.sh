@@ -59,7 +59,7 @@ EOF
     		make deps kpkg
 		./out/kpkg update
   		./out/kpkg install xz-utils -y || exit 1
-  		./out/kpkg build llvm -y
+  		./out/kpkg install llvm -y
   		cd ..
 
       		export PATH=$PATH:$HOME/.nimble/bin
