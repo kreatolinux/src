@@ -14,36 +14,24 @@ jobs:
   ci:
     # The type of runner that the job will run on
     runs-on: ubuntu-latest
-    env:
-      HUGO_VERSION: 0.119.0
-      NIM_VERSION: 2.0.0
+    container: ghcr.io/kreatolinux/builder:latest
       
     steps:
 
       - name: Checkout
         uses: actions/checkout@v3
 
-      - name: Install Nim and other related dependencies
-        run: |
-          sudo apt update
-          sudo bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)"
-          sudo apt install build-essential libclang-dev libclang1 libarchive-dev -y
-          wget -O nim.tar.xz "https://nim-lang.org/download/nim-$NIM_VERSION-linux_x64.tar.xz"
-          tar -xvf nim.tar.xz
-          cd "nim-$NIM_VERSION"
-          sudo mkdir -p "/usr/include" "/usr/bin" "/etc/nim" "/usr/lib/nim"
-          sudo cp -r lib/ "/usr/lib/nim"
-          sudo cp -r compiler/ "/usr/lib/nim"
-          sudo cp -rf config/* -t "/etc/nim"
-          sudo cp -rf bin/* -t "/usr/bin"
-          sudo cp -rf "/usr/lib/nim/"*.h "/usr/include" || true
-          cd ..
-          rm -rf nim-*
+      - name: Cache Binaries
+        id: binary-cache
+        uses: actions/cache@v3
+        with:
+          path: /var/cache/kpkg/archives
+          key: binary-cache
 
 
       - name: build (amd64)
         run: |
-          export PATH=$PATH:$HOME/.nimble/bin
+          IS_ACTIONS=y sh $GITHUB_WORKSPACE/scripts/build-ci.sh init
           make deps kpkg
 
       - uses: actions/upload-artifact@v3
