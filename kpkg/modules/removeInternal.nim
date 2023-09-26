@@ -44,7 +44,7 @@ proc removeInternal*(package: string, root = "",
   let init = getInit(root)
 
   if dirExists(installedDir&"/"&package&"-"&init):
-    removeInternal(package&"-"&init, root, installedDir, ignoreReplaces)
+    removeInternal(package&"-"&init, root, installedDir, ignoreReplaces, force, depCheck, noRunfile, fullPkgList, removeConfigs)
 
   var actualPackage: string
 
@@ -59,6 +59,7 @@ proc removeInternal*(package: string, root = "",
   var pkg: runFile
 
   if not noRunfile:
+    debug "remove: parsing runFile"
     pkg = parseRunfile(installedDir&"/"&actualPackage)
 
     if depCheck:
@@ -67,6 +68,7 @@ proc removeInternal*(package: string, root = "",
       discard dependencyCheck(package, installedDir, root, force, ignorePackage = fullPkgList)
       
     if not pkg.isGroup:
+      debug "Starting removal process"
       if not fileExists(installedDir&"/"&actualPackage&"/list_files"):
         warn "Package doesn't have a file list. Possibly broken package? Removing anyway."
         removeDir(installedDir&"/"&package)
@@ -78,11 +80,13 @@ proc removeInternal*(package: string, root = "",
         discard tryRemoveFile(root&"/"&line)
     else:
       discard tryRemoveFile(root&"/"&line)
+  debug "files removed"
 
   # Double check so every empty dir gets removed
   for line in lines installedDir&"/"&actualPackage&"/list_files":
-    if isEmptyOrWhitespace(toSeq(walkDirRec(root&"/"&line)).join("")) and dirExists(root&"/"&line):
+    if isEmptyOrWhitespace(toSeq(walkDir(root&"/"&line)).join("")) and dirExists(root&"/"&line):
       removeDir(root&"/"&line)
+  debug "dirs removed"
 
   if not ignoreReplaces and not noRunfile:
     for i in pkg.replaces:
