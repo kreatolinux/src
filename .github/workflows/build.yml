@@ -14,27 +14,29 @@ jobs:
   ci:
     # The type of runner that the job will run on
     runs-on: ubuntu-latest
-    container: alpine:latest
-    # Steps represent a sequence of tasks that will be executed as part of the job
+    container: ghcr.io/kreatolinux/builder:latest
+
     steps:
-      - uses: actions/checkout@v3
-      - name: install dependencies
+
+      - name: Checkout
+        uses: actions/checkout@v3
+      
+      - name: Cache Binaries
+        id: binary-cache
+        uses: actions/cache@v3
+        with:
+          path: /var/cache/kpkg/archives
+          key: binary-cache
+
+      - name: Install dependencies
         run: |
-          apk update
-          apk add gcc musl-dev openssl-libs-static git nim make nimble shadow
-          make deps
+          kpkg build llvm -y
 
       - name: build (amd64)
         run: |
-          make kpkg
+          make deps kpkg
 
-      # quoted out for now, will add later
-      #- uses: actions/upload-artifact@v3
-      #  with:
-      #    name: kpkg-aarch64-linux
-      #    path: /tmp/kpkg-aarch64-linux
-
-      - name: build and run purr
-        run: |
-          nim c --threads=on -o=/tmp/ci -d:ssl -d:branch=master purr/purr.nim
-          /tmp/ci
+      - uses: actions/upload-artifact@v3
+        with:
+          name: kpkg-amd64-linux
+          path: ${{ github.workspace }}/out/kpkg
