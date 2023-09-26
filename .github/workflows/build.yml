@@ -22,13 +22,6 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@v3
-      
-      - name: Cache Binaries
-        id: binary-cache
-        uses: actions/cache@v3
-        with:
-          path: /var/cache/kpkg/archives
-          key: binary-cache
 
       - name: Install Nim and other related dependencies
         run: |
