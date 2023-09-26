@@ -43,6 +43,7 @@ jobs:
 
       - name: build (amd64)
         run: |
+          export PATH=$PATH:$HOME/.nimble/bin
           make deps kpkg
 
       - uses: actions/upload-artifact@v3
