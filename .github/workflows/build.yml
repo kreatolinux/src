@@ -37,9 +37,9 @@ jobs:
       
       - name: Remove cache beforehand
         run: |
-          wget https://github.com/cli/cli/releases/download/v$GH_VERSION/gh_$GH_VERSION_linux_amd64.tar.gz
-          tar -xvf gh_$GH_VERSION_linux_amd64.tar.gz
-          mv gh_$GH_VERSION_linux_amd64.tar.gz/bin /bin/gh
+          wget https://github.com/cli/cli/releases/download/v${GH_VERSION}/gh_${GH_VERSION}_linux_amd64.tar.gz
+          tar -xvf gh_${GH_VERSION}_linux_amd64.tar.gz
+          mv gh_${GH_VERSION}_linux_amd64.tar.gz/bin /bin/gh
           gh cache delete binary-cache
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
