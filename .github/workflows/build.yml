@@ -21,9 +21,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
-      - name: Cache Binaries
-        id: binary-cache
-        uses: actions/cache@v3
+      - name: Restore cached binaries
+        id: binary-cache-restore
+        uses: actions/cache/restore@v3
         with:
           path: /var/cache/kpkg/archives
           key: binary-cache
@@ -49,3 +49,10 @@ jobs:
         with:
           name: kpkg-amd64-linux
           path: ${{ github.workspace }}/out/kpkg
+
+      - name: Save cached binaries
+        id: binary-cache-save
+        uses: actions/cache/restore@v3
+        with:
+          path: /var/cache/kpkg/archives
+          key: binary-cache
