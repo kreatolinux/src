@@ -19,7 +19,21 @@ buildNimOther() {
 	nim c -d:$buildType --threads:$2 -o="$3" $5 "$srcdir/$1/$4" || err "building $1 failed"
 }
 
+printHelp() {
+	printf """Usage: './build.sh [ARGUMENTS]'
+Options:
+	-d, --debug: Enable debug on built projects
+	-p, --projects [PROJECTS]: Enable projects, seperate by comma
+	-i, --installDeps: Install dependencies before continuing
+	-c, --clean: Clean binaries
+	-b, --branch [BRANCH]: Set default branch for repositories. 'master' by default.
+"""
+}
 echo "Kreato Linux - Source tree build script"
+
+if [ "$#" = "0" ]; then
+	printHelp
+fi
 
 while [ "$#" -gt 0 ]; do
 	case $1 in
@@ -42,6 +56,9 @@ while [ "$#" -gt 0 ]; do
 		-b|--branch)
 			shift
 			branch="$1"
+		;;
+		*)
+			printHelp
 		;;
 	esac
 	shift
