@@ -7,6 +7,7 @@ import libsha/sha256
 import ../modules/config
 import ../modules/logger
 import ../modules/runparser
+import ../modules/processes
 import ../modules/downloader
 import ../modules/dephandler
 import ../modules/libarchive
@@ -28,14 +29,14 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
     ## Installs an package.
 
     var pkg: runFile
-
+    
     try:
         if runf.isParsed:
             pkg = runf
         else:
             pkg = parseRunfile(repo&"/"&package)
     except CatchableError:
-        err("Unknown error while trying to parse package on repository, possibly broken repo?", false)
+        err("Unknown error while trying to parse package on repository, possibly broken repo?")
 
     let isGroup = pkg.isGroup
 
@@ -84,7 +85,7 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
           extractTarball = extract(tarball, root, pkg.backup)
         except Exception:
             removeDir(root&"/var/cache/kpkg/installed/"&package)
-            err("extracting the tarball failed for "&package, false)
+            err("extracting the tarball failed for "&package)
 
         writeFile(root&"/var/cache/kpkg/installed/"&package&"/list_files", extractTarball.join("\n"))
 
@@ -141,7 +142,7 @@ proc down_bin(package: string, binrepos: seq[string], root: string,
         try:
             pkg = parseRunfile(repo&"/"&package)
         except CatchableError:
-            err("Unknown error while trying to parse package on repository, possibly broken repo?", false)
+            err("Unknown error while trying to parse package on repository, possibly broken repo?")
 
         if pkg.isGroup:
             return
@@ -165,16 +166,20 @@ proc down_bin(package: string, binrepos: seq[string], root: string,
             except CatchableError:
                 discard
         else:
-            err("attempted to download tarball from binary repository in offline mode", false)
+            err("attempted to download tarball from binary repository in offline mode")
 
     if not downSuccess:
-        err("couldn't download the binary", false)
+        err("couldn't download the binary")
 
 proc install_bin(packages: seq[string], binrepos: seq[string], root: string,
         offline: bool, downloadOnly = false, manualInstallList: seq[string]) =
     ## Downloads and installs binaries.
 
     var repo: string
+    
+    isKpkgRunning()
+    checkLockfile()
+    createLockfile()
 
     for i in packages:
         if threadsUsed == 1:
@@ -190,6 +195,8 @@ proc install_bin(packages: seq[string], binrepos: seq[string], root: string,
             install_pkg(repo, i, root, manualInstallList = manualInstallList)
             info "Installation for "&i&" complete"
 
+    removeLockfile()
+
 proc install*(promptPackages: seq[string], root = "/", yes: bool = false,
         no: bool = false, offline = false, downloadOnly = false): int =
     ## Download and install a package through a binary repository
@@ -198,7 +205,7 @@ proc install*(promptPackages: seq[string], root = "/", yes: bool = false,
 
     if not isAdmin():
         err("you have to be root for this action.", false)
-
+    
     var deps: seq[string]
     let init = getInit(root)
 

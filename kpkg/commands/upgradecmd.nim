@@ -1,26 +1,31 @@
 import os
+import strutils
 import buildcmd
 import installcmd
-import strutils
 import ../modules/config
 import ../modules/logger
 import ../modules/runparser
+import ../modules/processes
+import ../modules/commonTasks
 
 proc upgrade*(root = "/",
         builddir = "/tmp/kpkg/build", srcdir = "/tmp/kpkg/srcdir", yes = false,
                 no = false) =
     ## Upgrade packages
-
+    
+    isKpkgRunning()
+    checkLockfile()
+    
     var packages: seq[string]
     var repo: string
-
+    
     for i in walkDir("/var/cache/kpkg/installed"):
         if i.kind == pcDir:
             var localPkg: runFile
             try:
                 localPkg = parse_runfile(i.path)
             except CatchableError:
-                err("Unknown error while reading installed package", false)
+                err("Unknown error while reading installed package")
 
             var isAReplacesPackage: bool
 
@@ -47,7 +52,7 @@ proc upgrade*(root = "/",
             try:
                 upstreamPkg = parse_runfile(repo&"/"&lastPathpart(i.path))
             except CatchableError:
-                err("Unknown error while reading package on repository, possibly broken repo?", false)
+                err("Unknown error while reading package on repository, possibly broken repo?")
 
             if localPkg.version < upstreamPkg.version or localPkg.release <
               upstreamPkg.release or (localPkg.epoch != "no" and

@@ -1,6 +1,8 @@
 import os
 import strutils
 import ../modules/logger
+import ../modules/processes
+import ../modules/commonTasks
 import ../modules/removeInternal
 
 proc remove*(packages: seq[string], yes = false, root = "",
@@ -10,6 +12,9 @@ proc remove*(packages: seq[string], yes = false, root = "",
     # bail early if user isn't admin
     if not isAdmin():
         err("you have to be root for this action.", false)
+    
+    isKpkgRunning()
+    checkLockfile()
 
     if packages.len == 0:
         err("please enter a package name", false)
@@ -31,9 +36,11 @@ proc remove*(packages: seq[string], yes = false, root = "",
         output = "y"
 
     if output.toLower() == "y":
+        createLockfile()
         for i in packagesFinal:
             removeInternal(i, root, force = force, depCheck = true, fullPkgList = packages, removeConfigs = configRemove)
             success("package "&i&" removed")
         success("done", true)
-
+    
+    removeLockfile()
     info("exiting", true)

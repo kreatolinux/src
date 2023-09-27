@@ -5,12 +5,24 @@ import strutils
 import parsecfg
 import runparser
 
+const lockfile = "/tmp/kpkg.lock"
+
 proc getInit*(root: string): string =
   ## Returns the init system.
   try:
     return loadConfig(root&"/etc/kreato-release").getSectionValue("Core", "init")
   except CatchableError:
     err("couldn't load "&root&"/etc/kreato-release")
+
+proc createLockfile*() =
+  writeFile(lockfile, "")
+
+proc checkLockfile*() =
+  if fileExists(lockfile):
+    err("lockfile exists, will not proceed", false)
+
+proc removeLockfile*() =
+  removeFile(lockfile)
 
 proc printPackagesPrompt*(packages: string, yes: bool, no: bool) =
   ## Prints the packages summary prompt.

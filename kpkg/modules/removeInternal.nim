@@ -40,7 +40,7 @@ proc removeInternal*(package: string, root = "",
         installedDir = root&"/var/cache/kpkg/installed",
         ignoreReplaces = false, force = true, depCheck = false,
             noRunfile = false, fullPkgList = @[""], removeConfigs = false) =
-
+  
   let init = getInit(root)
 
   if dirExists(installedDir&"/"&package&"-"&init):
@@ -54,7 +54,7 @@ proc removeInternal*(package: string, root = "",
     actualPackage = package
 
   if not dirExists(installedDir&"/"&actualPackage):
-    err("package "&package&" is not installed", false)
+    err("package "&package&" is not installed")
 
   var pkg: runFile
 

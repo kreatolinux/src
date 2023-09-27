@@ -9,16 +9,15 @@ import ../modules/logger
 import ../modules/shadow
 import ../modules/config
 import ../modules/runparser
+import ../modules/processes
 import ../modules/dephandler
 import ../modules/libarchive
 import ../modules/downloader
 import ../modules/commonTasks
 
-const lockfile = "/tmp/kpkg.lock"
-
 proc cleanUp() {.noconv.} =
     ## Cleans up.
-    removeFile(lockfile)
+    removeLockfile()
     quit(0)
 
 proc fakerootWrap(srcdir: string, path: string, root: string, input: string,
@@ -41,9 +40,9 @@ proc builder*(package: string, destdir: string,
 
     if not isAdmin():
         err("you have to be root for this action.", false)
-
-    if fileExists(lockfile):
-        err("lockfile exists, will not proceed", false)
+    
+    isKpkgRunning()
+    checkLockfile()
 
     info "starting build for "&package
 
@@ -104,7 +103,7 @@ proc builder*(package: string, destdir: string,
         removeDir(srcdir)
         return true
 
-    writeFile(lockfile, "") # Create lockfile
+    createLockfile()
 
     var filename: string
 
@@ -266,7 +265,7 @@ proc builder*(package: string, destdir: string,
     if not dontInstall:
         installPkg(repo, package, destdir, pkg, manualInstallList)
 
-    removeFile(lockfile)
+    removeLockfile()
 
     removeDir(srcdir)
     removeDir(homeDir)
