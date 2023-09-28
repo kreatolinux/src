@@ -15,14 +15,15 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@v3
-      
-      - name: Cache Binaries
-        id: binary-cache
+
+      - name: Update cache on every commit
         uses: actions/cache@v3
         with:
           path: /var/cache/kpkg/archives
-          key: binary-cache
-
+          key: binary-cache-${{ github.run_id }}
+          restore-keys: |
+            binary-cache
+      
       - name: Build nocc rootfs tarball
         run: |
           IS_ACTIONS=y sh $GITHUB_WORKSPACE/scripts/build-ci.sh init
