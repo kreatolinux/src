@@ -21,13 +21,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
-      - name: Restore cached binaries
-        id: binary-cache-restore
-        uses: actions/cache/restore@v3
+      - name: Update cache on every commit
+        uses: actions/cache@v3
         with:
           path: /var/cache/kpkg/archives
-          key: binary-cache
-
+          key: binary-cache-${{ github.run_id }}
+          restore-keys: |
+            binary-cache
+    
 
       - name: build (amd64)
         run: |
@@ -35,24 +36,7 @@ jobs:
           export PATH=$PATH:$HOME/.nimble/bin
           make deps kpkg
       
-      - name: Remove cache beforehand
-        run: |
-          wget https://github.com/cli/cli/releases/download/v${GH_VERSION}/gh_${GH_VERSION}_linux_amd64.tar.gz
-          tar -xvf gh_${GH_VERSION}_linux_amd64.tar.gz
-          mv gh_${GH_VERSION}_linux_amd64/bin/gh /bin/gh
-          gh cache delete binary-cache || true
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_VERSION: "2.35.0"
-      
       - uses: actions/upload-artifact@v3
         with:
           name: kpkg-amd64-linux
           path: ${{ github.workspace }}/out/kpkg
-
-      - name: Save cached binaries
-        id: binary-cache-save
-        uses: actions/cache/restore@v3
-        with:
-          path: /var/cache/kpkg/archives
-          key: binary-cache
