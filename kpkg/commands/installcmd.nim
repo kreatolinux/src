@@ -6,6 +6,7 @@ import threadpool
 import libsha/sha256
 import ../modules/config
 import ../modules/logger
+import ../modules/lockfile
 import ../modules/runparser
 import ../modules/processes
 import ../modules/downloader

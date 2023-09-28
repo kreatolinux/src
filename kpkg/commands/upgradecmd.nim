@@ -4,9 +4,9 @@ import buildcmd
 import installcmd
 import ../modules/config
 import ../modules/logger
+import ../modules/lockfile
 import ../modules/runparser
 import ../modules/processes
-import ../modules/commonTasks
 
 proc upgrade*(root = "/",
         builddir = "/tmp/kpkg/build", srcdir = "/tmp/kpkg/srcdir", yes = false,

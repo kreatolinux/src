@@ -1,8 +1,8 @@
 import os
 import strutils
 import ../modules/logger
+import ../modules/lockfile
 import ../modules/processes
-import ../modules/commonTasks
 import ../modules/removeInternal
 
 proc remove*(packages: seq[string], yes = false, root = "",

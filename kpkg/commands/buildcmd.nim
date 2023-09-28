@@ -8,6 +8,7 @@ import libsha/sha256
 import ../modules/logger
 import ../modules/shadow
 import ../modules/config
+import ../modules/lockfile
 import ../modules/runparser
 import ../modules/processes
 import ../modules/dephandler
