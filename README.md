@@ -28,6 +28,11 @@ You can build it by running `make kreastrap`. The binary will be located on `kre
 ## purr
 purr is kpkg's testing utility. You can build it by running `make tests`. The binary will be located on the usual `out` folder.
 
+## genpkglist
+genpkglist is a runfile -> markdown generator. It is used to generate the [the package list](https://linux.kreato.dev/packages) on the Kreato Linux website.
+
+Build it by running `make genpkglist`. The binary will be located on the usual `out` folder.
+
 ## chkupd
 chkupd is a tool to check if a package is up-to-date on a kpkg repository. It also has the ability to attempt to autoupdate the package. You can build it by running `make chkupd`. The binary will be located on the usual `out` folder.
 
