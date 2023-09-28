@@ -31,14 +31,14 @@ jobs:
           IS_ACTIONS=y sh $GITHUB_WORKSPACE/scripts/build-ci.sh init
           export PATH=$PATH:$HOME/.nimble/bin
           cd /tmp/
-          echo "https://github.com/kreatolinux/src/archive/refs/tags/v$GITHUB_REF_NAME.tar.gz"
-          wget "https://github.com/kreatolinux/src/archive/refs/tags/v$GITHUB_REF_NAME.tar.gz"
-          tar -xvf "v$GITHUB_REF_NAME.tar.gz"
-          cd "src-$GITHUB_REF_NAME"
+          SRC_VERSION=${GITHUB_REF_NAME#v}
+          wget "https://github.com/kreatolinux/src/archive/refs/tags/$GITHUB_REF_NAME.tar.gz"
+          tar -xvf "$GITHUB_REF_NAME.tar.gz"
+          cd "src-$SRC_VERSION"
           sh build.sh -i -p "kpkg"
           sh build.sh -c
           cd ..
-          tar -czvf "/tmp/src-$GITHUB_REF_NAME-dist.tar.gz" "src-v$GITHUB_REF_NAME" 
+          tar -czvf "/tmp/src-$GITHUB_REF_NAME-dist.tar.gz" "src-$SRC_VERSION" 
 
       - name: Upload Release
         uses: softprops/action-gh-release@v1
