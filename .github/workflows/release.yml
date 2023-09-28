@@ -30,9 +30,14 @@ jobs:
         run: |
           IS_ACTIONS=y sh $GITHUB_WORKSPACE/scripts/build-ci.sh init
           export PATH=$PATH:$HOME/.nimble/bin
-          make deps kpkg
-          sh build.sh -c 
-          tar -czvf "/tmp/src-$GITHUB_REF_NAME-dist.tar.gz" $GITHUB_WORKSPACE    
+          cd /tmp/
+          wget https://github.com/kreatolinux/src/archive/refs/tags/v$GITHUB_REF_NAME.tar.gz
+          tar -xvf v$GITHUB_REF_NAME.tar.gz
+          cd src-$GITHUB_REF_NAME
+          sh build.sh -i -p "kpkg"
+          sh build.sh -c
+          cd ..
+          tar -czvf "/tmp/src-$GITHUB_REF_NAME-dist.tar.gz" src-v$GITHUB_REF_NAME    
 
       - name: Upload Release
         uses: softprops/action-gh-release@v1
