@@ -1,13 +1,18 @@
 import os
 import logger
 import sequtils
-import futhark
 
-importc:
-  path "/usr/include"
-  "archive.h"
-  "archive_entry.h"
-  "unistd.h"
+when not defined(useDist):
+  import futhark
+
+  importc:
+    outputPath currentSourcePath.parentDir / "generated.nim"
+    path "/usr/include"
+    "archive.h"
+    "archive_entry.h"
+    "unistd.h"
+else:
+  include "generated.nim"
 
 type
   LibarchiveError* = object of CatchableError 

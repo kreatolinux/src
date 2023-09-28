@@ -12,11 +12,11 @@ err() {
 }
 
 buildNimMain() {
-	nim c -d:$buildType --passL:-larchive -d:branch=$branch --threads:on -d:ssl -o="$prefix/$1" "$srcdir/$1/$1.nim" || err "building $1 failed"
+	nim c -d:$buildType $args --passL:-larchive -d:branch=$branch --threads:on -d:ssl -o="$prefix/$1" "$srcdir/$1/$1.nim" || err "building $1 failed"
 }
 
 buildNimOther() {
-	nim c -d:$buildType --threads:$2 -o="$3" $5 "$srcdir/$1/$4" || err "building $1 failed"
+	nim c -d:$buildType $args --threads:$2 -o="$3" $5 "$srcdir/$1/$4" || err "building $1 failed"
 }
 
 printHelp() {
@@ -27,6 +27,7 @@ Options:
 	-i, --installDeps: Install dependencies before continuing
 	-c, --clean: Clean binaries
 	-b, --branch [BRANCH]: Set default branch for repositories. 'master' by default.
+	-a, --args [ARGUMENTS]: Set arguments for nimc.
 """
 }
 echo "Kreato Linux - Source tree build script"
@@ -56,6 +57,10 @@ while [ "$#" -gt 0 ]; do
 		-b|--branch)
 			shift
 			branch="$1"
+		;;
+		-a|--args)
+			shift
+			args="$1"
 		;;
 		*)
 			printHelp
