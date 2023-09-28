@@ -1,0 +1,40 @@
+name: Generate release
+
+# Controls when the workflow will run
+on:
+  release:
+    types: [published]
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  genrelease:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+    container: ghcr.io/kreatolinux/builder:latest
+      
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Update cache on every commit
+        uses: actions/cache@v3
+        with:
+          path: /var/cache/kpkg/archives
+          key: binary-cache-${{ github.run_id }}
+          restore-keys: |
+            binary-cache
+    
+
+      - name: build (amd64)
+        run: |
+          IS_ACTIONS=y sh $GITHUB_WORKSPACE/scripts/build-ci.sh init
+          export PATH=$PATH:$HOME/.nimble/bin
+          make deps kpkg
+          sh build.sh -c 
+          tar -czvf "/tmp/src-$GITHUB_REF_NAME-dist.tar.gz" $GITHUB_WORKSPACE    
+
+      - name: Upload Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: /tmp/src-${{ github.ref_name }}-dist.tar.gz
