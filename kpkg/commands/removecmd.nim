@@ -40,7 +40,7 @@ proc remove*(packages: seq[string], yes = false, root = "",
         for i in packagesFinal:
             removeInternal(i, root, force = force, depCheck = true, fullPkgList = packages, removeConfigs = configRemove)
             success("package "&i&" removed")
+        removeLockfile()
         success("done", true)
     
-    removeLockfile()
     info("exiting", true)
