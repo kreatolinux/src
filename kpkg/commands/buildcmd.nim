@@ -204,7 +204,7 @@ proc builder*(package: string, destdir: string,
 
     var cmdStr = ". "&path&"/run"&" && export CC="&getConfigValue("Options",
             "cc")&" && export CXX="&getConfigValue("Options",
-                    "cxx")&" && export CCACHE_DIR=/opt/kpkg/cache &&"
+                    "cxx")&" && export CCACHE_DIR=/opt/kpkg/cache && export SRCDIR="&srcdir&" &&"
     var cmd3Str: string
 
     if existsPackageInstall == 0:
