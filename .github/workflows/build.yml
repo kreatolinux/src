@@ -40,7 +40,7 @@ jobs:
           wget https://github.com/cli/cli/releases/download/v${GH_VERSION}/gh_${GH_VERSION}_linux_amd64.tar.gz
           tar -xvf gh_${GH_VERSION}_linux_amd64.tar.gz
           mv gh_${GH_VERSION}_linux_amd64/bin/gh /bin/gh
-          gh cache delete binary-cache
+          gh cache delete binary-cache || true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_VERSION: "2.35.0"
