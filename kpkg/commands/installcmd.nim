@@ -107,11 +107,11 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
             ". "&repo&"/"&package&"/run"&" && command -v postinstall").exitCode
 
     if existsPkgPostinstall == 0:
-        if execShellCmd(". "&repo&"/"&package&"/run"&" && postinstall_"&replace(
+        if execCmdKpkg(". "&repo&"/"&package&"/run"&" && postinstall_"&replace(
                 package, '-', '_')) != 0:
             err("postinstall failed")
     elif existsPostinstall == 0:
-        if execShellCmd(". "&repo&"/"&package&"/run"&" && postinstall") != 0:
+        if execCmdKpkg(". "&repo&"/"&package&"/run"&" && postinstall") != 0:
             err("postinstall failed")
 
     for i in pkg.optdeps:

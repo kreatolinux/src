@@ -29,9 +29,9 @@ proc fakerootWrap(srcdir: string, path: string, root: string, input: string,
         return 0
 
     if not isEmptyOrWhitespace(autocd):
-        return execShellCmd("fakeroot -- /bin/sh -c '. "&path&"/run && export DESTDIR="&root&" && export ROOT=$DESTDIR && cd "&autocd&" && "&input&"'")
+        return execCmdKpkg("fakeroot -- /bin/sh -c '. "&path&"/run && export DESTDIR="&root&" && export ROOT=$DESTDIR && cd "&autocd&" && "&input&"'")
 
-    return execShellCmd("fakeroot -- /bin/sh -c '. "&path&"/run && export DESTDIR="&root&" && export ROOT=$DESTDIR && cd '"&srcdir&"' && "&input&"'")
+    return execCmdKpkg("fakeroot -- /bin/sh -c '. "&path&"/run && export DESTDIR="&root&" && export ROOT=$DESTDIR && cd '"&srcdir&"' && "&input&"'")
 
 proc builder*(package: string, destdir: string,
     root = "/opt/kpkg/build", srcdir = "/opt/kpkg/srcdir", offline = false,
@@ -132,7 +132,7 @@ proc builder*(package: string, destdir: string,
         try:
             if i.startsWith("git::"):
                 usesGit = true
-                if execShellCmd(sboxWrap("git clone "&i.split("::")[
+                if execCmdKpkg(sboxWrap("git clone "&i.split("::")[
                         1]&" && cd "&lastPathPart(i.split("::")[
                         1])&" && git branch -C "&i.split("::")[2])) != 0:
                     err("Cloning repository failed!")
@@ -193,7 +193,7 @@ proc builder*(package: string, destdir: string,
                 debug $folder
                 raise getCurrentException()
     elif existsPrepare == 0:
-        if execShellCmd("su -s /bin/sh _kpkg -c '. "&path&"/run"&" && prepare'") != 0:
+        if execCmdKpkg("su -s /bin/sh _kpkg -c '. "&path&"/run"&" && prepare'") != 0:
             err("prepare failed", true)
 
     var cmd: int
@@ -224,18 +224,18 @@ proc builder*(package: string, destdir: string,
     
     if pkg.sources.split(" ").len == 1:
         if existsPrepare == 0:
-            cmd = execShellCmd(sboxWrap(cmdStr))
+            cmd = execCmdKpkg(sboxWrap(cmdStr))
             cmd2 = fakerootWrap(srcdir, path, root, "check", tests = tests,
                     isTest = true, existsTest = existsTest)
             cmd3 = fakerootWrap(srcdir, path, root, cmd3Str)
         else:
-            cmd = execShellCmd(sboxWrap("cd "&folder[0]&" && "&cmdStr))
+            cmd = execCmdKpkg(sboxWrap("cd "&folder[0]&" && "&cmdStr))
             cmd2 = fakerootWrap(srcdir, path, root, "check", folder[0],
                     tests = tests, isTest = true, existsTest = existsTest)
             cmd3 = fakerootWrap(srcdir, path, root, cmd3Str, folder[0])
 
     else:
-        cmd = execShellCmd(sboxWrap(cmdStr))
+        cmd = execCmdKpkg(sboxWrap(cmdStr))
         cmd2 = fakerootWrap(srcdir, path, root, "check", tests = tests,
                 isTest = true, existsTest = existsTest)
         cmd3 = fakerootWrap(srcdir, path, root, cmd3Str)

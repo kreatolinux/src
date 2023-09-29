@@ -1,7 +1,17 @@
 import os
 import logger
+import streams
 
-proc isRunningFromName*(name: string): bool =
+proc execCmdKpkg*(command: string): int =
+  # Like execCmdEx, but with outputs.
+  let process = startProcess(command, options = {poEvalCommand, poStdErrToStdOut})
+  let outp = outputStream(process)
+  var line: string
+
+  while outp.readLine(line):
+    echo line
+
+proc isRunningFromName(name: string): bool =
   # Allows you to check if it is running from name.
   # Ignores the current process.
   setCurrentDir("/proc")
