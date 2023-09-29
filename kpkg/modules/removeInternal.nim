@@ -44,7 +44,7 @@ proc removeInternal*(package: string, root = "",
   let init = getInit(root)
 
   if dirExists(installedDir&"/"&package&"-"&init):
-    removeInternal(package&"-"&init, root, installedDir, ignoreReplaces, force, depCheck, noRunfile, fullPkgList, removeConfigs)
+    removeInternal(package&"-"&init, root, installedDir, ignoreReplaces, force, depCheck, noRunfile, fullPkgList, removeConfigs, runPostRemove)
 
   var actualPackage: string
 
