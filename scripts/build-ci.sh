@@ -21,7 +21,8 @@ case $1 in
     		wget https://github.com/kreatolinux/src/releases/download/v6.2.1/src-v6.2.1-dist.tar.gz 
       		tar -xvf src-v6.2.1-dist.tar.gz
 		cd src-6.2.1 || exit 1
-		./build.sh -i -a "-d:usDist" -p kpkg
+		nimble install cligen fuzzy libsha -y
+		./build.sh -a "-d:usDist" -p kpkg
 		./out/kpkg update
   		./out/kpkg install xz-utils -y || exit 1
     		./out/kpkg build llvm -y
