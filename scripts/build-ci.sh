@@ -22,7 +22,7 @@ case $1 in
       		tar -xvf src-v6.2.1-dist.tar.gz
 		cd src-6.2.1 || exit 1
 		nimble install cligen fuzzy libsha -y
-		./build.sh -a "-d:usDist" -p kpkg
+		./build.sh -a "-d:useDist" -p kpkg
 		./out/kpkg update
   		./out/kpkg install xz-utils -y || exit 1
     		./out/kpkg build llvm -y
