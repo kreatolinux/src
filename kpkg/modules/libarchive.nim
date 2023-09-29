@@ -161,6 +161,7 @@ proc createArchive*(fileName: string, path = getCurrentDir()) =
         while length > 0:
           discard archiveWriteData(archive, buffer, length)
           length = culong(readBuffer(file, buffer, sizeof(buffer)))
+        close(file)
       archiveEntryFree(entry)
     discard archiveReadClose(disk)
     discard archiveReadFree(disk)
