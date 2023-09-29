@@ -4,30 +4,36 @@ import terminal, math, strutils, os, logger
 proc onProgressChanged(total, progress, speed: BiggestInt) =
   stdout.eraseLine
   var p = "Downloaded "&formatSize(progress)
+  
   if formatSize(total) != "0B":
     p = p&" of "&formatSize(total)
 
   p = p&" at "&formatSize(speed)&"/s"
 
   if $round(int(progress) / int(total)*100) != "inf":
-    p = p&" "&formatBiggestFloat(round(int(progress) / int(total)*100),
-        precision = -1)&"% complete"
+    let percent = parseInt(formatBiggestFloat(round(int(progress) / int(total)*100), precision = -1)) 
+    let perc = int(percent / 2)
 
-  stdout.write(p)
-  stdout.flushFile
+    stdout.styledWriteLine(formatSize(total), "    ", fgWhite, "[", '-'.repeat (if perc >= 1: perc - 1 else: perc), ">", " ".repeat 50 - perc, "]", if percent > 50: fgGreen else: fgYellow, "    ", $percent , "% at ", formatSize(speed)&"/s")
+    if percent != 100:
+      cursorUp 1
+    eraseLine()
+  else:
+    stdout.write(p)
+    stdout.flushFile
 
 proc download*(url: string, file: string, instantErrorIfFail = false,
     raiseWhenFail = false) =
   try:
     var client = newHttpClient()
-    client.onProgressChanged = onProgressChanged
+    client.onProgressChanged = onProgressChanged 
     client.downloadFile(url, file&".partial")
     moveFile(file&".partial", file)
     echo ""
   except Exception:
     if instantErrorIfFail:
-      if raiseWhenFail:
-        raise newException(OSError, "download failed")
+      if raiseWhenFail or not defined(release):
+        raise getCurrentException()
       else:
         err "download failed"
     warn "download failed, retrying"
