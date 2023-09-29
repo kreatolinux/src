@@ -38,7 +38,7 @@ proc remove*(packages: seq[string], yes = false, root = "",
     if output.toLower() == "y":
         createLockfile()
         for i in packagesFinal:
-            removeInternal(i, root, force = force, depCheck = true, fullPkgList = packages, removeConfigs = configRemove)
+            removeInternal(i, root, force = force, depCheck = true, fullPkgList = packages, removeConfigs = configRemove, runPostRemove = true)
             success("package "&i&" removed")
         removeLockfile()
         success("done", true)

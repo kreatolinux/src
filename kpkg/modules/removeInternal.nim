@@ -39,7 +39,7 @@ proc bloatDepends*(package: string, installedDir: string, root: string): seq[str
 proc removeInternal*(package: string, root = "",
         installedDir = root&"/var/cache/kpkg/installed",
         ignoreReplaces = false, force = true, depCheck = false,
-            noRunfile = false, fullPkgList = @[""], removeConfigs = false) =
+            noRunfile = false, fullPkgList = @[""], removeConfigs = false, runPostRemove = false) =
   
   let init = getInit(root)
 
@@ -93,8 +93,9 @@ proc removeInternal*(package: string, root = "",
       if symlinkExists(installedDir&"/"&i):
         removeFile(installedDir&"/"&i)
 
-  if execCmdEx(". "&installedDir&"/"&actualPackage&"/run && command -v postremove > /dev/null").exitCode == 0:
-    if execCmdEx(". "&installedDir&"/"&actualPackage&"/run && postremove").exitCode != 0:
-      err "postremove failed"
+  if runPostRemove:
+    if execCmdEx(". "&installedDir&"/"&actualPackage&"/run && command -v postremove > /dev/null").exitCode == 0:
+      if execCmdEx(". "&installedDir&"/"&actualPackage&"/run && postremove").exitCode != 0:
+        err "postremove failed"
 
   removeDir(installedDir&"/"&package)
