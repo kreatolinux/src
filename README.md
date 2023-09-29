@@ -45,6 +45,9 @@ klinstaller is Kreato Linux's official installer. Unlike other utilities, it is 
 ## kreaiso
 kreaiso is Kreato Linux's ISO image builder. It currently only supports rootfs' that use systemd. More support is coming soon. Build it by running `make kreaiso`. The binary will be located on `kreaiso/kreaiso`.
 
+# Contributing
+Please look at [the styling guide](https://linux.kreato.dev/docs/handbook/contributing/styling/) before contributing.
+
 # License
 Licensed under GPLv3. Check LICENSE file for details
 
