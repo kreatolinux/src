@@ -11,6 +11,7 @@ when not defined(useDist):
     "archive.h"
     "archive_entry.h"
     "unistd.h"
+    "locale.h"
 else:
   include "generated.nim"
 
@@ -41,6 +42,9 @@ proc copyData(ar: ptr structarchive, aw: ptr structarchive): int =
       debugWarn("archive_write_data_block()", $archive_error_string(aw))
       return r
 
+if setlocale(LC_ALL, "") == nil:
+  raise newException(OSError, "setlocale failed")
+
 proc extract*(fileName: string, path = getCurrentDir(), ignoreFiles = @[""]): seq[string] =
   # Extracts a file to a directory.
   # Based on untar.c in libarchive/examples
@@ -67,15 +71,18 @@ proc extract*(fileName: string, path = getCurrentDir(), ignoreFiles = @[""]): se
   discard archiveReadSupportFilterAll(a)
   discard archiveWriteDiskSetStandardLookup(ext)
   r = archiveReadOpenFilename(a, filename, 10240)
-
+  
   # I am using chdir as compilation with setCurrentDir() fail for some reason.
   discard chdir(path)
 
   while true:
     r = archiveReadNextHeader(a, addr(entry))
+
     if r == ARCHIVE_EOF:
       break
+    
     if r != ARCHIVE_OK:
+      # the error comes from here
       raise newException(LibarchiveError, $archiveErrorString(a))
     
     if not ($archiveEntryPathname(entry) in resultStr):
