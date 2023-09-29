@@ -18,45 +18,10 @@ case $1 in
                 #rm -f /var/cache/kpkg/archives/*kpkg*
 	
   		# Temporary
-    		wget https://github.com/kreatolinux/src/archive/refs/tags/v6.0.1.tar.gz
-      		tar -xvf v6.0.1.tar.gz
-		cd src-6.0.1 || exit 1
-  		sed -i 's#raise#raise getCurrentException()#g' kpkg/commands/buildcmd.nim || exit 1
-  		sed -i s/release/debug/g Makefile
-    		cat << EOF > test.patch
-      diff --git a/kpkg/commands/installcmd.nim b/kpkg/commands/installcmd.nim
-index e117119..eb6e6cb 100644
---- a/kpkg/commands/installcmd.nim.orig
-+++ b/kpkg/commands/installcmd.nim
-@@ -77,13 +77,6 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
- 
-     setCurrentDir("/var/cache/kpkg/archives")
- 
--    discard existsOrCreateDir(root&"/var/cache")
--    discard existsOrCreateDir(root&"/var/cache/kpkg")
--    discard existsOrCreateDir(root&"/var/cache/kpkg/installed")
--    removeDir(root&"/var/cache/kpkg/installed/"&package)
--    copyDir(repo&"/"&package, root&"/var/cache/kpkg/installed/"&package)
--
--
-     for i in pkg.replaces:
-         if symlinkExists(root&"/var/cache/kpkg/installed/"&i):
-             removeFile(root&"/var/cache/kpkg/installed/"&i)
-@@ -91,6 +84,11 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
-             removeInternal(i, root)
-         createSymlink(package, root&"/var/cache/kpkg/installed/"&i)
- 
-+    discard existsOrCreateDir(root&"/var/cache")
-+    discard existsOrCreateDir(root&"/var/cache/kpkg")
-+    discard existsOrCreateDir(root&"/var/cache/kpkg/installed")
-+    removeDir(root&"/var/cache/kpkg/installed/"&package)
-+    copyDir(repo&"/"&package, root&"/var/cache/kpkg/installed/"&package)
- 
-     if not isGroup:
-         debug "Executing 'tar -hxvf "&tarball&" -C "&root&"'"
-EOF
-		git apply test.patch || exit 1
-    		make deps kpkg
+    		wget https://github.com/kreatolinux/src/releases/download/v6.2.1/src-v6.2.1-dist.tar.gz 
+      		tar -xvf src-v6.2.1-dist.tar.gz
+		cd src-6.2.1 || exit 1
+		./build.sh -a "-d:usDist" -p kpkg
 		./out/kpkg update
   		./out/kpkg install xz-utils -y || exit 1
     		./out/kpkg build llvm -y
