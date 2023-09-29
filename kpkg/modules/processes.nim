@@ -12,6 +12,8 @@ proc execCmdKpkg*(command: string): int =
   while outp.readLine(line):
     echo line
 
+  return waitForExit(process)
+
 proc isRunningFromName(name: string): bool =
   # Allows you to check if it is running from name.
   # Ignores the current process.
