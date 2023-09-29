@@ -1,5 +1,6 @@
 import os
 import logger
+import osproc
 import streams
 
 proc execCmdKpkg*(command: string): int =
