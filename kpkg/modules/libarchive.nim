@@ -82,7 +82,6 @@ proc extract*(fileName: string, path = getCurrentDir(), ignoreFiles = @[""]): se
       break
     
     if r != ARCHIVE_OK:
-      # the error comes from here
       raise newException(LibarchiveError, $archiveErrorString(a))
     
     if not ($archiveEntryPathname(entry) in resultStr):
