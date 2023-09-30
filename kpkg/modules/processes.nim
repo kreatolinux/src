@@ -14,18 +14,22 @@ proc execCmdKpkg*(command: string): int =
 
   return waitForExit(process)
 
+proc getPidKpkg(): string =
+  # Gets current pid from /proc/self.
+  return lastPathPart(expandSymlink("/proc/self"))
+
 proc isRunningFromName(name: string): bool =
   # Allows you to check if it is running from name.
   # Ignores the current process.
   setCurrentDir("/proc")
   for i in walkDir("."):
     try:
-      if readFile(i.path&"/comm") == name&"\n" and lastPathPart(i.path) != $getCurrentProcessId():
+      if readFile(i.path&"/comm") == name&"\n" and lastPathPart(i.path) != getPidKpkg():
         
         debug "proc path: "&lastPathPart(i.path)
-        debug $getCurrentProcessId()
+        debug getPidKpkg()
         if symlinkExists(i.path):
-          if lastPathPart(expandSymlink(i.path)) == $getCurrentProcessId():
+          if lastPathPart(expandSymlink(i.path)) == getPidKpkg():
             continue
         debug "returning true"
         return true
