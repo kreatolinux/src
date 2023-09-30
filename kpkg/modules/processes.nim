@@ -25,7 +25,8 @@ proc isRunningFromName(name: string): bool =
         debug "proc path: "&lastPathPart(i.path)
         debug $getCurrentProcessId()
         if symlinkExists(i.path):
-          if lastPathPart(expandSymlink(i.path)) == $getCurrentProcessId():
+          # Self check is for chroot, as the other check fails on chroot
+          if lastPathPart(i.path) == "self" or lastPathPart(expandSymlink(i.path)) == $getCurrentProcessId():
             continue
         debug "returning true"
         return true
