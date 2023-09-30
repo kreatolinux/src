@@ -120,7 +120,7 @@ proc builder*(package: string, destdir: string,
 
     var int = 0
     var usesGit: bool
-    var folder: seq[string]
+    var folder: string
 
     for i in pkg.sources.split(" "):
         if i == "":
@@ -137,7 +137,7 @@ proc builder*(package: string, destdir: string,
                         1])&" && git branch -C "&i.split("::")[2])) != 0:
                     err("Cloning repository failed!")
 
-                folder = @[lastPathPart(i.split("::")[1])]
+                folder = lastPathPart(i.split("::")[1])
             else:
                 if fileExists(path&"/"&i):
                     copyFile(path&"/"&i, extractFilename(i))
@@ -173,20 +173,19 @@ proc builder*(package: string, destdir: string,
     discard posix.chown(cstring(homeDir), 999, 999)
 
     if existsPrepare != 0 and not usesGit:
-        folder = extract(filename)
         for i in toSeq(walkDir(".")):
           if dirExists(i.path):
-            folder[0] = absolutePath(i.path)
+            folder = absolutePath(i.path)
             break
 
-        setFilePermissions(folder[0], {fpUserExec, fpUserWrite, fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
-        discard posix.chown(cstring(folder[0]), 999, 999)
-        for i in toSeq(walkDirRec(folder[0], {pcFile, pcLinkToFile, pcDir, pcLinkToDir})):
+        setFilePermissions(folder, {fpUserExec, fpUserWrite, fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
+        discard posix.chown(cstring(folder), 999, 999)
+        for i in toSeq(walkDirRec(folder, {pcFile, pcLinkToFile, pcDir, pcLinkToDir})):
           discard posix.chown(cstring(i), 999, 999)
 
         if pkg.sources.split(" ").len == 1:
             try:
-                setCurrentDir(folder[0])
+                setCurrentDir(folder)
             except Exception:
                 when defined(release):
                     err("Unknown error occured while trying to enter the source directory")
@@ -230,10 +229,10 @@ proc builder*(package: string, destdir: string,
                     isTest = true, existsTest = existsTest)
             cmd3 = fakerootWrap(srcdir, path, root, cmd3Str)
         else:
-            cmd = execCmdKpkg(sboxWrap("cd "&folder[0]&" && "&cmdStr))
-            cmd2 = fakerootWrap(srcdir, path, root, "check", folder[0],
+            cmd = execCmdKpkg(sboxWrap("cd "&folder&" && "&cmdStr))
+            cmd2 = fakerootWrap(srcdir, path, root, "check", folder,
                     tests = tests, isTest = true, existsTest = existsTest)
-            cmd3 = fakerootWrap(srcdir, path, root, cmd3Str, folder[0])
+            cmd3 = fakerootWrap(srcdir, path, root, cmd3Str, folder)
 
     else:
         cmd = execCmdKpkg(sboxWrap(cmdStr))
