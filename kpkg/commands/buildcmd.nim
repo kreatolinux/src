@@ -173,6 +173,7 @@ proc builder*(package: string, destdir: string,
     discard posix.chown(cstring(homeDir), 999, 999)
 
     if existsPrepare != 0 and not usesGit:
+        discard extract(filename)
         for i in toSeq(walkDir(".")):
           if dirExists(i.path):
             folder = absolutePath(i.path)
