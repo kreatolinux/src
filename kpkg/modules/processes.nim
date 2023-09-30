@@ -22,14 +22,17 @@ proc isRunningFromName(name: string): bool =
     try:
       if readFile(i.path&"/comm") == name&"\n" and lastPathPart(i.path) != $getCurrentProcessId():
         
+        debug "proc path: "&lastPathPart(i.path)
+        debug $getCurrentProcessId()
         if symlinkExists(i.path):
           if lastPathPart(expandSymlink(i.path)) == $getCurrentProcessId():
             continue
-        
+        debug "returning true"
         return true
     except Exception:
       continue
   
+  debug "returning false"
   return false
 
 proc isKpkgRunning*() =
