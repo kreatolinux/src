@@ -6,30 +6,46 @@ case $1 in
                         ln -s "$GITHUB_WORKSPACE" /work
                         git config --global --add safe.directory $GITHUB_WORKSPACE
                 fi
-                
-		mkdir /out
+                mkdir /out
                 ln -s /out /work/out
                 cd /work || exit 1
-  		kpkg # Initializes configs
-		sed -i s/stable/master/g /etc/kpkg/kpkg.conf # Switch to master repos
+                #echo "https://dl-cdn.alpinelinux.org/alpine/v$(cut -d'.' -f1,2 /etc/alpine-release)/main/" > /etc/apk/repositories
+                #echo "https://dl-cdn.alpinelinux.org/alpine/v$(cut -d'.' -f1,2 /etc/alpine-release)/community/" >> /etc/apk/repositories
+                #echo "https://dl-cdn.alpinelinux.org/alpine/edge/testing/" >> /etc/apk/repositories
+                #apk update
+                #apk add build-base llvm-libunwind-dev compiler-rt libc++-dev alpine-sdk nimble shadow libarchive-tools perl zlib-dev llvm clang linux-headers openssl-dev binutils-dev gettext-dev xz libgcc gcc
+                #make kpkg 
+                #rm -f /var/cache/kpkg/archives/*kpkg*
+		
+  		# TEMPORARY
+  		kpkg
+		sed -i s/stable/master/g /etc/kpkg/kpkg.conf	
 		kpkg update
-    		kpkg build llvm -y # Required by futhark
+		kpkg install xz-utils -y || exit 1
+  		
 
-  		# Create (and set) locales so libarchive is happy
-  		LOCALE=en_US
+    		wget https://github.com/kreatolinux/src/releases/download/v6.2.1/src-v6.2.1-dist.tar.gz 
+      		tar -xvf src-v6.2.1-dist.tar.gz
+		cd src-6.2.1 || exit 1
+		nimble install cligen fuzzy libsha -y
+		./build.sh -a "-d:useDist" -p kpkg
+		./out/kpkg update
+  		./out/kpkg install gcc -y -d # should save us some time
+    		./out/kpkg build llvm -y
+  		cd ..
+		# TEMPORARY END
+
+		LOCALE=en_US
 		mkdir -p /usr/lib/locale
 		localedef -i $LOCALE -c -f UTF-8 $LOCALE
 		export LANG=$LOCALE.UTF-8
-      		
-		export PATH=$PATH:$HOME/.nimble/bin # Add nimble path so opir can run
-    		
+      		export PATH=$PATH:$HOME/.nimble/bin
+    		make deps
                 rm -vf /etc/kpkg/kpkg.conf
                 rm -rf /tmp/kpkg
-
-  		./build.sh -i
-		nim c -d:branch=master --passL:-larchive --passC:-no-pie --threads:on -d:ssl -o=kreastrap/kreastrap kreastrap/kreastrap.nim
-                
-		cat /etc/group | grep tty || addgroup tty
+                nim c -d:branch=master --passL:-larchive --passC:-no-pie --threads:on -d:ssl -o=kreastrap/kreastrap kreastrap/kreastrap.nim
+                cat /etc/group | grep tty || addgroup tty
+		#make kreastrap
         ;;
 
         "build")
