@@ -12,7 +12,11 @@ err() {
 }
 
 buildNimMain() {
-	nim c -d:$buildType $args --passL:-larchive -d:branch=$branch --threads:on -d:ssl -o="$prefix/$1" "$srcdir/$1/$1.nim" || err "building $1 failed"
+	if [ "$1" = "chkupd" ];
+		nim c -d:$buildType $args -d:branch=$branch --threads:on -d:ssl -o="$prefix/$1" "$srcdir/$1/$1.nim" || err "building $1 failed"
+	else
+ 		nim c -d:$buildType $args --passL:-larchive -d:branch=$branch --threads:on -d:ssl -o="$prefix/$1" "$srcdir/$1/$1.nim" || err "building $1 failed"
+   	fi
 }
 
 buildNimOther() {
