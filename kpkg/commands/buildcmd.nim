@@ -174,10 +174,7 @@ proc builder*(package: string, destdir: string,
 
     if existsPrepare != 0 and not usesGit:
         folder = extract(filename)
-        if fileExists(absolutePath(folder[0])):
-          folder[0] = parentDir(absolutePath(folder[0]))
-        else:
-          folder[0] = absolutePath(folder[0])
+        folder[0] = absolutePath(toSeq(walkDir("."))[0].path)
         setFilePermissions(folder[0], {fpUserExec, fpUserWrite, fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
         discard posix.chown(cstring(folder[0]), 999, 999)
         for i in toSeq(walkDirRec(folder[0], {pcFile, pcLinkToFile, pcDir, pcLinkToDir})):
