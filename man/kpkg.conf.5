@@ -19,6 +19,7 @@ The default configuration file currently looks like this;
 [Options]
 cc=gcc
 cxx=g++
+ccache=false
 
 [Repositories]
 repoDirs=/etc/kpkg/repos/main /etc/kpkg/repos/lockin
@@ -39,6 +40,10 @@ Defaults to gcc.
 .IP \[bu] 2
 cxx: Set the CXX environment variable when the package is building.
 Defaults to g++.
+.IP \[bu] 2
+ccache: Boolean to enable ccache.
+Defaults to \f[C]false\f[R].
+Will only have an effect if ccache is installed.
 .SS REPOSITORIES
 .IP \[bu] 2
 repoDirs: Repository directories.
@@ -63,10 +68,15 @@ Repositories also support branches/commits like this;
 kpkg now supports parallelization, allowing for much faster binary
 package installations.
 This feature is only on the \f[C]install\f[R] command for now.
-* threadsUsed: You can set threads used to download packages.
+.PP
+Please keep in mind that parallelization is in an alpha state and is not
+stable.
+It may hang at times.
+.IP \[bu] 2
+threadsUsed: You can set threads used to download packages.
 Set to 1 to disable parallelization.
 Number must be higher than 1.
-Defaults to 4.
+Defaults to 1.
 .SS UPGRADE
 .IP \[bu] 2
 buildByDefault: Enable building by default on upgrades or not.
