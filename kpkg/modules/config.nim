@@ -23,6 +23,7 @@ proc initializeConfig*(): Config =
   # [Options]
   config.setSectionKey("Options", "cc", "gcc") # GCC works the best right now
   config.setSectionKey("Options", "cxx", "g++") # GCC works the best right now
+  config.setSectionKey("Options", "ccache", "false")
   
   # [Repositories]
   config.setSectionKey("Repositories", "repoDirs",

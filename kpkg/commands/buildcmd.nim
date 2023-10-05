@@ -203,10 +203,24 @@ proc builder*(package: string, destdir: string,
 
     # Run ldconfig beforehand for any errors
     discard execProcess("ldconfig")
+    
+    # create cache directory if it doesn't exist
+    var ccacheCmds: string
+    var cc = getConfigValue("Options", "cc")
+    var cxx = getConfigValue("Options", "cxx")
 
-    var cmdStr = ". "&path&"/run"&" && export CC="&getConfigValue("Options",
-            "cc")&" && export CXX="&getConfigValue("Options",
-                    "cxx")&" && export CCACHE_DIR=/opt/kpkg/cache && export SRCDIR="&srcdir&" &&"
+    if parseBool(getConfigValue("Options", "ccache")) and dirExists("/var/cache/kpkg/installed/ccache"):
+      
+      if not dirExists("/var/cache/kpkg/ccache"):
+        createDir("/var/cache/kpkg/ccache")
+      
+      setFilePermissions("/var/cache/kpkg/ccache", {fpUserExec, fpUserWrite, fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
+      discard posix.chown(cstring("/var/cache/kpkg/ccache"), 999, 999)
+      ccacheCmds = "export CCACHE_DIR=/var/cache/kpkg/ccache && export PATH=\"/usr/lib/ccache:$PATH\" &&"
+      cc = "ccache "&cc
+      cxx = "ccache "&cxx
+    
+    var cmdStr = ". "&path&"/run"&" && export CC=\""&cc&"\" && export CXX=\""&cxx&"\" && "&ccacheCmds&" export SRCDIR="&srcdir&" &&"
     var cmd3Str: string
 
     if existsPackageInstall == 0:

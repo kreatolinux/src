@@ -9,10 +9,12 @@ kpkg.conf - Configuration file for kpkg
 # SYNTAX
 kpkg.conf uses a INI format.
 The default configuration file currently looks like this;
+
 ```ini
 [Options]
 cc=gcc
 cxx=g++
+ccache=false
 
 [Repositories]
 repoDirs=/etc/kpkg/repos/main /etc/kpkg/repos/lockin
@@ -29,6 +31,7 @@ buildByDefault=yes
 ## OPTIONS
 * cc: Set the CC environment variable when the package is building. Defaults to gcc.
 * cxx: Set the CXX environment variable when the package is building. Defaults to g++.
+* ccache: Boolean to enable ccache. Defaults to `false`. Will only have an effect if ccache is installed.
 
 ## REPOSITORIES
 * repoDirs: Repository directories. Must line up with repoLinks. Seperate by space.
@@ -41,7 +44,10 @@ Repositories also support branches/commits like this;
 
 ## PARALLELIZATION
 kpkg now supports parallelization, allowing for much faster binary package installations. This feature is only on the `install` command for now.
-* threadsUsed: You can set threads used to download packages. Set to 1 to disable parallelization. Number must be higher than 1. Defaults to 4.
+
+Please keep in mind that parallelization is in an alpha state and is not stable. It may hang at times.
+
+* threadsUsed: You can set threads used to download packages. Set to 1 to disable parallelization. Number must be higher than 1. Defaults to 1.
 
 ## UPGRADE
 * buildByDefault: Enable building by default on upgrades or not. Is enabled by default.
