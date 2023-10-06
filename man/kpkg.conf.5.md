@@ -52,7 +52,7 @@ Please keep in mind that parallelization is in an alpha state and is not stable.
 * threadsUsed: You can set threads used to download packages. Set to 1 to disable parallelization. Number must be higher than 1. Defaults to 1.
 
 ## UPGRADE
-* buildByDefault: Enable building by default on upgrades or not. Is enabled by default.
+* buildByDefault: Boolean to build on upgrades or not. Is enabled by default.
 * dontUpgrade: Optional. You can set packages that shouldn't be upgraded. Seperate by space.
 
 # AUTHOR
