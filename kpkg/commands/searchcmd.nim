@@ -24,7 +24,8 @@ proc printResult(repo: string, package: string): string =
 
     r = r&repo&"/"&package&"-"&pkgrunf.versionString
 
-    for i in 1 .. 40 - (package.len + 1 + pkgrunf.versionString.len):
+    
+    for i in 1 .. 40 - (package.len + 1 + repo.len + pkgrunf.versionString.len):
         r = r&" "
 
     if isEmptyOrWhitespace(pkgrunf.desc):
