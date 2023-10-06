@@ -291,6 +291,10 @@ proc kreastrap(buildType = "builder", arch = "amd64",
         # Installation of Libc
         case conf.getSectionValue("Core", "Libc").normalize():
             of "glibc":
+                
+                if conf.getSectionValue("Core", "Compiler").normalize() == "clang":
+                  warn "Combination of glibc with clang is currently not supported, please don't make an issue about it."
+
                 info_msg "Installing glibc as libc"
                 kreastrapInstall("glibc", installWithBinaries, buildDir, useCacheIfPossible)
             of "musl":
