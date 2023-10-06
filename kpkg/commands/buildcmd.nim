@@ -220,7 +220,7 @@ proc builder*(package: string, destdir: string,
       cc = "ccache "&cc
       cxx = "ccache "&cxx
     
-    var cmdStr = ". "&path&"/run"&" && export CC=\""&cc&"\" && export CXX=\""&cxx&"\" && "&ccacheCmds&" export SRCDIR="&srcdir&" &&"
+    var cmdStr = ". "&path&"/run"&" && export CC=\""&cc&"\" && export CXX=\""&cxx&"\" && "&ccacheCmds&" export SRCDIR="&srcdir&" && export PACKAGENAME=\""&package&"\" &&"
     
     if not isEmptyOrWhitespace(getConfigValue("Options", "cxxflags")):
       cmdStr = cmdStr&" export CXXFLAGS=\""&getConfigValue("Options", "cxxflags")&"\" &&"
