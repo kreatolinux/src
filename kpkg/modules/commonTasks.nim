@@ -24,8 +24,10 @@ proc appendInternal(f: string, t: string): string =
 proc printPackagesPrompt*(packages: string, yes: bool, no: bool) =
   ## Prints the packages summary prompt.
   var finalPkgs: string
+  var pkgLen: int
 
   for i in packages.split(" "):
+    inc(pkgLen)
     var upstreamRunf: runFile
     let pkgRepo = findPkgRepo(i)
     if fileExists("/var/cache/kpkg/installed/"&i&"/run") and pkgRepo != "":
@@ -35,8 +37,8 @@ proc printPackagesPrompt*(packages: string, yes: bool, no: bool) =
         continue
 
     finalPkgs = appendInternal(i, finalPkgs)
-      
-  echo "Packages: "&finalPkgs
+  
+  echo "Packages ("&($pkgLen)&"): "&finalPkgs
 
   var output: string
 
