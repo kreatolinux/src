@@ -367,6 +367,11 @@ proc kreastrap(buildType = "builder", arch = "amd64",
                 kreastrapInstall("jumpstart", installWithBinaries, buildDir, useCacheIfPossible)
                 removeFile(buildDir&"/sbin/init")
                 createSymlink("/bin/jumpstart", buildDir&"/sbin/init")
+            of "openrc":
+                info_msg "Installing OpenRC as the init system"
+                kreastrapInstall("openrc", installWithBinaries, buildDir, useCacheIfPossible)
+                removeFile(buildDir&"/sbin/init")
+                createSymlink("/usr/bin/openrc-init", buildDir&"/sbin/init")
             of "systemd":
                 info_msg "Installing systemd as the init system"
                 kreastrapInstall("systemd", installWithBinaries, buildDir, useCacheIfPossible)
