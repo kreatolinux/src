@@ -12,10 +12,31 @@ proc getInit*(root: string): string =
   except CatchableError:
     err("couldn't load "&root&"/etc/kreato-release")
 
+proc green*(s: string): string = "\e[32m" & s & "\e[0m" 
+
+proc appendInternal(f: string, t: string): string =
+  # convenience proc to append.
+  if isEmptyOrWhitespace(t):
+    return f
+  else:
+    return t&" "&f
+
 proc printPackagesPrompt*(packages: string, yes: bool, no: bool) =
   ## Prints the packages summary prompt.
+  var finalPkgs: string
 
-  echo "Packages: "&packages
+  for i in packages.split(" "):
+    var upstreamRunf: runFile
+    let pkgRepo = findPkgRepo(i)
+    if fileExists("/var/cache/kpkg/installed/"&i&"/run") and pkgRepo != "":
+      upstreamRunf = parseRunfile(pkgRepo&"/"&i)
+      if parseRunfile("/var/cache/kpkg/installed/"&i).versionString != upstreamRunf.versionString:
+        finalPkgs = appendInternal(i&" -> ".green&upstreamRunf.versionString, finalPkgs)
+        continue
+
+    finalPkgs = appendInternal(i, finalPkgs)
+      
+  echo "Packages: "&finalPkgs
 
   var output: string
 
