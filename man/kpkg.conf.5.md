@@ -32,6 +32,8 @@ buildByDefault=yes
 * cc: Set the CC environment variable when the package is building. Defaults to gcc.
 * cxx: Set the CXX environment variable when the package is building. Defaults to g++.
 * ccache: Boolean to enable ccache. Defaults to `false`. Will only have an effect if ccache is installed.
+* cxxflags: Sets the CXXFLAGS environment variable on build. Defaults to nothing.
+* cflags: Sets the CFLAGS environment variable on build. Defaults to nothing.
 
 ## REPOSITORIES
 * repoDirs: Repository directories. Must line up with repoLinks. Seperate by space.

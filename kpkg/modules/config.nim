@@ -51,13 +51,13 @@ proc initializeConfig*(): Config =
   return config
 
 
-proc getConfigValue*(section: string, key: string): string =
+proc getConfigValue*(section: string, key: string, defaultVal = ""): string =
   ## Reads the configuration file and returns value of section.
   if not fileExists(configPath):
     config = initializeConfig()
   else:
     config = loadConfig(configPath)
-  return config.getSectionValue(section, key)
+  return config.getSectionValue(section, key, defaultVal)
 
 proc setConfigValue*(section: string, key: string, value: string) =
   ## Writes a section to the configuration file.

@@ -206,8 +206,8 @@ proc builder*(package: string, destdir: string,
     
     # create cache directory if it doesn't exist
     var ccacheCmds: string
-    var cc = getConfigValue("Options", "cc")
-    var cxx = getConfigValue("Options", "cxx")
+    var cc = getConfigValue("Options", "cc", "cc")
+    var cxx = getConfigValue("Options", "cxx", "c++")
 
     if parseBool(getConfigValue("Options", "ccache")) and dirExists("/var/cache/kpkg/installed/ccache"):
       
@@ -221,6 +221,13 @@ proc builder*(package: string, destdir: string,
       cxx = "ccache "&cxx
     
     var cmdStr = ". "&path&"/run"&" && export CC=\""&cc&"\" && export CXX=\""&cxx&"\" && "&ccacheCmds&" export SRCDIR="&srcdir&" &&"
+    
+    if not isEmptyOrWhitespace(getConfigValue("Options", "cxxflags")):
+      cmdStr = cmdStr&" export CXXFLAGS=\""&getConfigValue("Options", "cxxflags")&"\" &&"
+
+    if not isEmptyOrWhitespace(getConfigValue("Options", "cflags")):
+      cmdStr = cmdStr&" export CFLAGS=\""&getConfigValue("Options", "cflags")&"\" &&"
+
     var cmd3Str: string
 
     if existsPackageInstall == 0:
