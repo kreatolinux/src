@@ -15,6 +15,7 @@ The default configuration file currently looks like this;
 cc=gcc
 cxx=g++
 ccache=false
+verticalSummary=false
 
 [Repositories]
 repoDirs=/etc/kpkg/repos/main /etc/kpkg/repos/lockin
@@ -34,6 +35,7 @@ buildByDefault=yes
 * ccache: Boolean to enable ccache. Defaults to `false`. Will only have an effect if ccache is installed.
 * cxxflags: Sets the CXXFLAGS environment variable on build. Defaults to nothing.
 * cflags: Sets the CFLAGS environment variable on build. Defaults to nothing.
+* verticalSummary: Boolean to enable vertical summaries. Defaults to `false`.
 
 ## REPOSITORIES
 * repoDirs: Repository directories. Must line up with repoLinks. Seperate by space.
