@@ -209,7 +209,7 @@ proc builder*(package: string, destdir: string,
     var cc = getConfigValue("Options", "cc", "cc")
     var cxx = getConfigValue("Options", "cxx", "c++")
 
-    if parseBool(getConfigValue("Options", "ccache")) and dirExists("/var/cache/kpkg/installed/ccache"):
+    if parseBool(getConfigValue("Options", "ccache", "false")) and dirExists("/var/cache/kpkg/installed/ccache"):
       
       if not dirExists("/var/cache/kpkg/ccache"):
         createDir("/var/cache/kpkg/ccache")

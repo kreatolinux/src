@@ -36,7 +36,7 @@ proc printPackagesPrompt*(packages: string, yes: bool, no: bool) =
   var finalPkgs: string
   var pkgLen: int
   
-  if parseBool(getConfigValue("Options", "verticalSummary")):
+  if parseBool(getConfigValue("Options", "verticalSummary", "false")):
     pkgLen = packages.split(" ").len
     echo "Packages ("&($pkgLen)&")                             New Version\n"
     for i in packages.split(" "):

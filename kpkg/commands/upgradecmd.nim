@@ -62,7 +62,7 @@ proc upgrade*(root = "/",
     if packages.len == 0 and isEmptyOrWhitespace(packages.join("")):
         success("done", true)
 
-    if parseBool(getConfigValue("Upgrade", "buildByDefault")):
+    if parseBool(getConfigValue("Upgrade", "buildByDefault", "false")):
         discard build(yes = yes, no = no, packages = packages, root = root)
     else:
         discard install(packages, root, yes = yes, no = no)
