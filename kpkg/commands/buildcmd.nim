@@ -173,7 +173,10 @@ proc builder*(package: string, destdir: string,
     discard posix.chown(cstring(homeDir), 999, 999)
 
     if existsPrepare != 0 and not usesGit:
-        discard extract(filename)
+        try:
+          discard extract(filename)
+        except Exception:
+          debug "extraction failed, continuing"
         for i in toSeq(walkDir(".")):
           if dirExists(i.path):
             folder = absolutePath(i.path)
@@ -217,8 +220,6 @@ proc builder*(package: string, destdir: string,
       setFilePermissions("/var/cache/kpkg/ccache", {fpUserExec, fpUserWrite, fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
       discard posix.chown(cstring("/var/cache/kpkg/ccache"), 999, 999)
       ccacheCmds = "export CCACHE_DIR=/var/cache/kpkg/ccache && export PATH=\"/usr/lib/ccache:$PATH\" &&"
-      cc = "ccache "&cc
-      cxx = "ccache "&cxx
     
     var cmdStr = ". "&path&"/run"&" && export CC=\""&cc&"\" && export CXX=\""&cxx&"\" && "&ccacheCmds&" export SRCDIR="&srcdir&" && export PACKAGENAME=\""&package&"\" &&"
     
@@ -316,11 +317,13 @@ proc build*(no = false, yes = false, root = "/",
 
     printReplacesPrompt(deps, root, true)
 
-    var p = packages
+    var p: seq[string]
 
     for i in packages:
-        if findPkgRepo(i&"-"&init) != "":
-            p = p&(i&"-"&init)
+       let currentPackage = lastPathPart(i)
+       p = p&currentPackage 
+       if findPkgRepo(currentPackage&"-"&init) != "":
+            p = p&(currentPackage&"-"&init)
 
     deps = deduplicate(deps&p)
 

@@ -210,7 +210,7 @@ proc install*(promptPackages: seq[string], root = "/", yes: bool = false,
     var deps: seq[string]
     let init = getInit(root)
 
-    var packages = promptPackages
+    var packages: seq[string]
 
     try:
         deps = dephandler(packages, root = root)
@@ -220,8 +220,10 @@ proc install*(promptPackages: seq[string], root = "/", yes: bool = false,
     let fullRootPath = expandFilename(root)
 
     for i in promptPackages:
-        if findPkgRepo(i&"-"&init) != "":
-            packages = packages&(i&"-"&init)
+        let currentPackage = lastPathPart(i)
+        packages = packages&currentPackage
+        if findPkgRepo(currentPackage&"-"&init) != "":
+            packages = packages&(currentPackage&"-"&init) 
 
     printReplacesPrompt(deps, root, true)
     printReplacesPrompt(packages, root)
