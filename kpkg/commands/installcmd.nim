@@ -214,11 +214,6 @@ proc install*(promptPackages: seq[string], root = "/", yes: bool = false,
 
     var packages: seq[string]
 
-    try:
-        deps = dephandler(packages, root = root)
-    except CatchableError:
-        err("Dependency detection failed", false)
-
     let fullRootPath = expandFilename(root)
 
     for i in promptPackages:
@@ -226,6 +221,11 @@ proc install*(promptPackages: seq[string], root = "/", yes: bool = false,
         packages = packages&currentPackage
         if findPkgRepo(currentPackage&"-"&init) != "":
             packages = packages&(currentPackage&"-"&init) 
+
+    try:
+        deps = dephandler(packages, root = root)
+    except CatchableError:
+        err("Dependency detection failed", false)
 
     printReplacesPrompt(deps, root, true)
     printReplacesPrompt(packages, root)
