@@ -39,6 +39,8 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
     except CatchableError:
         err("Unknown error while trying to parse package on repository, possibly broken repo?")
 
+    debug "installPkg ran, repo: '"&repo&"', package: '"&package&"', root: '"&root&"', manualInstallList: '"&manualInstallList.join(" ")&"'"
+
     let isGroup = pkg.isGroup
 
     for i in pkg.conflicts:
@@ -59,7 +61,7 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
             err("sha256sum doesn't match for "&package, false)
 
     setCurrentDir("/var/cache/kpkg/archives")
-
+    
     for i in pkg.replaces:
         if symlinkExists(root&"/var/cache/kpkg/installed/"&i):
             removeFile(root&"/var/cache/kpkg/installed/"&i)
@@ -98,7 +100,7 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
 
     if package in manualInstallList:
       info "Setting as manually installed"
-      writeFile("/var/cache/kpkg/installed/"&package&"/manualInstall", "")
+      writeFile(root&"/var/cache/kpkg/installed/"&package&"/manualInstall", "")
 
     var existsPkgPostinstall = execCmdEx(
             ". "&repo&"/"&package&"/run"&" && command -v postinstall_"&replace(
