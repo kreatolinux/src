@@ -19,7 +19,7 @@ case $1 in
 
 		# temp
   		kpkg build meson -y
-    		meson || exit 1
+    		meson
       		# end temp
   
   		# Create (and set) locales so libarchive is happy
