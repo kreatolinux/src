@@ -37,13 +37,7 @@ case $1 in
                 git config --global --add safe.directory /etc/kpkg/repos/main
                 rm -rf /out/*
                 cd /work || exit 1
-                ./kreastrap/kreastrap --buildType="$2" --arch=amd64
-		if [ "$?" != "0" ]; then
-  			cat /out/var/cache/kpkg/installed/libxcrypt/list_files
-     			ls -l /out/usr/lib/libcrypt.so.2
-			ls -l /out/usr/lib/libcrypt*
-			exit 1
-   		fi
+                ./kreastrap/kreastrap --buildType="$2" --arch=amd64 || exit 1
                 cd /out || exit 1
                 tar -czvf /work/kreato-linux-"$2"-glibc-"$(date +%d-%m-%Y)"-amd64.tar.gz *
         ;;
