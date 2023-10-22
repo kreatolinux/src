@@ -13,7 +13,7 @@ case $1 in
   		kpkg # Initializes configs
 		sed -i s/stable/master/g /etc/kpkg/kpkg.conf # Switch to master repos
 		kpkg update
-  		rm -f /var/cache/kpkg/archives/arch/amd64/*libxcrypt*
+  		rm -f /var/cache/kpkg/archives/arch/amd64/*meson*
     		kpkg build llvm -y # Required by futhark
 
   		# Create (and set) locales so libarchive is happy
