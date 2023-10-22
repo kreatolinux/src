@@ -17,6 +17,11 @@ case $1 in
     		kpkg build ninja -y
     		kpkg build llvm -y # Required by futhark
 
+		# temp
+  		kpkg build meson -y
+    		meson || exit 1
+      		# end temp
+  
   		# Create (and set) locales so libarchive is happy
   		LOCALE=en_US
 		mkdir -p /usr/lib/locale
