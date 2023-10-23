@@ -18,9 +18,9 @@ case $1 in
     		kpkg build llvm -y # Required by futhark
 
 		# temp
-  		kpkg build meson -y
-    		meson
-      		# end temp
+  		kpkg build python -y
+      		kpkg build meson -y
+		# end temp
   
   		# Create (and set) locales so libarchive is happy
   		LOCALE=en_US
