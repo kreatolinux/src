@@ -30,7 +30,7 @@ proc copyData(ar: ptr structarchive, aw: ptr structarchive): int =
   # Is a const in the original untar.c, but idk how to do immutable pointers, lmk if there is a way
   var buff: pointer 
   
-  var offset: clong
+  var offset: laint64t
   while true:
     r = archiveReadDataBlock(ar, addr(buff), addr(size), addr(offset))
     if r == ARCHIVE_EOF:
