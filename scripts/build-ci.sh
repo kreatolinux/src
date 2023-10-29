@@ -10,16 +10,16 @@ case $1 in
 		mkdir /out
                 ln -s /out /work/out
                 cd /work || exit 1
-  		kpkg # Initializes configs
-		sed -i s/stable/master/g /etc/kpkg/kpkg.conf # Switch to master repos
-		kpkg update
-  		rm -f /var/cache/kpkg/archives/arch/amd64/*meson*
-    		kpkg build python -y || exit 1
+  		#kpkg # Initializes configs
+		#sed -i s/stable/master/g /etc/kpkg/kpkg.conf # Switch to master repos
+		#kpkg update
+  		#rm -f /var/cache/kpkg/archives/arch/amd64/*meson*
+    		#kpkg build python -y || exit 1
       		kpkg build ninja -y
     		kpkg build llvm -y # Required by futhark
 
 		# temp
-      		kpkg build meson -yu || exit 1
+      		#kpkg build meson -yu || exit 1
 		# end temp
   
   		# Create (and set) locales so libarchive is happy
