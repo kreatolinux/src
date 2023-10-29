@@ -15,6 +15,7 @@ case $1 in
 		kpkg update
   		#rm -f /var/cache/kpkg/archives/arch/amd64/*meson*
     		kpkg build python -y || exit 1
+      		python -m ensurepip
       		kpkg build ninja -y
     		kpkg build llvm -y # Required by futhark
 
