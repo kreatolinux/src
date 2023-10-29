@@ -20,7 +20,7 @@ case $1 in
     		kpkg build llvm -y # Required by futhark
 
 		# temp
-      		#kpkg build meson -yu || exit 1
+      		kpkg build meson -yu || exit 1
 		# end temp
   
   		# Create (and set) locales so libarchive is happy
