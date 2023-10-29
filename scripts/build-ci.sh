@@ -14,7 +14,7 @@ case $1 in
 		sed -i s/stable/master/g /etc/kpkg/kpkg.conf # Switch to master repos
 		kpkg update
   		#rm -f /var/cache/kpkg/archives/arch/amd64/*meson*
-    		#kpkg build python -y || exit 1
+    		kpkg build python -y || exit 1
       		kpkg build ninja -y
     		kpkg build llvm -y # Required by futhark
 
