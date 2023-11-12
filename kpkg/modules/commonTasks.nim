@@ -37,36 +37,55 @@ proc printPackagesPrompt*(packages: string, yes: bool, no: bool) =
   var pkgLen: int
   
   if parseBool(getConfigValue("Options", "verticalSummary", "false")):
-    pkgLen = packages.split(" ").len
-    echo "Packages ("&($pkgLen)&")                             New Version\n"
-    for i in packages.split(" "):
-      let pkgRepo = findPkgRepo(i)
-      let upstreamRunf = parseRunfile(pkgRepo&"/"&i)
-      var r = lastPathPart(pkgRepo)&"/"&i 
-      if fileExists("/var/cache/kpkg/installed/"&i&"/run"):
-        let localRunf = parseRunfile("/var/cache/kpkg/installed/"&i)
-        if localRunf.versionString != upstreamRunf.versionString:
-          r = r&"-"&localRunf.versionString
-          r = appenderInternal(r, i, lastPathPart(pkgRepo), localRunf.versionString)
-          r = r&upstreamRunf.versionString
-        else:
-          r = r&"-"&localRunf.versionString
-          r = appenderInternal(r, i, lastPathPart(pkgRepo), localRunf.versionString)
-          r = r&"up-to-date"
-      else:
-          r = appenderInternal(r, i, "", lastPathPart(pkgRepo), 1)
-          r = r&upstreamRunf.versionString
+      pkgLen = packages.split(" ").len
+      echo "Packages ("&($pkgLen)&")                             New Version\n"
+      for i in packages.split(" "):
+        var pkgRepo: string
+        var pkg = i
+        let pkgSplit = i.split("/")
       
-      echo r
+        if pkgSplit.len > 1:
+          pkgRepo = "/etc/kpkg/repos/"&pkgSplit[0]
+          pkg = pkgSplit[1]
+        else:
+          pkgRepo = findPkgRepo(i)
+
+        let upstreamRunf = parseRunfile(pkgRepo&"/"&pkg)
+        var r = lastPathPart(pkgRepo)&"/"&pkg
+        if fileExists("/var/cache/kpkg/installed/"&pkg&"/run"):
+          let localRunf = parseRunfile("/var/cache/kpkg/installed/"&pkg)
+          if localRunf.versionString != upstreamRunf.versionString:
+            r = r&"-"&localRunf.versionString
+            r = appenderInternal(r, pkg, lastPathPart(pkgRepo), localRunf.versionString)
+            r = r&upstreamRunf.versionString
+          else:
+            r = r&"-"&localRunf.versionString
+            r = appenderInternal(r, pkg, lastPathPart(pkgRepo), localRunf.versionString)
+            r = r&"up-to-date"
+        else:
+            r = appenderInternal(r, pkg, "", lastPathPart(pkgRepo), 1)
+            r = r&upstreamRunf.versionString
+      
+        echo r
       
   else:
     for i in packages.split(" "):
       inc(pkgLen)
       var upstreamRunf: runFile
-      let pkgRepo = findPkgRepo(i)
-      if fileExists("/var/cache/kpkg/installed/"&i&"/run") and pkgRepo != "":
-        upstreamRunf = parseRunfile(pkgRepo&"/"&i)
-        if parseRunfile("/var/cache/kpkg/installed/"&i).versionString != upstreamRunf.versionString:
+      
+      var pkgRepo: string
+      var pkg = i
+      let pkgSplit = i.split("/")
+      
+      if pkgSplit.len > 1:
+        pkgRepo = "/etc/kpkg/repos/"&pkgSplit[0]
+        pkg = pkgSplit[1]
+      else:
+        pkgRepo = findPkgRepo(i)
+
+      if fileExists("/var/cache/kpkg/installed/"&pkg&"/run") and pkgRepo != "":
+        upstreamRunf = parseRunfile(pkgRepo&"/"&pkg)
+        if parseRunfile("/var/cache/kpkg/installed/"&pkg).versionString != upstreamRunf.versionString:
           finalPkgs = appendInternal(i&" -> ".green&upstreamRunf.versionString, finalPkgs)
           continue
 
@@ -98,7 +117,17 @@ proc ctrlc*() {.noconv.} =
 proc printReplacesPrompt*(pkgs: seq[string], root: string, isDeps = false) =
   ## Prints a replacesPrompt.
   for i in pkgs:
-    for p in parseRunfile(findPkgRepo(i)&"/"&i).replaces:
+    var pkg = i
+    let pkgSplit = i.split("/")
+    var pkgRepo: string
+
+    if pkgSplit.len > 1:
+      pkgRepo = "/etc/kpkg/repos/"&pkgSplit[0]
+      pkg = pkgSplit[1]
+    else:
+      pkgRepo = findPkgRepo(i)
+
+    for p in parseRunfile(pkgRepo&"/"&pkg).replaces:
       if isDeps and dirExists(root&"/var/cache/kpkg/installed/"&p):
         continue
       if dirExists(root&"/var/cache/kpkg/installed/"&p) and not symlinkExists(

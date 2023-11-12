@@ -73,21 +73,33 @@ proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false,
         isBuild = false, root: string, prevPkgName = "",
                 forceInstallAll = false, chkInstalledDirInstead = false): seq[string] =
     ## takes in a seq of packages and returns what to install.
+    
 
     var deps: seq[string]
     let init = getInit(root)
 
-    for pkg in pkgs:
-        var repo: string
+    for p in pkgs:
+        
+        var pkg = p
 
-        if not chkInstalledDirInstead:
-            repo = findPkgRepo(pkg)
+        let pkgSplit = p.split("/")
+        var repo: string
+        
+        if pkgSplit.len > 1:
+          repo = "/etc/kpkg/repos/"&pkgSplit[0]
+          pkg = pkgSplit[1]
+        elif not chkInstalledDirInstead:
+          repo = findPkgRepo(pkg)
         else:
-            repo = root&"/var/cache/kpkg/installed"
+          repo = root&"/var/cache/kpkg/installed"
 
         if repo == "":
-            err("Package "&pkg&" doesn't exist", false)
-
+            err("Package '"&pkg&"' doesn't exist", false)
+        elif not dirExists(repo):
+            err("The repository '"&repo&"' doesn't exist", false)
+        elif not fileExists(repo&"/"&pkg&"/run"):
+            err("The package '"&pkg&"' doesn't exist on the repository "&repo, false)
+        
         let pkgrf = parseRunfile(repo&"/"&pkg)
         var pkgdeps: seq[string]
 

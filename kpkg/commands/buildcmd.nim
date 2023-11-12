@@ -36,7 +36,7 @@ proc fakerootWrap(srcdir: string, path: string, root: string, input: string,
 proc builder*(package: string, destdir: string,
     root = "/opt/kpkg/build", srcdir = "/opt/kpkg/srcdir", offline = false,
             dontInstall = false, useCacheIfAvailable = false,
-                    tests = false, manualInstallList: seq[string]): bool =
+                    tests = false, manualInstallList: seq[string], customRepo = ""): bool =
     ## Builds the packages.
 
     if not isAdmin():
@@ -51,7 +51,12 @@ proc builder*(package: string, destdir: string,
 
     # Actual building start here
 
-    var repo = findPkgRepo(package)
+    var repo: string
+    
+    if not isEmptyOrWhitespace(customRepo):
+      repo = "/etc/kpkg/repos/"&customRepo
+    else:
+      repo = findPkgRepo(package)
 
     var path = repo&"/"&package
 
@@ -319,8 +324,7 @@ proc build*(no = false, yes = false, root = "/",
 
     var p: seq[string]
 
-    for i in packages:
-       let currentPackage = lastPathPart(i)
+    for currentPackage in packages:
        p = p&currentPackage 
        if findPkgRepo(currentPackage&"-"&init) != "":
             p = p&(currentPackage&"-"&init)
@@ -331,11 +335,34 @@ proc build*(no = false, yes = false, root = "/",
     printPackagesPrompt(deps.join(" "), yes, no)
 
     let fullRootPath = expandFilename(root)
+    
+    let pBackup = p
+
+    p = @[]
+
+    for i in pBackup:
+      let packageSplit = i.split("/")
+      if packageSplit.len > 1:
+        p = p&packageSplit[1]
+      else:
+        p = p&packageSplit[0]
 
     for i in deps:
         try:
-            discard builder(i, fullRootPath, offline = false,
-                    useCacheIfAvailable = useCacheIfAvailable, tests = tests, manualInstallList = packages)
+            
+            let packageSplit = i.split("/")
+            
+            var customRepo = "" 
+            var pkgName: string
+
+            if packageSplit.len > 1:
+              customRepo = packageSplit[0]
+              pkgName = packageSplit[1]
+            else:
+              pkgName = packageSplit[0]
+
+            discard builder(pkgName, fullRootPath, offline = false,
+                    useCacheIfAvailable = useCacheIfAvailable, tests = tests, manualInstallList = p, customRepo = customRepo)
             success("installed "&i&" successfully")
         except CatchableError:
             when defined(release):
