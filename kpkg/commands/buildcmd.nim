@@ -305,7 +305,7 @@ proc build*(no = false, yes = false, root = "/",
     packages: seq[string],
             useCacheIfAvailable = true, forceInstallAll = false,
                     dontInstall = false, tests = true): int =
-    ## Build and install packages
+    ## Build and install packages.
     let init = getInit(root)
     var deps: seq[string]
 

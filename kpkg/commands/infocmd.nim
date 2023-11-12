@@ -4,7 +4,7 @@ import ../modules/config
 import ../modules/runparser
 
 proc info*(package: seq[string], testing = false): string =
-    ## Get information about packages
+    ## Get information about packages.
 
     if package.len == 0:
         err("Please enter a package name", false)

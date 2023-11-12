@@ -11,7 +11,7 @@ import ../modules/processes
 proc upgrade*(root = "/",
         builddir = "/tmp/kpkg/build", srcdir = "/tmp/kpkg/srcdir", yes = false,
                 no = false) =
-    ## Upgrade packages
+    ## Upgrade packages.
     
     isKpkgRunning()
     checkLockfile()

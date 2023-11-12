@@ -7,7 +7,7 @@ import ../modules/config
 
 proc update*(repo = "",
     path = "", branch = "master"): int =
-    ## Update repositories
+    ## Update repositories.
 
     if not isAdmin():
         err("you have to be root for this action.", false)

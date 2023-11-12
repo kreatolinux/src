@@ -27,7 +27,7 @@ setControlCHook(ctrlc)
 
 proc installPkg*(repo: string, package: string, root: string, runf = runFile(
         isParsed: false), manualInstallList: seq[string]) =
-    ## Installs an package.
+    ## Installs a package.
 
     var pkg: runFile
     
@@ -202,7 +202,7 @@ proc install_bin(packages: seq[string], binrepos: seq[string], root: string,
 
 proc install*(promptPackages: seq[string], root = "/", yes: bool = false,
         no: bool = false, offline = false, downloadOnly = false): int =
-    ## Download and install a package through a binary repository
+    ## Download and install a package through a binary repository.
     if promptPackages.len == 0:
         err("please enter a package name", false)
 
