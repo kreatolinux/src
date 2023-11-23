@@ -19,7 +19,24 @@ proc verChecker*(ver1, ver2: string): bool =
 
     return false
 
-proc audit*(description = false, fetch = false, fetchBinary = false) = # TODO: binary = true on release
+proc vulnChecker(package, runfPath: string, dbConn: DbConn, description: bool) =
+    let runf = parseRunfile(runfPath, removeLockfileWhenErr = false)
+    var packageVulns = @[newVulnerability()]
+    dbConn.select(packageVulns, "vulnerability.package = ? LIMIT 10", lastPathPart(runfPath)) # TODO: get name from runFile AUDIT_NAME variable, etc.
+    for vuln in packageVulns:
+        for version in vuln.versionEndExcluding.split("::"):
+            if verChecker(runf.version, version) or runf.version >= version:
+                continue
+            elif version != "false":
+                info "vulnerability found in package '"&lastPathPart(runfPath)&"', "&vuln.cve 
+                    
+                if description:
+                    echo "\nDescription of '"&vuln.cve&"': \n\n"&vuln.description.strip()&"\n"
+ 
+                break
+
+
+proc audit*(package: seq[string], description = false, fetch = false, fetchBinary = false) = # TODO: binary = true on release
     ## Check vulnerabilities in installed packages.
     
     const dbPath = "/var/cache/kpkg/vulns.db"
@@ -55,18 +72,10 @@ proc audit*(description = false, fetch = false, fetchBinary = false) = # TODO: b
     if not fileExists("/var/cache/kpkg/vulns.db"):
         err("Vulnerability database doesn't exist. Please create one using `kpkg audit --fetch`.", false)
 
-    for i in walkDirs("/var/cache/kpkg/installed/*"):
-        let runf = parseRunfile(i, removeLockfileWhenErr = false)
-        var packageVulns = @[newVulnerability()]
-        dbConn.select(packageVulns, "vulnerability.package = ? LIMIT 10", lastPathPart(i)) # TODO: get name from runFile AUDIT_NAME variable, etc.
-        for vuln in packageVulns:
-            for version in vuln.versionEndExcluding.split("::"):
-                if verChecker(runf.version, version) or runf.version >= version:
-                    continue
-                elif version != "false":
-                    info "vulnerability found in package '"&lastPathPart(i)&"', "&vuln.cve 
-                    
-                    if description:
-                        echo "\nDescription of '"&vuln.cve&"': \n\n"&vuln.description.strip()&"\n"
- 
-                    break
+    if isEmptyOrWhitespace(package.join("")):
+        for i in walkDirs("/var/cache/kpkg/installed/*"):
+            vulnChecker(lastPathPart(i), i, dbConn, description)
+    else:
+        for i in package:
+            vulnChecker(i, "/var/cache/kpkg/installed/"&i, dbConn, description)
+            
