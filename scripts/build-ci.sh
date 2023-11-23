@@ -19,6 +19,9 @@ case $1 in
       		kpkg build ninja -y
     		kpkg build llvm -y # Required by futhark
 
+		# TEMPORARY
+    		kpkg build sqlite -y # Required by kpkg audit
+
 		# temp
       		kpkg build meson -yu || exit 1
 		# end temp

@@ -59,7 +59,7 @@ proc audit*(package: seq[string], description = false, fetch = false, fetchBinar
             removeFile("/var/cache/kpkg/vulns.json")
             setCurrentDir("/var/cache/kpkg")
 
-            # I 
+            # I use fkie-cad/nvd-json-data-feeds since it makes collecting the data really simple.
             download("https://github.com/fkie-cad/nvd-json-data-feeds/releases/latest/download/CVE-"&($year(now()))&".json.xz", "/var/cache/kpkg/vulns.json.xz")
             
             if execShellCmd("xz -d vulns.json.xz") != 0:

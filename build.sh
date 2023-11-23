@@ -74,7 +74,7 @@ while [ "$#" -gt 0 ]; do
 done
 
 if [ "$installDeps" = "1" ]; then
-    nimble install fuzzy futhark cligen libsha fusion -y || err "Installing depndencies failed"
+    nimble install fuzzy futhark cligen libsha norm fusion -y || err "Installing depndencies failed"
 fi
 
 IFS=","
