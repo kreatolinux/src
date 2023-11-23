@@ -15,7 +15,7 @@ buildNimMain() {
 	if [ "$1" = "chkupd" ]; then
 		nim c -d:$buildType $args -d:branch=$branch --threads:on -d:ssl -o="$prefix/$1" "$srcdir/$1/$1.nim" || err "building $1 failed"
 	else
- 		nim c -d:$buildType $args --passL:-larchive -d:branch=$branch --threads:on -d:ssl -o="$prefix/$1" "$srcdir/$1/$1.nim" || err "building $1 failed"
+ 		nim c -d:$buildType $args --deepcopy:on --passL:-larchive -d:branch=$branch --threads:on -d:ssl -o="$prefix/$1" "$srcdir/$1/$1.nim" || err "building $1 failed"
    	fi
 }
 

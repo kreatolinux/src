@@ -4,32 +4,37 @@ import strutils
 import norm/[model, sqlite]
 import std/options
 
-type vulnerability = ref object of Model
-    cve: string
-    description: string
-    package: string
-    versionEndExcluding: string
+type vulnerability* = ref object of Model
+    cve*: string
+    description*: string
+    package*: string
+    versionEndExcluding*: string
 
-func newVulnerability(cve = "", description = "", package = "", versionEndExcluding = ""): vulnerability =
+func newVulnerability*(cve = "", description = "", package = "", versionEndExcluding = ""): vulnerability =
   vulnerability(cve: cve, description: description, package: package, versionEndExcluding: versionEndExcluding)
 
-let dbConn = open("vulns.db", "", "", "")
-
-proc updateVulns*(file="CVE-2023.json"): int =
+proc updateVulns*(dbConn: DbConn, file: string, removeFileAfterwards = false): int =
     # Parses vulnerabilities. Creates a vulnerability database and returns the count.
     let json = parseJson(readFile(file))
     
     var counter: int
     for i in json["cve_items"]:
         counter = counter + 1
+        
         var 
             cve: string
             description: string
             package: string
-            versionEndExcluding: string 
+            versionEndExcluding: seq[string]
+            cpeMatch: JsonNode
         
         try:
-            package = json["cve_items"][counter]["configurations"][0]["nodes"][0]["cpeMatch"][0]["criteria"].getStr().split(":")[4]
+            cpeMatch = json["cve_items"][counter]["configurations"][0]["nodes"][0]["cpeMatch"]
+        except Exception:
+            continue
+        
+        try:
+            package = cpeMatch[0]["criteria"].getStr().split(":")[4]
         except Exception:
             continue
 
@@ -39,14 +44,18 @@ proc updateVulns*(file="CVE-2023.json"): int =
             if i["lang"].getStr() == "en":
                 description = i["value"].getStr()
 
-        try:
-            versionEndExcluding = json["cve_items"][counter]["configurations"][0]["nodes"][0]["cpeMatch"][0]["versionEndExcluding"].getStr()
-        except Exception:
-            versionEndExcluding = "false"
+        for i in 0..cpeMatch.len:
+            try:
+                versionEndExcluding = versionEndExcluding&cpeMatch[i]["versionEndExcluding"].getStr()
+            except Exception:
+                versionEndExcluding = versionEndExcluding&"false"
         
-        var vulnFinal = newVulnerability(cve = cve, description = description, package = package, versionEndExcluding = versionEndExcluding)
+        var vulnFinal = newVulnerability(cve = cve, description = description, package = package, versionEndExcluding = versionEndExcluding.join("::"))
         dbConn.createTables(newVulnerability())
         dbConn.insert(vulnFinal)
+
+    if removeFileAfterwards:
+        removeFile(file)
 
     return counter
 
