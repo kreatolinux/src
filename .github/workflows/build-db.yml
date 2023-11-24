@@ -1,0 +1,43 @@
+name: Build Vulnerability Database
+
+# Controls when the workflow will run
+on:
+  schedule:
+    - cron: '0 0 * * 0'
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  ci:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+    container: ghcr.io/kreatolinux/builder:latest
+      
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Update cache on every commit
+        uses: actions/cache@v3
+        with:
+          path: /var/cache/kpkg/archives
+          key: binary-cache-${{ github.run_id }}
+          restore-keys: |
+            binary-cache
+    
+
+      - name: build audit database (amd64)
+        run: |
+          IS_ACTIONS=y sh $GITHUB_WORKSPACE/scripts/build-ci.sh init
+          export PATH=$PATH:$HOME/.nimble/bin
+          make deps kpkg
+          ./out/kpkg --fetch --fetchBinary=false
+        
+      
+      - uses: actions/upload-artifact@v3
+        with:
+          name: vulndb
+          path: /var/cache/kpkg/vulns.db
