@@ -5,6 +5,7 @@ import ../modules/cveparser
 import ../modules/runparser
 import ../modules/logger
 import ../modules/downloader
+import ../modules/libarchive
 import norm/[model, sqlite]
 
 proc verChecker*(ver1, ver2: string): bool =
@@ -36,7 +37,7 @@ proc vulnChecker(package, runfPath: string, dbConn: DbConn, description: bool) =
                 break
 
 
-proc audit*(package: seq[string], description = false, fetch = false, fetchBinary = false) = # TODO: binary = true on release
+proc audit*(package: seq[string], description = false, fetch = false, fetchBinary = true) = # TODO: binary = true on release
     ## Check vulnerabilities in installed packages.
     
     const dbPath = "/var/cache/kpkg/vulns.db"
@@ -53,21 +54,27 @@ proc audit*(package: seq[string], description = false, fetch = false, fetchBinar
     let dbConn = open(dbPath, "", "", "")
 
     if fetch:
-        # TODO: do sqlite database downloads.
+        removeFile("/var/cache/kpkg/vulns.json")
+        setCurrentDir("/var/cache/kpkg")
+        
         if not fetchBinary:
-
-            removeFile("/var/cache/kpkg/vulns.json")
-            setCurrentDir("/var/cache/kpkg")
-
             # I use fkie-cad/nvd-json-data-feeds since it makes collecting the data really simple.
             download("https://github.com/fkie-cad/nvd-json-data-feeds/releases/latest/download/CVE-"&($year(now()))&".json.xz", "/var/cache/kpkg/vulns.json.xz")
             
             if execShellCmd("xz -d vulns.json.xz") != 0:
                 err("Couldn't extract compressed file, is `xz` installed?", false)
             
-            success("'"&($updateVulns(dbConn, "/var/cache/kpkg/vulns.json", true))&"' vulnerabilities parsed.", true)
+            success("'"&($updateVulns(dbConn, "/var/cache/kpkg/vulns.json", true))&"' vulnerabilities parsed.")
             removeFile("/var/cache/kpkg/vulns.json.xz")
             removeFile("/var/cache/kpkg/vulns.json")
+        else:
+            download("https://nightly.link/kreatolinux/src/workflows/build-db/master/vulndb.zip", "/var/cache/kpkg/vulndb.zip")
+            discard extract("/var/cache/kpkg/vulndb.zip")
+            success("Vulnerability database installed.")
+            removeFile("/var/cache/kpkg/vulndb.zip")
+
+        return
+        
 
     if not fileExists("/var/cache/kpkg/vulns.db"):
         err("Vulnerability database doesn't exist. Please create one using `kpkg audit --fetch`.", false)
