@@ -25,6 +25,7 @@ import commands/upgradecmd
 import commands/installcmd
 import commands/searchcmd
 import commands/cleancmd
+import commands/auditcmd
 import ../common/version
 
 if commitVer != "unavailable":
@@ -93,6 +94,10 @@ dispatchMulti(
     "sources": "Remove source tarballs from cache",
     "binaries": "Remove binary tarballs from cache"
   }
+  ],
+  
+  [
+  audit
   ],
 
   [

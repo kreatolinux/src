@@ -15,7 +15,7 @@ buildNimMain() {
 	if [ "$1" = "chkupd" ]; then
 		nim c -d:$buildType $args -d:branch=$branch --threads:on -d:ssl -o="$prefix/$1" "$srcdir/$1/$1.nim" || err "building $1 failed"
 	else
- 		nim c -d:$buildType $args --passL:-larchive -d:branch=$branch --threads:on -d:ssl -o="$prefix/$1" "$srcdir/$1/$1.nim" || err "building $1 failed"
+ 		nim c -d:$buildType $args --deepcopy:on --passL:-larchive -d:branch=$branch --threads:on -d:ssl -o="$prefix/$1" "$srcdir/$1/$1.nim" || err "building $1 failed"
    	fi
 }
 
@@ -74,7 +74,7 @@ while [ "$#" -gt 0 ]; do
 done
 
 if [ "$installDeps" = "1" ]; then
-    nimble install fuzzy futhark cligen libsha fusion -y || err "Installing depndencies failed"
+    nimble install fuzzy futhark cligen libsha norm fusion -y || err "Installing depndencies failed"
 fi
 
 IFS=","
