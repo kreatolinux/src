@@ -3,6 +3,7 @@ import backends/repology
 import backends/arch
 import checkallcmd
 import cleanupcmd
+import jsontomdcmd
 
 clCfg.version = "chkupd v3.1"
 
@@ -37,5 +38,8 @@ dispatchMulti(
           "verbose": "Enable verbose output.",
           "dir": "Set directory of archives (eg. /var/cache/kpkg/archives/arch/amd64)."
         }
+        ],
+        [
+         jsonToMd
         ]
 )
