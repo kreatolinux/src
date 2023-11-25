@@ -27,8 +27,8 @@ proc autoUpdater*(pkg: runFile, packageDir: string, newVersion: string,
                                 return
 
                 # Replace the sha256sum
-		echo pkg.sha256sum
-		echo pkg.sha256sum.split(";").len
+                echo pkg.sha256sum
+                echo pkg.sha256sum.split(";").len
 
                 writeFile(packageDir&"/run", readFile(
                                 packageDir&"/run").replace(pkg.sha256sum.split(
