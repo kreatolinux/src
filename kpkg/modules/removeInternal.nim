@@ -18,7 +18,7 @@ proc dependencyCheck(package: string, installedDir: string, root: string, force:
           if force:
             warn(i&" is dependent on "&package&", removing anyway")
           else:
-            err(i&" is dependent on "&package, false)
+            err(i&" is dependent on "&package, true)
         else:
           return false
   return true
