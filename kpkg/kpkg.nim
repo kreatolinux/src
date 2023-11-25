@@ -97,7 +97,11 @@ dispatchMulti(
   ],
   
   [
-  audit
+  audit, help = {
+    "description": "Show descriptions of CVEs",
+    "fetch": "Fetch and build/install the vulnerability database",
+    "fetchBinary": "Fetch already-built SQLite database"
+    }
   ],
 
   [
