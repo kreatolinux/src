@@ -5,10 +5,13 @@ import ../modules/config
 import ../modules/logger
 import ../modules/runparser
 
-proc printResult(repo: string, package: string): string =
+proc printResult(repo: string, package: string, colors = true): string =
     ## Prints results for searches.
     var r: string
     var pkgrunf: runFile
+
+    const reset = "\e[0m"
+    const cyan = "\e[0;36m"
 
     if dirExists("/var/cache/kpkg/installed/"&package):
         r = "i   "
@@ -18,12 +21,19 @@ proc printResult(repo: string, package: string): string =
         pkgrunf = parseRunfile("/etc/kpkg/repos/"&repo&"/"&package)
 
     if pkgrunf.isGroup:
-        r = "g"&r
+        
+        if colors:
+            r = cyan&"g"&reset&r
+        else:
+            r = "g"&r
     else:
         r = r&" "
 
-    r = r&repo&"/"&package&"-"&pkgrunf.versionString
-
+    if colors:
+        r = r&cyan&repo&reset&"/"&package&"-"&pkgrunf.versionString
+    else:
+        r = r&repo&"/"&package&"-"&pkgrunf.versionString
+        
     
     for i in 1 .. 40 - (package.len + 1 + repo.len + pkgrunf.versionString.len):
         r = r&" "
@@ -33,7 +43,7 @@ proc printResult(repo: string, package: string): string =
     else:
         return r&pkgrunf.desc
 
-proc search*(keyword: seq[string]) =
+proc search*(keyword: seq[string], colors = true) =
     ## Search packages.
     if keyword.len == 0:
         err("please enter a keyword", false)
@@ -42,7 +52,7 @@ proc search*(keyword: seq[string]) =
 
     if exactMatch != "":
         echo "One exact match found."
-        echo printResult(lastPathPart(exactMatch), keyword[0])&"\n"
+        echo printResult(lastPathPart(exactMatch), keyword[0], colors)&"\n"
 
 
     echo "Other results;"
@@ -53,4 +63,4 @@ proc search*(keyword: seq[string]) =
             if (fuzzyMatchSmart(i, keyword[0]) >= 0.6 or fuzzyMatchSmart(
                     parseRunfile(r&"/"&i).desc, keyword.join(" ")) >= 0.8) and
                     i != keyword[0]:
-                echo printResult(lastPathPart(r), i)
+                echo printResult(lastPathPart(r), i, colors)

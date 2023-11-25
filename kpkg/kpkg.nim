@@ -58,7 +58,9 @@ dispatchMulti(
   ],
 
   [
-  search
+  search, help = {
+    "colors": "Enable color output"
+  }
   ],
 
   [
