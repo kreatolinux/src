@@ -23,7 +23,7 @@ proc verChecker*(ver1, ver2: string): bool =
 proc vulnChecker(package, runfPath: string, dbConn: DbConn, description: bool) =
     let runf = parseRunfile(runfPath, removeLockfileWhenErr = false)
     var packageVulns = @[newVulnerability()]
-    dbConn.select(packageVulns, "vulnerability.package = ? LIMIT 10", lastPathPart(runfPath)) # TODO: get name from runFile AUDIT_NAME variable, etc.
+    dbConn.select(packageVulns, "vulnerability.package = ?", lastPathPart(runfPath)) # TODO: get name from runFile AUDIT_NAME variable, etc.
     for vuln in packageVulns:
         for version in vuln.versionEndExcluding.split("::"):
             if verChecker(runf.version, version) or runf.version >= version:
