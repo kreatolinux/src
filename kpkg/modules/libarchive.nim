@@ -7,7 +7,6 @@ when not defined(useDist):
 
   importc:
     outputPath currentSourcePath.parentDir / "generated.nim"
-    path "/usr/include"
     "archive.h"
     "archive_entry.h"
     "unistd.h"
