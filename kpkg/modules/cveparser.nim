@@ -58,16 +58,3 @@ proc updateVulns*(dbConn: DbConn, file: string, removeFileAfterwards = false): i
         removeFile(file)
 
     return counter
-
-#[let vulns = updateVulns()
-#echo "cveparse: '"&($vulns)&"' vulnerabilities parsed."
-#var customersFoo = @[newVulnerability()]
-dbConn.select(customersFoo, "vulnerability.package = ? LIMIT 10", "linux_kernel")
-
-for i in customersFoo:
-    echo i.cve
-    echo i.package
-    echo i.description
-    echo i.versionEndExcluding
-]#
-
