@@ -31,7 +31,7 @@ proc appenderInternal(r: string, a: string, b: string, c = "", removeInt = 0): s
   return final
 
 
-proc printPackagesPrompt*(packages: string, yes: bool, no: bool) =
+proc printPackagesPrompt*(packages: string, yes: bool, no: bool, isInstallDir = @[""]) =
   ## Prints the packages summary prompt.
   var finalPkgs: string
   var pkgLen: int
@@ -42,13 +42,17 @@ proc printPackagesPrompt*(packages: string, yes: bool, no: bool) =
       for i in packages.split(" "):
         var pkgRepo: string
         var pkg = i
-        let pkgSplit = i.split("/")
-      
-        if pkgSplit.len > 1:
-          pkgRepo = "/etc/kpkg/repos/"&pkgSplit[0]
-          pkg = pkgSplit[1]
-        else:
-          pkgRepo = findPkgRepo(i)
+        
+        if i in isInstallDir:
+          pkgRepo = absolutePath(pkg).parentDir()
+          pkg = lastPathPart(pkg)
+        else:        
+          let pkgSplit = i.split("/")
+          if pkgSplit.len > 1:
+            pkgRepo = "/etc/kpkg/repos/"&pkgSplit[0]
+            pkg = pkgSplit[1]
+          else:
+            pkgRepo = findPkgRepo(i)
 
         let upstreamRunf = parseRunfile(pkgRepo&"/"&pkg)
         var r = lastPathPart(pkgRepo)&"/"&pkg
@@ -77,11 +81,16 @@ proc printPackagesPrompt*(packages: string, yes: bool, no: bool) =
       var pkg = i
       let pkgSplit = i.split("/")
       
-      if pkgSplit.len > 1:
-        pkgRepo = "/etc/kpkg/repos/"&pkgSplit[0]
-        pkg = pkgSplit[1]
-      else:
-        pkgRepo = findPkgRepo(i)
+      if i in isInstallDir:
+        pkgRepo = absolutePath(pkg).parentDir()
+        pkg = lastPathPart(pkg)
+      else:        
+        let pkgSplit = i.split("/")
+        if pkgSplit.len > 1:
+          pkgRepo = "/etc/kpkg/repos/"&pkgSplit[0]
+          pkg = pkgSplit[1]
+        else:
+          pkgRepo = findPkgRepo(i)
 
       if fileExists("/var/cache/kpkg/installed/"&pkg&"/run") and pkgRepo != "":
         upstreamRunf = parseRunfile(pkgRepo&"/"&pkg)
@@ -114,18 +123,22 @@ proc ctrlc*() {.noconv.} =
   info "ctrl+c pressed, shutting down"
   quit(130)
 
-proc printReplacesPrompt*(pkgs: seq[string], root: string, isDeps = false) =
+proc printReplacesPrompt*(pkgs: seq[string], root: string, isDeps = false, isInstallDir = false) =
   ## Prints a replacesPrompt.
   for i in pkgs:
     var pkg = i
     let pkgSplit = i.split("/")
     var pkgRepo: string
 
-    if pkgSplit.len > 1:
-      pkgRepo = "/etc/kpkg/repos/"&pkgSplit[0]
-      pkg = pkgSplit[1]
+    if isInstallDir:
+      pkgRepo = absolutePath(pkg).parentDir()
+      pkg = lastPathPart(pkg)
     else:
-      pkgRepo = findPkgRepo(i)
+      if pkgSplit.len > 1:
+        pkgRepo = "/etc/kpkg/repos/"&pkgSplit[0]
+        pkg = pkgSplit[1]
+      else:
+        pkgRepo = findPkgRepo(i)
 
     for p in parseRunfile(pkgRepo&"/"&pkg).replaces:
       if isDeps and dirExists(root&"/var/cache/kpkg/installed/"&p):

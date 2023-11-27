@@ -71,7 +71,7 @@ proc checkVersions(root: string, dependency: string, repo: string, split = @[
 
 proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false,
         isBuild = false, root: string, prevPkgName = "",
-                forceInstallAll = false, chkInstalledDirInstead = false): seq[string] =
+                forceInstallAll = false, chkInstalledDirInstead = false, isInstallDir = false): seq[string] =
     ## takes in a seq of packages and returns what to install.
     
 
@@ -85,13 +85,17 @@ proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false,
         let pkgSplit = p.split("/")
         var repo: string
         
-        if pkgSplit.len > 1:
-          repo = "/etc/kpkg/repos/"&pkgSplit[0]
-          pkg = pkgSplit[1]
-        elif not chkInstalledDirInstead:
-          repo = findPkgRepo(pkg)
+        if isInstallDir:
+            repo = absolutePath(pkg).parentDir()
+            pkg = lastPathPart(pkg)
         else:
-          repo = root&"/var/cache/kpkg/installed"
+            if pkgSplit.len > 1:
+                repo = "/etc/kpkg/repos/"&pkgSplit[0]
+                pkg = pkgSplit[1]
+            elif not chkInstalledDirInstead:
+                repo = findPkgRepo(pkg)
+            else:
+                repo = root&"/var/cache/kpkg/installed"
 
         if repo == "":
             err("Package '"&pkg&"' doesn't exist", false)

@@ -36,7 +36,7 @@ proc fakerootWrap(srcdir: string, path: string, root: string, input: string,
 proc builder*(package: string, destdir: string,
     root = "/opt/kpkg/build", srcdir = "/opt/kpkg/srcdir", offline = false,
             dontInstall = false, useCacheIfAvailable = false,
-                    tests = false, manualInstallList: seq[string], customRepo = ""): bool =
+                    tests = false, manualInstallList: seq[string], customRepo = "", isInstallDir = false): bool =
     ## Builds the packages.
 
     if not isAdmin():
@@ -58,7 +58,26 @@ proc builder*(package: string, destdir: string,
     else:
       repo = findPkgRepo(package)
 
-    var path = repo&"/"&package
+    var path: string
+
+    if not dirExists(package) and isInstallDir:
+        err("package directory doesn't exist", false)
+
+    if isInstallDir:
+        path = absolutePath(package)
+        repo = path.parentDir()
+    else:
+        path = repo&"/"&package
+
+    if not fileExists(path&"/run"):
+        err("runFile doesn't exist, cannot continue", false)
+    
+    var actualPackage: string
+
+    if isInstallDir:
+        actualPackage = lastPathPart(package)
+    else:
+        actualPackage = package
 
     # Remove directories if they exist
     removeDir(root)
@@ -69,7 +88,7 @@ proc builder*(package: string, destdir: string,
     discard existsOrCreateDir("/var/cache/kpkg")
     discard existsOrCreateDir("/var/cache/kpkg/archives")
     discard existsOrCreateDir("/var/cache/kpkg/sources")
-    discard existsOrCreateDir("/var/cache/kpkg/sources/"&package)
+    discard existsOrCreateDir("/var/cache/kpkg/sources/"&actualPackage)
     discard existsOrCreateDir("/var/cache/kpkg/archives/arch")
     discard existsOrCreateDir("/var/cache/kpkg/archives/arch/"&hostCPU)
 
@@ -90,21 +109,21 @@ proc builder*(package: string, destdir: string,
     except CatchableError:
         err("Unknown error while trying to parse package on repository, possibly broken repo?", false)
 
-    if fileExists("/var/cache/kpkg/archives/arch/"&hostCPU&"/kpkg-tarball-"&package&"-"&pkg.versionString&".tar.gz") and
+    if fileExists("/var/cache/kpkg/archives/arch/"&hostCPU&"/kpkg-tarball-"&actualPackage&"-"&pkg.versionString&".tar.gz") and
             fileExists(
-            "/var/cache/kpkg/archives/arch/"&hostCPU&"/kpkg-tarball-"&package&"-"&pkg.versionString&".tar.gz.sum") and
+            "/var/cache/kpkg/archives/arch/"&hostCPU&"/kpkg-tarball-"&actualPackage&"-"&pkg.versionString&".tar.gz.sum") and
             useCacheIfAvailable == true and dontInstall == false:
 
         if destdir != "/":
-            installPkg(repo, package, "/", pkg, manualInstallList) # Install package on root too
+            installPkg(repo, actualPackage, "/", pkg, manualInstallList) # Install package on root too
 
-        installPkg(repo, package, destdir, pkg, manualInstallList)
+        installPkg(repo, actualPackage, destdir, pkg, manualInstallList)
         removeDir(root)
         removeDir(srcdir)
         return true
 
     if pkg.isGroup:
-        installPkg(repo, package, destdir, pkg, manualInstallList)
+        installPkg(repo, actualPackage, destdir, pkg, manualInstallList)
         removeDir(root)
         removeDir(srcdir)
         return true
@@ -117,9 +136,9 @@ proc builder*(package: string, destdir: string,
     let existsInstall = execCmdEx(". "&path&"/run"&" && command -v package").exitCode
     let existsTest = execCmdEx(". "&path&"/run"&" && command -v check").exitCode
     let existsPackageInstall = execCmdEx(
-            ". "&path&"/run"&" && command -v package_"&replace(package, '-', '_')).exitCode
+            ". "&path&"/run"&" && command -v package_"&replace(actualPackage, '-', '_')).exitCode
     let existsPackageBuild = execCmdEx(
-            ". "&path&"/run"&" && command -v build_"&replace(package, '-', '_')).exitCode
+            ". "&path&"/run"&" && command -v build_"&replace(actualPackage, '-', '_')).exitCode
     let existsBuild = execCmdEx(
             ". "&path&"/run"&" && command -v build").exitCode
 
@@ -131,7 +150,7 @@ proc builder*(package: string, destdir: string,
         if i == "":
             continue
 
-        filename = "/var/cache/kpkg/sources/"&package&"/"&extractFilename(
+        filename = "/var/cache/kpkg/sources/"&actualPackage&"/"&extractFilename(
                 i).strip()
 
         try:
@@ -226,7 +245,7 @@ proc builder*(package: string, destdir: string,
       discard posix.chown(cstring("/var/cache/kpkg/ccache"), 999, 999)
       ccacheCmds = "export CCACHE_DIR=/var/cache/kpkg/ccache && export PATH=\"/usr/lib/ccache:$PATH\" &&"
     
-    var cmdStr = ". "&path&"/run"&" && export CC=\""&cc&"\" && export CXX=\""&cxx&"\" && "&ccacheCmds&" export SRCDIR="&srcdir&" && export PACKAGENAME=\""&package&"\" &&"
+    var cmdStr = ". "&path&"/run"&" && export CC=\""&cc&"\" && export CXX=\""&cxx&"\" && "&ccacheCmds&" export SRCDIR="&srcdir&" && export PACKAGENAME=\""&actualPackage&"\" &&"
     
     if not isEmptyOrWhitespace(getConfigValue("Options", "cxxflags")):
       cmdStr = cmdStr&" export CXXFLAGS=\""&getConfigValue("Options", "cxxflags")&"\" &&"
@@ -237,14 +256,14 @@ proc builder*(package: string, destdir: string,
     var cmd3Str: string
 
     if existsPackageInstall == 0:
-        cmd3Str = "package_"&replace(package, '-', '_')
+        cmd3Str = "package_"&replace(actualPackage, '-', '_')
     elif existsInstall == 0:
         cmd3Str = "package"
     else:
         err "install stage of package doesn't exist, invalid runfile"
 
     if existsPackageBuild == 0:
-        cmdStr = cmdStr&" build_"&replace(package, '-', '_')
+        cmdStr = cmdStr&" build_"&replace(actualPackage, '-', '_')
     elif existsBuild == 0:
         cmdStr = cmdStr&" build"
     else:
@@ -277,7 +296,7 @@ proc builder*(package: string, destdir: string,
     if cmd3 != 0:
         err("Installation failed")
 
-    let tarball = "/var/cache/kpkg/archives/arch/"&hostCPU&"/kpkg-tarball-"&package&"-"&pkg.versionString&".tar.gz"
+    let tarball = "/var/cache/kpkg/archives/arch/"&hostCPU&"/kpkg-tarball-"&actualPackage&"-"&pkg.versionString&".tar.gz"
 
     createArchive(tarball, root)
 
@@ -288,11 +307,11 @@ proc builder*(package: string, destdir: string,
     # Install package to root aswell so dependency errors doesnt happen
     # because the dep is installed to destdir but not root.
     if destdir != "/" and not dirExists(
-            "/var/cache/kpkg/installed/"&package) and (not dontInstall):
-        installPkg(repo, package, "/", pkg, manualInstallList)
+            "/var/cache/kpkg/installed/"&actualPackage) and (not dontInstall):
+        installPkg(repo, actualPackage, "/", pkg, manualInstallList)
 
     if not dontInstall:
-        installPkg(repo, package, destdir, pkg, manualInstallList)
+        installPkg(repo, actualPackage, destdir, pkg, manualInstallList)
 
     removeLockfile()
 
@@ -304,7 +323,7 @@ proc builder*(package: string, destdir: string,
 proc build*(no = false, yes = false, root = "/",
     packages: seq[string],
             useCacheIfAvailable = true, forceInstallAll = false,
-                    dontInstall = false, tests = true): int =
+                    dontInstall = false, tests = true, isInstallDir = false): int =
     ## Build and install packages.
     let init = getInit(root)
     var deps: seq[string]
@@ -314,9 +333,9 @@ proc build*(no = false, yes = false, root = "/",
 
     try:
         deps = deduplicate(dephandler(packages, bdeps = true, isBuild = true,
-                root = root, forceInstallAll = forceInstallAll)&dephandler(
+                root = root, forceInstallAll = forceInstallAll, isInstallDir = isInstallDir)&dephandler(
                         packages, isBuild = true, root = root,
-                        forceInstallAll = forceInstallAll))
+                        forceInstallAll = forceInstallAll, isInstallDir = isInstallDir))
     except CatchableError:
         raise getCurrentException()
 
@@ -331,8 +350,8 @@ proc build*(no = false, yes = false, root = "/",
 
     deps = deduplicate(deps&p)
 
-    printReplacesPrompt(p, root)
-    printPackagesPrompt(deps.join(" "), yes, no)
+    printReplacesPrompt(p, root, isInstallDir = isInstallDir)
+    printPackagesPrompt(deps.join(" "), yes, no, packages)
 
     let fullRootPath = expandFilename(root)
     
@@ -340,29 +359,35 @@ proc build*(no = false, yes = false, root = "/",
 
     p = @[]
 
-    for i in pBackup:
-      let packageSplit = i.split("/")
-      if packageSplit.len > 1:
-        p = p&packageSplit[1]
-      else:
-        p = p&packageSplit[0]
+    if not isInstallDir:
+        for i in pBackup:
+            let packageSplit = i.split("/")
+            if packageSplit.len > 1:
+                p = p&packageSplit[1]
+            else:
+                p = p&packageSplit[0]
 
     for i in deps:
         try:
             
             let packageSplit = i.split("/")
             
-            var customRepo = "" 
+            var customRepo = ""
+            var isInstallDirFinal: bool 
             var pkgName: string
-
-            if packageSplit.len > 1:
-              customRepo = packageSplit[0]
-              pkgName = packageSplit[1]
+            
+            if isInstallDir and i in packages:
+                pkgName = absolutePath(i)
+                isInstallDirFinal = true
             else:
-              pkgName = packageSplit[0]
+                if packageSplit.len > 1:
+                    customRepo = packageSplit[0]
+                    pkgName = packageSplit[1]
+                else:
+                    pkgName = packageSplit[0]
 
             discard builder(pkgName, fullRootPath, offline = false,
-                    useCacheIfAvailable = useCacheIfAvailable, tests = tests, manualInstallList = p, customRepo = customRepo)
+                    useCacheIfAvailable = useCacheIfAvailable, tests = tests, manualInstallList = p, customRepo = customRepo, isInstallDir = isInstallDirFinal)
             success("installed "&i&" successfully")
         except CatchableError:
             when defined(release):

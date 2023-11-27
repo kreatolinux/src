@@ -44,7 +44,8 @@ dispatchMulti(
     "useCacheIfAvailable": "Uses cached build (if available)",
     "dontInstall": "Only build, don't install",
     "tests": "Enable/Disable Tests on packages",
-    "forceInstallAll": "Force reinstall every dependency"
+    "forceInstallAll": "Force reinstall every dependency",
+    "isInstallDir": "Build package from specified path"
   }
   ],
 
@@ -77,7 +78,7 @@ dispatchMulti(
   [
   provides, help = {
     "files": "Files to search",
-    "color": "Enable color output"
+    "color": "Enable color output "
     }
   ],
 
