@@ -351,7 +351,11 @@ proc build*(no = false, yes = false, root = "/",
     deps = deduplicate(deps&p)
 
     printReplacesPrompt(p, root, isInstallDir = isInstallDir)
-    printPackagesPrompt(deps.join(" "), yes, no, packages)
+    
+    if isInstallDir:
+        printPackagesPrompt(deps.join(" "), yes, no, packages)
+    else:
+        printPackagesPrompt(deps.join(" "), yes, no, @[""])
 
     let fullRootPath = expandFilename(root)
     

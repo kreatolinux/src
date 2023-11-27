@@ -84,8 +84,7 @@ proc printPackagesPrompt*(packages: string, yes: bool, no: bool, isInstallDir = 
       if i in isInstallDir:
         pkgRepo = absolutePath(pkg).parentDir()
         pkg = lastPathPart(pkg)
-      else:        
-        let pkgSplit = i.split("/")
+      else:
         if pkgSplit.len > 1:
           pkgRepo = "/etc/kpkg/repos/"&pkgSplit[0]
           pkg = pkgSplit[1]
