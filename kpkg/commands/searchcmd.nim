@@ -3,15 +3,13 @@ import fuzzy
 import strutils
 import ../modules/config
 import ../modules/logger
+import ../modules/colors
 import ../modules/runparser
 
 proc printResult(repo: string, package: string, colors = true): string =
     ## Prints results for searches.
     var r: string
     var pkgrunf: runFile
-
-    const reset = "\e[0m"
-    const cyan = "\e[0;36m"
 
     if dirExists("/var/cache/kpkg/installed/"&package):
         r = "i   "
@@ -23,14 +21,14 @@ proc printResult(repo: string, package: string, colors = true): string =
     if pkgrunf.isGroup:
         
         if colors:
-            r = cyan&"g"&reset&r
+            r = cyanColor&"g"&resetColor&r
         else:
             r = "g"&r
     else:
         r = r&" "
 
     if colors:
-        r = r&cyan&repo&reset&"/"&package&"-"&pkgrunf.versionString
+        r = r&cyanColor&repo&resetColor&"/"&package&"-"&pkgrunf.versionString
     else:
         r = r&repo&"/"&package&"-"&pkgrunf.versionString
         

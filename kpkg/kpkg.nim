@@ -76,7 +76,8 @@ dispatchMulti(
 
   [
   provides, help = {
-    "files": "Files to search"
+    "files": "Files to search",
+    "color": "Enable color output"
     }
   ],
 
