@@ -46,6 +46,10 @@ check() {
     ninja -C build test
 }
 
+preupgrade() {
+    echo \[dq]run before upgrade\[dq]
+}
+
 package() {
     cd testfile
     make install
@@ -58,6 +62,10 @@ package_test2() {
 
 postinstall() {
     echo \[dq]Insert postinstall instructions here\[dq]
+}
+
+postupgrade() {
+    echo \[dq]run after upgrade\[dq]
 }
 
 postremove() {
@@ -127,6 +135,12 @@ Will run after the package is removed.
 package_PACKAGENAME(): Install function of PACKAGENAME.
 With this function you can package multiple things in the same runfile.
 This may be used for packaging sub-projects easier.
+.IP \[bu] 2
+preupgrade(): Pre-upgrade function.
+Will run before upgrade occurs.
+.IP \[bu] 2
+postupgrade(): Post-upgrade function.
+Will run after upgrade occurs.
 .IP \[bu] 2
 NO_CHKUPD: Disables autoupdating thru chkupd.
 False by default.
