@@ -8,7 +8,7 @@ kpkg runfiles are the main package format of kpkg. It is a basic shell script wi
 
 # RUNFILE STRUCTURE
 
-Runfiles are just named "run" inside the package directory. It is written in POSIX sh and doesn't support any other languages.
+Runfiles are just named "run" inside the package directory. It is written in (except variables) POSIX sh and doesn't support any other languages.
 
 An example runfile structure;
 
