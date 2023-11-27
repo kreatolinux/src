@@ -26,6 +26,7 @@ import commands/installcmd
 import commands/searchcmd
 import commands/cleancmd
 import commands/auditcmd
+import commands/providescmd
 import ../common/version
 
 if commitVer != "unavailable":
@@ -74,6 +75,12 @@ dispatchMulti(
   ],
 
   [
+  provides, help = {
+    "files": "Files to search"
+    }
+  ],
+
+  [
   update, help = {
     "repo": "The kpkg repository Git URL",
     "path": "The kpkg repository path",
@@ -110,5 +117,5 @@ dispatchMulti(
   info, help = {
   "testing": "Don't error if package isn't installed"
   }
-  ]
+  ],
 )
