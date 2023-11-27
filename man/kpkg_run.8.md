@@ -40,6 +40,10 @@ check() {
     ninja -C build test
 }
 
+preupgrade() {
+    echo "run before upgrade"
+}
+
 package() {
     cd testfile
     make install
@@ -52,6 +56,10 @@ package_test2() {
 
 postinstall() {
     echo "Insert postinstall instructions here"
+}
+
+postupgrade() {
+    echo "run after upgrade"
 }
 
 postremove() {
@@ -81,6 +89,8 @@ Now lets break it down.
 * postinstall(): Post-install function. Will run after the package is installed.
 * postremove(): Post-remove function. Will run after the package is removed.
 * package_PACKAGENAME(): Install function of PACKAGENAME. With this function you can package multiple things in the same runfile. This may be used for packaging sub-projects easier.
+* preupgrade(): Pre-upgrade function. Will run before upgrade occurs.
+* postupgrade(): Post-upgrade function. Will run after upgrade occurs.
 * NO_CHKUPD: Disables autoupdating thru chkupd. False by default. This will not prevent chkupd from building the package. Will be enabled if it is one of these values; "y, yes, true, 1, on"
 * REPLACES: Replaces packages put in the variable. Seperated by space.
 * OPTDEPENDS: Optional dependencies for the package. Seperated by ';;' like on the example. 

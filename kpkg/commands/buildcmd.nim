@@ -36,7 +36,7 @@ proc fakerootWrap(srcdir: string, path: string, root: string, input: string,
 proc builder*(package: string, destdir: string,
     root = "/opt/kpkg/build", srcdir = "/opt/kpkg/srcdir", offline = false,
             dontInstall = false, useCacheIfAvailable = false,
-                    tests = false, manualInstallList: seq[string], customRepo = "", isInstallDir = false): bool =
+                    tests = false, manualInstallList: seq[string], customRepo = "", isInstallDir = false, isUpgrade = false): bool =
     ## Builds the packages.
 
     if not isAdmin():
@@ -308,10 +308,10 @@ proc builder*(package: string, destdir: string,
     # because the dep is installed to destdir but not root.
     if destdir != "/" and not dirExists(
             "/var/cache/kpkg/installed/"&actualPackage) and (not dontInstall):
-        installPkg(repo, actualPackage, "/", pkg, manualInstallList)
+        installPkg(repo, actualPackage, "/", pkg, manualInstallList, isUpgrade = isUpgrade)
 
     if not dontInstall:
-        installPkg(repo, actualPackage, destdir, pkg, manualInstallList)
+        installPkg(repo, actualPackage, destdir, pkg, manualInstallList, isUpgrade = isUpgrade)
 
     removeLockfile()
 
@@ -323,7 +323,7 @@ proc builder*(package: string, destdir: string,
 proc build*(no = false, yes = false, root = "/",
     packages: seq[string],
             useCacheIfAvailable = true, forceInstallAll = false,
-                    dontInstall = false, tests = true, isInstallDir = false): int =
+                    dontInstall = false, tests = true, isInstallDir = false, isUpgrade = false): int =
     ## Build and install packages.
     let init = getInit(root)
     var deps: seq[string]
@@ -391,7 +391,7 @@ proc build*(no = false, yes = false, root = "/",
                     pkgName = packageSplit[0]
 
             discard builder(pkgName, fullRootPath, offline = false,
-                    useCacheIfAvailable = useCacheIfAvailable, tests = tests, manualInstallList = p, customRepo = customRepo, isInstallDir = isInstallDirFinal)
+                    useCacheIfAvailable = useCacheIfAvailable, tests = tests, manualInstallList = p, customRepo = customRepo, isInstallDir = isInstallDirFinal, isUpgrade = isUpgrade)
             success("installed "&i&" successfully")
         except CatchableError:
             when defined(release):

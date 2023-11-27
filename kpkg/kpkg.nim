@@ -46,7 +46,8 @@ dispatchMulti(
     "tests": "Enable/Disable Tests on packages",
     "forceInstallAll": "Force reinstall every dependency",
     "isInstallDir": "Build package from specified path"
-  }
+  },
+    suppress = @["isUpgrade"] # Internal variable for commands/upgradecmd
   ],
 
   [
@@ -56,7 +57,8 @@ dispatchMulti(
     "no": "Automatically say 'no' to every question",
     "offline": "Offline mode, errors out if tarball is attempted to get downloaded off binrepo",
     "downloadOnly": "Only download the binary, don't install"
-    }
+    },
+    suppress = @["isUpgrade"] # Internal variable for commands/upgradecmd
   ],
 
   [

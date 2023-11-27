@@ -21,6 +21,8 @@ proc upgrade*(root = "/",
     
     for i in walkDir("/var/cache/kpkg/installed"):
         if i.kind == pcDir:
+            
+            let pkg = lastPathPart(i.path)
             var localPkg: runFile
             try:
                 localPkg = parse_runfile(i.path)
@@ -30,7 +32,7 @@ proc upgrade*(root = "/",
             var isAReplacesPackage: bool
 
             for r in localPkg.replaces:
-                if r == lastPathPart(i.path):
+                if r == pkg:
                     isAReplacesPackage = true
 
             if isAReplacesPackage:
@@ -43,28 +45,28 @@ proc upgrade*(root = "/",
             when declared(localPkg.epoch):
                 let epoch_local = epoch
 
-            repo = findPkgRepo(lastPathPart(i.path))
+            repo = findPkgRepo(pkg)
             if isEmptyOrWhitespace(repo):
                 warn "skipping "&localPkg.pkg&": not found in available repositories"
                 continue
 
             var upstreamPkg: runFile
             try:
-                upstreamPkg = parse_runfile(repo&"/"&lastPathpart(i.path))
+                upstreamPkg = parse_runfile(repo&"/"&pkg)
             except CatchableError:
                 err("Unknown error while reading package on repository, possibly broken repo?")
 
             if localPkg.version < upstreamPkg.version or localPkg.release <
               upstreamPkg.release or (localPkg.epoch != "no" and
                       localPkg.epoch < upstreamPkg.epoch):
-                packages = packages&lastPathpart(i.path)
+                packages = packages&pkg
 
     if packages.len == 0 and isEmptyOrWhitespace(packages.join("")):
         success("done", true)
 
     if parseBool(getConfigValue("Upgrade", "buildByDefault", "false")):
-        discard build(yes = yes, no = no, packages = packages, root = root)
+        discard build(yes = true, packages = packages, root = root, isUpgrade = true)
     else:
-        discard install(packages, root, yes = yes, no = no)
-
+        discard install(packages, root, yes = true, isUpgrade = true)
+    
     success("done", true)

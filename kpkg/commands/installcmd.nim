@@ -26,7 +26,7 @@ if threadsUsed < 1:
 setControlCHook(ctrlc)
 
 proc installPkg*(repo: string, package: string, root: string, runf = runFile(
-        isParsed: false), manualInstallList: seq[string]) =
+        isParsed: false), manualInstallList: seq[string], isUpgrade = false) =
     ## Installs a package.
 
     var pkg: runFile
@@ -41,6 +41,19 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
 
     debug "installPkg ran, repo: '"&repo&"', package: '"&package&"', root: '"&root&"', manualInstallList: '"&manualInstallList.join(" ")&"'"
 
+    if isUpgrade:
+        let existsPkgPreUpgrade = execCmdEx(". "&repo&"/"&package&"/run"&" && command -v preupgrade_"&replace(package, '-', '_')).exitCode
+        let existsPreUpgrade = execCmdEx(". "&repo&"/"&package&"/run"&" && command -v preupgrade").exitCode
+
+        if existsPkgPreUpgrade == 0:
+            if execCmdKpkg(". "&repo&"/"&package&"/run"&" && preupgrade_"&replace(
+                    package, '-', '_')) != 0:
+                err("preupgrade failed")
+            
+        if existsPreUpgrade == 0:
+            if execCmdKpkg(". "&repo&"/"&package&"/run"&" && preupgrade") != 0:
+                err("preupgrade failed")
+    
     let isGroup = pkg.isGroup
 
     for i in pkg.conflicts:
@@ -115,6 +128,19 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
     elif existsPostinstall == 0:
         if execCmdKpkg(". "&repo&"/"&package&"/run"&" && postinstall") != 0:
             err("postinstall failed")
+
+    
+    if isUpgrade:
+        var existsPkgPostUpgrade = execCmdEx(". "&repo&"/"&package&"/run"&" && command -v postupgrade_"&replace(package, '-', '_')).exitCode
+        var existsPostUpgrade = execCmdEx(". "&repo&"/"&package&"/run"&" && command -v postupgrade").exitCode
+        
+        if existsPkgPostUpgrade == 0:
+            if execCmdKpkg(". "&repo&"/"&package&"/run"&" && postupgrade_"&replace(package, '-', '_')) != 0:
+                err("postupgrade failed")
+        
+        if existsPostUpgrade == 0:
+            if execCmdKpkg(". "&repo&"/"&package&"/run"&" && postupgrade") != 0:
+                err("postupgrade failed")
 
     for i in pkg.optdeps:
         info(i)
@@ -201,7 +227,7 @@ proc install_bin(packages: seq[string], binrepos: seq[string], root: string,
     removeLockfile()
 
 proc install*(promptPackages: seq[string], root = "/", yes: bool = false,
-        no: bool = false, offline = false, downloadOnly = false): int =
+        no: bool = false, offline = false, downloadOnly = false, isUpgrade = false): int =
     ## Download and install a package through a binary repository.
     if promptPackages.len == 0:
         err("please enter a package name", false)
