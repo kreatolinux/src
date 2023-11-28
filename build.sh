@@ -99,8 +99,8 @@ do
 		buildNimOther "kreaiso" "on" "$srcdir/kreaiso/kreaiso" "kreaiso.nim" "--passL: -larchive -d:branch=$branch -d:ssl"
 	;;
 	install_klinstaller)
-		cp "$srcdir/installer/klinstaller" /bin/klinstaller
-		chmod +x /bin/klinstaller
+		cp "$srcdir/installer/klinstaller" "$DESTDIR/bin/klinstaller"
+		chmod +x "$DESTDIR/bin/klinstaller"
 	;;
    esac
 done

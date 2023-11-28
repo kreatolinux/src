@@ -17,7 +17,7 @@
 # You should have received a copy of the GNU General Public License
 # along with Kreato Linux.  If not, see <https://www.gnu.org/licenses/>.
 
-VERSION="v2: The Last Battle"
+VERSION="rolling"
 
 if [ "$(id -u)" != "0" ]; then
   echo "This script needs to be ran as root."
