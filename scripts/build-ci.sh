@@ -21,6 +21,7 @@ case $1 in
 
       		# TEMPORARY
 		kpkg build binutils -y
+  		kpkg install glibc -y
 		ln -s /bin/x86_64-pc-linux-gnu-gcc /bin/x86_64-linux-gnu-gcc
   		ln -s /bin/x86_64-pc-linux-gnu-gcc /bin/x86_64-linux-gnu-g++
   		ln -s /bin/x86_64-pc-linux-gnu-gcc /bin/x86_64-linux-gnu-c++
