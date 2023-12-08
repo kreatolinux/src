@@ -31,8 +31,10 @@ main() {
   printf "Select keyboard layout [us]: "
   read -r kblyt
   # Code for kb layout
+  
   printf "\nChoose system locale [en_US]: "
   read -r LOCALE
+  
   if [ -n "$locale" ]; then
     mkdir -p /usr/lib/locale
     localedef -i $LOCALE -c -f UTF-8 $LOCALE
@@ -45,11 +47,11 @@ main() {
 
   printf "\nBuild packages or install them as a binary? (available options: build, binary) [build]: "
   read -r pkginstalltype
-  printf "\nDo you use Wi-Fi? [no]: "
-  read -r wifi
-  if [ "$wifi" = "yes" ]; then
-    [ "$pkginstalltype" = "build" ] && kpkg build wpa_supplicant dhcpcd -y
-    [ "$pkginstalltype" = "binary" ] && kpkg install wpa_supplicant dhcpcd -y
+  printf "\nDo you want NetworkManager? [no]: "
+  read -r networkmanager
+  if [ "$networkmanager" = "yes" ]; then
+    [ "$pkginstalltype" = "build" ] && kpkg build networkmanager -y
+    [ "$pkginstalltype" = "binary" ] && kpkg install networkmanager -y
   fi
   printf "\nChoose DNS [9.9.9.9]: " 
   read -r choosedns

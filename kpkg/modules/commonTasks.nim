@@ -4,6 +4,7 @@ import logger
 import strutils
 import parsecfg
 import runparser
+import posix_utils
 
 proc getInit*(root: string): string =
   ## Returns the init system.
@@ -11,6 +12,32 @@ proc getInit*(root: string): string =
     return loadConfig(root&"/etc/kreato-release").getSectionValue("Core", "init")
   except CatchableError:
     err("couldn't load "&root&"/etc/kreato-release")
+
+proc packageInstalled*(package, root: string): bool =
+  # Checks if an package is installed.
+  if dirExists("/var/cache/kpkg/installed/"&package):
+    return true
+  else:
+    return false
+
+proc getLibc*(root: string): string =
+  ## Returns the libc.
+  try:
+    return loadConfig(root&"/etc/kreato-release").getSectionValue("Core", "libc")
+  except CatchableError:
+    err("couldn't load "&root&"/etc/kreato-release")
+
+proc systemTarget*(root: string): string =
+  ## Returns the system target.
+  var target = uname().machine&"-linux"
+
+  case getLibc(root):
+    of "glibc":
+      target = target&"-gnu"
+    of "musl":
+      target = target&"-musl"
+  
+  return target
 
 proc green*(s: string): string = "\e[32m" & s & "\e[0m" 
 

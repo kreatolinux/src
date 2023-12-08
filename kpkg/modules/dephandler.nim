@@ -71,12 +71,15 @@ proc checkVersions(root: string, dependency: string, repo: string, split = @[
 
 proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false,
         isBuild = false, root: string, prevPkgName = "",
-                forceInstallAll = false, chkInstalledDirInstead = false, isInstallDir = false): seq[string] =
+                forceInstallAll = false, chkInstalledDirInstead = false, isInstallDir = false, ignoreInit = false): seq[string] =
     ## takes in a seq of packages and returns what to install.
     
 
     var deps: seq[string]
-    let init = getInit(root)
+    var init: string
+    
+    if not ignoreInit:
+        init = getInit(root)
 
     for p in pkgs:
         
@@ -139,22 +142,23 @@ proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false,
                 if repo == "":
                     err("Package "&d&" doesn't exist", false)
 
-                if findPkgRepo(dep&"-"&init) != "":
-                    deps.add(dep&"-"&init)
+                if not ignoreInit:
+                    if findPkgRepo(dep&"-"&init) != "":
+                        deps.add(dep&"-"&init)
 
                 let deprf = parseRunfile(repo&"/"&d)
 
                 if not isEmptyOrWhitespace(deprf.bdeps.join()) and isBuild:
                     deps.add(dephandler(@[d], deps&ignoreDeps, bdeps = true,
                             isBuild = true, root = root, prevPkgName = pkg,
-                                    forceInstallAll = forceInstallAll))
+                                    forceInstallAll = forceInstallAll, ignoreInit = ignoreInit))
 
                 if d in deps or d in ignoreDeps:
                     continue
 
                 deps.add(dephandler(@[d], deps&ignoreDeps, bdeps = false,
                         isBuild = isBuild, root = root, prevPkgName = pkg,
-                                forceInstallAll = forceInstallAll))
+                                forceInstallAll = forceInstallAll, ignoreInit = ignoreInit))
 
                 deps.add(d)
 

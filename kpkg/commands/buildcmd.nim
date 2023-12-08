@@ -15,16 +15,18 @@ import ../modules/dephandler
 import ../modules/libarchive
 import ../modules/downloader
 import ../modules/commonTasks
+import ../modules/crossCompilation
 
 proc cleanUp() {.noconv.} =
     ## Cleans up.
     removeLockfile()
     quit(0)
 
-proc fakerootWrap(srcdir: string, path: string, root: string, input: string,
-        autocd = "", tests = false, isTest = false, existsTest = 1): int =
-    ## Wraps command with fakeroot and executes it.
 
+proc fakerootWrap(srcdir: string, path: string, root: string, input: string,
+        autocd = "", tests = false, isTest = false, existsTest = 1, target = "default"): int =
+    ## Wraps command with fakeroot and executes it.
+    
     if (isTest and not tests) or (tests and existsTest != 0):
         return 0
 
@@ -36,7 +38,7 @@ proc fakerootWrap(srcdir: string, path: string, root: string, input: string,
 proc builder*(package: string, destdir: string,
     root = "/opt/kpkg/build", srcdir = "/opt/kpkg/srcdir", offline = false,
             dontInstall = false, useCacheIfAvailable = false,
-                    tests = false, manualInstallList: seq[string], customRepo = "", isInstallDir = false, isUpgrade = false): bool =
+                    tests = false, manualInstallList: seq[string], customRepo = "", isInstallDir = false, isUpgrade = false, target = "default"): bool =
     ## Builds the packages.
 
     if not isAdmin():
@@ -235,6 +237,20 @@ proc builder*(package: string, destdir: string,
     var ccacheCmds: string
     var cc = getConfigValue("Options", "cc", "cc")
     var cxx = getConfigValue("Options", "cxx", "c++")
+    var cmdStr: string
+    var cmd3Str: string
+
+    const extraCommands = readFile("./kpkg/modules/runFileExtraCommands.sh")
+    writeFile(srcdir&"/runfCommands", extraCommands)
+
+    if target != "default":
+        cc = target&"-"&cc
+        cxx = target&"-"&cc
+        cmdStr = ". "&srcdir&"/runfCommands && export KPKG_ARCH="&target.split("-")[0]&" && export KPKG_TARGET="&target&" && "&cmdStr
+        cmd3Str = ". "&srcdir&"/runfCommands && export KPKG_ARCH="&target.split("-")[0]&" && export KPKG_TARGET="&target&" && "&cmd3Str
+    else:
+        cmdStr = ". "&srcdir&"/runfCommands && export KPKG_ARCH="&systemTarget(destdir).split("-")[0]&" && export KPKG_TARGET="&systemTarget(destdir)&" && "&cmdStr
+        cmd3Str = ". "&srcdir&"/runfCommands && export KPKG_ARCH="&systemTarget(destdir).split("-")[0]&" && export KPKG_TARGET="&systemTarget(destdir)&" && "&cmd3Str
 
     if parseBool(getConfigValue("Options", "ccache", "false")) and dirExists("/var/cache/kpkg/installed/ccache"):
       
@@ -245,20 +261,17 @@ proc builder*(package: string, destdir: string,
       discard posix.chown(cstring("/var/cache/kpkg/ccache"), 999, 999)
       ccacheCmds = "export CCACHE_DIR=/var/cache/kpkg/ccache && export PATH=\"/usr/lib/ccache:$PATH\" &&"
     
-    var cmdStr = ". "&path&"/run"&" && export CC=\""&cc&"\" && export CXX=\""&cxx&"\" && "&ccacheCmds&" export SRCDIR="&srcdir&" && export PACKAGENAME=\""&actualPackage&"\" &&"
-    
+    cmdStr = cmdStr&". "&path&"/run"&" && export CC=\""&cc&"\" && export CXX=\""&cxx&"\" && "&ccacheCmds&" export SRCDIR="&srcdir&" && export PACKAGENAME=\""&actualPackage&"\" &&"
     if not isEmptyOrWhitespace(getConfigValue("Options", "cxxflags")):
       cmdStr = cmdStr&" export CXXFLAGS=\""&getConfigValue("Options", "cxxflags")&"\" &&"
 
     if not isEmptyOrWhitespace(getConfigValue("Options", "cflags")):
       cmdStr = cmdStr&" export CFLAGS=\""&getConfigValue("Options", "cflags")&"\" &&"
 
-    var cmd3Str: string
-
     if existsPackageInstall == 0:
-        cmd3Str = "package_"&replace(actualPackage, '-', '_')
+        cmd3Str = cmd3Str&"package_"&replace(actualPackage, '-', '_')
     elif existsInstall == 0:
-        cmd3Str = "package"
+        cmd3Str = cmd3Str&"package"
     else:
         err "install stage of package doesn't exist, invalid runfile"
 
@@ -268,7 +281,7 @@ proc builder*(package: string, destdir: string,
         cmdStr = cmdStr&" build"
     else:
         cmdStr = "true"
-    
+
     if pkg.sources.split(" ").len == 1:
         if existsPrepare == 0:
             cmd = execCmdKpkg(sboxWrap(cmdStr))
@@ -296,7 +309,15 @@ proc builder*(package: string, destdir: string,
     if cmd3 != 0:
         err("Installation failed")
 
-    let tarball = "/var/cache/kpkg/archives/arch/"&hostCPU&"/kpkg-tarball-"&actualPackage&"-"&pkg.versionString&".tar.gz"
+    var tarball = "/var/cache/kpkg/archives/arch/"
+    
+    if target != "default":
+        tarball = tarball&target.split("-")[0]
+        createDir(tarball)
+    else:
+        tarball = tarball&hostCPU
+    
+    tarball = tarball&"/kpkg-tarball-"&actualPackage&"-"&pkg.versionString&".tar.gz"
 
     createArchive(tarball, root)
 
@@ -323,23 +344,33 @@ proc builder*(package: string, destdir: string,
 proc build*(no = false, yes = false, root = "/",
     packages: seq[string],
             useCacheIfAvailable = true, forceInstallAll = false,
-                    dontInstall = false, tests = true, isInstallDir = false, isUpgrade = false): int =
+                    dontInstall = false, tests = true, isInstallDir = false, isUpgrade = false, target = "default"): int =
     ## Build and install packages.
     let init = getInit(root)
     var deps: seq[string]
 
     if packages.len == 0:
         err("please enter a package name", false)
+    
+    var fullRootPath = expandFilename(root)
+    var ignoreInit = false
+    
+    if target != "default":
+        if not crossCompilerExists(target):
+            err "cross-compiler for '"&target&"' doesn't exist, please build or install it (see handbook/cross-compilation)"
+        
+        fullRootPath = root&"/usr/"&target
+        ignoreInit = true
 
     try:
         deps = deduplicate(dephandler(packages, bdeps = true, isBuild = true,
-                root = root, forceInstallAll = forceInstallAll, isInstallDir = isInstallDir)&dephandler(
-                        packages, isBuild = true, root = root,
-                        forceInstallAll = forceInstallAll, isInstallDir = isInstallDir))
+                root = fullRootPath, forceInstallAll = forceInstallAll, isInstallDir = isInstallDir, ignoreInit = ignoreInit)&dephandler(
+                        packages, isBuild = true, root = fullRootPath,
+                        forceInstallAll = forceInstallAll, isInstallDir = isInstallDir, ignoreInit = ignoreInit))
     except CatchableError:
         raise getCurrentException()
 
-    printReplacesPrompt(deps, root, true)
+    printReplacesPrompt(deps, fullRootPath, true)
 
     var p: seq[string]
 
@@ -350,15 +381,13 @@ proc build*(no = false, yes = false, root = "/",
 
     deps = deduplicate(deps&p)
 
-    printReplacesPrompt(p, root, isInstallDir = isInstallDir)
+    printReplacesPrompt(p, fullRootPath, isInstallDir = isInstallDir)
     
     if isInstallDir:
         printPackagesPrompt(deps.join(" "), yes, no, packages)
     else:
         printPackagesPrompt(deps.join(" "), yes, no, @[""])
 
-    let fullRootPath = expandFilename(root)
-    
     let pBackup = p
 
     p = @[]
@@ -391,8 +420,8 @@ proc build*(no = false, yes = false, root = "/",
                     pkgName = packageSplit[0]
 
             discard builder(pkgName, fullRootPath, offline = false,
-                    useCacheIfAvailable = useCacheIfAvailable, tests = tests, manualInstallList = p, customRepo = customRepo, isInstallDir = isInstallDirFinal, isUpgrade = isUpgrade)
-            success("installed "&i&" successfully")
+                    dontInstall = dontInstall, useCacheIfAvailable = useCacheIfAvailable, tests = tests, manualInstallList = p, customRepo = customRepo, isInstallDir = isInstallDirFinal, isUpgrade = isUpgrade, target = target)
+            success("built "&i&" successfully")
         except CatchableError:
             when defined(release):
                 err("Undefined error occured", true)
