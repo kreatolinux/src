@@ -187,7 +187,7 @@ proc kreastrapInstall(package: string, installWithBinaries: bool,
                 package]),
                 useCacheIfAvailable = useCacheIfPossible,
                 forceInstallAll = true, target = target)
-        discard install(toSeq([package]), buildDir, true, offline = true)
+        discard install(toSeq([package]), buildDir, true, offline = true, arch = target.split("-")[0])
 
     ok("Package "&package&" installed successfully")
 

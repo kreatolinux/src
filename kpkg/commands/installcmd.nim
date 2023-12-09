@@ -201,7 +201,7 @@ proc down_bin(package: string, binrepos: seq[string], root: string,
         err("couldn't download the binary")
 
 proc install_bin(packages: seq[string], binrepos: seq[string], root: string,
-        offline: bool, downloadOnly = false, manualInstallList: seq[string]) =
+        offline: bool, downloadOnly = false, manualInstallList: seq[string], arch = hostCPU) =
     ## Downloads and installs binaries.
 
     var repo: string
@@ -212,22 +212,22 @@ proc install_bin(packages: seq[string], binrepos: seq[string], root: string,
 
     for i in packages:
         if threadsUsed == 1:
-            down_bin(i, binrepos, root, offline)
+            down_bin(i, binrepos, root, offline) # TODO: add arch
         else:
-            spawn down_bin(i, binrepos, root, offline)
+            spawn down_bin(i, binrepos, root, offline) # TODO: add arch
 
     threadpool.sync()
 
     if not downloadOnly:
         for i in packages:
             repo = findPkgRepo(i)
-            install_pkg(repo, i, root, manualInstallList = manualInstallList)
+            install_pkg(repo, i, root, manualInstallList = manualInstallList, arch = arch)
             info "Installation for "&i&" complete"
 
     removeLockfile()
 
 proc install*(promptPackages: seq[string], root = "/", yes: bool = false,
-        no: bool = false, offline = false, downloadOnly = false, isUpgrade = false): int =
+        no: bool = false, offline = false, downloadOnly = false, isUpgrade = false, arch = hostCPU): int =
     ## Download and install a package through a binary repository.
     if promptPackages.len == 0:
         err("please enter a package name", false)
@@ -263,7 +263,7 @@ proc install*(promptPackages: seq[string], root = "/", yes: bool = false,
 
     if not (deps.len == 0 and deps == @[""]):
         install_bin(deps, binrepos, fullRootPath, offline,
-                downloadOnly = downloadOnly, manualInstallList = promptPackages)
+                downloadOnly = downloadOnly, manualInstallList = promptPackages, arch = arch)
 
     info("done")
     return 0

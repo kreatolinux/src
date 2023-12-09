@@ -4,6 +4,7 @@ import osproc
 import strutils
 import sequtils
 import installcmd
+import posix_utils
 import libsha/sha256
 import ../modules/logger
 import ../modules/shadow
@@ -88,6 +89,12 @@ proc builder*(package: string, destdir: string,
     removeDir(root)
     removeDir(srcdir)
 
+    var arch: string
+    if target != "default":
+        arch = target.split("-")[0]
+    else:
+        arch = uname().machine
+
     # Create tarball directory if it doesn't exist
     discard existsOrCreateDir("/var/cache")
     discard existsOrCreateDir("/var/cache/kpkg")
@@ -95,7 +102,7 @@ proc builder*(package: string, destdir: string,
     discard existsOrCreateDir("/var/cache/kpkg/sources")
     discard existsOrCreateDir("/var/cache/kpkg/sources/"&actualPackage)
     discard existsOrCreateDir("/var/cache/kpkg/archives/arch")
-    discard existsOrCreateDir("/var/cache/kpkg/archives/arch/"&hostCPU)
+    discard existsOrCreateDir("/var/cache/kpkg/archives/arch/"&arch)
 
     # Create required directories
     createDir(root)
@@ -114,9 +121,9 @@ proc builder*(package: string, destdir: string,
     except CatchableError:
         err("Unknown error while trying to parse package on repository, possibly broken repo?", false)
 
-    if fileExists("/var/cache/kpkg/archives/arch/"&hostCPU&"/kpkg-tarball-"&actualPackage&"-"&pkg.versionString&".tar.gz") and
+    if fileExists("/var/cache/kpkg/archives/arch/"&arch&"/kpkg-tarball-"&actualPackage&"-"&pkg.versionString&".tar.gz") and
             fileExists(
-            "/var/cache/kpkg/archives/arch/"&hostCPU&"/kpkg-tarball-"&actualPackage&"-"&pkg.versionString&".tar.gz.sum") and
+            "/var/cache/kpkg/archives/arch/"&arch&"/kpkg-tarball-"&actualPackage&"-"&pkg.versionString&".tar.gz.sum") and
             useCacheIfAvailable == true and dontInstall == false:
 
         if destdir != "/":
@@ -266,7 +273,7 @@ proc builder*(package: string, destdir: string,
       ccacheCmds = "export CCACHE_DIR=/var/cache/kpkg/ccache && export PATH=\"/usr/lib/ccache:$PATH\" &&"
     
     cmdStr = cmdStr&". "&path&"/run"
-    
+
     if target == "default":
         cmdStr = cmdStr&" && export CC=\""&cc&"\" && export CXX=\""&cxx&"\" && "
     
