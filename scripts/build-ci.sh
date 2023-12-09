@@ -42,7 +42,14 @@ case $1 in
                 git config --global --add safe.directory /etc/kpkg/repos/main
                 rm -rf /out/*
                 cd /work || exit 1
-                ./kreastrap/kreastrap --buildType="$2" --arch=amd64 || exit 1
+				
+				if [ -z "$3" ]; then
+					arch="amd64"
+				else
+					arch="$3"
+				fi
+
+                ./kreastrap/kreastrap --buildType="$2" --arch="$arch" || exit 1
                 cd /out || exit 1
                 tar -czvf /work/kreato-linux-"$2"-glibc-"$(date +%d-%m-%Y)"-amd64.tar.gz *
         ;;
