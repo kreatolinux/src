@@ -190,6 +190,8 @@ proc kreastrapInstall(package: string, installWithBinaries: bool,
         var arch = target.split("-")[0]
         if arch == "x86_64":
                 arch = "amd64" # for compat purposes
+        elif arch == "default":
+                arch = hostCPU
         discard install(toSeq([package]), buildDir, true, offline = true, arch = arch)
 
     ok("Package "&package&" installed successfully")
