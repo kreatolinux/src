@@ -38,11 +38,14 @@ proc fakerootWrap(srcdir: string, path: string, root: string, input: string,
 proc builder*(package: string, destdir: string,
     root = "/opt/kpkg/build", srcdir = "/opt/kpkg/srcdir", offline = false,
             dontInstall = false, useCacheIfAvailable = false,
-                    tests = false, manualInstallList: seq[string], customRepo = "", isInstallDir = false, isUpgrade = false, target = "default"): bool =
+                    tests = false, manualInstallList: seq[string], customRepo = "", isInstallDir = false, isUpgrade = false, target = "default", actualRoot = "default"): bool =
     ## Builds the packages.
 
     if not isAdmin():
         err("you have to be root for this action.", false)
+    
+    if target != "default" and actualRoot == "default":
+        err("internal error: actualRoot needs to be set when target is used (please open a bug report)")
     
     isKpkgRunning()
     checkLockfile()
@@ -239,18 +242,19 @@ proc builder*(package: string, destdir: string,
     var cxx = getConfigValue("Options", "cxx", "c++")
     var cmdStr: string
     var cmd3Str: string
+    var architecture: string
 
     const extraCommands = readFile("./kpkg/modules/runFileExtraCommands.sh")
     writeFile(srcdir&"/runfCommands", extraCommands)
 
     if target != "default":
-        cc = target&"-"&cc
-        cxx = target&"-"&cc
-        cmdStr = ". "&srcdir&"/runfCommands && export KPKG_ARCH="&target.split("-")[0]&" && export KPKG_TARGET="&target&" && "&cmdStr
-        cmd3Str = ". "&srcdir&"/runfCommands && export KPKG_ARCH="&target.split("-")[0]&" && export KPKG_TARGET="&target&" && "&cmd3Str
+        architecture = target.split("-")[0]
+        cmdStr = ". "&srcdir&"/runfCommands && export KPKG_ARCH="&architecture&" && export KPKG_TARGET="&target&" && export KPKG_HOST_TARGET="&systemTarget(actualRoot)&" && "&cmdStr
+        cmd3Str = ". "&srcdir&"/runfCommands && export KPKG_ARCH="&architecture&" && export KPKG_TARGET="&target&" && export KPKG_HOST_TARGET="&systemTarget(actualRoot)&" && "&cmd3Str
     else:
-        cmdStr = ". "&srcdir&"/runfCommands && export KPKG_ARCH="&systemTarget(destdir).split("-")[0]&" && export KPKG_TARGET="&systemTarget(destdir)&" && "&cmdStr
-        cmd3Str = ". "&srcdir&"/runfCommands && export KPKG_ARCH="&systemTarget(destdir).split("-")[0]&" && export KPKG_TARGET="&systemTarget(destdir)&" && "&cmd3Str
+        architecture = systemTarget(destdir).split("-")[0]
+        cmdStr = ". "&srcdir&"/runfCommands && export KPKG_ARCH="&architecture&" && export KPKG_TARGET="&systemTarget(destdir)&" && "&cmdStr
+        cmd3Str = ". "&srcdir&"/runfCommands && export KPKG_ARCH="&architecture&" && export KPKG_TARGET="&systemTarget(destdir)&" && "&cmd3Str
 
     if parseBool(getConfigValue("Options", "ccache", "false")) and dirExists("/var/cache/kpkg/installed/ccache"):
       
@@ -261,7 +265,12 @@ proc builder*(package: string, destdir: string,
       discard posix.chown(cstring("/var/cache/kpkg/ccache"), 999, 999)
       ccacheCmds = "export CCACHE_DIR=/var/cache/kpkg/ccache && export PATH=\"/usr/lib/ccache:$PATH\" &&"
     
-    cmdStr = cmdStr&". "&path&"/run"&" && export CC=\""&cc&"\" && export CXX=\""&cxx&"\" && "&ccacheCmds&" export SRCDIR="&srcdir&" && export PACKAGENAME=\""&actualPackage&"\" &&"
+    cmdStr = cmdStr&". "&path&"/run"
+    
+    if target == "default":
+        cmdStr = cmdStr&" && export CC=\""&cc&"\" && export CXX=\""&cxx&"\" && "
+    
+    cmdStr = cmdStr&ccacheCmds&" export SRCDIR="&srcdir&" && export PACKAGENAME=\""&actualPackage&"\" &&"
     if not isEmptyOrWhitespace(getConfigValue("Options", "cxxflags")):
       cmdStr = cmdStr&" export CXXFLAGS=\""&getConfigValue("Options", "cxxflags")&"\" &&"
 
@@ -329,10 +338,10 @@ proc builder*(package: string, destdir: string,
     # because the dep is installed to destdir but not root.
     if destdir != "/" and not dirExists(
             "/var/cache/kpkg/installed/"&actualPackage) and (not dontInstall):
-        installPkg(repo, actualPackage, "/", pkg, manualInstallList, isUpgrade = isUpgrade)
+        installPkg(repo, actualPackage, "/", pkg, manualInstallList, isUpgrade = isUpgrade, arch = architecture)
 
     if not dontInstall:
-        installPkg(repo, actualPackage, destdir, pkg, manualInstallList, isUpgrade = isUpgrade)
+        installPkg(repo, actualPackage, destdir, pkg, manualInstallList, isUpgrade = isUpgrade, arch = architecture)
 
     removeLockfile()
 
@@ -420,7 +429,7 @@ proc build*(no = false, yes = false, root = "/",
                     pkgName = packageSplit[0]
 
             discard builder(pkgName, fullRootPath, offline = false,
-                    dontInstall = dontInstall, useCacheIfAvailable = useCacheIfAvailable, tests = tests, manualInstallList = p, customRepo = customRepo, isInstallDir = isInstallDirFinal, isUpgrade = isUpgrade, target = target)
+                    dontInstall = dontInstall, useCacheIfAvailable = useCacheIfAvailable, tests = tests, manualInstallList = p, customRepo = customRepo, isInstallDir = isInstallDirFinal, isUpgrade = isUpgrade, target = target, actualRoot = root)
             success("built "&i&" successfully")
         except CatchableError:
             when defined(release):

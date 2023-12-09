@@ -26,7 +26,7 @@ if threadsUsed < 1:
 setControlCHook(ctrlc)
 
 proc installPkg*(repo: string, package: string, root: string, runf = runFile(
-        isParsed: false), manualInstallList: seq[string], isUpgrade = false) =
+        isParsed: false), manualInstallList: seq[string], isUpgrade = false, arch = hostCPU) =
     ## Installs a package.
 
     var pkg: runFile
@@ -67,7 +67,7 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
     var tarball: string
 
     if not isGroup:
-        tarball = "/var/cache/kpkg/archives/arch/"&hostCPU&"/kpkg-tarball-"&package&"-"&pkg.versionString&".tar.gz"
+        tarball = "/var/cache/kpkg/archives/arch/"&arch&"/kpkg-tarball-"&package&"-"&pkg.versionString&".tar.gz"
 
         if sha256hexdigest(readAll(open(tarball)))&"  "&tarball != readAll(open(
             tarball&".sum")):
