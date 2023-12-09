@@ -14,14 +14,15 @@ case $1 in
 		sed -i s/stable/master/g /etc/kpkg/kpkg.conf # Switch to master repos
 		kpkg update
   		#rm -f /var/cache/kpkg/archives/arch/amd64/*meson*
-    		kpkg build python -y || exit 1
-      		python -m ensurepip
-      		kpkg build ninja -y
-    		kpkg build llvm -y # Required by futhark
-
-      		# TEMPORARY
+    	kpkg build python -y || exit 1
+      	python -m ensurepip
+      	kpkg build ninja -y
+    	kpkg build llvm -y # Required by futhark
+		
+      	# TEMPORARY
 		kpkg build binutils -y
   		kpkg install gcc -y
+		kpkg install aarch64-linux-gnu-gcc -y
 		# TEMPORARY END
   
     		kpkg build sqlite -y # Required by kpkg audit
