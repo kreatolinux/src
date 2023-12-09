@@ -234,7 +234,7 @@ proc kreastrap(buildType = "builder", arch = "amd64",
 
     if converterArch(arch) != uname().machine:
         info_msg "cross-compiling to '"&arch&"'"
-        target = arch&"-linux-"
+        target = converterArch(arch)&"-linux-"
         case conf.getSectionValue("Core", "Libc").normalize():
                 of "glibc":
                         target = target&"gnu"
