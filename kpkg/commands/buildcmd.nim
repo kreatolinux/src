@@ -92,10 +92,11 @@ proc builder*(package: string, destdir: string,
     var arch: string
     if target != "default":
         arch = target.split("-")[0]
-        if arch == "x86_64":
-            arch = "amd64" # for compat reasons
     else:
         arch = uname().machine
+    
+    if arch == "x86_64":
+        arch = "amd64" # for compat reasons
 
     # Create tarball directory if it doesn't exist
     discard existsOrCreateDir("/var/cache")
