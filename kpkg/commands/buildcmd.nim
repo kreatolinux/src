@@ -128,16 +128,16 @@ proc builder*(package: string, destdir: string,
             "/var/cache/kpkg/archives/arch/"&arch&"/kpkg-tarball-"&actualPackage&"-"&pkg.versionString&".tar.gz.sum") and
             useCacheIfAvailable == true and dontInstall == false:
 
-        if destdir != "/":
+        if destdir != "/" and target == "default":
             installPkg(repo, actualPackage, "/", pkg, manualInstallList) # Install package on root too
 
-        installPkg(repo, actualPackage, destdir, pkg, manualInstallList)
+        installPkg(repo, actualPackage, destdir, pkg, manualInstallList, arch = arch)
         removeDir(root)
         removeDir(srcdir)
         return true
 
     if pkg.isGroup:
-        installPkg(repo, actualPackage, destdir, pkg, manualInstallList)
+        installPkg(repo, actualPackage, destdir, pkg, manualInstallList, arch = arch)
         removeDir(root)
         removeDir(srcdir)
         return true
@@ -251,19 +251,16 @@ proc builder*(package: string, destdir: string,
     var cxx = getConfigValue("Options", "cxx", "c++")
     var cmdStr: string
     var cmd3Str: string
-    var architecture: string
 
     const extraCommands = readFile("./kpkg/modules/runFileExtraCommands.sh")
     writeFile(srcdir&"/runfCommands", extraCommands)
 
     if target != "default":
-        architecture = target.split("-")[0]
-        cmdStr = ". "&srcdir&"/runfCommands && export KPKG_ARCH="&architecture&" && export KPKG_TARGET="&target&" && export KPKG_HOST_TARGET="&systemTarget(actualRoot)&" && "&cmdStr
-        cmd3Str = ". "&srcdir&"/runfCommands && export KPKG_ARCH="&architecture&" && export KPKG_TARGET="&target&" && export KPKG_HOST_TARGET="&systemTarget(actualRoot)&" && "&cmd3Str
+        cmdStr = ". "&srcdir&"/runfCommands && export KPKG_ARCH="&arch&" && export KPKG_TARGET="&target&" && export KPKG_HOST_TARGET="&systemTarget(actualRoot)&" && "&cmdStr
+        cmd3Str = ". "&srcdir&"/runfCommands && export KPKG_ARCH="&arch&" && export KPKG_TARGET="&target&" && export KPKG_HOST_TARGET="&systemTarget(actualRoot)&" && "&cmd3Str
     else:
-        architecture = systemTarget(destdir).split("-")[0]
-        cmdStr = ". "&srcdir&"/runfCommands && export KPKG_ARCH="&architecture&" && export KPKG_TARGET="&systemTarget(destdir)&" && "&cmdStr
-        cmd3Str = ". "&srcdir&"/runfCommands && export KPKG_ARCH="&architecture&" && export KPKG_TARGET="&systemTarget(destdir)&" && "&cmd3Str
+        cmdStr = ". "&srcdir&"/runfCommands && export KPKG_ARCH="&arch&" && export KPKG_TARGET="&systemTarget(destdir)&" && "&cmdStr
+        cmd3Str = ". "&srcdir&"/runfCommands && export KPKG_ARCH="&arch&" && export KPKG_TARGET="&systemTarget(destdir)&" && "&cmd3Str
 
     if parseBool(getConfigValue("Options", "ccache", "false")) and dirExists("/var/cache/kpkg/installed/ccache"):
       
@@ -347,10 +344,10 @@ proc builder*(package: string, destdir: string,
     # because the dep is installed to destdir but not root.
     if destdir != "/" and not dirExists(
             "/var/cache/kpkg/installed/"&actualPackage) and (not dontInstall):
-        installPkg(repo, actualPackage, "/", pkg, manualInstallList, isUpgrade = isUpgrade, arch = architecture)
+        installPkg(repo, actualPackage, "/", pkg, manualInstallList, isUpgrade = isUpgrade, arch = arch)
 
     if not dontInstall:
-        installPkg(repo, actualPackage, destdir, pkg, manualInstallList, isUpgrade = isUpgrade, arch = architecture)
+        installPkg(repo, actualPackage, destdir, pkg, manualInstallList, isUpgrade = isUpgrade, arch = arch)
 
     removeLockfile()
 
