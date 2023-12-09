@@ -330,7 +330,7 @@ proc builder*(package: string, destdir: string,
     var tarball = "/var/cache/kpkg/archives/arch/"
     
     if target != "default":
-        tarball = tarball&target.split("-")[0]
+        tarball = tarball&arch
         createDir(tarball)
     else:
         tarball = tarball&hostCPU
