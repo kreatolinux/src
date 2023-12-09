@@ -335,7 +335,9 @@ proc builder*(package: string, destdir: string,
     
     tarball = tarball&"/kpkg-tarball-"&actualPackage&"-"&pkg.versionString&".tar.gz"
 
-    createArchive(tarball, root)
+    if execCmdKpkg("bsdtar -czf "&tarball&" -C "&root) != 0:
+        err "creating binary tarball failed"
+    #createArchive(tarball, root)
 
     writeFile(tarball&".sum", sha256hexdigest(readAll(open(
         tarball)))&"  "&tarball)

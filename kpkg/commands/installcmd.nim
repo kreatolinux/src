@@ -106,8 +106,11 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
           extractTarball = extract(tarball, root, pkg.backup)
         except Exception:
             removeDir(root&"/var/cache/kpkg/installed/"&package)
-            err("extracting the tarball failed for "&package)
-
+            when defined(release):
+                err("extracting the tarball failed for "&package)
+            else:
+                raise getCurrentException()
+            
         writeFile(root&"/var/cache/kpkg/installed/"&package&"/list_files", extractTarball.join("\n"))
 
     # Run ldconfig afterwards for any new libraries
