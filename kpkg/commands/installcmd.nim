@@ -79,15 +79,20 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
         if symlinkExists(root&"/var/cache/kpkg/installed/"&i):
             removeFile(root&"/var/cache/kpkg/installed/"&i)
         elif dirExists(root&"/var/cache/kpkg/installed/"&i):
-            removeInternal(i, root)
+            if arch != hostCPU:
+                removeInternal(i, root, initCheck = false)
+            else:
+                removeInternal(i, root)
         createSymlink(package, root&"/var/cache/kpkg/installed/"&i)
 
     if dirExists(root&"/var/cache/kpkg/installed/"&package) and
             not symlinkExists(root&"/var/cache/kpkg/installed/"&package) and not isGroup:
 
         info "package already installed, reinstalling"
-        
-        removeInternal(package, root, ignoreReplaces = true, noRunfile = true)
+        if arch != hostCPU:
+            removeInternal(package, root, ignoreReplaces = true, noRunfile = true, initCheck = false)
+        else:
+            removeInternal(package, root, ignoreReplaces = true, noRunfile = true)
 
     discard existsOrCreateDir(root&"/var/cache")
     discard existsOrCreateDir(root&"/var/cache/kpkg")

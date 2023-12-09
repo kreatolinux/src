@@ -39,12 +39,13 @@ proc bloatDepends*(package: string, installedDir: string, root: string): seq[str
 proc removeInternal*(package: string, root = "",
         installedDir = root&"/var/cache/kpkg/installed",
         ignoreReplaces = false, force = true, depCheck = false,
-            noRunfile = false, fullPkgList = @[""], removeConfigs = false, runPostRemove = false) =
+            noRunfile = false, fullPkgList = @[""], removeConfigs = false, runPostRemove = false, initCheck = true) =
   
-  let init = getInit(root)
+  if initCheck: 
+    let init = getInit(root)
 
-  if dirExists(installedDir&"/"&package&"-"&init):
-    removeInternal(package&"-"&init, root, installedDir, ignoreReplaces, force, depCheck, noRunfile, fullPkgList, removeConfigs, runPostRemove)
+    if dirExists(installedDir&"/"&package&"-"&init):
+      removeInternal(package&"-"&init, root, installedDir, ignoreReplaces, force, depCheck, noRunfile, fullPkgList, removeConfigs, runPostRemove)
 
   var actualPackage: string
 

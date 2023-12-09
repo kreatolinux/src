@@ -344,7 +344,7 @@ proc builder*(package: string, destdir: string,
     # Install package to root aswell so dependency errors doesnt happen
     # because the dep is installed to destdir but not root.
     if destdir != "/" and not dirExists(
-            "/var/cache/kpkg/installed/"&actualPackage) and (not dontInstall):
+            "/var/cache/kpkg/installed/"&actualPackage) and (not dontInstall) and target == "default":
         installPkg(repo, actualPackage, "/", pkg, manualInstallList, isUpgrade = isUpgrade, arch = arch)
 
     if not dontInstall:
