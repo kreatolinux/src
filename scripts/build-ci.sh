@@ -19,6 +19,7 @@ case $1 in
     		kpkg build ninja -y
     		kpkg build llvm -y # Required by futhark
 
+  		kpkg build wget -y
       		wget https://mirror.kreato.dev/arch/aarch64/kpkg-tarball-glibc-2.38-3.tar.gz || exit 1
 		wget https://mirror.kreato.dev/arch/aarch64/kpkg-tarball-glibc-2.38-3.tar.gz.sum || exit 1
 		mkdir /var/cache/kpkg/archives/aarch64 || exit 1
