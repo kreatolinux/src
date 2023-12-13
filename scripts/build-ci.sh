@@ -18,6 +18,10 @@ case $1 in
     		python -m ensurepip
     		kpkg build ninja -y
     		kpkg build llvm -y # Required by futhark
+
+      		wget https://mirror.kreato.dev/arch/aarch64/kpkg-tarball-glibc-2.38-3.tar.gz
+		mkdir /var/cache/kpkg/archives/aarch64
+  		mv kpkg-tarball-glibc-* /var/cache/kpkg/archives/aarch64
   
     		kpkg build sqlite -y # Required by kpkg audit
   
