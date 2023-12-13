@@ -13,20 +13,21 @@ err() {
 
 buildNimMain() {
 	if [ "$1" = "chkupd" ]; then
-		nim c -d:$buildType $args -d:branch=$branch --threads:on -d:ssl -o="$prefix/$1" "$srcdir/$1/$1.nim" || err "building $1 failed"
+		nim c -d:$buildType $args $target -d:branch=$branch --threads:on -d:ssl -o="$prefix/$1" "$srcdir/$1/$1.nim" || err "building $1 failed"
 	else
- 		nim c -d:$buildType $args --deepcopy:on --passL:-larchive -d:branch=$branch --threads:on -d:ssl -o="$prefix/$1" "$srcdir/$1/$1.nim" || err "building $1 failed"
+ 		nim c -d:$buildType $args $target --deepcopy:on --passL:-larchive -d:branch=$branch --threads:on -d:ssl -o="$prefix/$1" "$srcdir/$1/$1.nim" || err "building $1 failed"
    	fi
 }
 
 buildNimOther() {
-	nim c -d:$buildType $args --threads:$2 -o="$3" $5 "$srcdir/$1/$4" || err "building $1 failed"
+	nim c -d:$buildType $args $target --threads:$2 -o="$3" $5 "$srcdir/$1/$4" || err "building $1 failed"
 }
 
 printHelp() {
 	printf """Usage: './build.sh [ARGUMENTS]'
 Options:
 	-d, --debug: Enable debug on built projects
+	-t, --target [ARCHITECTURE]: Set architecture for built binary
 	-p, --projects [PROJECTS]: Enable projects, seperate by comma
 	-i, --installDeps: Install dependencies before continuing
 	-c, --clean: Clean binaries
@@ -42,6 +43,10 @@ fi
 
 while [ "$#" -gt 0 ]; do
 	case $1 in
+		-t|--target)
+			shift
+			target="--cpu:$1"
+		;;
 		-d|--debug)
 			buildType="debug"
 		;;
