@@ -327,11 +327,8 @@ proc builder*(package: string, destdir: string,
 
     var tarball = "/var/cache/kpkg/archives/arch/"
     
-    if target != "default":
-        tarball = tarball&arch
-        createDir(tarball)
-    else:
-        tarball = tarball&hostCPU
+    tarball = tarball&arch
+    createDir(tarball)
     
     tarball = tarball&"/kpkg-tarball-"&actualPackage&"-"&pkg.versionString&".tar.gz"
 
