@@ -41,6 +41,8 @@ proc builder*(package: string, destdir: string,
             dontInstall = false, useCacheIfAvailable = false,
                     tests = false, manualInstallList: seq[string], customRepo = "", isInstallDir = false, isUpgrade = false, target = "default", actualRoot = "default"): bool =
     ## Builds the packages.
+    
+    debug "builder ran, package: '"&package&"', destdir: '"&destdir&"' root: '"&root&"', useCacheIfAvailable: '"&($useCacheIfAvailable)&"'"
 
     if not isAdmin():
         err("you have to be root for this action.", false)
@@ -60,8 +62,10 @@ proc builder*(package: string, destdir: string,
     var repo: string
     
     if not isEmptyOrWhitespace(customRepo):
+      debug "customRepo set to: '"&customRepo&"'"
       repo = "/etc/kpkg/repos/"&customRepo
     else:
+      debug "customRepo not set"
       repo = findPkgRepo(package)
 
     var path: string
@@ -70,6 +74,7 @@ proc builder*(package: string, destdir: string,
         err("package directory doesn't exist", false)
 
     if isInstallDir:
+        debug "isInstallDir is turned on"
         path = absolutePath(package)
         repo = path.parentDir()
     else:
@@ -97,6 +102,8 @@ proc builder*(package: string, destdir: string,
     
     if arch == "x86_64":
         arch = "amd64" # for compat reasons
+
+    debug "arch: '"&arch&"'"
 
     # Create tarball directory if it doesn't exist
     discard existsOrCreateDir("/var/cache")
@@ -128,7 +135,8 @@ proc builder*(package: string, destdir: string,
             fileExists(
             "/var/cache/kpkg/archives/arch/"&arch&"/kpkg-tarball-"&actualPackage&"-"&pkg.versionString&".tar.gz.sum") and
             useCacheIfAvailable == true and dontInstall == false:
-
+        
+        debug "Tarball (and the sum) already exists, going to install"
         if destdir != "/" and target == "default":
             installPkg(repo, actualPackage, "/", pkg, manualInstallList) # Install package on root too
 
@@ -136,8 +144,11 @@ proc builder*(package: string, destdir: string,
         removeDir(root)
         removeDir(srcdir)
         return true
+    
+    debug "Tarball (and the sum) doesn't exist, going to continue"
 
     if pkg.isGroup:
+        debug "Package is a group package"
         installPkg(repo, actualPackage, destdir, pkg, manualInstallList, arch = arch)
         removeDir(root)
         removeDir(srcdir)
