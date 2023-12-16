@@ -18,5 +18,9 @@ proc generateJson*(backend = "repology", repo: string, autoUpdate = true, output
         u = u&update(package: pkg, repository: repoFullPath, command: "chkupd "&backend&"Check --package="&pkg&" --repo="&repoFullPath&" --autoUpdate="&($autoUpdate))
     #u = u&update(package: "bash", repository: "/tmp/repo", command: "chkupd repologyCheck -p=bash -r=/tmp/repo")
 
+    let res = %*
+        {
+            "include": %u
+        }
 
-    writeFile(output, $(%u))
+    writeFile(output, $(res))
