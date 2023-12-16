@@ -15,6 +15,7 @@ case $1 in
     		wget https://github.com/kreatolinux/src/releases/download/v6.5.1/src-v6.5.1-dist.tar.gz
 		tar -xf src-v6.5.1-dist.tar.gz
   		cd src-6.5.1
+    		nimble install cligen fuzzy libsha norm -y
     		sh build.sh -a "-d:useDist" -p kpkg
       		cp out/kpkg /bin/kpkg
 		cd ..
