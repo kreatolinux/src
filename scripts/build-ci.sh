@@ -10,6 +10,17 @@ case $1 in
 		mkdir /out
                 ln -s /out /work/out
                 cd /work || exit 1
+
+  		# TEMPORARY
+    		wget https://github.com/kreatolinux/src/releases/download/v6.5.1/src-v6.5.1-dist.tar.gz
+		tar -xf src-v6.5.1-dist.tar.gz
+  		cd src-6.5.1
+    		sh build.sh -a "-d:useDist" -p kpkg
+      		cp out/kpkg /bin/kpkg
+		cd ..
+  		rm -rf src-6.5.1 src-v6.5.1-*
+      		# TEMPORARY END
+	
   		kpkg # Initializes configs
 		sed -i s/stable/master/g /etc/kpkg/kpkg.conf # Switch to master repos
 		kpkg update
