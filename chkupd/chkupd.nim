@@ -4,6 +4,7 @@ import backends/arch
 import checkallcmd
 import cleanupcmd
 import jsontomdcmd
+import generatejsoncmd
 
 clCfg.version = "chkupd v3.1"
 
@@ -41,5 +42,8 @@ dispatchMulti(
         ],
         [
          jsonToMd
+        ],
+        [
+         generateJson
         ]
 )
