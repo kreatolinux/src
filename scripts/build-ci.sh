@@ -13,6 +13,9 @@ case $1 in
 
   		# TEMPORARY
     		kpkg
+      		sed -i s/stable/master/g /etc/kpkg/kpkg.conf # Switch to master repos
+		kpkg update
+    		rm -f /var/cache/kpkg/archives/arch/amd64/*wget*
       		kpkg install wget -y
     		wget https://github.com/kreatolinux/src/releases/download/v6.5.1/src-v6.5.1-dist.tar.gz
 		tar -xf src-v6.5.1-dist.tar.gz
