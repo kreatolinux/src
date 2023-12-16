@@ -267,12 +267,18 @@ proc builder*(package: string, destdir: string,
     const extraCommands = readFile("./kpkg/modules/runFileExtraCommands.sh")
     writeFile(srcdir&"/runfCommands", extraCommands)
 
+    if arch == "amd64":
+        arch = "x86_64" # For compatibility
+
     if target != "default":
         cmdStr = ". "&srcdir&"/runfCommands && export KPKG_ARCH="&arch&" && export KPKG_TARGET="&target&" && export KPKG_HOST_TARGET="&systemTarget(actualRoot)&" && "&cmdStr
         cmd3Str = ". "&srcdir&"/runfCommands && export KPKG_ARCH="&arch&" && export KPKG_TARGET="&target&" && export KPKG_HOST_TARGET="&systemTarget(actualRoot)&" && "&cmd3Str
     else:
         cmdStr = ". "&srcdir&"/runfCommands && export KPKG_ARCH="&arch&" && export KPKG_TARGET="&systemTarget(destdir)&" && "&cmdStr
         cmd3Str = ". "&srcdir&"/runfCommands && export KPKG_ARCH="&arch&" && export KPKG_TARGET="&systemTarget(destdir)&" && "&cmd3Str
+
+    if arch == "x86_64":
+        arch = "amd64" # Revert back the value
 
     if parseBool(getConfigValue("Options", "ccache", "false")) and dirExists("/var/cache/kpkg/installed/ccache"):
       

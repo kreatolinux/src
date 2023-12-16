@@ -36,7 +36,7 @@ cmake() {
     export CFLAGS="$CFLAGS -I/usr/$KPKG_TARGET/usr/include"
     export LDFLAGS="$LDFLAGS -L/usr/$KPKG_TARGET/lib"
     export PKG_CONFIG_PATH="$PKG_CONFIG_PATH:/usr/$KPKG_TARGET/usr/lib/pkgconfig"
-    env cmake -DCMAKE_TOOLCHAIN_FILE=/usr/$KPKG_TARGET/$KPKG_TARGET.cmake $@
+    env cmake $@ -DCMAKE_TOOLCHAIN_FILE=/usr/$KPKG_TARGET/$KPKG_TARGET.cmake
   else
     env cmake $@
   fi
@@ -47,7 +47,7 @@ meson() {
     export CFLAGS="$CFLAGS -I/usr/$KPKG_TARGET/usr/include"
     export LDFLAGS="$LDFLAGS -L/usr/$KPKG_TARGET/lib"
     export PKG_CONFIG_PATH="$PKG_CONFIG_PATH:/usr/$KPKG_TARGET/usr/lib/pkgconfig"
-    env meson --cross-file "/usr/$KPKG_TARGET/$KPKG_TARGET-meson.txt" $@
+    env meson $@ --cross-file "/usr/$KPKG_TARGET/$KPKG_TARGET-meson.txt"
   else
     env meson $@
   fi
