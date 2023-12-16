@@ -12,6 +12,8 @@ case $1 in
                 cd /work || exit 1
 
   		# TEMPORARY
+    		kpkg
+      		kpkg install wget -y
     		wget https://github.com/kreatolinux/src/releases/download/v6.5.1/src-v6.5.1-dist.tar.gz
 		tar -xf src-v6.5.1-dist.tar.gz
   		cd src-6.5.1
