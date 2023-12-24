@@ -15,11 +15,17 @@ case $1 in
 		sed -i s/stable/master/g /etc/kpkg/kpkg.conf # Switch to master repos
 		kpkg update
   		rm -f /var/cache/kpkg/archives/arch/amd64/*wget*
-    		kpkg build python -y || exit 1
+
+		# TEMPORARY
+  		rm -f /var/cache/kpkg/archives/arch/amd64/*llvm* /var/cache/kpkg/archives/arch/amd64/*gcc* /var/cache/kpkg/archives/arch/amd64/*mpfr* /var/cache/kpkg/archives/arch/amd64/*gmp*
+    		kpkg install gmp mpfr gcc llvm -y 
+      		# TEMPORARY END
+	
+      		kpkg build python -y || exit 1
     		python -m ensurepip
     		kpkg build ninja -y
     		kpkg build llvm -y # Required by futhark
-
+		
   		kpkg build wget -y
       		wget https://mirror.kreato.dev/aarch64/kpkg-tarball-glibc-2.38-3.tar.gz || exit 1
 		wget https://mirror.kreato.dev/aarch64/kpkg-tarball-glibc-2.38-3.tar.gz.sum || exit 1
