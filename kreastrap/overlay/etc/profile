@@ -4,3 +4,5 @@ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/lib:/usr/local/lib:/usr/lib64:/lib6
 umask 022
 PATH=$PATH:/usr/local/sbin:/usr/local/bin:/usr/bin:/bin
 export PATH
+
+export LC_ALL="C.UTF-8"
