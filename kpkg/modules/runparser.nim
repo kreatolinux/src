@@ -39,71 +39,71 @@ proc parseRunfile*(path: string, removeLockfileWhenErr = true): runFile =
                     ret.pkg = vars[1].multiReplace(
                     ("\"", ""),
                     ("'", "")
-                    )
+                    ).strip()
                 of "description":
                     ret.desc = vars[1].multiReplace(
                     ("\"", ""),
                     ("'", "")
-                    )
+                    ).strip()
                 of "sources":
-                    ret.sources = vars[1]
+                    ret.sources = vars[1].strip()
                 of "version":
                     ret.version = vars[1].multiReplace(
                     ("\"", ""),
                     ("'", "")
-                    )
+                    ).strip()
                 of "release":
                     ret.release = vars[1].multiReplace(
                     ("\"", ""),
                     ("'", "")
-                    )
+                    ).strip()
                 of "no_chkupd", "nochkupd", "no-chkupd":
                     ret.noChkupd = parseBool(vars[1].multiReplace(
                     ("\"", ""),
                     ("'", "")
-                    ))
+                    ).strip())
                 of "epoch":
                     ret.epoch = vars[1].multiReplace(
                     ("\"", ""),
                     ("'", "")
-                    )
+                    ).strip()
                 of "backup":
                     ret.backup = vars[1].multiReplace(
                     ("\"", ""),
                     ("'", "")
-                    ).split(" ")
+                    ).strip().split(" ")
                 of "sha256sum":
-                    ret.sha256sum = vars[1]
+                    ret.sha256sum = vars[1].strip()
                 of "conflicts":
                     ret.conflicts = vars[1].multiReplace(
                     ("\"", ""),
                     ("'", "")
-                    ).split(" ")
+                    ).strip().split(" ")
                 of "depends":
                     ret.deps = vars[1].multiReplace(
                     ("\"", ""),
                     ("'", "")
-                    ).split(" ")
+                    ).strip().split(" ")
                 of "build_depends", "builddepends", "build-depends":
                     ret.bdeps = vars[1].multiReplace(
                     ("\"", ""),
                     ("'", "")
-                    ).split(" ")
+                    ).strip().split(" ")
                 of "optdepends", "opt-depends", "opt_depends":
                     ret.optdeps = vars[1].multiReplace(
                     ("\"", ""),
                     ("'", "")
-                    ).split(" ;; ")
+                    ).strip().split(" ;; ")
                 of "is_group", "is-group", "isgroup":
                     ret.isGroup = parseBool(vars[1].multiReplace(
                     ("\"", ""),
                     ("'", "")
-                    ))
+                    ).strip())
                 of "replaces":
                     ret.replaces = vars[1].multiReplace(
                     ("\"", ""),
                     ("'", "")
-                    ).split(" ")
+                    ).strip().split(" ")
             if "()" in vars[0]:
                 break
 
