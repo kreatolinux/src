@@ -20,13 +20,12 @@ case $1 in
     		kpkg build ninja -y
     		kpkg build llvm -y # Required by futhark
     		kpkg build sqlite -y # Required by kpkg audit
-  
-  		# Create (and set) locales so libarchive is happy
-  		LOCALE=en_US
-		mkdir -p /usr/lib/locale
-		localedef -i $LOCALE -c -f UTF-8 $LOCALE
-		export LANG=$LOCALE.UTF-8
-      		
+
+    		# Temporary
+		kpkg install readline awk -y
+  		awk --version || exit 1
+      		# End temporary
+	
 		export PATH=$PATH:$HOME/.nimble/bin # Add nimble path so opir can run
     		
                 rm -vf /etc/kpkg/kpkg.conf
@@ -41,14 +40,14 @@ case $1 in
         "build")
                 git config --global --add safe.directory /etc/kpkg/repos/main
                 rm -rf /out/*
-                cd /work || exit 1
-				
-				if [ -z "$3" ]; then
-					arch="amd64"
-				else
-					arch="$3"
-				fi
+                cd /work || exit 1				
 
+  		if [ -z "$3" ]; then
+			arch="amd64"
+		else
+			arch="$3"
+		fi
+  
                 ./kreastrap/kreastrap --buildType="$2" --arch="$arch" || exit 1
                 cd /out || exit 1
                 tar -czvf /work/kreato-linux-"$2"-glibc-"$(date +%d-%m-%Y)"-amd64.tar.gz *
