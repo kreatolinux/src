@@ -317,11 +317,13 @@ proc builder*(package: string, destdir: string,
 
     if pkg.sources.split(" ").len == 1:
         if existsPrepare == 0:
+            debug "prepare() exist, autocd will not run"
             cmd = execCmdKpkg(sboxWrap(cmdStr))
             cmd2 = fakerootWrap(srcdir, path, root, "check", tests = tests,
                     isTest = true, existsTest = existsTest)
             cmd3 = fakerootWrap(srcdir, path, root, cmd3Str)
         else:
+            debug "prepare() doesn't exist, autocd will run"
             cmd = execCmdKpkg(sboxWrap("cd "&folder&" && "&cmdStr))
             cmd2 = fakerootWrap(srcdir, path, root, "check", folder,
                     tests = tests, isTest = true, existsTest = existsTest)
