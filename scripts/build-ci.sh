@@ -22,7 +22,7 @@ case $1 in
     		kpkg build sqlite -y # Required by kpkg audit
 
     		# Temporary
-		kpkg install readline awk -y
+		kpkg install readline gawk -y
   		awk --version || exit 1
       		# End temporary
 	
