@@ -21,12 +21,6 @@ case $1 in
     		kpkg build llvm -y # Required by futhark
     		kpkg build sqlite -y # Required by kpkg audit
 
-    		# Temporary
-                rm -f /var/cache/kpkg/archives/arch/amd64/*readline* /var/cache/kpkg/archives/arch/amd64/*gawk*
-		kpkg install readline gawk -y
-  		awk --version || exit 1
-      		# End temporary
-	
 		export PATH=$PATH:$HOME/.nimble/bin # Add nimble path so opir can run
     		
                 rm -vf /etc/kpkg/kpkg.conf
