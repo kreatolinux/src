@@ -195,7 +195,21 @@ proc builder*(package: string, destdir: string,
                 elif fileExists(filename):
                     discard
                 else:
-                    download(i, filename)
+
+                    let mirror = getConfigValue("Options", "sourceMirror", "mirror.kreato.dev/sources")
+                    var raiseWhenFail = true
+
+                    try:
+                        if not parseBool(mirror):
+                            raiseWhenFail = false
+                    except Exception:
+                        discard
+
+                    try:
+                        download(i, filename, raiseWhenFail = raiseWhenFail)
+                    except Exception:
+                        info "download failed through sources listed on the runFile, contacting the source mirror"
+                        download(mirror&"/"&filename, filename, raiseWhenFail = false)
 
                 # git cloning doesn't support sha256sum checking
                 var actualDigest = sha256hexdigest(readAll(open(
