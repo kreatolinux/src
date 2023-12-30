@@ -209,7 +209,7 @@ proc builder*(package: string, destdir: string,
                         download(i, filename, raiseWhenFail = raiseWhenFail)
                     except Exception:
                         info "download failed through sources listed on the runFile, contacting the source mirror"
-                        download(mirror&"/"&filename, filename, raiseWhenFail = false)
+                        download("https://"&mirror&"/"&actualPackage&"/"&extractFilename(i).strip(), filename, raiseWhenFail = false)
 
                 # git cloning doesn't support sha256sum checking
                 var actualDigest = sha256hexdigest(readAll(open(
