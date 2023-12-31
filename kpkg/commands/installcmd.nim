@@ -154,7 +154,7 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
         info(i)
 
 proc down_bin(package: string, binrepos: seq[string], root: string,
-        offline: bool) =
+        offline: bool, forceDownload = false) =
     ## Downloads binaries.
     setMinPoolSize(1)
 
@@ -188,7 +188,7 @@ proc down_bin(package: string, binrepos: seq[string], root: string,
         let chksum = tarball&".sum"
 
         if fileExists("/var/cache/kpkg/archives/arch/"&hostCPU&"/"&tarball) and
-                fileExists("/var/cache/kpkg/archives/arch/"&hostCPU&"/"&chksum):
+                fileExists("/var/cache/kpkg/archives/arch/"&hostCPU&"/"&chksum) and (not forceDownload):
             echo "Tarball already exists, not gonna download again"
             downSuccess = true
         elif not offline:
@@ -209,7 +209,7 @@ proc down_bin(package: string, binrepos: seq[string], root: string,
         err("couldn't download the binary")
 
 proc install_bin(packages: seq[string], binrepos: seq[string], root: string,
-        offline: bool, downloadOnly = false, manualInstallList: seq[string], arch = hostCPU) =
+        offline: bool, downloadOnly = false, manualInstallList: seq[string], arch = hostCPU, forceDownload = false) =
     ## Downloads and installs binaries.
 
     var repo: string
@@ -220,9 +220,9 @@ proc install_bin(packages: seq[string], binrepos: seq[string], root: string,
 
     for i in packages:
         if threadsUsed == 1:
-            down_bin(i, binrepos, root, offline) # TODO: add arch
+            down_bin(i, binrepos, root, offline, forceDownload) # TODO: add arch
         else:
-            spawn down_bin(i, binrepos, root, offline) # TODO: add arch
+            spawn down_bin(i, binrepos, root, offline, forceDownload) # TODO: add arch
 
     threadpool.sync()
 
@@ -235,7 +235,7 @@ proc install_bin(packages: seq[string], binrepos: seq[string], root: string,
     removeLockfile()
 
 proc install*(promptPackages: seq[string], root = "/", yes: bool = false,
-        no: bool = false, offline = false, downloadOnly = false, isUpgrade = false, arch = hostCPU): int =
+        no: bool = false, forceDownload = false, offline = false, downloadOnly = false, isUpgrade = false, arch = hostCPU): int =
     ## Download and install a package through a binary repository.
     if promptPackages.len == 0:
         err("please enter a package name", false)
@@ -271,7 +271,7 @@ proc install*(promptPackages: seq[string], root = "/", yes: bool = false,
 
     if not (deps.len == 0 and deps == @[""]):
         install_bin(deps, binrepos, fullRootPath, offline,
-                downloadOnly = downloadOnly, manualInstallList = promptPackages, arch = arch)
+                downloadOnly = downloadOnly, manualInstallList = promptPackages, arch = arch, forceDownload = forceDownload)
 
     info("done")
     return 0
