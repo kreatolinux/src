@@ -39,7 +39,7 @@ proc fakerootWrap(srcdir: string, path: string, root: string, input: string,
 proc builder*(package: string, destdir: string,
     root = "/opt/kpkg/build", srcdir = "/opt/kpkg/srcdir", offline = false,
             dontInstall = false, useCacheIfAvailable = false,
-                    tests = false, manualInstallList: seq[string], customRepo = "", isInstallDir = false, isUpgrade = false, target = "default", actualRoot = "default"): bool =
+                    tests = false, manualInstallList: seq[string], customRepo = "", isInstallDir = false, isUpgrade = false, target = "default", actualRoot = "default", ignorePostInstall = false): bool =
     ## Builds the packages.
     
     debug "builder ran, package: '"&package&"', destdir: '"&destdir&"' root: '"&root&"', useCacheIfAvailable: '"&($useCacheIfAvailable)&"'"
@@ -138,9 +138,9 @@ proc builder*(package: string, destdir: string,
         
         debug "Tarball (and the sum) already exists, going to install"
         if destdir != "/" and target == "default":
-            installPkg(repo, actualPackage, "/", pkg, manualInstallList) # Install package on root too
+            installPkg(repo, actualPackage, "/", pkg, manualInstallList, ignorePostInstall = ignorePostInstall) # Install package on root too
 
-        installPkg(repo, actualPackage, destdir, pkg, manualInstallList, arch = arch)
+        installPkg(repo, actualPackage, destdir, pkg, manualInstallList, arch = arch, ignorePostInstall = ignorePostInstall)
         removeDir(root)
         removeDir(srcdir)
         return true
@@ -149,7 +149,7 @@ proc builder*(package: string, destdir: string,
 
     if pkg.isGroup:
         debug "Package is a group package"
-        installPkg(repo, actualPackage, destdir, pkg, manualInstallList, arch = arch)
+        installPkg(repo, actualPackage, destdir, pkg, manualInstallList, arch = arch, ignorePostInstall = ignorePostInstall)
         removeDir(root)
         removeDir(srcdir)
         return true
@@ -377,10 +377,10 @@ proc builder*(package: string, destdir: string,
     # because the dep is installed to destdir but not root.
     if destdir != "/" and not dirExists(
             "/var/cache/kpkg/installed/"&actualPackage) and (not dontInstall) and target == "default":
-        installPkg(repo, actualPackage, "/", pkg, manualInstallList, isUpgrade = isUpgrade, arch = arch)
+        installPkg(repo, actualPackage, "/", pkg, manualInstallList, isUpgrade = isUpgrade, arch = arch, ignorePostInstall = ignorePostInstall)
 
     if not dontInstall:
-        installPkg(repo, actualPackage, destdir, pkg, manualInstallList, isUpgrade = isUpgrade, arch = arch)
+        installPkg(repo, actualPackage, destdir, pkg, manualInstallList, isUpgrade = isUpgrade, arch = arch, ignorePostInstall = ignorePostInstall)
 
     removeLockfile()
 
@@ -392,7 +392,7 @@ proc builder*(package: string, destdir: string,
 proc build*(no = false, yes = false, root = "/",
     packages: seq[string],
             useCacheIfAvailable = true, forceInstallAll = false,
-                    dontInstall = false, tests = true, isInstallDir = false, isUpgrade = false, target = "default"): int =
+                    dontInstall = false, tests = true, ignorePostInstall = false, isInstallDir = false, isUpgrade = false, target = "default"): int =
     ## Build and install packages.
     let init = getInit(root)
     var deps: seq[string]
@@ -468,7 +468,7 @@ proc build*(no = false, yes = false, root = "/",
                     pkgName = packageSplit[0]
 
             discard builder(pkgName, fullRootPath, offline = false,
-                    dontInstall = dontInstall, useCacheIfAvailable = useCacheIfAvailable, tests = tests, manualInstallList = p, customRepo = customRepo, isInstallDir = isInstallDirFinal, isUpgrade = isUpgrade, target = target, actualRoot = root)
+                    dontInstall = dontInstall, useCacheIfAvailable = useCacheIfAvailable, tests = tests, manualInstallList = p, customRepo = customRepo, isInstallDir = isInstallDirFinal, isUpgrade = isUpgrade, target = target, actualRoot = root, ignorePostInstall = ignorePostInstall)
             success("built "&i&" successfully")
         except CatchableError:
             when defined(release):

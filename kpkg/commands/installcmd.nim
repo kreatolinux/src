@@ -26,7 +26,7 @@ if threadsUsed < 1:
 setControlCHook(ctrlc)
 
 proc installPkg*(repo: string, package: string, root: string, runf = runFile(
-        isParsed: false), manualInstallList: seq[string], isUpgrade = false, arch = hostCPU) =
+        isParsed: false), manualInstallList: seq[string], isUpgrade = false, arch = hostCPU, ignorePostInstall = false) =
     ## Installs a package.
 
     var pkg: runFile
@@ -132,10 +132,16 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
     if existsPkgPostinstall == 0:
         if execCmdKpkg(". "&repo&"/"&package&"/run"&" && postinstall_"&replace(
                 package, '-', '_')) != 0:
-            err("postinstall failed")
+            if ignorePostInstall:
+                warn "postinstall failed"
+            else:
+                err("postinstall failed")
     elif existsPostinstall == 0:
         if execCmdKpkg(". "&repo&"/"&package&"/run"&" && postinstall") != 0:
-            err("postinstall failed")
+            if ignorePostInstall:
+                warn "postinstall failed"
+            else:
+                err("postinstall failed")
 
     
     if isUpgrade:
