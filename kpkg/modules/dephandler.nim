@@ -78,7 +78,6 @@ proc checkVersions(root: string, dependency: string, repo: string, split = @[
 
 
 var replaceList: seq[tuple[package: string, replacedBy: seq[string]]]
-var removeList: seq[string]
 
 proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false,
         isBuild = false, root: string, prevPkgName = "",
