@@ -69,6 +69,9 @@ proc checkVersions(root: string, dependency: string, repo: string, split = @[
     return @["noupgrade", dependency]
 
 
+
+var replaceList: seq[tuple[package: string, replacedBy: seq[string]]]
+
 proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false,
         isBuild = false, root: string, prevPkgName = "",
                 forceInstallAll = false, chkInstalledDirInstead = false, isInstallDir = false, ignoreInit = false): seq[string] =
@@ -147,7 +150,9 @@ proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false,
                         deps.add(dep&"-"&init)
 
                 let deprf = parseRunfile(repo&"/"&d)
-
+                
+                replaceList = replaceList&(dep, deprf.replaces)
+                
                 if not isEmptyOrWhitespace(deprf.bdeps.join()) and isBuild:
                     deps.add(dephandler(@[d], deps&ignoreDeps, bdeps = true,
                             isBuild = true, root = root, prevPkgName = pkg,
@@ -161,5 +166,13 @@ proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false,
                                 forceInstallAll = forceInstallAll, ignoreInit = ignoreInit))
 
                 deps.add(d)
+
+    for i in replaceList:
+        for replacePackage in i.replacedBy:
+            while deps.find(replacePackage) != -1:
+                let index = deps.find(replacePackage)
+                deps.delete(index)
+                deps.insert(i.package, index)
+
 
     return deduplicate(deps.filterit(it.len != 0))
