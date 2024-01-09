@@ -271,6 +271,14 @@ proc builder*(package: string, destdir: string,
     # Run ldconfig beforehand for any errors
     discard execProcess("ldconfig")
     
+
+    var override: Config
+    
+    if fileExists("/etc/kpkg/override/"&package&".conf"):
+        override = loadConfig("/etc/kpkg/override/"&package&".conf")
+    else:
+        override = newConfig() # So we don't get storage access errors
+    
     # create cache directory if it doesn't exist
     var ccacheCmds: string
     var cc = getConfigValue("Options", "cc", "cc")

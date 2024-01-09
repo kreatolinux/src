@@ -1,5 +1,6 @@
 import os
 import logger
+import parsecfg
 import strutils
 
 type runFile* = object
@@ -26,6 +27,14 @@ proc parseRunfile*(path: string, removeLockfileWhenErr = true): runFile =
 
     var vars: seq[string]
     var ret: runFile
+    let package = lastPathPart(path)
+    
+    var override: Config
+    
+    if fileExists("/etc/kpkg/override/"&package&".conf"):
+        override = loadConfig("/etc/kpkg/override/"&package&".conf")
+    else:
+        override = newConfig() # So we don't get storage access errors
 
     try:
         for i in lines path&"/run":
@@ -36,79 +45,79 @@ proc parseRunfile*(path: string, removeLockfileWhenErr = true): runFile =
                 vars = i.split('=')
             case vars[0].toLower:
                 of "name":
-                    ret.pkg = vars[1].multiReplace(
+                    ret.pkg = override.getSectionValue("runFile", "name", vars[1].multiReplace(
                     ("\"", ""),
                     ("'", "")
-                    ).strip()
+                    ).strip())
                 of "description":
-                    ret.desc = vars[1].multiReplace(
+                    ret.desc = override.getSectionValue("runFile", "description", vars[1].multiReplace(
                     ("\"", ""),
                     ("'", "")
-                    ).strip()
+                    ).strip())
                 of "sources":
-                    ret.sources = vars[1].strip()
+                    ret.sources = override.getSectionValue("runFile", "sources", vars[1].strip())
                 of "version":
-                    ret.version = vars[1].multiReplace(
+                    ret.version = override.getSectionValue("runFile", "version", vars[1].multiReplace(
                     ("\"", ""),
                     ("'", "")
-                    ).strip()
+                    ).strip())
                 of "release":
-                    ret.release = vars[1].multiReplace(
+                    ret.release = override.getSectionValue("runFile", "release", vars[1].multiReplace(
                     ("\"", ""),
                     ("'", "")
-                    ).strip()
+                    ).strip())
                 of "no_chkupd", "nochkupd", "no-chkupd":
-                    ret.noChkupd = parseBool(vars[1].multiReplace(
+                    ret.noChkupd = parseBool(override.getSectionValue("runFile", "noChkupd", vars[1].multiReplace(
                     ("\"", ""),
                     ("'", "")
-                    ).strip())
+                    ).strip()))
                 of "epoch":
-                    ret.epoch = vars[1].multiReplace(
-                    ("\"", ""),
-                    ("'", "")
-                    ).strip()
-                of "backup":
-                    ret.backup = vars[1].multiReplace(
-                    ("\"", ""),
-                    ("'", "")
-                    ).strip().split(" ")
-                of "sha256sum":
-                    ret.sha256sum = vars[1].strip()
-                of "conflicts":
-                    ret.conflicts = vars[1].multiReplace(
-                    ("\"", ""),
-                    ("'", "")
-                    ).strip().split(" ")
-                of "depends":
-                    ret.deps = vars[1].multiReplace(
-                    ("\"", ""),
-                    ("'", "")
-                    ).strip().split(" ")
-                of "build_depends", "builddepends", "build-depends":
-                    ret.bdeps = vars[1].multiReplace(
-                    ("\"", ""),
-                    ("'", "")
-                    ).strip().split(" ")
-                of "optdepends", "opt-depends", "opt_depends":
-                    ret.optdeps = vars[1].multiReplace(
-                    ("\"", ""),
-                    ("'", "")
-                    ).strip().split(" ;; ")
-                of "is_group", "is-group", "isgroup":
-                    ret.isGroup = parseBool(vars[1].multiReplace(
+                    ret.epoch = override.getSectionValue("runFile", "epoch", vars[1].multiReplace(
                     ("\"", ""),
                     ("'", "")
                     ).strip())
-                of "replaces":
-                    ret.replaces = vars[1].multiReplace(
+                of "backup":
+                    ret.backup = override.getSectionValue("runFile", "backup", vars[1].multiReplace(
                     ("\"", ""),
                     ("'", "")
-                    ).strip().split(" ")
+                    ).strip()).split(" ")
+                of "sha256sum":
+                    ret.sha256sum = override.getSectionValue("runFile", "sha256sum", vars[1].strip())
+                of "conflicts":
+                    ret.conflicts = override.getSectionValue("runFile", "conflicts", vars[1].multiReplace(
+                    ("\"", ""),
+                    ("'", "")
+                    ).strip()).split(" ")
+                of "depends":
+                    ret.deps = override.getSectionValue("runFile", "depends", vars[1].multiReplace(
+                    ("\"", ""),
+                    ("'", "")
+                    ).strip()).split(" ")
+                of "build_depends", "builddepends", "build-depends":
+                    ret.bdeps = override.getSectionValue("runFile", "buildDepends", vars[1].multiReplace(
+                    ("\"", ""),
+                    ("'", "")
+                    ).strip()).split(" ")
+                of "optdepends", "opt-depends", "opt_depends":
+                    ret.optdeps = override.getSectionValue("runFile", "optDepends", vars[1].multiReplace(
+                    ("\"", ""),
+                    ("'", "")
+                    ).strip()).split(" ;; ")
+                of "is_group", "is-group", "isgroup":
+                    ret.isGroup = parseBool(override.getSectionValue("runFile", "isGroup", vars[1].multiReplace(
+                    ("\"", ""),
+                    ("'", "")
+                    ).strip()))
+                of "replaces":
+                    ret.replaces = override.getSectionValue("runFile", "replaces", vars[1].multiReplace(
+                    ("\"", ""),
+                    ("'", "")
+                    ).strip()).split(" ")
             if "()" in vars[0]:
                 break
 
             # There gotta be a cleaner way to do this, hmu if you know one -kreato
-            let p = replace(lastPathPart(path), '-', '_')
+            let p = replace(package, '-', '_')
 
             if vars[0].toLower == "depends_"&p&"+" or vars[0].toLower ==
                     "depends-"&p&"+" or vars[0].toLower == "depends"&p&"+":
