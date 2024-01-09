@@ -6,6 +6,13 @@ import strutils
 import runparser
 import commonTasks
 
+
+proc isIn(one, two: seq[string]): bool =
+    for i in one:
+        if i in two:
+            return true
+    return false
+
 proc checkVersions(root: string, dependency: string, repo: string, split = @[
         "<=", ">=", "<", ">", "="]): seq[string] =
     ## Internal proc for checking versions on dependencies (if it exists)
@@ -71,6 +78,7 @@ proc checkVersions(root: string, dependency: string, repo: string, split = @[
 
 
 var replaceList: seq[tuple[package: string, replacedBy: seq[string]]]
+var removeList: seq[string]
 
 proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false,
         isBuild = false, root: string, prevPkgName = "",
@@ -145,23 +153,32 @@ proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false,
                 if repo == "":
                     err("Package "&d&" doesn't exist", false)
 
+                
+                let deprf = parseRunfile(repo&"/"&d)                
+                
+                if d in deps or d in ignoreDeps or isIn(deprf.replaces, deps):
+                    continue
+
                 if not ignoreInit:
                     if findPkgRepo(dep&"-"&init) != "":
                         deps.add(dep&"-"&init)
-
-                let deprf = parseRunfile(repo&"/"&d)
                 
-                replaceList = replaceList&(dep, deprf.replaces)
+                var dontAdd = false
+
+                for i in replaceList:
+                    if i.package == d or d in i.replacedBy:
+                        dontAdd = true
+                        
+
+                if deprf.replaces.len > 0 and not dontAdd:
+                    replaceList = replaceList&(dep, deprf.replaces)
                 
                 if not isEmptyOrWhitespace(deprf.bdeps.join()) and isBuild:
-                    deps.add(dephandler(@[d], deps&ignoreDeps, bdeps = true,
+                    deps.add(dephandler(@[d], deprf.replaces&deps&ignoreDeps, bdeps = true,
                             isBuild = true, root = root, prevPkgName = pkg,
                                     forceInstallAll = forceInstallAll, ignoreInit = ignoreInit))
 
-                if d in deps or d in ignoreDeps:
-                    continue
-
-                deps.add(dephandler(@[d], deps&ignoreDeps, bdeps = false,
+                deps.add(dephandler(@[d], deprf.replaces&deps&ignoreDeps, bdeps = false,
                         isBuild = isBuild, root = root, prevPkgName = pkg,
                                 forceInstallAll = forceInstallAll, ignoreInit = ignoreInit))
 
@@ -173,6 +190,5 @@ proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false,
                 let index = deps.find(replacePackage)
                 deps.delete(index)
                 deps.insert(i.package, index)
-
-
+ 
     return deduplicate(deps.filterit(it.len != 0))
