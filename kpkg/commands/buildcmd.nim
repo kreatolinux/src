@@ -3,6 +3,7 @@ import posix
 import osproc
 import strutils
 import sequtils
+import parsecfg
 import installcmd
 import posix_utils
 import libsha/sha256
@@ -131,6 +132,13 @@ proc builder*(package: string, destdir: string,
     except CatchableError:
         err("Unknown error while trying to parse package on repository, possibly broken repo?", false)
 
+    var override: Config
+    
+    if fileExists("/etc/kpkg/override/"&package&".conf"):
+        override = loadConfig("/etc/kpkg/override/"&package&".conf")
+    else:
+        override = newConfig() # So we don't get storage access errors
+
     if fileExists("/var/cache/kpkg/archives/arch/"&arch&"/kpkg-tarball-"&actualPackage&"-"&pkg.versionString&".tar.gz") and
             fileExists(
             "/var/cache/kpkg/archives/arch/"&arch&"/kpkg-tarball-"&actualPackage&"-"&pkg.versionString&".tar.gz.sum") and
@@ -196,7 +204,7 @@ proc builder*(package: string, destdir: string,
                     discard
                 else:
 
-                    let mirror = getConfigValue("Options", "sourceMirror", "mirror.kreato.dev/sources")
+                    let mirror = override.getSectionValue("Mirror", "sourceMirror", getConfigValue("Options", "sourceMirror", "mirror.kreato.dev/sources"))
                     var raiseWhenFail = true
 
                     try:
@@ -270,15 +278,7 @@ proc builder*(package: string, destdir: string,
 
     # Run ldconfig beforehand for any errors
     discard execProcess("ldconfig")
-    
-
-    var override: Config
-    
-    if fileExists("/etc/kpkg/override/"&package&".conf"):
-        override = loadConfig("/etc/kpkg/override/"&package&".conf")
-    else:
-        override = newConfig() # So we don't get storage access errors
-    
+     
     # create cache directory if it doesn't exist
     var ccacheCmds: string
     var cc = getConfigValue("Options", "cc", "cc")
@@ -301,8 +301,8 @@ proc builder*(package: string, destdir: string,
 
     if arch == "x86_64":
         arch = "amd64" # Revert back the value
-
-    if parseBool(getConfigValue("Options", "ccache", "false")) and dirExists("/var/cache/kpkg/installed/ccache"):
+    
+    if parseBool(override.getSectionValue("Other", "ccache", getConfigValue("Options", "ccache", "false"))) and dirExists("/var/cache/kpkg/installed/ccache"):
       
       if not dirExists("/var/cache/kpkg/ccache"):
         createDir("/var/cache/kpkg/ccache")
@@ -315,13 +315,20 @@ proc builder*(package: string, destdir: string,
 
     if target == "default":
         cmdStr = cmdStr&" && export CC=\""&cc&"\" && export CXX=\""&cxx&"\" && "
-    
-    cmdStr = cmdStr&ccacheCmds&" export SRCDIR="&srcdir&" && export PACKAGENAME=\""&actualPackage&"\" &&"
-    if not isEmptyOrWhitespace(getConfigValue("Options", "cxxflags")):
-      cmdStr = cmdStr&" export CXXFLAGS=\""&getConfigValue("Options", "cxxflags")&"\" &&"
+   
+    if not isEmptyOrWhitespace(override.getSectionValue("Flags", "extraArguments")):
+        cmdStr = cmdStr&" export KPKG_EXTRA_ARGUMENTS=\""&override.getSectionValue("Flags", "extraArguments")&"\" && "
 
-    if not isEmptyOrWhitespace(getConfigValue("Options", "cflags")):
-      cmdStr = cmdStr&" export CFLAGS=\""&getConfigValue("Options", "cflags")&"\" &&"
+    cmdStr = cmdStr&ccacheCmds&" export SRCDIR="&srcdir&" && export PACKAGENAME=\""&actualPackage&"\" &&"
+    
+    let cxxflags = override.getSectionValue("Flags", "cxxflags", getConfigValue("Options", "cxxflags"))
+    if not isEmptyOrWhitespace(cxxflags):
+      cmdStr = cmdStr&" export CXXFLAGS=\""&cxxflags&"\" &&"
+    
+    let cflags = override.getSectionValue("Flags", "cflags", getConfigValue("Options", "cflags"))
+
+    if not isEmptyOrWhitespace(cflags):
+        cmdStr = cmdStr&" export CFLAGS=\""&cflags&"\" &&"
 
     if existsPackageInstall == 0:
         cmd3Str = cmd3Str&"package_"&replace(actualPackage, '-', '_')

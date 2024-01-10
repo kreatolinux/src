@@ -2,6 +2,7 @@ import os
 import osproc
 import strutils
 import sequtils
+import parsecfg
 import threadpool
 import libsha/sha256
 import ../modules/config
@@ -176,7 +177,21 @@ proc down_bin(package: string, binrepos: seq[string], root: string,
     setCurrentDir("/var/cache/kpkg/archives")
     var downSuccess: bool
 
-    for binrepo in binrepos:
+    var binreposFinal = binrepos
+    
+    var override: Config
+    
+    if fileExists("/etc/kpkg/override/"&package&".conf"):
+        override = loadConfig("/etc/kpkg/override/"&package&".conf")
+    else:
+        override = newConfig() # So we don't get storage access errors
+    
+    let binreposOverride = override.getSectionValue("Mirror", "binaryMirrors")
+
+    if not isEmptyOrWhitespace(binreposOverride):
+        binreposFinal = binreposOverride.split(" ")
+
+    for binrepo in binreposFinal:
         var repo: string
 
         repo = findPkgRepo(package)

@@ -21,12 +21,12 @@ kpkgConfigure() {
     export PKG_CONFIG_PATH="$PKG_CONFIG_PATH:/usr/$KPKG_TARGET/usr/lib/pkgconfig"
     
     if [ "$KPKG_WITHOUT_SYSROOT" != "1" ]; then
-        KPKG_EXTRA_ARGUMENTS="--with-sysroot=/usr/$KPKG_TARGET"
+        KPKG_EXTRA_ARGUMENTS="$KPKG_EXTRA_ARGUMENTS --with-sysroot=/usr/$KPKG_TARGET"
     fi
 
     $KPKG_CONFIGURE_PATH --prefix=/usr $KPKG_EXTRA_ARGUMENTS --host="$KPKG_TARGET" --build="$KPKG_HOST_TARGET" $@
   else
-    $KPKG_CONFIGURE_PATH --prefix=/usr $@
+    $KPKG_CONFIGURE_PATH --prefix=/usr $@ $KPKG_EXTRA_ARGUMENTS
   fi
 }
   
@@ -36,9 +36,9 @@ cmake() {
     export CFLAGS="$CFLAGS -I/usr/$KPKG_TARGET/usr/include"
     export LDFLAGS="$LDFLAGS -L/usr/$KPKG_TARGET/lib"
     export PKG_CONFIG_PATH="$PKG_CONFIG_PATH:/usr/$KPKG_TARGET/usr/lib/pkgconfig"
-    env cmake $@ -DCMAKE_TOOLCHAIN_FILE=/usr/$KPKG_TARGET/$KPKG_TARGET.cmake
+    env cmake $@ -DCMAKE_TOOLCHAIN_FILE=/usr/$KPKG_TARGET/$KPKG_TARGET.cmake $KPKG_EXTRA_ARGUMENTS
   else
-    env cmake $@
+    env cmake $@ $KPKG_EXTRA_ARGUMENTS
   fi
 }
 
@@ -47,8 +47,8 @@ meson() {
     export CFLAGS="$CFLAGS -I/usr/$KPKG_TARGET/usr/include"
     export LDFLAGS="$LDFLAGS -L/usr/$KPKG_TARGET/lib"
     export PKG_CONFIG_PATH="$PKG_CONFIG_PATH:/usr/$KPKG_TARGET/usr/lib/pkgconfig"
-    env meson $@ --cross-file "/usr/$KPKG_TARGET/$KPKG_TARGET-meson.txt"
+    env meson $@ --cross-file "/usr/$KPKG_TARGET/$KPKG_TARGET-meson.txt" $KPKG_EXTRA_ARGUMENTS
   else
-    env meson $@
+    env meson $@ $KPKG_EXTRA_ARGUMENTS
   fi
 }
