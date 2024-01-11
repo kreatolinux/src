@@ -3,7 +3,7 @@ import osproc
 import strutils
 import sequtils
 import parsecfg
-import threadpool
+import taskpools
 import libsha/sha256
 import ../modules/config
 import ../modules/logger
@@ -163,10 +163,7 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
 proc down_bin(package: string, binrepos: seq[string], root: string,
         offline: bool, forceDownload = false) =
     ## Downloads binaries.
-    setMinPoolSize(1)
-
-    setMaxPoolSize(threadsUsed)
-
+    
     discard existsOrCreateDir("/var/")
     discard existsOrCreateDir("/var/cache")
     discard existsOrCreateDir("/var/cache/kpkg")
@@ -210,7 +207,7 @@ proc down_bin(package: string, binrepos: seq[string], root: string,
 
         if fileExists("/var/cache/kpkg/archives/arch/"&hostCPU&"/"&tarball) and
                 fileExists("/var/cache/kpkg/archives/arch/"&hostCPU&"/"&chksum) and (not forceDownload):
-            echo "Tarball already exists, not gonna download again"
+            echo "Tarball already exists for '"&package&"', not gonna download again"
             downSuccess = true
         elif not offline:
             echo "Downloading tarball for "&package
@@ -235,6 +232,8 @@ proc install_bin(packages: seq[string], binrepos: seq[string], root: string,
 
     var repo: string
     
+    var tp = Taskpool.new(num_threads = threadsUsed)
+
     isKpkgRunning()
     checkLockfile()
     createLockfile()
@@ -243,9 +242,10 @@ proc install_bin(packages: seq[string], binrepos: seq[string], root: string,
         if threadsUsed == 1:
             down_bin(i, binrepos, root, offline, forceDownload) # TODO: add arch
         else:
-            spawn down_bin(i, binrepos, root, offline, forceDownload) # TODO: add arch
+            tp.spawn down_bin(i, binrepos, root, offline, forceDownload) # TODO: add arch
 
-    threadpool.sync()
+    tp.syncAll()
+    tp.shutdown()
 
     if not downloadOnly:
         for i in packages:
