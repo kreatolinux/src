@@ -57,7 +57,8 @@ dispatchMulti(
     "yes": "Automatically say 'yes' to every question",
     "no": "Automatically say 'no' to every question",
     "offline": "Offline mode, errors out if tarball is attempted to get downloaded off binrepo",
-    "downloadOnly": "Only download the binary, don't install"
+    "downloadOnly": "Only download the binary, don't install",
+    "ignoreDownloadErrors": "Ignore errors that may occur while downloading packages"
     },
     suppress = @["isUpgrade"] # Internal variable for commands/upgradecmd
   ],
