@@ -17,7 +17,7 @@ There are a couple of build variables;
 
 ## kpkg
 `kpkg` is a feature-complete package manager, that is a rewrite of nyaa2. It is written in Nim, and is mainly for use with Kreato Linux.\
-It is meant to be a much simpler to use package manager compared to the alternatives.\ 
+It is meant to be a much simpler to use package manager compared to the alternatives.\
 `kpkg` is heavily inspired by package managers such as `kiss`, `dnf` and `pacman`. Run `make kpkg` to build.
 
 ## kreastrap
