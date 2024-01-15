@@ -244,6 +244,8 @@ proc builder*(package: string, destdir: string,
     createDir(homeDir)
     setFilePermissions(homeDir, {fpUserExec, fpUserWrite, fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
     discard posix.chown(cstring(homeDir), 999, 999)
+    setFilePermissions(srcdir, {fpUserExec, fpUserWrite, fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
+    discard posix.chown(cstring(srcdir), 999, 999)
 
     if existsPrepare != 0 and not usesGit:
         try:
