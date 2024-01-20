@@ -299,4 +299,4 @@ proc install*(promptPackages: seq[string], root = "/", yes: bool = false,
         install_bin(deps, binrepos, fullRootPath, offline,
                 downloadOnly = downloadOnly, manualInstallList = promptPackages, arch = arch, forceDownload = forceDownload, ignoreDownloadErrors = ignoreDownloadErrors)
 
-    info("done")
+    info("done", true)
