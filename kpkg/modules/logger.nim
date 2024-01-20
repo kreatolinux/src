@@ -5,6 +5,7 @@ proc info*(info: string, exitAfterwards = false) =
     ## Handles info messages.
     styledEcho("kpkg: ", fgBlue, "info: ", fgDefault, info)
     if exitAfterwards:
+        debug "infoProc: exiting"
         quit(0)
 
 proc err*(error: string, removeLockFile = true) =
