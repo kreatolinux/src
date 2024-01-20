@@ -3,7 +3,6 @@ import osproc
 import strutils
 import sequtils
 import parsecfg
-import taskpools
 import libsha/sha256
 import ../modules/config
 import ../modules/logger
@@ -15,14 +14,6 @@ import ../modules/dephandler
 import ../modules/libarchive
 import ../modules/commonTasks
 import ../modules/removeInternal
-
-var threadsUsed: int
-
-threadsUsed = parseInt(getConfigValue("Parallelization", "threadsUsed"))
-if threadsUsed < 1:
-    warn "threadsUsed in /etc/kpkg/kpkg.conf can't be below 1. Please update your configuration."
-    info "Setting threadsUsed to 1"
-    threadsUsed = 1
 
 setControlCHook(ctrlc)
 
@@ -234,23 +225,12 @@ proc install_bin(packages: seq[string], binrepos: seq[string], root: string,
 
     var repo: string
     
-    var tp: Taskpool
-
-    if threadsUsed > 1:
-        tp = Taskpool.new(num_threads = threadsUsed)
-
     isKpkgRunning()
     checkLockfile()
     createLockfile()
 
     for i in packages:
-        if threadsUsed == 1:
-            down_bin(i, binrepos, root, offline, forceDownload, ignoreDownloadErrors = ignoreDownloadErrors) # TODO: add arch
-        else:
-            tp.spawn down_bin(i, binrepos, root, offline, forceDownload, ignoreDownloadErrors = ignoreDownloadErrors) # TODO: add arch
-    if threadsUsed > 1:
-        tp.syncAll()
-        tp.shutdown()
+        down_bin(i, binrepos, root, offline, forceDownload, ignoreDownloadErrors = ignoreDownloadErrors) # TODO: add arch
 
     if not downloadOnly:
         for i in packages:
