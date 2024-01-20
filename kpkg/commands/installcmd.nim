@@ -245,9 +245,9 @@ proc install_bin(packages: seq[string], binrepos: seq[string], root: string,
             down_bin(i, binrepos, root, offline, forceDownload, ignoreDownloadErrors = ignoreDownloadErrors) # TODO: add arch
         else:
             tp.spawn down_bin(i, binrepos, root, offline, forceDownload, ignoreDownloadErrors = ignoreDownloadErrors) # TODO: add arch
-
-    tp.syncAll()
-    tp.shutdown()
+    if threadsUsed == 1:
+        tp.syncAll()
+        tp.shutdown()
 
     if not downloadOnly:
         for i in packages:
@@ -297,4 +297,3 @@ proc install*(promptPackages: seq[string], root = "/", yes: bool = false,
                 downloadOnly = downloadOnly, manualInstallList = promptPackages, arch = arch, forceDownload = forceDownload, ignoreDownloadErrors = ignoreDownloadErrors)
 
     info("done")
-    return 0
