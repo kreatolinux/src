@@ -184,10 +184,15 @@ proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false,
                 deps.add(d)
 
     for i in replaceList:
+        debug "replaceList: '"&replaceList.join(" ")&"'"
         for replacePackage in i.replacedBy:
-            while deps.find(replacePackage) != -1:
-                let index = deps.find(replacePackage)
-                deps.delete(index)
-                deps.insert(i.package, index)
+            if not (replacePackage in deps):
+                
+                while deps.find(replacePackage) != -1:
+                    let index = deps.find(replacePackage)
+                    debug "deleting '"&replacePackage&"'"
+                    deps.delete(index)
+                    debug "inserting '"&i.package&"' instead"
+                    deps.insert(i.package, index)
  
     return deduplicate(deps.filterit(it.len != 0))
