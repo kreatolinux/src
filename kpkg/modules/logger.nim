@@ -1,6 +1,11 @@
 import os
 import terminal
 
+proc debug*(debug: string) =
+    ## Handles debug messages.
+    when not defined(release):
+        styledEcho("kpkg: ", fgYellow, "debug: ", fgDefault, debug)
+
 proc info*(info: string, exitAfterwards = false) =
     ## Handles info messages.
     styledEcho("kpkg: ", fgBlue, "info: ", fgDefault, info)
@@ -20,11 +25,6 @@ proc err*(error: string, removeLockFile = true) =
 proc warn*(warn: string) =
     ## Handles warnings.
     styledEcho("kpkg: ", fgYellow, "warning: ", fgDefault, warn)
-
-proc debug*(debug: string) =
-    ## Handles debug messages.
-    when not defined(release):
-        styledEcho("kpkg: ", fgYellow, "debug: ", fgDefault, debug)
 
 proc success*(success: string, exitAfterwards = false) =
     ## Handles success messages.
