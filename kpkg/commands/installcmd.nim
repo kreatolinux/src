@@ -234,7 +234,10 @@ proc install_bin(packages: seq[string], binrepos: seq[string], root: string,
 
     var repo: string
     
-    var tp = Taskpool.new(num_threads = threadsUsed)
+    var tp: Taskpool
+
+    if threadsUsed > 1:
+        tp = Taskpool.new(num_threads = threadsUsed)
 
     isKpkgRunning()
     checkLockfile()
@@ -245,7 +248,7 @@ proc install_bin(packages: seq[string], binrepos: seq[string], root: string,
             down_bin(i, binrepos, root, offline, forceDownload, ignoreDownloadErrors = ignoreDownloadErrors) # TODO: add arch
         else:
             tp.spawn down_bin(i, binrepos, root, offline, forceDownload, ignoreDownloadErrors = ignoreDownloadErrors) # TODO: add arch
-    if threadsUsed == 1:
+    if threadsUsed > 1:
         tp.syncAll()
         tp.shutdown()
 
