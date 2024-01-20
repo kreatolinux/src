@@ -36,7 +36,7 @@ jobs:
           export PATH=$PATH:$HOME/.nimble/bin
           make deps kpkg
       
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: kpkg-amd64-linux
           path: ${{ github.workspace }}/out/kpkg
