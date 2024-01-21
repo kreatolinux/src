@@ -1,10 +1,15 @@
 import cligen
 import commands/generatecmd
+import commands/generateManpage
+import ../common/version
 
-clCfg.version = "genpkglist v1.0.0"
+clCfg.version = "genpkglist "&ver
 
 dispatchMulti(
     [
     generate
+    ],
+    [
+    generateManpage
     ]
 )
