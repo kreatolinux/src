@@ -1,6 +1,6 @@
 import cligen
 import commands/generatecmd
-import commands/generateManpage
+import commands/generateManpagecmd
 import ../common/version
 
 clCfg.version = "genpkglist "&ver
