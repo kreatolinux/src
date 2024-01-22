@@ -2,11 +2,14 @@ include json
 import os
 import ../kpkg/modules/runparser
 
+type
+    Update = object
+        packages: string
 
-proc generateJson*(repo: string, limit = 256, splitIfLimit = true, output = "out.json", ignorePackages = @[""]) =
+proc generateJson*(repo: string, limit = 256, splitIfLimit = true, output = "out.json", ignorePackages = @[Update(packages: "")], instance = 1) =
     ## Generates a build jsonfile
-    
-    var updateList: seq[string]
+
+    var updateList: seq[Update]
 
     let repoFullPath = absolutePath(repo)
     var count: int
@@ -18,18 +21,18 @@ proc generateJson*(repo: string, limit = 256, splitIfLimit = true, output = "out
         var willContinue: bool
 
         for i in ignorePackages:
-            if pkg in i.split(" "):
+            if pkg in i.packages.split(" "):
                 willContinue = true
 
         if count >= limit and limit > 0:
             if splitIfLimit:
                 let outputSplit = output.split(".")
-                generateJson(repo, limit, splitIfLimit, output = outputSplit[0]&"-2."&outputSplit[1], ignorePackages = ignorePackages&updateList)
+                generateJson(repo, limit, splitIfLimit, output = outputSplit[0]&"-"&($(instance + 1))&"."&outputSplit[1], ignorePackages = ignorePackages&updateList, instance = (instance + 1))
             
             break
         
         for i in updateList:
-                if pkg in i.split(" "):
+                if pkg in i.packages.split(" "):
                     willContinue = true
         
         if willContinue:
@@ -42,10 +45,10 @@ proc generateJson*(repo: string, limit = 256, splitIfLimit = true, output = "out
         else:
             deps = pkg
         
-        updateList = updateList&deps
+        updateList = updateList&Update(packages: deps)
         count = count + 1
     
-    echo count
+    echo "Generated '"&($count)&"' json parts at '"&output&"'"
 
     let res = %*
         {

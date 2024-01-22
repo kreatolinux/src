@@ -44,6 +44,6 @@ dispatchMulti(
          jsonToMd
         ],
         [
-         generateJson
+         generateJson, suppress = @["ignorePackages", "instance"]
         ]
 )
