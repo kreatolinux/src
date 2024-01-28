@@ -6,13 +6,13 @@ import sequtils
 import parsecfg
 import installcmd
 import posix_utils
-import libsha/sha256
 import ../modules/logger
 import ../modules/shadow
 import ../modules/config
 import ../modules/lockfile
 import ../modules/runparser
 import ../modules/processes
+import ../modules/checksums
 import ../modules/dephandler
 import ../modules/libarchive
 import ../modules/downloader
@@ -220,10 +220,9 @@ proc builder*(package: string, destdir: string,
                         download("https://"&mirror&"/"&actualPackage&"/"&extractFilename(i).strip(), filename, raiseWhenFail = false)
 
                 # git cloning doesn't support sha256sum checking
-                var actualDigest = sha256hexdigest(readAll(open(
-                        filename)))
+                let actualDigest = getSum(filename, "sha256")
 
-                var expectedDigest = pkg.sha256sum.split(" ")[int]
+                let expectedDigest = pkg.sha256sum.split(" ")[int]
 
                 if expectedDigest != actualDigest:
                     removeFile(filename)
@@ -374,8 +373,7 @@ proc builder*(package: string, destdir: string,
         err "creating binary tarball failed"
     #createArchive(tarball, root)
 
-    writeFile(tarball&".sum", sha256hexdigest(readAll(open(
-        tarball)))&"  "&tarball)
+    writeFile(tarball&".sum", getSum(tarball, "sha256")&"  "&tarball)
 
 
     # Install package to root aswell so dependency errors doesnt happen

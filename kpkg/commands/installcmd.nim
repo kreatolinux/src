@@ -3,10 +3,10 @@ import osproc
 import strutils
 import sequtils
 import parsecfg
-import libsha/sha256
 import ../modules/config
 import ../modules/logger
 import ../modules/lockfile
+import ../modules/checksums
 import ../modules/runparser
 import ../modules/processes
 import ../modules/downloader
@@ -61,7 +61,7 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
     if not isGroup:
         tarball = "/var/cache/kpkg/archives/arch/"&arch&"/kpkg-tarball-"&package&"-"&pkg.versionString&".tar.gz"
 
-        if sha256hexdigest(readAll(open(tarball)))&"  "&tarball != readAll(open(
+        if getSum(tarball, "sha256")&"  "&tarball != readAll(open(
             tarball&".sum")):
             err("sha256sum doesn't match for "&package, false)
 
