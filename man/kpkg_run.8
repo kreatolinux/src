@@ -32,6 +32,8 @@ BACKUP=\[dq]etc/test-v3/main.conf etc/test/settings.conf\[dq]
 OPTDEPENDS=\[dq]optional-dependency: This is a test optional dependency ;; optional-dependency-2: This is a second optional dependency.\[dq]
 BUILD_DEPENDS=\[dq]testpackage5 testpackage6 testpackage10\[dq]
 SHA256SUM=\[dq]e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\[dq]
+SHA512SUM=\[dq]cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce47d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e\[dq]
+B2SUM=\[dq]786a02f742015903c6c6fd852552d272912f4740e15847618a86e217f71f5419d25e1031afee585313896444934eb04b903a685b1448b755d56f701afe9be2ce\[dq]
 DESCRIPTION=\[dq]Test package\[dq]
 
 prepare() {
@@ -104,6 +106,16 @@ BUILD_DEPENDS: Build dependencies of your package.
 Seperated by space.
 .IP \[bu] 2
 SHA256SUM: sha256sum output of the sources.
+Should align with sources.
+Can also be seperated by \[cq] \[cq].
+Doesnt support git URL\[cq]s yet.
+.IP \[bu] 2
+SHA512SUM: sha512sum output of the sources.
+Should align with sources.
+Can also be seperated by \[cq] \[cq].
+Doesnt support git URL\[cq]s yet.
+.IP \[bu] 2
+B2SUM: b2sum output of the sources.
 Should align with sources.
 Can also be seperated by \[cq] \[cq].
 Doesnt support git URL\[cq]s yet.
