@@ -26,16 +26,16 @@ proc cleanUp() {.noconv.} =
 
 
 proc fakerootWrap(srcdir: string, path: string, root: string, input: string,
-        autocd = "", tests = false, isTest = false, existsTest = 1, target = "default"): int =
+        autocd = "", tests = false, isTest = false, existsTest = 1, target = "default", typ: string): int =
     ## Wraps command with fakeroot and executes it.
     
     if (isTest and not tests) or (tests and existsTest != 0):
         return 0
 
     if not isEmptyOrWhitespace(autocd):
-        return execCmdKpkg("fakeroot -- /bin/sh -c '. "&path&"/run && export DESTDIR="&root&" && export ROOT=$DESTDIR && cd "&autocd&" && "&input&"'")
+        return execCmdKpkg("fakeroot -- /bin/sh -c '. "&path&"/run && export DESTDIR="&root&" && export ROOT=$DESTDIR && cd "&autocd&" && "&input&"'", typ)
 
-    return execCmdKpkg("fakeroot -- /bin/sh -c '. "&path&"/run && export DESTDIR="&root&" && export ROOT=$DESTDIR && cd '"&srcdir&"' && "&input&"'")
+    return execCmdKpkg("fakeroot -- /bin/sh -c '. "&path&"/run && export DESTDIR="&root&" && export ROOT=$DESTDIR && cd '"&srcdir&"' && "&input&"'", typ)
 
 proc builder*(package: string, destdir: string,
     root = "/opt/kpkg/build", srcdir = "/opt/kpkg/srcdir", offline = false,
@@ -275,10 +275,6 @@ proc builder*(package: string, destdir: string,
         if execCmdKpkg("su -s /bin/sh _kpkg -c '. "&path&"/run"&" && prepare'") != 0:
             err("prepare failed", true)
 
-    var cmd: int
-    var cmd2: int
-    var cmd3: int
-
     # Run ldconfig beforehand for any errors
     discard execProcess("ldconfig")
      
@@ -350,31 +346,22 @@ proc builder*(package: string, destdir: string,
     if pkg.sources.split(" ").len == 1:
         if existsPrepare == 0:
             debug "prepare() exist, autocd will not run"
-            cmd = execCmdKpkg(sboxWrap(cmdStr))
-            cmd2 = fakerootWrap(srcdir, path, root, "check", tests = tests,
-                    isTest = true, existsTest = existsTest)
-            cmd3 = fakerootWrap(srcdir, path, root, cmd3Str)
+            discard execCmdKpkg(sboxWrap(cmdStr), "build")
+            discard fakerootWrap(srcdir, path, root, "check", tests = tests,
+                    isTest = true, existsTest = existsTest, typ = "Tests")
+            discard fakerootWrap(srcdir, path, root, cmd3Str, typ = "Installation")
         else:
             debug "prepare() doesn't exist, autocd will run"
-            cmd = execCmdKpkg(sboxWrap("cd "&folder&" && "&cmdStr))
-            cmd2 = fakerootWrap(srcdir, path, root, "check", folder,
-                    tests = tests, isTest = true, existsTest = existsTest)
-            cmd3 = fakerootWrap(srcdir, path, root, cmd3Str, folder)
+            discard execCmdKpkg(sboxWrap("cd "&folder&" && "&cmdStr), "build")
+            discard fakerootWrap(srcdir, path, root, "check", folder,
+                    tests = tests, isTest = true, existsTest = existsTest, typ = "Tests")
+            discard fakerootWrap(srcdir, path, root, cmd3Str, folder, typ = "Installation")
 
     else:
-        cmd = execCmdKpkg(sboxWrap(cmdStr))
-        cmd2 = fakerootWrap(srcdir, path, root, "check", tests = tests,
-                isTest = true, existsTest = existsTest)
-        cmd3 = fakerootWrap(srcdir, path, root, cmd3Str)
-
-    if cmd != 0:
-        err("build failed")
-
-    if cmd2 != 0:
-        err("Tests failed")
-
-    if cmd3 != 0:
-        err("Installation failed")
+        discard execCmdKpkg(sboxWrap(cmdStr), "build")
+        discard fakerootWrap(srcdir, path, root, "check", tests = tests,
+                isTest = true, existsTest = existsTest, typ = "Tests")
+        discard fakerootWrap(srcdir, path, root, cmd3Str, typ = "Installation")
 
     var tarball = "/var/cache/kpkg/archives/arch/"
     

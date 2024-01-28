@@ -3,7 +3,7 @@ import logger
 import osproc
 import streams
 
-proc execCmdKpkg*(command: string): int =
+proc execCmdKpkg*(command: string, error = "none"): int =
   # Like execCmdEx, but with outputs.
   let process = startProcess(command, options = {poEvalCommand, poStdErrToStdOut})
   let outp = outputStream(process)
@@ -12,7 +12,12 @@ proc execCmdKpkg*(command: string): int =
   while outp.readLine(line):
     echo line
 
-  return waitForExit(process)
+  let res = waitForExit(process)
+
+  if error != "none" and res != 0:
+    err error&" failed"
+  
+  return res
 
 proc getPidKpkg(): string =
   # Gets current pid from /proc/self.
