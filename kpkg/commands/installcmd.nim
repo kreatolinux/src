@@ -60,10 +60,16 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
 
     if not isGroup:
         tarball = "/var/cache/kpkg/archives/arch/"&arch&"/kpkg-tarball-"&package&"-"&pkg.versionString&".tar.gz"
-
-        if getSum(tarball, "sha256")&"  "&tarball != readAll(open(
-            tarball&".sum")):
-            err("sha256sum doesn't match for "&package, false)
+        
+        if fileExists(tarball&".sum.b2"):
+            if getSum(tarball, "b2") != readAll(open(
+                tarball&".sum.b2")):
+                err("b2sum doesn't match for "&package, false)
+        else:
+            # For backwards compatibility
+            if getSum(tarball, "sha256")&"  "&tarball != readAll(open(
+                tarball&".sum")):
+                err("sha256sum doesn't match for "&package, false)
 
     setCurrentDir("/var/cache/kpkg/archives")
     
@@ -197,7 +203,7 @@ proc down_bin(package: string, binrepos: seq[string], root: string,
         let chksum = tarball&".sum"
 
         if fileExists("/var/cache/kpkg/archives/arch/"&hostCPU&"/"&tarball) and
-                fileExists("/var/cache/kpkg/archives/arch/"&hostCPU&"/"&chksum) and (not forceDownload):
+                (fileExists("/var/cache/kpkg/archives/arch/"&hostCPU&"/"&chksum) or fileExists("/var/cache/kpkg/archives/arch/"&hostCPU&"/"&chksum&".b2")) and (not forceDownload):
             echo "Tarball already exists for '"&package&"', not gonna download again"
             downSuccess = true
         elif not offline:
@@ -206,8 +212,11 @@ proc down_bin(package: string, binrepos: seq[string], root: string,
                 download("https://"&binrepo&"/arch/"&hostCPU&"/"&tarball,
                     "/var/cache/kpkg/archives/arch/"&hostCPU&"/"&tarball)
                 echo "Downloading checksums for "&package
-                download("https://"&binrepo&"/arch/"&hostCPU&"/"&chksum,
-                    "/var/cache/kpkg/archives/arch/"&hostCPU&"/"&chksum)
+                try:
+                    download("https://"&binrepo&"/arch/"&hostCPU&"/"&chksum&".b2", "/var/cache/kpkg/archives/arch/"&hostCPU&"/"&chksum&".b2", raiseWhenFail = true)
+                except Exception: 
+                    download("https://"&binrepo&"/arch/"&hostCPU&"/"&chksum,
+                        "/var/cache/kpkg/archives/arch/"&hostCPU&"/"&chksum)
                 downSuccess = true
             except CatchableError:
                 if ignoreDownloadErrors:

@@ -399,7 +399,7 @@ proc builder*(package: string, destdir: string,
         err "creating binary tarball failed"
     #createArchive(tarball, root)
 
-    writeFile(tarball&".sum", getSum(tarball, "sha256")&"  "&tarball)
+    writeFile(tarball&".sum.b2", getSum(tarball, "b2"))
 
 
     # Install package to root aswell so dependency errors doesnt happen
