@@ -219,14 +219,40 @@ proc builder*(package: string, destdir: string,
                         info "download failed through sources listed on the runFile, contacting the source mirror"
                         download("https://"&mirror&"/"&actualPackage&"/"&extractFilename(i).strip(), filename, raiseWhenFail = false)
 
-                # git cloning doesn't support sha256sum checking
-                let actualDigest = getSum(filename, "sha256")
+                # git cloning doesn't support sum checking
+                var actualDigest: string
+                var expectedDigest: string
+                var sumType: string
 
-                let expectedDigest = pkg.sha256sum.split(" ")[int]
+                try:
+                    expectedDigest = pkg.b2sum.split(" ")[int]
+                    if isEmptyOrWhitespace(expectedDigest): raise
+                    sumType = "b2"
+                except Exception:
+                    discard
+                
+                if sumType != "b2":
+                    try:
+                        expectedDigest = pkg.sha512sum.split(" ")[int]
+                        if isEmptyOrWhitespace(expectedDigest): raise
+                        sumType = "sha512"
+                    except Exception:
+                        discard
+
+                if sumType != "sha512" and sumType != "b2":
+                    try:
+                        expectedDigest = pkg.sha256sum.split(" ")[int]
+                        if isEmptyOrWhitespace(expectedDigest): raise
+                        sumType = "sha256"
+                    except Exception:
+                        err "runFile doesn't have proper checksums"
+                
+
+                actualDigest = getSum(filename, sumType)
 
                 if expectedDigest != actualDigest:
                     removeFile(filename)
-                    err "sha256sum doesn't match for "&i&"\nExpected: "&expectedDigest&"\nActual: "&actualDigest
+                    err sumType&"sum doesn't match for "&i&"\nExpected: '"&expectedDigest&"'\nActual: '"&actualDigest&"'"
 
                 # Add symlink for compatibility purposes
                 if not fileExists(path&"/"&i):

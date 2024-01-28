@@ -25,6 +25,8 @@ BACKUP="etc/test-v3/main.conf etc/test/settings.conf"
 OPTDEPENDS="optional-dependency: This is a test optional dependency ;; optional-dependency-2: This is a second optional dependency."
 BUILD_DEPENDS="testpackage5 testpackage6 testpackage10"
 SHA256SUM="e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+SHA512SUM="cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce47d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e"
+B2SUM="786a02f742015903c6c6fd852552d272912f4740e15847618a86e217f71f5419d25e1031afee585313896444934eb04b903a685b1448b755d56f701afe9be2ce"
 DESCRIPTION="Test package"
 
 prepare() {
@@ -74,8 +76,10 @@ Now lets break it down.
 * RELEASE: Release of your package. It will also be on the info command and updating it will result in kpkg upgrading the package.
 * SOURCES: Source URL's of your package. Can be seperated by ' ' like `https://test.url https://test.url2`. Also supports git URL's as shown by the second source.
 * DEPENDS: Dependencies of your package. Seperated by space. You can also specify versions for your dependencies such as `test<=1.8.1`, `test=1.8.1`, `test>=1.8.1`, `test<1.8.1`, `test>1.8.1`.
-* BUILD_DEPENDS: Build dependencies of your package. Seperated by space. 
+* BUILD_DEPENDS: Build dependencies of your package. Seperated by space.
 * SHA256SUM: sha256sum output of the sources. Should align with sources. Can also be seperated by ' '. Doesnt support git URL's yet.
+* SHA512SUM: sha512sum output of the sources. Should align with sources. Can also be seperated by ' '. Doesnt support git URL's yet.
+* B2SUM: b2sum output of the sources. Should align with sources. Can also be seperated by ' '. Doesnt support git URL's yet.
 * DESCRIPTION: Description of the package. It will be on the info command.
 
 ## FUNCTIONS

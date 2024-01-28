@@ -9,6 +9,8 @@ type runFile* = object
     version*: string
     release*: string
     sha256sum*: string
+    sha512sum*: string
+    b2sum*: string
     epoch*: string
     desc*: string
     versionString*: string
@@ -83,6 +85,10 @@ proc parseRunfile*(path: string, removeLockfileWhenErr = true): runFile =
                     ).strip()).split(" ")
                 of "sha256sum":
                     ret.sha256sum = override.getSectionValue("runFile", "sha256sum", vars[1].strip())
+                of "sha512sum":
+                    ret.sha512sum = override.getSectionValue("runFile", "sha512sum", vars[1].strip())
+                of "b2sum":
+                    ret.b2sum = override.getSectionValue("runFile", "b2sum", vars[1].strip())
                 of "conflicts":
                     ret.conflicts = override.getSectionValue("runFile", "conflicts", vars[1].multiReplace(
                     ("\"", ""),
@@ -149,8 +155,7 @@ proc parseRunfile*(path: string, removeLockfileWhenErr = true): runFile =
         ret.versionString = ret.version&"-"&ret.release
         ret.epoch = "no"
 
-    if not isEmptyOrWhitespace(ret.sources):
-        ret.sources = ret.sources.multiReplace(
+        var replaceWith = @[
             ("$NAME", ret.pkg),
             ("$Name", ret.pkg),
             ("$name", ret.pkg),
@@ -166,30 +171,27 @@ proc parseRunfile*(path: string, removeLockfileWhenErr = true): runFile =
             ("$SHA256SUM", ret.sha256sum),
             ("$sha256sum", ret.sha256sum),
             ("$Sha256sum", ret.sha256sum),
+            ("$SHA512SUM", ret.sha512sum),
+            ("$sha512sum", ret.sha512sum),
+            ("$Sha512sum", ret.sha512sum),
+            ("$b2sum", ret.b2sum),
+            ("$B2sum", ret.b2sum),
+            ("$B2SUM", ret.b2sum),
             ("\"", ""),
             ("'", "")
-            )
+            ]
 
     if not isEmptyOrWhitespace(ret.sha256sum):
-        ret.sha256sum = ret.sha256sum.multiReplace(
-            ("$NAME", ret.pkg),
-            ("$Name", ret.pkg),
-            ("$name", ret.pkg),
-            ("$VERSION", ret.version),
-            ("$Version", ret.version),
-            ("$version", ret.version),
-            ("$RELEASE", ret.release),
-            ("$release", ret.release),
-            ("$Release", ret.release),
-            ("$EPOCH", ret.epoch),
-            ("$epoch", ret.epoch),
-            ("$Epoch", ret.epoch),
-            ("$SHA256SUM", ret.sha256sum),
-            ("$sha256sum", ret.sha256sum),
-            ("$Sha256sum", ret.sha256sum),
-            ("\"", ""),
-            ("'", "")
-            )
+        ret.sha256sum = ret.sha256sum.multiReplace(replaceWith)
+    
+    if not isEmptyOrWhitespace(ret.sources):
+        ret.sources = ret.sources.multiReplace(replaceWith)
+
+    if not isEmptyOrWhitespace(ret.sha512sum):
+        ret.sha512sum = ret.sha512sum.multiReplace(replaceWith)
+    
+    if not isEmptyOrWhitespace(ret.b2sum):
+        ret.b2sum = ret.b2sum.multiReplace(replaceWith)
 
     ret.isParsed = true
 

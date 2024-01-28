@@ -46,7 +46,7 @@ proc getSum*(file: string, sumType = "sha256"): string =
             var hash: sha512
             getSumSha2(hash, f)
             return ($hash.finish()).toLower()
-        of "blake2", "blake2_512":
+        of "blake2", "blake2_512", "b2":
             var hash: blake2_512
             getSumBlake2(hash, f)
             return ($hash.finish()).toLower()
