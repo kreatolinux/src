@@ -1,6 +1,6 @@
 import os
 import strutils
-import libsha/sha256
+import ../kpkg/modules/checksums
 import ../kpkg/modules/runparser
 import ../kpkg/modules/downloader
 
@@ -13,8 +13,21 @@ proc autoUpdater*(pkg: runFile, packageDir: string, newVersion: string,
         var c = 0
         var source: string
         var filename: string
+        
+        var splitSum: seq[string]
+        var sumType: string
 
-        for i in pkg.sha256sum.split(" "):
+        if not isEmptyOrWhitespace(pkg.b2sum):
+            splitSum = pkg.b2sum.split(" ")
+            sumType = "b2"
+        elif not isEmptyOrWhitespace(pkg.sha512sum):
+            splitSum = pkg.sha512sum.split(" ")
+            sumType = "sha512"
+        elif not isEmptyOrWhitespace(pkg.sha256sum):
+            splitSum = pkg.sha256sum.split(" ")
+            sumType = "sha256"
+
+        for i in splitSum:
                 source = pkg.sources.split(" ")[c].replace(pkg.version, newVersion)
                 filename = extractFilename(source).strip().replace(pkg.version, newVersion)
 
@@ -26,11 +39,8 @@ proc autoUpdater*(pkg: runFile, packageDir: string, newVersion: string,
                                 echo "WARN: '"&pkg.pkg&"' failed because of download. Skipping."
                                 return
 
-                # Replace the sha256sum
-                writeFile(packageDir&"/run", readFile(
-                                packageDir&"/run").replace(pkg.sha256sum.split(
-                                " ")[c], sha256hexdigest(readFile(
-                                filename))))
+                # Replace the sum
+                writeFile(packageDir&"/run", readFile(packageDir&"/run").replace(splitSum[c], getSum(filename, sumType)))
                 c = c+1
 
                 # Replace the version
