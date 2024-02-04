@@ -25,7 +25,16 @@ proc copyFileWithPermissionsAndOwnership(source, dest: string, options = {cfSyml
     copyFileWithPermissions(source, dest)
     debug "copyFileWithPermissions successful, setting chown"
     assert posix.chown(dest, statVar.st_uid, statVar.st_gid) == 0
-    
+
+proc createDirWithPermissionsAndOwnership(source, dest: string, followSymlinks = true)
+    var statVar: Stat
+    assert stat(source, statVar) == 0
+    createDir(dest)
+    debug "createDir successful, setting chown and chmod"
+    assert posix.chown(dest, statVar.st_uid, statVar.std_gid) == 0
+    debug "chown successful, setting permissions"
+    setFilePermissions(dest, getFilePermissions(source), followSymlinks)
+
 
 proc installPkg*(repo: string, package: string, root: string, runf = runFile(
         isParsed: false), manualInstallList: seq[string], isUpgrade = false, arch = hostCPU, ignorePostInstall = false) =
@@ -153,10 +162,10 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
                 let doesFileExist = fileExists(kpkgInstallTemp&"/"&file)
                 if doesFileExist:
                     if not dirExists(root&"/"&file.parentDir()):
-                        createDir(file.parentDir()) # TODO: Change with custom proc (DO NOT FORGET THIS!)
+                        createDirWithPermissionsAndOwnership(kpkgInstallTemp&"/"&file.parentDir(), root&"/"&file.parentDir())
                     copyFileWithPermissionsAndOwnership(kpkgInstallTemp&"/"&file, root&"/"&file)
                 elif dirExists(kpkgInstallTemp&"/"&file) and (not dirExists(root&"/"&file)):
-                    createDir(root&"/"&file) # TODO: change with custom proc (DO NOT FORGET THIS!)
+                    createDirWithPermissionsAndOwnership(kpkgInstallTemp&"/"&file, root&"/"&file)
 
     # Run ldconfig afterwards for any new libraries
     discard execProcess("ldconfig")
