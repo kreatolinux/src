@@ -1,0 +1,6 @@
+const kpkgTempDir1* = "/opt/kpkg"
+const kpkgTempDir2* = "/tmp/kpkg"
+const kpkgCacheDir* = "/var/cache/kpkg"
+const kpkgInstalledDir* = kpkgCacheDir&"/installed"
+const kpkgArchivesDir* = kpkgCacheDir&"/archives"
+const kpkgSourcesDir* = kpkgCacheDir&"/sources"

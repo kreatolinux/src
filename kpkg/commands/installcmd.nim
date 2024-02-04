@@ -14,6 +14,7 @@ import ../modules/downloader
 import ../modules/dephandler
 import ../modules/libarchive
 import ../modules/commonTasks
+import ../modules/commonPaths
 import ../modules/removeInternal
 
 setControlCHook(ctrlc)
@@ -68,7 +69,7 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
     let isGroup = pkg.isGroup
 
     for i in pkg.conflicts:
-        if dirExists(root&"/var/cache/kpkg/installed/"&i):
+        if dirExists(root&kpkgInstalledDir&"/"&i):
             err(i&" conflicts with "&package)
 
     removeDir("/tmp/kpkg/reinstall/"&package&"-old")
@@ -78,7 +79,7 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
     var tarball: string
 
     if not isGroup:
-        tarball = "/var/cache/kpkg/archives/arch/"&arch&"/kpkg-tarball-"&package&"-"&pkg.versionString&".tar.gz"
+        tarball = kpkgArchivesDir&"/arch/"&arch&"/kpkg-tarball-"&package&"-"&pkg.versionString&".tar.gz"
         
         if fileExists(tarball&".sum.b2"):
             if getSum(tarball, "b2") != readAll(open(
@@ -90,44 +91,51 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
                 tarball&".sum")):
                 err("sha256sum doesn't match for "&package, false)
 
-    setCurrentDir("/var/cache/kpkg/archives")
+    setCurrentDir(kpkgArchivesDir)
     
     for i in pkg.replaces:
-        if symlinkExists(root&"/var/cache/kpkg/installed/"&i):
-            removeFile(root&"/var/cache/kpkg/installed/"&i)
-        elif dirExists(root&"/var/cache/kpkg/installed/"&i):
+        if symlinkExists(root&kpkgInstalledDir&"/"&i):
+            removeFile(root&kpkgInstalledDir&"/"&i)
+        elif dirExists(root&kpkgInstalledDir&"/"&i):
             if arch != hostCPU:
                 removeInternal(i, root, initCheck = false)
             else:
                 removeInternal(i, root)
-        createSymlink(package, root&"/var/cache/kpkg/installed/"&i)
+        createSymlink(package, root&kpkgInstalledDir&"/"&i)
 
-    if dirExists(root&"/var/cache/kpkg/installed/"&package) and
-            not symlinkExists(root&"/var/cache/kpkg/installed/"&package) and not isGroup:
+    if dirExists(root&kpkgInstalledDir&"/"&package) and
+            not symlinkExists(root&kpkgInstalledDir&"/"&package) and not isGroup:
 
         info "package already installed, reinstalling"
-        if arch != hostCPU:
-            removeInternal(package, root, ignoreReplaces = true, noRunfile = true, initCheck = false)
+        if not fileExists(root&kpkgInstalledDir&"/"&package&"/list_files"):
+            warn "'"&package&"' seems to be not installed correctly"
+            warn "removing '"&package&"' from database, but there may be some leftovers"
+            warn "please open an issue at https://github.com/kreatolinux/src with how this happened"
+            removeDir(root&kpkgInstalledDir&"/"&package)
         else:
-            removeInternal(package, root, ignoreReplaces = true, noRunfile = true)
+            if arch != hostCPU:
+                removeInternal(package, root, ignoreReplaces = true, noRunfile = true, initCheck = false)
+            else:
+                removeInternal(package, root, ignoreReplaces = true, noRunfile = true)
 
     discard existsOrCreateDir(root&"/var/cache")
-    discard existsOrCreateDir(root&"/var/cache/kpkg")
-    discard existsOrCreateDir(root&"/var/cache/kpkg/installed")
-    removeDir(root&"/var/cache/kpkg/installed/"&package)
-    copyDir(repo&"/"&package, root&"/var/cache/kpkg/installed/"&package)
+    discard existsOrCreateDir(root&kpkgCacheDir)
+    discard existsOrCreateDir(root&kpkgInstalledDir)
+    removeDir(root&kpkgInstalledDir&"/"&package)
+    copyDir(repo&"/"&package, root&kpkgInstalledDir&"/"&package)
     
     if not isGroup:
         var extractTarball: seq[string]
-        let kpkgInstallTemp = "/opt/kpkg/install-"&package
+        let kpkgInstallTemp = kpkgTempDir1&"/install-"&package
         if dirExists(kpkgInstallTemp):
             removeDir(kpkgInstallTemp)
         
         createDir(kpkgInstallTemp)
+        setCurrentDir(kpkgInstallTemp)
         try:
           extractTarball = extract(tarball, kpkgInstallTemp, pkg.backup)
         except Exception:
-            removeDir(root&"/var/cache/kpkg/installed/"&package)
+            removeDir(root&kpkgInstalledDir&"/"&package)
             when defined(release):
                 err("extracting the tarball failed for "&package)
             else:
@@ -135,21 +143,22 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
         
         if not fileExists(kpkgInstallTemp&"/pkgsums.ini"):
             # Backwards compatibility with kpkg v6
-            writeFile(root&"/var/cache/kpkg/installed/"&package&"/list_files", extractTarball.join("\n"))
+            writeFile(root&kpkgInstalledDir&"/"&package&"/list_files", extractTarball.join("\n"))
         else:    
             var dict = loadConfig(kpkgInstallTemp&"/pkgsums.ini")
-
+            
             # Checking loop
             for file in extractTarball:
                 if "pkgsums.ini" == lastPathPart(file): continue
                 debug kpkgInstallTemp&"/"&relativePath(file, kpkgInstallTemp)
                 let value = dict.getSectionValue("", relativePath(file, kpkgInstallTemp))
-                let doesFileExist = fileExists(kpkgInstallTemp&"/"&file)
+                let doesFileExist = (fileExists(kpkgInstallTemp&"/"&file) and not symlinkExists(kpkgInstallTemp&"/"&file))
 
                 if isEmptyOrWhitespace(value) and not doesFileExist:
                     continue
                 
                 if isEmptyOrWhitespace(value) and doesFileExist:
+                    debug file
                     err("package sums invalid")
 
                 if getSum(kpkgInstallTemp&"/"&file, "b2") != value:
@@ -158,8 +167,8 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
             # Installation loop 
             for file in extractTarball:
                 if "pkgsums.ini" == lastPathPart(file):
-                    moveFile(kpkgInstallTemp&"/"&file, "/var/cache/kpkg/installed/"&package&"/list_files")
-                let doesFileExist = fileExists(kpkgInstallTemp&"/"&file)
+                    moveFile(kpkgInstallTemp&"/"&file, kpkgInstalledDir&"/"&package&"/list_files")
+                let doesFileExist = (fileExists(kpkgInstallTemp&"/"&file) and not symlinkExists(kpkgInstallTemp&"/"&file))
                 if doesFileExist:
                     if not dirExists(root&"/"&file.parentDir()):
                         createDirWithPermissionsAndOwnership(kpkgInstallTemp&"/"&file.parentDir(), root&"/"&file.parentDir())
@@ -170,12 +179,12 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
     # Run ldconfig afterwards for any new libraries
     discard execProcess("ldconfig")
 
-    removeDir("/tmp/kpkg")
-    removeDir("/opt/kpkg")
+    removeDir(kpkgTempDir1)
+    removeDir(kpkgTempDir2)
 
     if package in manualInstallList:
       info "Setting as manually installed"
-      writeFile(root&"/var/cache/kpkg/installed/"&package&"/manualInstall", "")
+      writeFile(root&kpkgInstalledDir&"/"&package&"/manualInstall", "")
 
     var existsPkgPostinstall = execCmdEx(
             ". "&repo&"/"&package&"/run"&" && command -v postinstall_"&replace(
@@ -220,11 +229,11 @@ proc down_bin(package: string, binrepos: seq[string], root: string,
     discard existsOrCreateDir("/var/")
     discard existsOrCreateDir("/var/cache")
     discard existsOrCreateDir("/var/cache/kpkg")
-    discard existsOrCreateDir("/var/cache/kpkg/archives")
-    discard existsOrCreateDir("/var/cache/kpkg/archives/arch")
-    discard existsOrCreateDir("/var/cache/kpkg/archives/arch/"&hostCPU)
+    discard existsOrCreateDir(kpkgArchivesDir)
+    discard existsOrCreateDir(kpkgArchivesDir&"/arch")
+    discard existsOrCreateDir(kpkgArchivesDir&"/arch/"&hostCPU)
 
-    setCurrentDir("/var/cache/kpkg/archives")
+    setCurrentDir(kpkgArchivesDir)
     var downSuccess: bool
 
     var binreposFinal = binrepos
@@ -258,21 +267,21 @@ proc down_bin(package: string, binrepos: seq[string], root: string,
         let tarball = "kpkg-tarball-"&package&"-"&pkg.versionString&".tar.gz"
         let chksum = tarball&".sum"
 
-        if fileExists("/var/cache/kpkg/archives/arch/"&hostCPU&"/"&tarball) and
-                (fileExists("/var/cache/kpkg/archives/arch/"&hostCPU&"/"&chksum) or fileExists("/var/cache/kpkg/archives/arch/"&hostCPU&"/"&chksum&".b2")) and (not forceDownload):
+        if fileExists(kpkgArchivesDir&"/arch/"&hostCPU&"/"&tarball) and
+                (fileExists(kpkgArchivesDir&"/arch/"&hostCPU&"/"&chksum) or fileExists(kpkgArchivesDir&"/arch/"&hostCPU&"/"&chksum&".b2")) and (not forceDownload):
             echo "Tarball already exists for '"&package&"', not gonna download again"
             downSuccess = true
         elif not offline:
             echo "Downloading tarball for "&package
             try:
                 download("https://"&binrepo&"/arch/"&hostCPU&"/"&tarball,
-                    "/var/cache/kpkg/archives/arch/"&hostCPU&"/"&tarball)
+                    kpkgArchivesDir&"/arch/"&hostCPU&"/"&tarball)
                 echo "Downloading checksums for "&package
                 try:
-                    download("https://"&binrepo&"/arch/"&hostCPU&"/"&chksum&".b2", "/var/cache/kpkg/archives/arch/"&hostCPU&"/"&chksum&".b2", raiseWhenFail = true)
+                    download("https://"&binrepo&"/arch/"&hostCPU&"/"&chksum&".b2", kpkgArchivesDir&"/arch/"&hostCPU&"/"&chksum&".b2", raiseWhenFail = true)
                 except Exception: 
                     download("https://"&binrepo&"/arch/"&hostCPU&"/"&chksum,
-                        "/var/cache/kpkg/archives/arch/"&hostCPU&"/"&chksum)
+                        kpkgArchivesDir&"/arch/"&hostCPU&"/"&chksum)
                 downSuccess = true
             except CatchableError:
                 if ignoreDownloadErrors:

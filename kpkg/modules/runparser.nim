@@ -8,6 +8,7 @@ type runFile* = object
     sources*: string
     version*: string
     release*: string
+    extract*: bool = true
     sha256sum*: string
     sha512sum*: string
     b2sum*: string
@@ -111,6 +112,11 @@ proc parseRunfile*(path: string, removeLockfileWhenErr = true): runFile =
                     ).strip()).split(" ;; ")
                 of "is_group", "is-group", "isgroup":
                     ret.isGroup = parseBool(override.getSectionValue("runFile", "isGroup", vars[1].multiReplace(
+                    ("\"", ""),
+                    ("'", "")
+                    ).strip()))
+                of "extract":
+                    ret.extract = parseBool(override.getSectionValue("runFile", "extract", vars[1].multiReplace(
                     ("\"", ""),
                     ("'", "")
                     ).strip()))

@@ -27,6 +27,7 @@ import commands/searchcmd
 import commands/cleancmd
 import commands/auditcmd
 import commands/providescmd
+import commands/checkcmd
 import ../common/version
 
 if commitVer != "unavailable":
@@ -124,4 +125,10 @@ dispatchMulti(
   "testing": "Don't error if package isn't installed"
   }
   ],
+  [
+  check, help = {
+    "root": "The directory the packages are gonna be checkd on",
+    "package": "Set a specific package to check"
+  }
+  ]
 )

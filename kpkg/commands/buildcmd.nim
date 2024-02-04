@@ -17,6 +17,7 @@ import ../modules/dephandler
 import ../modules/libarchive
 import ../modules/downloader
 import ../modules/commonTasks
+import ../modules/commonPaths
 import ../modules/crossCompilation
 
 proc cleanUp() {.noconv.} =
@@ -38,7 +39,7 @@ proc fakerootWrap(srcdir: string, path: string, root: string, input: string,
     return execCmdKpkg("fakeroot -- /bin/sh -c '. "&path&"/run && export DESTDIR="&root&" && export ROOT=$DESTDIR && cd '"&srcdir&"' && "&input&"'", typ)
 
 proc builder*(package: string, destdir: string,
-    root = "/opt/kpkg/build", srcdir = "/opt/kpkg/srcdir", offline = false,
+    root = kpkgTempDir1&"/build", srcdir = kpkgTempDir1&"/srcdir", offline = false,
             dontInstall = false, useCacheIfAvailable = false,
                     tests = false, manualInstallList: seq[string], customRepo = "", isInstallDir = false, isUpgrade = false, target = "default", actualRoot = "default", ignorePostInstall = false): bool =
     ## Builds the packages.
@@ -108,12 +109,12 @@ proc builder*(package: string, destdir: string,
 
     # Create tarball directory if it doesn't exist
     discard existsOrCreateDir("/var/cache")
-    discard existsOrCreateDir("/var/cache/kpkg")
-    discard existsOrCreateDir("/var/cache/kpkg/archives")
-    discard existsOrCreateDir("/var/cache/kpkg/sources")
-    discard existsOrCreateDir("/var/cache/kpkg/sources/"&actualPackage)
-    discard existsOrCreateDir("/var/cache/kpkg/archives/arch")
-    discard existsOrCreateDir("/var/cache/kpkg/archives/arch/"&arch)
+    discard existsOrCreateDir(kpkgCacheDir)
+    discard existsOrCreateDir(kpkgArchivesDir)
+    discard existsOrCreateDir(kpkgSourcesDir)
+    discard existsOrCreateDir(kpkgSourcesDir&"/"&actualPackage)
+    discard existsOrCreateDir(kpkgArchivesDir&"/arch")
+    discard existsOrCreateDir(kpkgArchivesDir&"/arch/"&arch)
 
     # Create required directories
     createDir(root)
@@ -139,9 +140,9 @@ proc builder*(package: string, destdir: string,
     else:
         override = newConfig() # So we don't get storage access errors
 
-    if fileExists("/var/cache/kpkg/archives/arch/"&arch&"/kpkg-tarball-"&actualPackage&"-"&pkg.versionString&".tar.gz") and
+    if fileExists(kpkgArchivesDir&"/arch/"&arch&"/kpkg-tarball-"&actualPackage&"-"&pkg.versionString&".tar.gz") and
             fileExists(
-            "/var/cache/kpkg/archives/arch/"&arch&"/kpkg-tarball-"&actualPackage&"-"&pkg.versionString&".tar.gz.sum") and
+            kpkgArchivesDir&"/arch/"&arch&"/kpkg-tarball-"&actualPackage&"-"&pkg.versionString&".tar.gz.sum") and
             useCacheIfAvailable == true and dontInstall == false:
         
         debug "Tarball (and the sum) already exists, going to install"
@@ -272,7 +273,7 @@ proc builder*(package: string, destdir: string,
     setFilePermissions(srcdir, {fpUserExec, fpUserWrite, fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
     discard posix.chown(cstring(srcdir), 999, 999)
 
-    if existsPrepare != 0 and not usesGit:
+    if (existsPrepare != 0 or pkg.extract) and not usesGit:
         try:
           discard extract(filename)
         except Exception:
@@ -284,7 +285,7 @@ proc builder*(package: string, destdir: string,
 
         setFilePermissions(folder, {fpUserExec, fpUserWrite, fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
         discard posix.chown(cstring(folder), 999, 999)
-        for i in toSeq(walkDirRec(folder, {pcFile, pcLinkToFile})):
+        for i in toSeq(walkDirRec(folder, {pcFile, pcLinkToFile, pcDir, pcLinkToDir})):
           discard posix.chown(cstring(i), 999, 999)
 
         if pkg.sources.split(" ").len == 1:
@@ -326,14 +327,14 @@ proc builder*(package: string, destdir: string,
     if arch == "x86_64":
         arch = "amd64" # Revert back the value
     
-    if parseBool(override.getSectionValue("Other", "ccache", getConfigValue("Options", "ccache", "false"))) and dirExists("/var/cache/kpkg/installed/ccache"):
+    if parseBool(override.getSectionValue("Other", "ccache", getConfigValue("Options", "ccache", "false"))) and dirExists(kpkgInstalledDir&"/ccache"):
       
-      if not dirExists("/var/cache/kpkg/ccache"):
-        createDir("/var/cache/kpkg/ccache")
+      if not dirExists(kpkgCacheDir&"/ccache"):
+        createDir(kpkgCacheDir&"/ccache")
       
-      setFilePermissions("/var/cache/kpkg/ccache", {fpUserExec, fpUserWrite, fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
-      discard posix.chown(cstring("/var/cache/kpkg/ccache"), 999, 999)
-      ccacheCmds = "export CCACHE_DIR=/var/cache/kpkg/ccache && export PATH=\"/usr/lib/ccache:$PATH\" &&"
+      setFilePermissions(kpkgCacheDir&"/ccache", {fpUserExec, fpUserWrite, fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
+      discard posix.chown(cstring(kpkgCacheDir&"/ccache"), 999, 999)
+      ccacheCmds = "export CCACHE_DIR="&kpkgCacheDir&"/ccache && export PATH=\"/usr/lib/ccache:$PATH\" &&"
     
     cmdStr = cmdStr&". "&path&"/run"
 
@@ -388,7 +389,7 @@ proc builder*(package: string, destdir: string,
                 isTest = true, existsTest = existsTest, typ = "Tests")
         discard fakerootWrap(srcdir, path, root, cmd3Str, typ = "Installation")
 
-    var tarball = "/var/cache/kpkg/archives/arch/"
+    var tarball = kpkgArchivesDir&"/arch/"
     
     tarball = tarball&arch
     createDir(tarball)
@@ -398,10 +399,10 @@ proc builder*(package: string, destdir: string,
     var dict = newConfig()
     
     for file in toSeq(walkDirRec(root, {pcFile, pcLinkToFile, pcDir, pcLinkToDir})):
-        if dirExists(file):
-            dict.setSectionKey("", relativePath(file, root), "")
+        if dirExists(file) or symlinkExists(file):
+            dict.setSectionKey("", "\""&relativePath(file, root)&"\"", "")
         else:
-            dict.setSectionKey("", relativePath(file, root), getSum(file, "b2"))
+            dict.setSectionKey("", "\""&relativePath(file, root)&"\"", getSum(file, "b2"))
         
     dict.writeConfig(root&"/pkgsums.ini")
 
@@ -415,7 +416,7 @@ proc builder*(package: string, destdir: string,
     # Install package to root aswell so dependency errors doesnt happen
     # because the dep is installed to destdir but not root.
     if destdir != "/" and not dirExists(
-            "/var/cache/kpkg/installed/"&actualPackage) and (not dontInstall) and target == "default":
+            kpkgInstalledDir&"/"&actualPackage) and (not dontInstall) and target == "default":
         installPkg(repo, actualPackage, "/", pkg, manualInstallList, isUpgrade = isUpgrade, arch = arch, ignorePostInstall = ignorePostInstall)
 
     if not dontInstall:
