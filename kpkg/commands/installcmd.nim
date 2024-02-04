@@ -24,16 +24,16 @@ proc copyFileWithPermissionsAndOwnership(source, dest: string, options = {cfSyml
     var statVar: Stat
     assert stat(source, statVar) == 0
     copyFileWithPermissions(source, dest)
-    debug "copyFileWithPermissions successful, setting chown"
+    #debug "copyFileWithPermissions successful, setting chown"
     assert posix.chown(dest, statVar.st_uid, statVar.st_gid) == 0
 
 proc createDirWithPermissionsAndOwnership(source, dest: string, followSymlinks = true) =
     var statVar: Stat
     assert stat(source, statVar) == 0
     createDir(dest)
-    debug "createDir successful, setting chown and chmod"
+    #debug "createDir successful, setting chown and chmod"
     assert posix.chown(dest, statVar.st_uid, statVar.st_gid) == 0
-    debug "chown successful, setting permissions"
+    #debug "chown successful, setting permissions"
     setFilePermissions(dest, getFilePermissions(source), followSymlinks)
 
 
