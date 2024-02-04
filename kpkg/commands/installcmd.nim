@@ -1,4 +1,5 @@
 import os
+import posix
 import osproc
 import strutils
 import sequtils
@@ -16,6 +17,15 @@ import ../modules/commonTasks
 import ../modules/removeInternal
 
 setControlCHook(ctrlc)
+
+proc copyFileWithPermissionsAndOwnership(source, dest: string, options = {cfSymlinkFollow}) =
+    ## Copies a file with both permissions and ownership.
+    var statVar: Stat
+    assert stat(source, statVar) == 0
+    copyFileWithPermissions(source, dest)
+    debug "copyFileWithPermissions successful, setting chown"
+    assert posix.chown(dest, statVar.st_uid, statVar.st_gid) == 0
+    
 
 proc installPkg*(repo: string, package: string, root: string, runf = runFile(
         isParsed: false), manualInstallList: seq[string], isUpgrade = false, arch = hostCPU, ignorePostInstall = false) =
@@ -65,7 +75,7 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
             if getSum(tarball, "b2") != readAll(open(
                 tarball&".sum.b2")):
                 err("b2sum doesn't match for "&package, false)
-        else:
+        elif fileExists(tarball&".sum"):
             # For backwards compatibility
             if getSum(tarball, "sha256")&"  "&tarball != readAll(open(
                 tarball&".sum")):
@@ -97,19 +107,56 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
     discard existsOrCreateDir(root&"/var/cache/kpkg/installed")
     removeDir(root&"/var/cache/kpkg/installed/"&package)
     copyDir(repo&"/"&package, root&"/var/cache/kpkg/installed/"&package)
-
+    
     if not isGroup:
         var extractTarball: seq[string]
+        let kpkgInstallTemp = "/opt/kpkg/install-"&package
+        if dirExists(kpkgInstallTemp):
+            removeDir(kpkgInstallTemp)
+        
+        createDir(kpkgInstallTemp)
         try:
-          extractTarball = extract(tarball, root, pkg.backup)
+          extractTarball = extract(tarball, kpkgInstallTemp, pkg.backup)
         except Exception:
             removeDir(root&"/var/cache/kpkg/installed/"&package)
             when defined(release):
                 err("extracting the tarball failed for "&package)
             else:
                 raise getCurrentException()
+        
+        if not fileExists(kpkgInstallTemp&"/pkgsums.ini"):
+            # Backwards compatibility with kpkg v6
+            writeFile(root&"/var/cache/kpkg/installed/"&package&"/list_files", extractTarball.join("\n"))
+        else:    
+            var dict = loadConfig(kpkgInstallTemp&"/pkgsums.ini")
+
+            # Checking loop
+            for file in extractTarball:
+                if "pkgsums.ini" == lastPathPart(file): continue
+                debug kpkgInstallTemp&"/"&relativePath(file, kpkgInstallTemp)
+                let value = dict.getSectionValue("", relativePath(file, kpkgInstallTemp))
+                let doesFileExist = fileExists(kpkgInstallTemp&"/"&file)
+
+                if isEmptyOrWhitespace(value) and not doesFileExist:
+                    continue
+                
+                if isEmptyOrWhitespace(value) and doesFileExist:
+                    err("package sums invalid")
+
+                if getSum(kpkgInstallTemp&"/"&file, "b2") != value:
+                    err("sum for file '"&file&"' invalid")
             
-        writeFile(root&"/var/cache/kpkg/installed/"&package&"/list_files", extractTarball.join("\n"))
+            # Installation loop 
+            for file in extractTarball:
+                if "pkgsums.ini" == lastPathPart(file):
+                    moveFile(kpkgInstallTemp&"/"&file, "/var/cache/kpkg/installed/"&package&"/list_files")
+                let doesFileExist = fileExists(kpkgInstallTemp&"/"&file)
+                if doesFileExist:
+                    if not dirExists(root&"/"&file.parentDir()):
+                        createDir(file.parentDir()) # TODO: Change with custom proc (DO NOT FORGET THIS!)
+                    copyFileWithPermissionsAndOwnership(kpkgInstallTemp&"/"&file, root&"/"&file)
+                elif dirExists(kpkgInstallTemp&"/"&file) and (not dirExists(root&"/"&file)):
+                    createDir(root&"/"&file) # TODO: change with custom proc (DO NOT FORGET THIS!)
 
     # Run ldconfig afterwards for any new libraries
     discard execProcess("ldconfig")

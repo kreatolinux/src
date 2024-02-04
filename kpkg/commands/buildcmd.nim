@@ -284,7 +284,7 @@ proc builder*(package: string, destdir: string,
 
         setFilePermissions(folder, {fpUserExec, fpUserWrite, fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
         discard posix.chown(cstring(folder), 999, 999)
-        for i in toSeq(walkDirRec(folder, {pcFile, pcLinkToFile, pcDir, pcLinkToDir})):
+        for i in toSeq(walkDirRec(folder, {pcFile, pcLinkToFile})):
           discard posix.chown(cstring(i), 999, 999)
 
         if pkg.sources.split(" ").len == 1:
@@ -394,12 +394,22 @@ proc builder*(package: string, destdir: string,
     createDir(tarball)
     
     tarball = tarball&"/kpkg-tarball-"&actualPackage&"-"&pkg.versionString&".tar.gz"
+    
+    var dict = newConfig()
+    
+    for file in toSeq(walkDirRec(root, {pcFile, pcLinkToFile, pcDir, pcLinkToDir})):
+        if dirExists(file):
+            dict.setSectionKey("", relativePath(file, root), "")
+        else:
+            dict.setSectionKey("", relativePath(file, root), getSum(file, "b2"))
+        
+    dict.writeConfig(root&"/pkgsums.ini")
 
     if execCmdKpkg("bsdtar -czf "&tarball&" -C "&root&" .") != 0:
         err "creating binary tarball failed"
     #createArchive(tarball, root)
-
-    writeFile(tarball&".sum.b2", getSum(tarball, "b2"))
+    
+    #writeFile(tarball&".sum.b2", getSum(tarball, "b2"))
 
 
     # Install package to root aswell so dependency errors doesnt happen

@@ -1,5 +1,6 @@
 import os
 import logger
+import strutils
 import sequtils
 
 when not defined(useDist):
@@ -44,7 +45,7 @@ proc copyData(ar: ptr structarchive, aw: ptr structarchive): int =
 if setlocale(LC_ALL, "") == nil:
   raise newException(OSError, "setlocale failed")
 
-proc extract*(fileName: string, path = getCurrentDir(), ignoreFiles = @[""]): seq[string] =
+proc extract*(fileName: string, path = getCurrentDir(), ignoreFiles = @[""], getFiles = @[""]): seq[string] =
   # Extracts a file to a directory.
   # Based on untar.c in libarchive/examples
 
@@ -85,7 +86,10 @@ proc extract*(fileName: string, path = getCurrentDir(), ignoreFiles = @[""]): se
     
     if not ($archiveEntryPathname(entry) in resultStr):
       resultStr = resultStr&($archiveEntryPathname(entry))
-    
+  
+    if not (isEmptyOrWhitespace(getFiles.join(""))) and not ($archiveEntryPathname(entry) in getFiles):
+      continue 
+
     if $archiveEntryPathname(entry) in ignoreFiles and fileExists(path&"/"&($archiveEntryPathname(entry))):
       debug($archiveEntryPathname(entry)&" in ignoreFiles, ignoring")
       continue

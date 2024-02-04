@@ -75,7 +75,8 @@ proc removeInternal*(package: string, root = "",
         removeDir(installedDir&"/"&package)
         return
 
-  for line in lines installedDir&"/"&actualPackage&"/list_files":
+  for actualLine in lines installedDir&"/"&actualPackage&"/list_files":
+    let line = actualLine.split("=")[0]
     if not removeConfigs and not noRunfile:
       if not (line in pkg.backup):
         discard tryRemoveFile(root&"/"&line)
@@ -84,7 +85,8 @@ proc removeInternal*(package: string, root = "",
   debug "files removed"
 
   # Double check so every empty dir gets removed
-  for line in lines installedDir&"/"&actualPackage&"/list_files":
+  for actualLine in lines installedDir&"/"&actualPackage&"/list_files":
+    let line = actualLine.split("=")[0]
     if isEmptyOrWhitespace(toSeq(walkDir(root&"/"&line)).join("")) and dirExists(root&"/"&line):
       removeDir(root&"/"&line)
   debug "dirs removed"
