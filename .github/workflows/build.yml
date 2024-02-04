@@ -22,7 +22,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Update cache on every commit
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: /var/cache/kpkg/archives
           key: binary-cache-${{ github.run_id }}
