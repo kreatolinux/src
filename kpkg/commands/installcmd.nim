@@ -71,7 +71,7 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
     for i in pkg.conflicts:
         if dirExists(root&kpkgInstalledDir&"/"&i):
             err(i&" conflicts with "&package)
-
+    
     removeDir("/tmp/kpkg/reinstall/"&package&"-old")
     createDir("/tmp")
     createDir("/tmp/kpkg")
@@ -81,16 +81,6 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
     if not isGroup:
         tarball = kpkgArchivesDir&"/arch/"&arch&"/kpkg-tarball-"&package&"-"&pkg.versionString&".tar.gz"
         
-        if fileExists(tarball&".sum.b2"):
-            if getSum(tarball, "b2") != readAll(open(
-                tarball&".sum.b2")):
-                err("b2sum doesn't match for "&package, false)
-        elif fileExists(tarball&".sum"):
-            # For backwards compatibility
-            if getSum(tarball, "sha256")&"  "&tarball != readAll(open(
-                tarball&".sum")):
-                err("sha256sum doesn't match for "&package, false)
-
     setCurrentDir(kpkgArchivesDir)
     
     for i in pkg.replaces:
@@ -141,46 +131,43 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
             else:
                 raise getCurrentException()
         
-        if not fileExists(kpkgInstallTemp&"/pkgsums.ini"):
-            # Backwards compatibility with kpkg v6
-            writeFile(root&kpkgInstalledDir&"/"&package&"/list_files", extractTarball.join("\n"))
-        else:    
-            var dict = loadConfig(kpkgInstallTemp&"/pkgsums.ini")
+        var dict = loadConfig(kpkgInstallTemp&"/pkgsums.ini")
             
-            # Checking loop
-            for file in extractTarball:
-                if "pkgsums.ini" == lastPathPart(file): continue
-                debug kpkgInstallTemp&"/"&relativePath(file, kpkgInstallTemp)
-                let value = dict.getSectionValue("", relativePath(file, kpkgInstallTemp))
-                let doesFileExist = (fileExists(kpkgInstallTemp&"/"&file) and not symlinkExists(kpkgInstallTemp&"/"&file))
+        # Checking loop
+        for file in extractTarball:
+            if "pkgsums.ini" == lastPathPart(file): continue
+            debug kpkgInstallTemp&"/"&relativePath(file, kpkgInstallTemp)
+            let value = dict.getSectionValue("", relativePath(file, kpkgInstallTemp))
+            let doesFileExist = (fileExists(kpkgInstallTemp&"/"&file) and not symlinkExists(kpkgInstallTemp&"/"&file))
 
-                if isEmptyOrWhitespace(value) and not doesFileExist:
-                    continue
+            if isEmptyOrWhitespace(value) and not doesFileExist:
+                continue
                 
-                if isEmptyOrWhitespace(value) and doesFileExist:
-                    debug file
-                    err("package sums invalid")
+            if isEmptyOrWhitespace(value) and doesFileExist:
+                debug file
+                err("package sums invalid")
 
-                if getSum(kpkgInstallTemp&"/"&file, "b2") != value:
-                    err("sum for file '"&file&"' invalid")
+            if getSum(kpkgInstallTemp&"/"&file, "b2") != value:
+                err("sum for file '"&file&"' invalid")
             
-            # Installation loop 
-            for file in extractTarball:
-                if "pkgsums.ini" == lastPathPart(file):
-                    moveFile(kpkgInstallTemp&"/"&file, kpkgInstalledDir&"/"&package&"/list_files")
-                let doesFileExist = (fileExists(kpkgInstallTemp&"/"&file) and not symlinkExists(kpkgInstallTemp&"/"&file))
-                if doesFileExist:
-                    if not dirExists(root&"/"&file.parentDir()):
-                        createDirWithPermissionsAndOwnership(kpkgInstallTemp&"/"&file.parentDir(), root&"/"&file.parentDir())
-                    copyFileWithPermissionsAndOwnership(kpkgInstallTemp&"/"&file, root&"/"&file)
-                elif dirExists(kpkgInstallTemp&"/"&file) and (not dirExists(root&"/"&file)):
-                    createDirWithPermissionsAndOwnership(kpkgInstallTemp&"/"&file, root&"/"&file)
+        # Installation loop 
+        for file in extractTarball:
+            if "pkgsums.ini" == lastPathPart(file):
+                moveFile(kpkgInstallTemp&"/"&file, kpkgInstalledDir&"/"&package&"/list_files")
+            let doesFileExist = fileExists(kpkgInstallTemp&"/"&file)
+            if doesFileExist:
+                if not dirExists(root&"/"&file.parentDir()):
+                    createDirWithPermissionsAndOwnership(kpkgInstallTemp&"/"&file.parentDir(), root&"/"&file.parentDir())
+                copyFileWithPermissionsAndOwnership(kpkgInstallTemp&"/"&file, root&"/"&file)
+            elif dirExists(kpkgInstallTemp&"/"&file) and (not dirExists(root&"/"&file)):
+                createDirWithPermissionsAndOwnership(kpkgInstallTemp&"/"&file, root&"/"&file)
 
     # Run ldconfig afterwards for any new libraries
     discard execProcess("ldconfig")
-
-    removeDir(kpkgTempDir1)
-    removeDir(kpkgTempDir2)
+    
+    when defined(release):
+        removeDir(kpkgTempDir1)
+        removeDir(kpkgTempDir2)
 
     if package in manualInstallList:
       info "Setting as manually installed"
@@ -267,26 +254,11 @@ proc down_bin(package: string, binrepos: seq[string], root: string,
         let tarball = "kpkg-tarball-"&package&"-"&pkg.versionString&".tar.gz"
         let chksum = tarball&".sum"
 
-        if fileExists(kpkgArchivesDir&"/arch/"&hostCPU&"/"&tarball) and
-                (fileExists(kpkgArchivesDir&"/arch/"&hostCPU&"/"&chksum) or fileExists(kpkgArchivesDir&"/arch/"&hostCPU&"/"&chksum&".b2")) and (not forceDownload):
-            echo "Tarball already exists for '"&package&"', not gonna download again"
+        if fileExists(kpkgArchivesDir&"/arch/"&hostCPU&"/"&tarball) and (not forceDownload):
+            info "Tarball already exists for '"&package&"', not gonna download again"
             downSuccess = true
         elif not offline:
-            echo "Downloading tarball for "&package
-            try:
-                download("https://"&binrepo&"/arch/"&hostCPU&"/"&tarball,
-                    kpkgArchivesDir&"/arch/"&hostCPU&"/"&tarball)
-                echo "Downloading checksums for "&package
-                try:
-                    download("https://"&binrepo&"/arch/"&hostCPU&"/"&chksum&".b2", kpkgArchivesDir&"/arch/"&hostCPU&"/"&chksum&".b2", raiseWhenFail = true)
-                except Exception: 
-                    download("https://"&binrepo&"/arch/"&hostCPU&"/"&chksum,
-                        kpkgArchivesDir&"/arch/"&hostCPU&"/"&chksum)
-                downSuccess = true
-            except CatchableError:
-                if ignoreDownloadErrors:
-                    downSuccess = true
-                discard
+            download("https://"&binrepo&"/arch/"&hostCPU&"/"&tarball, kpkgArchivesDir&"/arch/"&hostCPU&"/"&tarball)
         else:
             err("attempted to download tarball from binary repository in offline mode")
 
