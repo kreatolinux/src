@@ -38,7 +38,7 @@ proc createDirWithPermissionsAndOwnership(source, dest: string, followSymlinks =
 
 
 proc installPkg*(repo: string, package: string, root: string, runf = runFile(
-        isParsed: false), manualInstallList: seq[string], isUpgrade = false, arch = hostCPU, ignorePostInstall = false) =
+        isParsed: false), manualInstallList: seq[string], isUpgrade = false, arch = hostCPU, kTarget = kpkgTarget(root), ignorePostInstall = false) =
     ## Installs a package.
 
     var pkg: runFile
@@ -79,7 +79,7 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
     var tarball: string
 
     if not isGroup:
-        tarball = kpkgArchivesDir&"/arch/"&arch&"/kpkg-tarball-"&package&"-"&pkg.versionString&".tar.gz"
+        tarball = kpkgArchivesDir&"/system/"&kTarget&"/kpkg-tarball-"&package&"-"&pkg.versionString&".tar.gz"
         
     setCurrentDir(kpkgArchivesDir)
     
@@ -210,15 +210,15 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
         info(i)
 
 proc down_bin(package: string, binrepos: seq[string], root: string,
-        offline: bool, forceDownload = false, ignoreDownloadErrors = false) =
+        offline: bool, forceDownload = false, ignoreDownloadErrors = false, kTarget = kpkgTarget(root)) =
     ## Downloads binaries.
     
     discard existsOrCreateDir("/var/")
     discard existsOrCreateDir("/var/cache")
     discard existsOrCreateDir("/var/cache/kpkg")
     discard existsOrCreateDir(kpkgArchivesDir)
-    discard existsOrCreateDir(kpkgArchivesDir&"/arch")
-    discard existsOrCreateDir(kpkgArchivesDir&"/arch/"&hostCPU)
+    discard existsOrCreateDir(kpkgArchivesDir&"/system")
+    discard existsOrCreateDir(kpkgArchivesDir&"/system/"&kTarget)
 
     setCurrentDir(kpkgArchivesDir)
     var downSuccess: bool
@@ -254,11 +254,11 @@ proc down_bin(package: string, binrepos: seq[string], root: string,
         let tarball = "kpkg-tarball-"&package&"-"&pkg.versionString&".tar.gz"
         let chksum = tarball&".sum"
 
-        if fileExists(kpkgArchivesDir&"/arch/"&hostCPU&"/"&tarball) and (not forceDownload):
+        if fileExists(kpkgArchivesDir&"/system/"&kTarget&"/"&tarball) and (not forceDownload):
             info "Tarball already exists for '"&package&"', not gonna download again"
             downSuccess = true
         elif not offline:
-            download("https://"&binrepo&"/arch/"&hostCPU&"/"&tarball, kpkgArchivesDir&"/arch/"&hostCPU&"/"&tarball)
+            download("https://"&binrepo&"/system/"&kTarget&"/"&tarball, kpkgArchivesDir&"/system/"&kTarget&"/"&tarball)
         else:
             err("attempted to download tarball from binary repository in offline mode")
 

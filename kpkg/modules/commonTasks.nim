@@ -39,6 +39,18 @@ proc systemTarget*(root: string): string =
   
   return target
 
+
+proc kpkgTarget*(root: string, customTarget = ""): string =
+  ## Returns the kpkg target.
+  let conf = loadConfig(root&"/etc/kreato-release")
+  var system: string
+  if not isEmptyOrWhitespace(customTarget):
+    system = customTarget
+  else:
+    system = systemTarget(root)
+
+  return system&"-"&conf.getSectionValue("Core", "init")&"-"&conf.getSectionValue("Core", "tlsLibrary")
+
 proc green*(s: string): string = "\e[32m" & s & "\e[0m" 
 
 proc appendInternal(f: string, t: string): string =

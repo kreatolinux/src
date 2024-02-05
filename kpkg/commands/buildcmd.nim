@@ -102,10 +102,22 @@ proc builder*(package: string, destdir: string,
     else:
         arch = uname().machine
     
-    if arch == "x86_64":
-        arch = "amd64" # for compat reasons
+    var kTarget: string
+    if target != "default":
+        
+        if target.split("-").len != 3 and target.split("-").len != 5:
+            err("target '"&target&"' invalid", false)
+        
+        if target.split("-").len == 5:
+            kTarget = target
+        else:
+            kTarget = kpkgTarget(destDir, target)
+    else:
+        kTarget = kpkgTarget(destDir)
 
     debug "arch: '"&arch&"'"
+    debug "kpkgTarget: '"&kTarget&"'"
+
 
     # Create tarball directory if it doesn't exist
     discard existsOrCreateDir("/var/cache")
@@ -113,8 +125,8 @@ proc builder*(package: string, destdir: string,
     discard existsOrCreateDir(kpkgArchivesDir)
     discard existsOrCreateDir(kpkgSourcesDir)
     discard existsOrCreateDir(kpkgSourcesDir&"/"&actualPackage)
-    discard existsOrCreateDir(kpkgArchivesDir&"/arch")
-    discard existsOrCreateDir(kpkgArchivesDir&"/arch/"&arch)
+    discard existsOrCreateDir(kpkgArchivesDir&"/system")
+    discard existsOrCreateDir(kpkgArchivesDir&"/system/"&kTarget)
 
     # Create required directories
     createDir(root)
@@ -140,9 +152,9 @@ proc builder*(package: string, destdir: string,
     else:
         override = newConfig() # So we don't get storage access errors
 
-    if fileExists(kpkgArchivesDir&"/arch/"&arch&"/kpkg-tarball-"&actualPackage&"-"&pkg.versionString&".tar.gz") and
+    if fileExists(kpkgArchivesDir&"/system/"&kTarget&"/kpkg-tarball-"&actualPackage&"-"&pkg.versionString&".tar.gz") and
             fileExists(
-            kpkgArchivesDir&"/arch/"&arch&"/kpkg-tarball-"&actualPackage&"-"&pkg.versionString&".tar.gz.sum") and
+            kpkgArchivesDir&"/system/"&kTarget&"/kpkg-tarball-"&actualPackage&"-"&pkg.versionString&".tar.gz.sum") and
             useCacheIfAvailable == true and dontInstall == false:
         
         debug "Tarball (and the sum) already exists, going to install"
@@ -389,9 +401,8 @@ proc builder*(package: string, destdir: string,
                 isTest = true, existsTest = existsTest, typ = "Tests")
         discard fakerootWrap(srcdir, path, root, cmd3Str, typ = "Installation")
 
-    var tarball = kpkgArchivesDir&"/arch/"
+    var tarball = kpkgArchivesDir&"/system/"&kTarget
     
-    tarball = tarball&arch
     createDir(tarball)
     
     tarball = tarball&"/kpkg-tarball-"&actualPackage&"-"&pkg.versionString&".tar.gz"
