@@ -2,6 +2,7 @@ import os
 import ../modules/logger
 import ../modules/config
 import ../modules/runparser
+import ../modules/commonPaths
 
 proc info*(package: seq[string], testing = false): string =
     ## Get information about packages.
@@ -25,7 +26,7 @@ proc info*(package: seq[string], testing = false): string =
     echo "package release: "&pkg.release
     when declared(pkg.epoch):
         echo "package epoch: "&pkg.epoch
-    if dirExists("/var/cache/kpkg/installed/"&package[0]):
+    if dirExists(kpkgInstalledDir&"/"&package[0]) and not symlinkExists(kpkgInstalledDir&"/"&package[0]):
         return "installed: yes"
 
     # don't error when package isn't installed during testing
