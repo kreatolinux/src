@@ -132,7 +132,7 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
             
         # Installation loop 
         for file in extractTarball:
-            if relativePath(file, kpkgInstallTemp) in pkg.backup:
+            if relativePath(file, kpkgInstallTemp) in pkg.backup and (fileExists(root&"/"&file) or dirExists(root&"/"&file)):
                 debug "\""&file&"\" is in pkg.backup, not installing"
                 dict.delSectionKey("", relativePath(file, kpkgInstallTemp))
                 continue
