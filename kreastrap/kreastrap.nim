@@ -279,185 +279,186 @@ proc kreastrap(buildType = "builder", arch = "amd64",
                             path)&"' to '"&buildDir&"/"&lastPathPart(path)&"'"
                     copyDir(path, buildDir&"/"&lastPathPart(path))
 
-        var installWithBinaries: bool
+    var installWithBinaries: bool
 
-        if conf.getSectionValue("General", "BuildPackages").normalize() ==
-                "true" or conf.getSectionValue("General", "BuildPackages") == "yes":
-            installWithBinaries = false
-        else:
-            installWithBinaries = true
+    if conf.getSectionValue("General", "BuildPackages").normalize() ==
+            "true" or conf.getSectionValue("General", "BuildPackages") == "yes":
+        installWithBinaries = false
+    else:
+        installWithBinaries = true
 
-        initKrelease(conf)
+    initKrelease(conf)
             
-        # Install kreato-fs-essentials
-        kreastrapInstall("kreato-fs-essentials", installWithBinaries, buildDir, useCacheIfPossible, target)
+    # Install kreato-fs-essentials
+    kreastrapInstall("kreato-fs-essentials", installWithBinaries, buildDir, useCacheIfPossible, target)
 
-        # Installation of TLS library
-        case conf.getSectionValue("Core", "TlsLibrary").normalize():
-            of "openssl":
-                info_msg "Installing OpenSSL as TLS Library"
-                kreastrapInstall("openssl", installWithBinaries, buildDir, useCacheIfPossible, target)
-            of "libressl":
-                info_msg "Installing LibreSSL as TLS library"
-                kreastrapInstall("libressl", installWithBinaries, buildDir, useCacheIfPossible, target)
-            else:
-                error conf.getSectionValue("Core",
-                        "TlsLibrary")&" is not available as a TLS library option."
+    # Installation of TLS library
+    case conf.getSectionValue("Core", "TlsLibrary").normalize():
+        of "openssl":
+            info_msg "Installing OpenSSL as TLS Library"
+            kreastrapInstall("openssl", installWithBinaries, buildDir, useCacheIfPossible, target)
+        of "libressl":
+            info_msg "Installing LibreSSL as TLS library"
+            kreastrapInstall("libressl", installWithBinaries, buildDir, useCacheIfPossible, target)
+        else:
+            error conf.getSectionValue("Core",
+                    "TlsLibrary")&" is not available as a TLS library option."
 
-        # Installation of a Compiler
-        case conf.getSectionValue("Core", "Compiler").normalize():
-            of "gcc":
-                info_msg "Installing GCC as Compiler"
-                kreastrapInstall("gcc", installWithBinaries, buildDir, useCacheIfPossible, target)
-                set_default_cc(buildDir, "gcc")
-            of "clang":
-                info_msg "Installing clang as Compiler"
-                kreastrapInstall("llvm", installWithBinaries, buildDir, useCacheIfPossible, target)
-                set_default_cc(buildDir, "clang")
-            of "no":
-                warn "Skipping compiler installation"
-            else:
-                error conf.getSectionValue("Core",
-                        "Compiler")&" is not available as a Compiler option."
+    # Installation of a Compiler
+    case conf.getSectionValue("Core", "Compiler").normalize():
+        of "gcc":
+            info_msg "Installing GCC as Compiler"
+            kreastrapInstall("gcc", installWithBinaries, buildDir, useCacheIfPossible, target)
+            set_default_cc(buildDir, "gcc")
+        of "clang":
+            info_msg "Installing clang as Compiler"
+            kreastrapInstall("llvm", installWithBinaries, buildDir, useCacheIfPossible, target)
+            set_default_cc(buildDir, "clang")
+        of "no":
+            warn "Skipping compiler installation"
+        else:
+            error conf.getSectionValue("Core",
+                    "Compiler")&" is not available as a Compiler option."
 
-        # Installation of Libc
-        case conf.getSectionValue("Core", "Libc").normalize():
-            of "glibc":
+    # Installation of Libc
+    case conf.getSectionValue("Core", "Libc").normalize():
+        of "glibc":
                 
-                if conf.getSectionValue("Core", "Compiler").normalize() == "clang":
-                  warn "Combination of glibc with clang is currently not supported, please don't make an issue about it."
+            if conf.getSectionValue("Core", "Compiler").normalize() == "clang":
+                warn "Combination of glibc with clang is currently not supported, please don't make an issue about it."
 
-                info_msg "Installing glibc as libc"
-                kreastrapInstall("glibc", installWithBinaries, buildDir, useCacheIfPossible, target)
-            of "musl":
-                info_msg "Installing musl as libc"
-                kreastrapInstall("musl", installWithBinaries, buildDir, useCacheIfPossible, target)
+            info_msg "Installing glibc as libc"
+            kreastrapInstall("glibc", installWithBinaries, buildDir, useCacheIfPossible, target)
+        of "musl":
+            info_msg "Installing musl as libc"
+            kreastrapInstall("musl", installWithBinaries, buildDir, useCacheIfPossible, target)
+        else:
+            error conf.getSectionValue("Core",
+                    "Libc")&" is not available as a Libc option."
+
+    # Installation of Core utilities
+    case conf.getSectionValue("Core", "Coreutils").normalize():
+        of "busybox":
+            info_msg "Installing BusyBox as Coreutils"
+            kreastrapInstall("busybox", installWithBinaries, buildDir, useCacheIfPossible, target)
+        of "gnu":
+            info_msg "Installing GNU Coreutils as Coreutils"
+            kreastrapInstall("gnu-coreutils", installWithBinaries,
+                    buildDir, useCacheIfPossible, target)
+
+            # Install pigz and xz-utils because it is needed for kpkg tarballs
+            kreastrapInstall("pigz", installWithBinaries,
+                    buildDir, useCacheIfPossible, target)
+
+            kreastrapInstall("xz-utils", installWithBinaries,
+                    buildDir, useCacheIfPossible, target)
+
+            kreastrapInstall("bash", installWithBinaries,
+                    buildDir, useCacheIfPossible, target)
+
+            kreastrapInstall("gsed", installWithBinaries,
+                    buildDir, useCacheIfPossible, target)
+
+            kreastrapInstall("bzip2", installWithBinaries,
+                    buildDir, useCacheIfPossible, target)
+
+            kreastrapInstall("patch", installWithBinaries,
+                    buildDir, useCacheIfPossible, target)
+
+            kreastrapInstall("diffutils", installWithBinaries,
+                    buildDir, useCacheIfPossible, target)
+
+            kreastrapInstall("findutils", installWithBinaries,
+                    buildDir, useCacheIfPossible, target)
+
+            kreastrapInstall("util-linux", installWithBinaries,
+                    buildDir, useCacheIfPossible, target)
+
+            kreastrapInstall("bc", installWithBinaries,
+                    buildDir, useCacheIfPossible, target)
+
+            kreastrapInstall("cpio", installWithBinaries,
+                    buildDir, useCacheIfPossible, target)
+
+            kreastrapInstall("which", installWithBinaries,
+                    buildDir, useCacheIfPossible, target)
+
+            createSymlink("/bin/bash", buildDir&"/bin/sh")
+        else:
+            error conf.getSectionValue("Core",
+                    "Coreutils")&" is not available as a Coreutils option."
+
+    case conf.getSectionValue("Core", "Init").normalize():
+        of "busybox":
+            if conf.getSectionValue("Core", "Coreutils").normalize() != "busybox":
+                error "You have to use busybox as coreutils to use it as the init system for now."
             else:
-                error conf.getSectionValue("Core",
-                        "Libc")&" is not available as a Libc option."
+                info_msg "Init system chosen as busybox init"
+        of "jumpstart":
+            info_msg "Installing Jumpstart as the init system"
+            kreastrapInstall("jumpstart", installWithBinaries, buildDir, useCacheIfPossible, target)
+            removeFile(buildDir&"/sbin/init")
+            createSymlink("/bin/jumpstart", buildDir&"/sbin/init")
+        of "openrc":
+            info_msg "Installing OpenRC as the init system"
+            kreastrapInstall("openrc", installWithBinaries, buildDir, useCacheIfPossible, target)
+            removeFile(buildDir&"/sbin/init")
+            createSymlink("/usr/bin/openrc-init", buildDir&"/sbin/init")
+        of "systemd":
+            info_msg "Installing systemd as the init system"
+            kreastrapInstall("systemd", installWithBinaries, buildDir, useCacheIfPossible, target)
+            kreastrapInstall("dbus", installWithBinaries, buildDir, useCacheIfPossible, target)
+            removeFile(buildDir&"/sbin/init")
+            createSymlink("/lib/systemd/systemd", buildDir&"/sbin/init")
 
-        # Installation of Core utilities
-        case conf.getSectionValue("Core", "Coreutils").normalize():
-            of "busybox":
-                info_msg "Installing BusyBox as Coreutils"
-                kreastrapInstall("busybox", installWithBinaries, buildDir, useCacheIfPossible, target)
-            of "gnu":
-                info_msg "Installing GNU Coreutils as Coreutils"
-                kreastrapInstall("gnu-coreutils", installWithBinaries,
-                        buildDir, useCacheIfPossible, target)
+    # Install shadow, and enable it
+    kreastrapInstall("shadow", installWithBinaries, buildDir, useCacheIfPossible, target)
 
-                # Install pigz and xz-utils because it is needed for kpkg tarballs
-                kreastrapInstall("pigz", installWithBinaries,
-                        buildDir, useCacheIfPossible, target)
+    let enableShadowedPw = execCmdEx("chroot "&buildDir&" /usr/sbin/pwconv")
+    if enableShadowedPw.exitcode != 0:
+        debug enableShadowedPw.output
+        error "Enabling shadow failed"
 
-                kreastrapInstall("xz-utils", installWithBinaries,
-                        buildDir, useCacheIfPossible, target)
-
-                kreastrapInstall("bash", installWithBinaries,
-                        buildDir, useCacheIfPossible, target)
-
-                kreastrapInstall("gsed", installWithBinaries,
-                        buildDir, useCacheIfPossible, target)
-
-                kreastrapInstall("bzip2", installWithBinaries,
-                        buildDir, useCacheIfPossible, target)
-
-                kreastrapInstall("patch", installWithBinaries,
-                        buildDir, useCacheIfPossible, target)
-
-                kreastrapInstall("diffutils", installWithBinaries,
-                        buildDir, useCacheIfPossible, target)
-
-                kreastrapInstall("findutils", installWithBinaries,
-                        buildDir, useCacheIfPossible, target)
-
-                kreastrapInstall("util-linux", installWithBinaries,
-                        buildDir, useCacheIfPossible, target)
-
-                kreastrapInstall("bc", installWithBinaries,
-                        buildDir, useCacheIfPossible, target)
-
-                kreastrapInstall("cpio", installWithBinaries,
-                        buildDir, useCacheIfPossible, target)
-
-                kreastrapInstall("which", installWithBinaries,
-                        buildDir, useCacheIfPossible, target)
-
-                createSymlink("/bin/bash", buildDir&"/bin/sh")
-            else:
-                error conf.getSectionValue("Core",
-                        "Coreutils")&" is not available as a Coreutils option."
-
-        case conf.getSectionValue("Core", "Init").normalize():
-            of "busybox":
-                if conf.getSectionValue("Core", "Coreutils").normalize() != "busybox":
-                    error "You have to use busybox as coreutils to use it as the init system for now."
-                else:
-                    info_msg "Init system chosen as busybox init"
-            of "jumpstart":
-                info_msg "Installing Jumpstart as the init system"
-                kreastrapInstall("jumpstart", installWithBinaries, buildDir, useCacheIfPossible, target)
-                removeFile(buildDir&"/sbin/init")
-                createSymlink("/bin/jumpstart", buildDir&"/sbin/init")
-            of "openrc":
-                info_msg "Installing OpenRC as the init system"
-                kreastrapInstall("openrc", installWithBinaries, buildDir, useCacheIfPossible, target)
-                removeFile(buildDir&"/sbin/init")
-                createSymlink("/usr/bin/openrc-init", buildDir&"/sbin/init")
-            of "systemd":
-                info_msg "Installing systemd as the init system"
-                kreastrapInstall("systemd", installWithBinaries, buildDir, useCacheIfPossible, target)
-                kreastrapInstall("dbus", installWithBinaries, buildDir, useCacheIfPossible, target)
-                removeFile(buildDir&"/sbin/init")
-                createSymlink("/lib/systemd/systemd", buildDir&"/sbin/init")
-
-        # Install shadow, and enable it
-        kreastrapInstall("shadow", installWithBinaries, buildDir, useCacheIfPossible, target)
-
-        let enableShadowedPw = execCmdEx("chroot "&buildDir&" /usr/sbin/pwconv")
-        if enableShadowedPw.exitcode != 0:
-            debug enableShadowedPw.output
-            error "Enabling shadow failed"
-
-        # Install kpkg, p11-kit and make-ca here
-        kreastrapInstall("kpkg", installWithBinaries, buildDir, useCacheIfPossible, target)
-        kreastrapInstall("p11-kit", installWithBinaries, buildDir, useCacheIfPossible, target)
-        kreastrapInstall("make-ca", installWithBinaries, buildDir, useCacheIfPossible, target)
+    # Install kpkg, p11-kit and make-ca here
+    kreastrapInstall("kpkg", installWithBinaries, buildDir, useCacheIfPossible, target)
+    kreastrapInstall("p11-kit", installWithBinaries, buildDir, useCacheIfPossible, target)
+    kreastrapInstall("make-ca", installWithBinaries, buildDir, useCacheIfPossible, target)
         
-        # Install timezone database
-        kreastrapInstall("tzdb", installWithBinaries, buildDir, useCacheIfPossible, target)
+    # Install timezone database
+    kreastrapInstall("tzdb", installWithBinaries, buildDir, useCacheIfPossible, target)
 
-        # Generate certdata here
-        info_msg "Generating CA certificates"
+    # Generate certdata here
+    info_msg "Generating CA certificates"
 
-        setCurrentDir(buildDir)
+    setCurrentDir(buildDir)
 
-        download("https://hg.mozilla.org/releases/mozilla-release/raw-file/default/security/nss/lib/ckfw/builtins/certdata.txt", "certdata.txt")
+    download("https://hg.mozilla.org/releases/mozilla-release/raw-file/default/security/nss/lib/ckfw/builtins/certdata.txt", "certdata.txt")
 
-        let caCertCmd = execCmdEx("chroot "&buildDir&" /bin/sh -c '. /etc/profile && cd / && make-ca -C certdata.txt'")
+    let caCertCmd = execCmdEx("chroot "&buildDir&" /bin/sh -c '. /etc/profile && cd / && make-ca -C certdata.txt'")
 
-        if caCertCmd.exitcode != 0:
-            debug "CA certification generation output: "&caCertCmd.output
-            error "Generating CA certificates failed"
-        else:
-            ok "Generated CA certificates"
+    if caCertCmd.exitcode != 0:
+        debug "CA certification generation output: "&caCertCmd.output
+        error "Generating CA certificates failed"
+    else:
+        ok "Generated CA certificates"
 
-        removeFile(buildDir&"/certdata.txt")
+    removeFile(buildDir&"/certdata.txt")
 
-        info_msg "Installing Python"
-        kreastrapInstall("python", installWithBinaries, buildDir, useCacheIfPossible, target)
-        let ensurePip = execCmdEx("chroot "&buildDir&" /bin/sh -c 'python -m ensurepip'")
+    info_msg "Installing Python"
+    kreastrapInstall("python", installWithBinaries, buildDir, useCacheIfPossible, target)
+    let ensurePip = execCmdEx("chroot "&buildDir&" /bin/sh -c 'python -m ensurepip'")
 
-        if ensurePip.exitcode != 0:
-            debug "ensurePip output: "&ensurePip.output
-            error "Installing pip failed"
-        else:
-            ok "Installed pip"
+    if ensurePip.exitcode != 0:
+        debug "ensurePip output: "&ensurePip.output
+        error "Installing pip failed"
+    else:
+        ok "Installed pip"
 
-        if conf.getSectionValue("Extras", "ExtraPackages") != "":
-            info_msg "Installing extra packages"
-            for i in conf.getSectionValue("Extras", "ExtraPackages").split(" "):
-                kreastrapInstall(i, installWithBinaries, buildDir, useCacheIfPossible, target)
+    if conf.getSectionValue("Extras", "ExtraPackages") != "":
+        info_msg "Installing extra packages"
+        for i in conf.getSectionValue("Extras", "ExtraPackages").split(" "):
+            kreastrapInstall(i, installWithBinaries, buildDir, useCacheIfPossible, target)
+
 when isMainModule:
     dispatch kreastrap, help = {
                 "buildType": "Specify the build type",
