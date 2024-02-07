@@ -49,13 +49,13 @@ proc initKrelease(conf: Config) =
     config.writeConfig(conf.getSectionValue("General",
             "BuildDirectory")&"/etc/kreato-release")
 
-proc initDirectories(buildDirectory: string, arch: string) =
+proc initDirectories*(buildDirectory: string, arch: string, silent = false) =
     # Initializes directories.
 
     #if dirExists(buildDirectory):
     #    info_msg "rootfs directory exist, removing"
     #    removeDir(buildDirectory)
-
+    
     debug "Making initial rootfs directories"
 
     createDir(buildDirectory)
@@ -171,8 +171,9 @@ proc initDirectories(buildDirectory: string, arch: string) =
     createSymlink("bin", buildDirectory&"/usr/sbin")
     createSymlink("usr/bin", buildDirectory&"/bin")
     createSymlink("usr/lib", buildDirectory&"/lib")
-
-    info_msg "Root directory structure created."
+    
+    if not silent:
+        info_msg "Root directory structure created."
 
 proc kreastrapInstall(package: string, installWithBinaries: bool,
         buildDir: string, useCacheIfPossible = true, target = "default") =
@@ -287,6 +288,9 @@ proc kreastrap(buildType = "builder", arch = "amd64",
             installWithBinaries = true
 
         initKrelease(conf)
+            
+        # Install kreato-fs-essentials
+        kreastrapInstall("kreato-fs-essentials", installWithBinaries, buildDir, useCacheIfPossible, target)
 
         # Installation of TLS library
         case conf.getSectionValue("Core", "TlsLibrary").normalize():
@@ -419,7 +423,7 @@ proc kreastrap(buildType = "builder", arch = "amd64",
         kreastrapInstall("kpkg", installWithBinaries, buildDir, useCacheIfPossible, target)
         kreastrapInstall("p11-kit", installWithBinaries, buildDir, useCacheIfPossible, target)
         kreastrapInstall("make-ca", installWithBinaries, buildDir, useCacheIfPossible, target)
-
+        
         # Install timezone database
         kreastrapInstall("tzdb", installWithBinaries, buildDir, useCacheIfPossible, target)
 
@@ -454,8 +458,8 @@ proc kreastrap(buildType = "builder", arch = "amd64",
             info_msg "Installing extra packages"
             for i in conf.getSectionValue("Extras", "ExtraPackages").split(" "):
                 kreastrapInstall(i, installWithBinaries, buildDir, useCacheIfPossible, target)
-
-dispatch kreastrap, help = {
+when isMainModule:
+    dispatch kreastrap, help = {
                 "buildType": "Specify the build type",
                 "arch": "Specify the architecture",
                 "useCacheIfPossible": "Use already built packages if possible"
