@@ -1,10 +1,45 @@
 import os
+import posix
 import config
 import logger
 import strutils
 import parsecfg
 import runparser
 import posix_utils
+
+proc copyFileWithPermissionsAndOwnership*(source, dest: string, options = {cfSymlinkFollow}) =
+    ## Copies a file with both permissions and ownership.
+    
+    if symlinkExists(source) and (not fileExists(source)):
+        # Cant chown the broken symlink, just redirect to createSymlink
+        debug "cant chown, redirecting to createSymlink"
+        debug source&", "&dest
+        
+        if fileExists(dest) or symlinkExists(dest):
+            removeFile(dest)
+
+        createSymlink(expandSymlink(source), dest)
+        return
+
+    var statVar: Stat
+    assert stat(source, statVar) == 0
+    
+    if dirExists(source) and not fileExists(source):
+        copyDirWithPermissions(source, dest)
+    else:
+        copyFileWithPermissions(source, dest, options = options)
+    
+    #debug "copyFileWithPermissions successful, setting chown"
+    assert posix.chown(dest, statVar.st_uid, statVar.st_gid) == 0
+
+proc createDirWithPermissionsAndOwnership*(source, dest: string, followSymlinks = true) =
+    var statVar: Stat
+    assert stat(source, statVar) == 0
+    createDir(dest)
+    #debug "createDir successful, setting chown and chmod"
+    assert posix.chown(dest, statVar.st_uid, statVar.st_gid) == 0
+    #debug "chown successful, setting permissions"
+    setFilePermissions(dest, getFilePermissions(source), followSymlinks)
 
 proc getInit*(root: string): string =
   ## Returns the init system.

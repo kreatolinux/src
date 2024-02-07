@@ -1,5 +1,4 @@
 import os
-import posix
 import osproc
 import strutils
 import sequtils
@@ -18,24 +17,6 @@ import ../modules/commonPaths
 import ../modules/removeInternal
 
 setControlCHook(ctrlc)
-
-proc copyFileWithPermissionsAndOwnership(source, dest: string, options = {cfSymlinkFollow}) =
-    ## Copies a file with both permissions and ownership.
-    var statVar: Stat
-    assert stat(source, statVar) == 0
-    copyFileWithPermissions(source, dest)
-    #debug "copyFileWithPermissions successful, setting chown"
-    assert posix.chown(dest, statVar.st_uid, statVar.st_gid) == 0
-
-proc createDirWithPermissionsAndOwnership(source, dest: string, followSymlinks = true) =
-    var statVar: Stat
-    assert stat(source, statVar) == 0
-    createDir(dest)
-    #debug "createDir successful, setting chown and chmod"
-    assert posix.chown(dest, statVar.st_uid, statVar.st_gid) == 0
-    #debug "chown successful, setting permissions"
-    setFilePermissions(dest, getFilePermissions(source), followSymlinks)
-
 
 proc installPkg*(repo: string, package: string, root: string, runf = runFile(
         isParsed: false), manualInstallList: seq[string], isUpgrade = false, arch = hostCPU, kTarget = kpkgTarget(root), ignorePostInstall = false) =
@@ -123,7 +104,7 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
         createDir(kpkgInstallTemp)
         setCurrentDir(kpkgInstallTemp)
         try:
-          extractTarball = extract(tarball, kpkgInstallTemp, pkg.backup)
+          extractTarball = extract(tarball, kpkgInstallTemp)
         except Exception:
             removeDir(root&kpkgInstalledDir&"/"&package)
             when defined(release):
@@ -136,10 +117,9 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
         # Checking loop
         for file in extractTarball:
             if "pkgsums.ini" == lastPathPart(file): continue
-            debug kpkgInstallTemp&"/"&relativePath(file, kpkgInstallTemp)
             let value = dict.getSectionValue("", relativePath(file, kpkgInstallTemp))
             let doesFileExist = (fileExists(kpkgInstallTemp&"/"&file) and not symlinkExists(kpkgInstallTemp&"/"&file))
-
+            
             if isEmptyOrWhitespace(value) and not doesFileExist:
                 continue
                 
@@ -152,15 +132,21 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
             
         # Installation loop 
         for file in extractTarball:
+            if relativePath(file, kpkgInstallTemp) in pkg.backup:
+                debug "\""&file&"\" is in pkg.backup, not installing"
+                dict.delSectionKey("", relativePath(file, kpkgInstallTemp))
+                continue
             if "pkgsums.ini" == lastPathPart(file):
-                moveFile(kpkgInstallTemp&"/"&file, kpkgInstalledDir&"/"&package&"/list_files")
-            let doesFileExist = fileExists(kpkgInstallTemp&"/"&file)
+                moveFile(kpkgInstallTemp&"/"&file, root&kpkgInstalledDir&"/"&package&"/list_files")
+            let doesFileExist = (fileExists(kpkgInstallTemp&"/"&file) or symlinkExists(kpkgInstallTemp&"/"&file))
             if doesFileExist:
                 if not dirExists(root&"/"&file.parentDir()):
                     createDirWithPermissionsAndOwnership(kpkgInstallTemp&"/"&file.parentDir(), root&"/"&file.parentDir())
                 copyFileWithPermissionsAndOwnership(kpkgInstallTemp&"/"&file, root&"/"&file)
             elif dirExists(kpkgInstallTemp&"/"&file) and (not dirExists(root&"/"&file)):
                 createDirWithPermissionsAndOwnership(kpkgInstallTemp&"/"&file, root&"/"&file)
+
+        dict.writeConfig(root&kpkgInstalledDir&"/"&package&"/list_files")
 
     # Run ldconfig afterwards for any new libraries
     discard execProcess("ldconfig")
