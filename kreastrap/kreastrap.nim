@@ -176,7 +176,7 @@ proc initDirectories*(buildDirectory: string, arch: string, silent = false) =
         info_msg "Root directory structure created."
 
 proc kreastrapInstall(package: string, installWithBinaries: bool,
-        buildDir: string, useCacheIfPossible = true, target = "default", installToHost = true) =
+        buildDir: string, useCacheIfPossible = true, target = "default") =
     # Install a package.
     info_msg "Installing package '"&package&"'"
     if installWithBinaries == true:
@@ -184,11 +184,10 @@ proc kreastrapInstall(package: string, installWithBinaries: bool,
         discard install(toSeq([package]), buildDir, true)
     else:
         debug "Building package from source"
-        if installToHost:
-            discard build(yes = true, root = "/", packages = toSeq([
-                    package]),
-                    useCacheIfAvailable = useCacheIfPossible,
-                    forceInstallAll = true, target = target)
+        discard build(yes = true, root = "/", packages = toSeq([
+                package]),
+                useCacheIfAvailable = useCacheIfPossible,
+                forceInstallAll = true, target = target)
         var arch = target.split("-")[0]
         if arch == "x86_64":
                 arch = "amd64" # for compat purposes
@@ -291,7 +290,7 @@ proc kreastrap(buildType = "builder", arch = "amd64",
     initKrelease(conf)
             
     # Install kreato-fs-essentials
-    kreastrapInstall("kreato-fs-essentials", installWithBinaries, buildDir, useCacheIfPossible, target, installToHost = false)
+    kreastrapInstall("kreato-fs-essentials", installWithBinaries, buildDir, useCacheIfPossible, target)
 
     # Installation of TLS library
     case conf.getSectionValue("Core", "TlsLibrary").normalize():
