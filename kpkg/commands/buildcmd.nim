@@ -192,6 +192,7 @@ proc builder*(package: string, destdir: string,
     var int = 0
     var usesGit: bool
     var folder: string
+    var isLocal = false
 
     for i in pkg.sources.split(" "):
         if i == "":
@@ -213,6 +214,11 @@ proc builder*(package: string, destdir: string,
                 if fileExists(path&"/"&i):
                     copyFile(path&"/"&i, extractFilename(i))
                     filename = path&"/"&i
+                    isLocal = true
+                elif dirExists(path&"/"&i):
+                    copyDir(path&"/"&i, lastPathPart(i))
+                    filename = path&"/"&i
+                    isLocal = true
                 elif fileExists(filename):
                     discard
                 else:
@@ -260,15 +266,15 @@ proc builder*(package: string, destdir: string,
                     except Exception:
                         err "runFile doesn't have proper checksums"
                 
+                if not isLocal:
+                    actualDigest = getSum(filename, sumType)
 
-                actualDigest = getSum(filename, sumType)
-
-                if expectedDigest != actualDigest:
-                    removeFile(filename)
-                    err sumType&"sum doesn't match for "&i&"\nExpected: '"&expectedDigest&"'\nActual: '"&actualDigest&"'"
+                    if expectedDigest != actualDigest:
+                        removeFile(filename)
+                        err sumType&"sum doesn't match for "&i&"\nExpected: '"&expectedDigest&"'\nActual: '"&actualDigest&"'"
 
                 # Add symlink for compatibility purposes
-                if not fileExists(path&"/"&i):
+                if not fileExists(path&"/"&i) and (not isLocal):
                     createSymlink(filename, extractFilename(i).strip())
 
                 int = int+1
