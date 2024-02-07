@@ -152,10 +152,7 @@ proc builder*(package: string, destdir: string,
     else:
         override = newConfig() # So we don't get storage access errors
 
-    if fileExists(kpkgArchivesDir&"/system/"&kTarget&"/kpkg-tarball-"&actualPackage&"-"&pkg.versionString&".tar.gz") and
-            fileExists(
-            kpkgArchivesDir&"/system/"&kTarget&"/kpkg-tarball-"&actualPackage&"-"&pkg.versionString&".tar.gz.sum") and
-            useCacheIfAvailable == true and dontInstall == false:
+    if fileExists(kpkgArchivesDir&"/system/"&kTarget&"/kpkg-tarball-"&actualPackage&"-"&pkg.versionString&".tar.gz") and useCacheIfAvailable == true and dontInstall == false:
         
         debug "Tarball (and the sum) already exists, going to install"
         if destdir != "/" and target == "default":
