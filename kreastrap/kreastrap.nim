@@ -184,11 +184,17 @@ proc kreastrapInstall(package: string, installWithBinaries: bool,
         discard install(toSeq([package]), buildDir, true)
     else:
         debug "Building package from source"
+        var installToHostRoot: string
         if installToHost:
-            discard build(yes = true, root = "/", packages = toSeq([
-                    package]),
-                    useCacheIfAvailable = useCacheIfPossible,
-                    forceInstallAll = true, target = target)
+            installToHostRoot = "/"
+        else:
+            installToHostRoot = buildDir
+        
+        discard build(yes = true, root = installToHostRoot, packages = toSeq([
+                package]),
+                useCacheIfAvailable = useCacheIfPossible,
+                forceInstallAll = true, target = target)
+
         var arch = target.split("-")[0]
         if arch == "x86_64":
                 arch = "amd64" # for compat purposes
