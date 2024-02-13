@@ -1,5 +1,14 @@
 #!/bin/sh
 # CI build script
+#
+
+e() {
+    ls -l /bin/sh
+    cat /var/cache/kpkg/installed/busybox/list_files
+    kpkg provides /bin/sh
+    exit 1
+}
+
 case $1 in
         "init")
                 if [ "$IS_ACTIONS" = "y" ]; then
@@ -43,7 +52,7 @@ case $1 in
 			arch="$3"
 		fi
   
-                ./kreastrap/kreastrap --buildType="$2" --arch="$arch" || exit 1
+                ./kreastrap/kreastrap --buildType="$2" --arch="$arch" || e
                 cd /out || exit 1
                 tar -czvf /work/kreato-linux-"$2"-glibc-"$(date +%d-%m-%Y)"-amd64.tar.gz *
         ;;
