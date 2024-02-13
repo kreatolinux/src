@@ -24,13 +24,20 @@ proc copyFileWithPermissionsAndOwnership*(source, dest: string, options = {cfSym
     var statVar: Stat
     assert stat(source, statVar) == 0
     
-    if dirExists(source) and not fileExists(source):
-        copyDirWithPermissions(source, dest)
-    else:
-        copyFileWithPermissions(source, dest, options = options)
-    
-    #debug "copyFileWithPermissions successful, setting chown"
-    assert posix.chown(dest, statVar.st_uid, statVar.st_gid) == 0
+    try:
+        if dirExists(source) and not fileExists(source):
+            copyDirWithPermissions(source, dest)
+        else:
+            copyFileWithPermissions(source, dest, options = options)
+        
+        #debug "copyFileWithPermissions successful, setting chown"
+        assert posix.chown(dest, statVar.st_uid, statVar.st_gid) == 0
+    except Exception:
+        when defined(release):
+            err "unknown error occured while copying a file/folder, please open an issue"
+        else:
+            debug "unknown error occured while copying a file/folder, ignoring"
+
 
 proc createDirWithPermissionsAndOwnership*(source, dest: string, followSymlinks = true) =
     var statVar: Stat
