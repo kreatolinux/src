@@ -36,7 +36,7 @@ proc copyFileWithPermissionsAndOwnership*(source, dest: string, options = {cfSym
         when defined(release):
             err "unknown error occured while copying a file/folder, please open an issue"
         else:
-            debug "unknown error occured while copying a file/folder, ignoring"
+            debug "unknown error occured while copying \""&source&"\" to \""&dest&"\", ignoring"
 
 
 proc createDirWithPermissionsAndOwnership*(source, dest: string, followSymlinks = true) =
