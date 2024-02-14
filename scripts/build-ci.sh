@@ -24,6 +24,7 @@ case $1 in
 		sed -i s/stable/master/g /etc/kpkg/kpkg.conf # Switch to master repos
 		kpkg update
   		rm -f /var/cache/kpkg/archives/arch/amd64/*wget*
+      		kpkg build bzip2 -y || exit 1
       		kpkg build python -y || exit 1
     		python -m ensurepip
     		kpkg build ninja -y
