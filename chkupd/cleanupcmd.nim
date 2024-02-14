@@ -18,17 +18,14 @@ proc cleanup*(verbose = false, dir = "/var/cache/kpkg/archives/arch/amd64") =
 
   for i in walkDirs("*"):
     let runf = parse_runfile(i)
-    let tname = "kpkg-tarball-"&i&"-"&runf.versionString&".tar.gz"
+    let tname = i&"-"&runf.versionString&".kpkg"
     if fileExists(dir&"/"&tname):
       dontDelete = dontDelete&tname
 
   setCurrentDir(dir)
 
-  for i in walkFiles("*.tar.gz"):
+  for i in walkFiles("*.kpkg"):
     if not (i in dontDelete):
-      if verbose:
-        echo "Deleting: "&i&"(.sum)"
-      removeFile(i&".sum")
       removeFile(i)
 
   echo "Cleanup complete."

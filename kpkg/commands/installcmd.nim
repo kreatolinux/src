@@ -60,7 +60,7 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
     var tarball: string
 
     if not isGroup:
-        tarball = kpkgArchivesDir&"/system/"&kTarget&"/kpkg-tarball-"&package&"-"&pkg.versionString&".tar.gz"
+        tarball = kpkgArchivesDir&"/system/"&kTarget&"/"&package&"-"&pkg.versionString&".kpkg"
         
     setCurrentDir(kpkgArchivesDir)
     
@@ -237,7 +237,7 @@ proc down_bin(package: string, binrepos: seq[string], root: string,
         if pkg.isGroup:
             return
 
-        let tarball = "kpkg-tarball-"&package&"-"&pkg.versionString&".tar.gz"
+        let tarball = package&"-"&pkg.versionString&".kpkg"
         let chksum = tarball&".sum"
 
         if fileExists(kpkgArchivesDir&"/system/"&kTarget&"/"&tarball) and (not forceDownload):
