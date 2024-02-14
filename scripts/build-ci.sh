@@ -29,12 +29,23 @@ case $1 in
     		kpkg build ninja -y
     		kpkg build llvm -y # Required by futhark
     		kpkg build sqlite -y # Required by kpkg audit
-    		kpkg build bubblewrap -y # Required by kpkg isolation
+            kpkg build bubblewrap -y # Required by kpkg isolation
 
+        
+        # Hack to install kreato-fs-essentials until we get a working build
+        git clone https://github.com/kreatolinux/src src-old
+        cd src-old
+        git checkout a8c8e28b73daac823fa029845c7c66891b80d093
 		export PATH=$PATH:$HOME/.nimble/bin # Add nimble path so opir can run
-    		
-                rm -vf /etc/kpkg/kpkg.conf
-                rm -rf /tmp/kpkg
+        ./build.sh -i
+        ./build.sh -d -p kpkg
+        ./out/kpkg build kreato-fs-essentials -y
+        cd ..
+        rm -rf src-old
+        
+        rm -vf /etc/kpkg/kpkg.conf
+        rm -rf /tmp/kpkg
+
 
   		./build.sh -i
 		nim c -d:branch=master --passL:-larchive --passC:-no-pie --threads:on -d:ssl -o=kreastrap/kreastrap kreastrap/kreastrap.nim
