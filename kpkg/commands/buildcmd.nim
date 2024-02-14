@@ -176,15 +176,21 @@ proc builder*(package: string, destdir: string,
 
     var filename: string
 
-    let existsPrepare = execEnv(". "&path&"/run"&" && command -v prepare", passthrough = noSandbox, silentMode = true)
-    let existsInstall = execEnv(". "&path&"/run"&" && command -v package", passthrough = noSandbox, silentMode = true)
-    let existsTest = execEnv(". "&path&"/run"&" && command -v check", passthrough = noSandbox, silentMode = true)
+    when defined(release):
+        const silentMode = true
+    else:
+        const silentMode = false
+            
+
+    let existsPrepare = execEnv(". "&path&"/run"&" && command -v prepare", passthrough = noSandbox, silentMode = silentMode)
+    let existsInstall = execEnv(". "&path&"/run"&" && command -v package", passthrough = noSandbox, silentMode = silentMode)
+    let existsTest = execEnv(". "&path&"/run"&" && command -v check", passthrough = noSandbox, silentMode = silentMode)
     let existsPackageInstall = execEnv(
-            ". "&path&"/run"&" && command -v package_"&replace(actualPackage, '-', '_'), passthrough = noSandbox, silentMode = true)
+            ". "&path&"/run"&" && command -v package_"&replace(actualPackage, '-', '_'), passthrough = noSandbox, silentMode = silentMode)
     let existsPackageBuild = execEnv(
-            ". "&path&"/run"&" && command -v build_"&replace(actualPackage, '-', '_'), passthrough = noSandbox, silentMode = true)
+            ". "&path&"/run"&" && command -v build_"&replace(actualPackage, '-', '_'), passthrough = noSandbox, silentMode = silentMode)
     let existsBuild = execEnv(
-            ". "&path&"/run"&" && command -v build", passthrough = noSandbox, silentMode = true)
+            ". "&path&"/run"&" && command -v build", passthrough = noSandbox, silentMode = silentMode)
 
     var int = 0
     var usesGit: bool
