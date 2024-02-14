@@ -14,7 +14,7 @@ proc checkInternal(root, file: string) =
         let splitted = line.split("=")
             
         if splitted.len < 2:
-            debug "'"&line&"' doesn't have checksum, skipping"
+            #debug "'"&line&"' doesn't have checksum, skipping"
             continue
             
         let filePath = root&"/"&splitted[0].multiReplace((" ", ""), ("\"", ""))
@@ -22,9 +22,10 @@ proc checkInternal(root, file: string) =
             err "'"&filePath.relativePath(root)&"' has an invalid checksum, please reinstall '"&lastPathPart(file.parentDir())&"'"
     
 
-proc check*(package = "", root = "/") =
+proc check*(package = "", root = "/", silent = false) =
     ## Check packages in filesystem for errors.
-    info "the check may take a while, please wait"
+    if not silent:
+        info "the check may take a while, please wait"
     setCurrentDir(root)
 
     if isEmptyOrWhitespace(package):
@@ -35,6 +36,7 @@ proc check*(package = "", root = "/") =
             err("package '"&package&"' doesn't exist", false)
         else:
             checkInternal(root, root&kpkgInstalledDir&"/"&package&"/list_files")
-
-    success("done", true)
+    
+    if not silent:
+        success("done")
 

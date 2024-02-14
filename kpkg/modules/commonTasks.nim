@@ -33,11 +33,7 @@ proc copyFileWithPermissionsAndOwnership*(source, dest: string, options = {cfSym
         #debug "copyFileWithPermissions successful, setting chown"
         assert posix.chown(dest, statVar.st_uid, statVar.st_gid) == 0
     except Exception:
-        when defined(release):
-            err "unknown error occured while copying a file/folder, please open an issue"
-        else:
-            debug "unknown error occured while copying \""&source&"\" to \""&dest&"\", ignoring"
-
+        raise getCurrentException()
 
 proc createDirWithPermissionsAndOwnership*(source, dest: string, followSymlinks = true) =
     var statVar: Stat

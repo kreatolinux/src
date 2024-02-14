@@ -146,8 +146,9 @@ proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false,
                         0] != "upgrade" and not forceInstallAll:
                     debug "dephandler: '"&root&"/var/cache/kpkg/installed/"&d&"/list_files' exist, continuing"
                     continue
-
-                repo = findPkgRepo(d)
+                
+                if not chkInstalledDirInstead:
+                    repo = findPkgRepo(d)
 
                 if repo == "":
                     err("Package "&d&" doesn't exist", false)
@@ -174,11 +175,10 @@ proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false,
                 
                 if not isEmptyOrWhitespace(deprf.bdeps.join()) and isBuild:
                     deps.add(dephandler(@[d], deprf.replaces&deps&ignoreDeps, bdeps = true,
-                            isBuild = true, root = root, prevPkgName = pkg,
-                                    forceInstallAll = forceInstallAll, ignoreInit = ignoreInit))
+                            isBuild = true, root = root, prevPkgName = pkg, chkInstalledDirInstead = chkInstalledDirInstead, forceInstallAll = forceInstallAll, ignoreInit = ignoreInit))
 
                 deps.add(dephandler(@[d], deprf.replaces&deps&ignoreDeps, bdeps = false,
-                        isBuild = isBuild, root = root, prevPkgName = pkg,
+                        isBuild = isBuild, root = root, prevPkgName = pkg, chkInstalledDirInstead = chkInstalledDirInstead,
                                 forceInstallAll = forceInstallAll, ignoreInit = ignoreInit))
 
                 deps.add(d)

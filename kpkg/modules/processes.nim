@@ -3,14 +3,15 @@ import logger
 import osproc
 import streams
 
-proc execCmdKpkg*(command: string, error = "none"): int =
+proc execCmdKpkg*(command: string, error = "none", silentMode = false): int =
   # Like execCmdEx, but with outputs.
   let process = startProcess(command, options = {poEvalCommand, poStdErrToStdOut})
-  let outp = outputStream(process)
   var line: string
-
-  while outp.readLine(line):
-    echo line
+  
+  if not silentMode:
+    let outp = outputStream(process)
+    while outp.readLine(line):
+        echo line
 
   let res = waitForExit(process)
 

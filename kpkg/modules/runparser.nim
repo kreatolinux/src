@@ -31,7 +31,7 @@ proc parseRunfile*(path: string, removeLockfileWhenErr = true): runFile =
     var vars: seq[string]
     var ret: runFile
     let package = lastPathPart(path)
-    
+    var extractisRead = false
     var override: Config
     
     if fileExists("/etc/kpkg/override/"&package&".conf"):
@@ -116,6 +116,7 @@ proc parseRunfile*(path: string, removeLockfileWhenErr = true): runFile =
                     ("'", "")
                     ).strip()))
                 of "extract":
+                    extractisRead = true
                     ret.extract = parseBool(override.getSectionValue("runFile", "extract", vars[1].multiReplace(
                     ("\"", ""),
                     ("'", "")
@@ -189,7 +190,10 @@ proc parseRunfile*(path: string, removeLockfileWhenErr = true): runFile =
 
     if not isEmptyOrWhitespace(ret.sha256sum):
         ret.sha256sum = ret.sha256sum.multiReplace(replaceWith)
-    
+   
+    if not extractisRead:
+        ret.extract = true # default value
+
     if not isEmptyOrWhitespace(ret.sources):
         ret.sources = ret.sources.multiReplace(replaceWith)
 

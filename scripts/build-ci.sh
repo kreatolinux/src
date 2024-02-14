@@ -29,6 +29,7 @@ case $1 in
     		kpkg build ninja -y
     		kpkg build llvm -y # Required by futhark
     		kpkg build sqlite -y # Required by kpkg audit
+    		kpkg build bubblewrap -y # Required by kpkg isolation
 
 		export PATH=$PATH:$HOME/.nimble/bin # Add nimble path so opir can run
     		

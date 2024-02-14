@@ -1,6 +1,5 @@
 import os
 import posix
-import osproc
 import strutils
 import sequtils
 import parsecfg
@@ -10,6 +9,7 @@ import ../modules/logger
 import ../modules/shadow
 import ../modules/config
 import ../modules/lockfile
+import ../modules/isolation
 import ../modules/runparser
 import ../modules/processes
 import ../modules/checksums
@@ -27,21 +27,21 @@ proc cleanUp() {.noconv.} =
 
 
 proc fakerootWrap(srcdir: string, path: string, root: string, input: string,
-        autocd = "", tests = false, isTest = false, existsTest = 1, target = "default", typ: string): int =
+        autocd = "", tests = false, isTest = false, existsTest = 1, target = "default", typ: string, passthrough = false): int =
     ## Wraps command with fakeroot and executes it.
     
     if (isTest and not tests) or (tests and existsTest != 0):
         return 0
 
     if not isEmptyOrWhitespace(autocd):
-        return execCmdKpkg("fakeroot -- /bin/sh -c '. "&path&"/run && export DESTDIR="&root&" && export ROOT=$DESTDIR && cd "&autocd&" && "&input&"'", typ)
+        return execEnv(". "&path&"/run && export DESTDIR="&root&" && export ROOT="&root&" && cd "&autocd&" && "&input, typ, passthrough = passthrough)
 
-    return execCmdKpkg("fakeroot -- /bin/sh -c '. "&path&"/run && export DESTDIR="&root&" && export ROOT=$DESTDIR && cd '"&srcdir&"' && "&input&"'", typ)
+    return execEnv(". "&path&"/run && export DESTDIR="&root&" && export ROOT="&root&" && cd '"&srcdir&"' && "&input, typ, passthrough = passthrough)
 
 proc builder*(package: string, destdir: string,
     root = kpkgTempDir1&"/build", srcdir = kpkgTempDir1&"/srcdir", offline = false,
             dontInstall = false, useCacheIfAvailable = false,
-                    tests = false, manualInstallList: seq[string], customRepo = "", isInstallDir = false, isUpgrade = false, target = "default", actualRoot = "default", ignorePostInstall = false): bool =
+                    tests = false, manualInstallList: seq[string], customRepo = "", isInstallDir = false, isUpgrade = false, target = "default", actualRoot = "default", ignorePostInstall = false, noSandbox = false, sandboxRoot = kpkgEnvPath): bool =
     ## Builds the packages.
     
     debug "builder ran, package: '"&package&"', destdir: '"&destdir&"' root: '"&root&"', useCacheIfAvailable: '"&($useCacheIfAvailable)&"'"
@@ -176,15 +176,15 @@ proc builder*(package: string, destdir: string,
 
     var filename: string
 
-    let existsPrepare = execCmdEx(". "&path&"/run"&" && command -v prepare").exitCode
-    let existsInstall = execCmdEx(". "&path&"/run"&" && command -v package").exitCode
-    let existsTest = execCmdEx(". "&path&"/run"&" && command -v check").exitCode
-    let existsPackageInstall = execCmdEx(
-            ". "&path&"/run"&" && command -v package_"&replace(actualPackage, '-', '_')).exitCode
-    let existsPackageBuild = execCmdEx(
-            ". "&path&"/run"&" && command -v build_"&replace(actualPackage, '-', '_')).exitCode
-    let existsBuild = execCmdEx(
-            ". "&path&"/run"&" && command -v build").exitCode
+    let existsPrepare = execEnv(". "&path&"/run"&" && command -v prepare", passthrough = noSandbox, silentMode = true)
+    let existsInstall = execEnv(". "&path&"/run"&" && command -v package", passthrough = noSandbox, silentMode = true)
+    let existsTest = execEnv(". "&path&"/run"&" && command -v check", passthrough = noSandbox, silentMode = true)
+    let existsPackageInstall = execEnv(
+            ". "&path&"/run"&" && command -v package_"&replace(actualPackage, '-', '_'), passthrough = noSandbox, silentMode = true)
+    let existsPackageBuild = execEnv(
+            ". "&path&"/run"&" && command -v build_"&replace(actualPackage, '-', '_'), passthrough = noSandbox, silentMode = true)
+    let existsBuild = execEnv(
+            ". "&path&"/run"&" && command -v build", passthrough = noSandbox, silentMode = true)
 
     var int = 0
     var usesGit: bool
@@ -201,9 +201,9 @@ proc builder*(package: string, destdir: string,
         try:
             if i.startsWith("git::"):
                 usesGit = true
-                if execCmdKpkg(sboxWrap("git clone "&i.split("::")[
+                if execEnv(sboxWrap("git clone "&i.split("::")[
                         1]&" && cd "&lastPathPart(i.split("::")[
-                        1])&" && git branch -C "&i.split("::")[2])) != 0:
+                        1])&" && git branch -C "&i.split("::")[2]), passthrough = noSandbox) != 0:
                     err("Cloning repository failed!")
 
                 folder = lastPathPart(i.split("::")[1])
@@ -287,23 +287,30 @@ proc builder*(package: string, destdir: string,
     discard posix.chown(cstring(homeDir), 999, 999)
     setFilePermissions(srcdir, {fpUserExec, fpUserWrite, fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
     discard posix.chown(cstring(srcdir), 999, 999)
+    
+    var amountOfFolders: int
 
-    if (existsPrepare != 0 or pkg.extract) and not usesGit:
-        try:
-          discard extract(filename)
-        except Exception:
-          debug "extraction failed, continuing"
+    if pkg.extract and (not usesGit):
+        
+        for i in pkg.sources.split(" "):
+            debug "trying to extract \""&extractFilename(i)&"\""
+            try:
+                discard extract(extractFilename(i))
+            except Exception:
+                debug "extraction failed, continuing"
+        
         for i in toSeq(walkDir(".")):
+          debug i.path
           if dirExists(i.path):
             folder = absolutePath(i.path)
-            break
+            setFilePermissions(folder, {fpUserExec, fpUserWrite, fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
+            discard posix.chown(cstring(folder), 999, 999)
+            for i in toSeq(walkDirRec(folder, {pcFile, pcLinkToFile, pcDir, pcLinkToDir})):
+                discard posix.chown(cstring(i), 999, 999)
+        
+            amountOfFolders = amountOfFolders + 1
 
-        setFilePermissions(folder, {fpUserExec, fpUserWrite, fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
-        discard posix.chown(cstring(folder), 999, 999)
-        for i in toSeq(walkDirRec(folder, {pcFile, pcLinkToFile, pcDir, pcLinkToDir})):
-          discard posix.chown(cstring(i), 999, 999)
-
-        if pkg.sources.split(" ").len == 1:
+        if amountOfFolders == 1 and (not isEmptyOrWhitespace(folder)):
             try:
                 setCurrentDir(folder)
             except Exception:
@@ -312,12 +319,13 @@ proc builder*(package: string, destdir: string,
 
                 debug $folder
                 raise getCurrentException()
-    elif existsPrepare == 0:
-        if execCmdKpkg("su -s /bin/sh _kpkg -c '. "&path&"/run"&" && prepare'") != 0:
+
+    if existsPrepare == 0:
+        if execEnv(". "&path&"/run"&" && prepare", passthrough = noSandbox) != 0:
             err("prepare failed", true)
 
     # Run ldconfig beforehand for any errors
-    discard execProcess("ldconfig")
+    #discard execEnv("ldconfig")
      
     # create cache directory if it doesn't exist
     var ccacheCmds: string
@@ -385,24 +393,24 @@ proc builder*(package: string, destdir: string,
         cmdStr = "true"
 
     if pkg.sources.split(" ").len == 1:
-        if existsPrepare == 0:
+        if existsPrepare == 0 and amountOfFolders != 1:
             debug "prepare() exist, autocd will not run"
-            discard execCmdKpkg(sboxWrap(cmdStr), "build")
+            discard execEnv(cmdStr, "build", passthrough = noSandbox)
             discard fakerootWrap(srcdir, path, root, "check", tests = tests,
-                    isTest = true, existsTest = existsTest, typ = "Tests")
-            discard fakerootWrap(srcdir, path, root, cmd3Str, typ = "Installation")
+                    isTest = true, existsTest = existsTest, typ = "Tests", passthrough = noSandbox)
+            discard fakerootWrap(srcdir, path, root, cmd3Str, typ = "Installation", passthrough = noSandbox)
         else:
             debug "prepare() doesn't exist, autocd will run"
-            discard execCmdKpkg(sboxWrap("cd "&folder&" && "&cmdStr), "build")
+            discard execEnv("cd "&folder&" && "&cmdStr, "build", passthrough = noSandbox)
             discard fakerootWrap(srcdir, path, root, "check", folder,
-                    tests = tests, isTest = true, existsTest = existsTest, typ = "Tests")
-            discard fakerootWrap(srcdir, path, root, cmd3Str, folder, typ = "Installation")
+                    tests = tests, isTest = true, existsTest = existsTest, typ = "Tests", passthrough = noSandbox)
+            discard fakerootWrap(srcdir, path, root, cmd3Str, folder, typ = "Installation", passthrough = noSandbox)
 
     else:
-        discard execCmdKpkg(sboxWrap(cmdStr), "build")
+        discard execEnv(cmdStr, "build", passthrough = noSandbox)
         discard fakerootWrap(srcdir, path, root, "check", tests = tests,
-                isTest = true, existsTest = existsTest, typ = "Tests")
-        discard fakerootWrap(srcdir, path, root, cmd3Str, typ = "Installation")
+                isTest = true, existsTest = existsTest, typ = "Tests", passthrough = noSandbox)
+        discard fakerootWrap(srcdir, path, root, cmd3Str, typ = "Installation", passthrough = noSandbox)
 
     var tarball = kpkgArchivesDir&"/system/"&kTarget
     
@@ -437,16 +445,17 @@ proc builder*(package: string, destdir: string,
         installPkg(repo, actualPackage, destdir, pkg, manualInstallList, isUpgrade = isUpgrade, arch = arch, ignorePostInstall = ignorePostInstall)
 
     removeLockfile()
-
-    removeDir(srcdir)
-    removeDir(homeDir)
+    
+    when defined(release):
+        removeDir(srcdir)
+        removeDir(homeDir)
 
     return false
 
 proc build*(no = false, yes = false, root = "/",
     packages: seq[string],
             useCacheIfAvailable = true, forceInstallAll = false,
-                    dontInstall = false, tests = true, ignorePostInstall = false, isInstallDir = false, isUpgrade = false, target = "default"): int =
+                    dontInstall = false, tests = true, ignorePostInstall = false, isInstallDir = false, isUpgrade = false, target = "default", noSandbox = false): int =
     ## Build and install packages.
     let init = getInit(root)
     var deps: seq[string]
@@ -481,6 +490,8 @@ proc build*(no = false, yes = false, root = "/",
        if findPkgRepo(currentPackage&"-"&init) != "":
             p = p&(currentPackage&"-"&init)
 
+    
+
     deps = deduplicate(deps&p)
 
     printReplacesPrompt(p, fullRootPath, isInstallDir = isInstallDir)
@@ -501,10 +512,19 @@ proc build*(no = false, yes = false, root = "/",
                 p = p&packageSplit[1]
             else:
                 p = p&packageSplit[0]
+    
+    var depsToClean: seq[string]
 
     for i in deps:
         try:
-            
+            if not noSandbox:
+                depsToClean = deduplicate(dephandler(@[i], bdeps = true, isBuild = true, root = fullRootPath, forceInstallAll = true, isInstallDir = isInstallDir, ignoreInit = ignoreInit)&dephandler(@[i], isBuild = true, root = fullRootPath, forceInstallAll = true, isInstallDir = isInstallDir, ignoreInit = ignoreInit))
+                if dirExists(kpkgEnvPath):
+                    for d in depsToClean:
+                        installFromRoot(d, root, kpkgEnvPath)
+                else:
+                    createEnv(root, depsToClean, kpkgEnvPath)
+
             let packageSplit = i.split("/")
             
             var customRepo = ""
@@ -522,7 +542,11 @@ proc build*(no = false, yes = false, root = "/",
                     pkgName = packageSplit[0]
 
             discard builder(pkgName, fullRootPath, offline = false,
-                    dontInstall = dontInstall, useCacheIfAvailable = useCacheIfAvailable, tests = tests, manualInstallList = p, customRepo = customRepo, isInstallDir = isInstallDirFinal, isUpgrade = isUpgrade, target = target, actualRoot = root, ignorePostInstall = ignorePostInstall)
+                    dontInstall = dontInstall, useCacheIfAvailable = useCacheIfAvailable, tests = tests, manualInstallList = p, customRepo = customRepo, isInstallDir = isInstallDirFinal, isUpgrade = isUpgrade, target = target, actualRoot = root, ignorePostInstall = ignorePostInstall, noSandbox = noSandbox)
+            if not noSandbox:
+                cleanEnv(depsToClean)
+                depsToClean = @[]
+            
             success("built "&i&" successfully")
         except CatchableError:
             when defined(release):
