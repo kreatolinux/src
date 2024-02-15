@@ -27,7 +27,8 @@ case $1 in
       		kpkg build bzip2 -y || exit 1
       		
 		kpkg build python -y || exit 1
-    		python -m ensurepip
+    		python -m ensurepip -U
+		pip --version || exit 1
     		kpkg build python-pip -y
 		pip --version || exit 1
 
