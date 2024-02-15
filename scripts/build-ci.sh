@@ -25,9 +25,13 @@ case $1 in
 		kpkg update
   		rm -f /var/cache/kpkg/archives/arch/amd64/*wget*
       		kpkg build bzip2 -y || exit 1
-      		kpkg build python -y || exit 1
+      		
+		kpkg build python -y || exit 1
     		python -m ensurepip
-    		kpkg build ninja -y
+    		kpkg build python-pip -y
+		pip --version || exit 1
+
+		kpkg build ninja -y
     		kpkg build llvm -y # Required by futhark
     		kpkg build sqlite -y # Required by kpkg audit
             kpkg build bubblewrap -y # Required by kpkg isolation
