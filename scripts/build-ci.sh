@@ -28,6 +28,7 @@ case $1 in
       		
 		kpkg build python -y || exit 1
     		python -m ensurepip -U
+		ln -s $(which pip3) /usr/bin/pip
 		pip --version || exit 1
     		kpkg build python-pip -y
 		pip --version || exit 1
