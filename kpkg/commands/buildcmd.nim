@@ -461,7 +461,7 @@ proc builder*(package: string, destdir: string,
 proc build*(no = false, yes = false, root = "/",
     packages: seq[string],
             useCacheIfAvailable = true, forceInstallAll = false,
-                    dontInstall = false, tests = true, ignorePostInstall = false, isInstallDir = false, isUpgrade = false, target = "default", noSandbox = false): int =
+                    dontInstall = false, tests = true, ignorePostInstall = false, isInstallDir = false, isUpgrade = false, target = "default", fullyCleanSandbox = false, noSandbox = false): int =
     ## Build and install packages.
     let init = getInit(root)
     var deps: seq[string]
@@ -523,13 +523,15 @@ proc build*(no = false, yes = false, root = "/",
 
     for i in deps:
         try:
-            if not noSandbox:
+            if not noSandbox and (not fullyCleanSandbox):
                 depsToClean = deduplicate(dephandler(@[i], bdeps = true, isBuild = true, root = fullRootPath, forceInstallAll = true, isInstallDir = isInstallDir, ignoreInit = ignoreInit)&dephandler(@[i], isBuild = true, root = fullRootPath, forceInstallAll = true, isInstallDir = isInstallDir, ignoreInit = ignoreInit))
-                if dirExists(kpkgEnvPath):
-                    for d in depsToClean:
-                        installFromRoot(d, root, kpkgEnvPath)
-                else:
-                    createEnv(root, depsToClean, kpkgEnvPath)
+
+            if fullyCleanSandbox or (not dirExists(kpkgEnvPath)):
+                removeDir(kpkgEnvPath)
+                createEnv(root, depsToClean, kpkgEnvPath)
+            else:
+                for d in depsToClean:
+                    installFromRoot(d, root, kpkgEnvPath)
 
             let packageSplit = i.split("/")
             
@@ -549,7 +551,7 @@ proc build*(no = false, yes = false, root = "/",
 
             discard builder(pkgName, fullRootPath, offline = false,
                     dontInstall = dontInstall, useCacheIfAvailable = useCacheIfAvailable, tests = tests, manualInstallList = p, customRepo = customRepo, isInstallDir = isInstallDirFinal, isUpgrade = isUpgrade, target = target, actualRoot = root, ignorePostInstall = ignorePostInstall, noSandbox = noSandbox)
-            if not noSandbox:
+            if (not noSandbox) and (not fullyCleanSandbox):
                 cleanEnv(depsToClean)
                 depsToClean = @[]
             
