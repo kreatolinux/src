@@ -523,15 +523,14 @@ proc build*(no = false, yes = false, root = "/",
 
     for i in deps:
         try:
-            if not noSandbox and (not fullyCleanSandbox):
-                depsToClean = deduplicate(dephandler(@[i], bdeps = true, isBuild = true, root = fullRootPath, forceInstallAll = true, isInstallDir = isInstallDir, ignoreInit = ignoreInit)&dephandler(@[i], isBuild = true, root = fullRootPath, forceInstallAll = true, isInstallDir = isInstallDir, ignoreInit = ignoreInit))
-
-            if fullyCleanSandbox or (not dirExists(kpkgEnvPath)):
-                removeDir(kpkgEnvPath)
-                createEnv(root, depsToClean, kpkgEnvPath)
-            else:
-                for d in depsToClean:
-                    installFromRoot(d, root, kpkgEnvPath)
+            if not noSandbox:
+                if fullyCleanSandbox or (not dirExists(kpkgEnvPath)):
+                    removeDir(kpkgEnvPath)
+                    createEnv(root, depsToClean, kpkgEnvPath)
+                else:
+                    depsToClean = deduplicate(dephandler(@[i], bdeps = true, isBuild = true, root = fullRootPath, forceInstallAll = true, isInstallDir = isInstallDir, ignoreInit = ignoreInit)&dephandler(@[i], isBuild = true, root = fullRootPath, forceInstallAll = true, isInstallDir = isInstallDir, ignoreInit = ignoreInit))
+                    for d in depsToClean:
+                        installFromRoot(d, root, kpkgEnvPath)
 
             let packageSplit = i.split("/")
             
