@@ -22,7 +22,7 @@ proc installFromRootInternal(package, root, destdir: string) =
         let listFilesSplitted = line.split("=")[0].replace("\"", "")
          
         if not (fileExists(root&"/"&listFilesSplitted) or dirExists(root&"/"&listFilesSplitted)):
-            debug listFilesSplitted
+            debug "file: \""&listFilesSplitted&"\", package: \""&package&"\""
             err("Internal error occured", false)
         
         discard existsOrCreateDir(destdir)
