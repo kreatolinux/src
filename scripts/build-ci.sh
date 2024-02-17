@@ -46,7 +46,7 @@ case $1 in
         ./build.sh -i
         ./build.sh -d -p kpkg
         ./out/kpkg build kreato-fs-essentials -y
-        ./out/kpkg build bash binutils bison flex gcc gettxt glibc gmake gmp grep gtar libffi libtasn m4 mpc mpfr readline texinfo -y # https://github.com/kreatolinux/kpkg-repo/commit/a5891e1b1b1f0645fb48058bc1d015ea54bcbb93
+        ./out/kpkg build bash binutils bison flex gcc gettext glibc gmake gmp grep gtar libffi libtasn m4 mpc mpfr readline texinfo -y || exit 1 # https://github.com/kreatolinux/kpkg-repo/commit/a5891e1b1b1f0645fb48058bc1d015ea54bcbb93
         cd ..
         rm -rf src-old
         
