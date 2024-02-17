@@ -120,6 +120,10 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
             let value = dict.getSectionValue("", relativePath(file, kpkgInstallTemp))
             let doesFileExist = (fileExists(kpkgInstallTemp&"/"&file) and not symlinkExists(kpkgInstallTemp&"/"&file))
             
+            let rootFilePath = absolutePath(root&"/"&relativePath(file, kpkgInstallTemp))
+            if fileExists(rootFilePath):
+                err("\""&rootFilePath&"\" already exists in filesystem, installation failed")
+
             if isEmptyOrWhitespace(value) and not doesFileExist:
                 continue
                 
