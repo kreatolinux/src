@@ -19,8 +19,11 @@ proc checkInternal(root, file: string) =
             
         let filePath = root&"/"&splitted[0].multiReplace((" ", ""), ("\"", ""))
         if getSum(filePath, "b2") != splitted[1].multiReplace((" ", ""), ("\"", "")):
-            err "'"&filePath.relativePath(root)&"' has an invalid checksum, please reinstall '"&lastPathPart(file.parentDir())&"'"
-    
+            let errorOutput = "'"&filePath.relativePath(root)&"' has an invalid checksum, please reinstall '"&lastPathPart(file.parentDir())&"'"
+            when defined(release):
+                err errorOutput
+            else:
+                debug errorOutput
 
 proc check*(package = "", root = "/", silent = false) =
     ## Check packages in filesystem for errors.

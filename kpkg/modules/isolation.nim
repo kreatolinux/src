@@ -12,7 +12,7 @@ import removeInternal
 import ../commands/checkcmd
 import ../../kreastrap/commonProcs
 
-proc installFromRootInternal(package, root, destdir: string) =
+proc installFromRootInternal(package, root, destdir: string) = 
     # Check if package exists and has the right checksum
     check(package, root, true)
     
@@ -20,10 +20,11 @@ proc installFromRootInternal(package, root, destdir: string) =
 
     for line in lines listFiles:
         let listFilesSplitted = line.split("=")[0].replace("\"", "")
-         
+        
         if not (fileExists(root&"/"&listFilesSplitted) or dirExists(root&"/"&listFilesSplitted)):
             debug "file: \""&listFilesSplitted&"\", package: \""&package&"\""
-            err("Internal error occured", false)
+            when defined(release):
+                err("Internal error occured", false)
         
         discard existsOrCreateDir(destdir)
         
@@ -85,6 +86,7 @@ proc createEnv*(root: string, extraPackages = @[""], path = kpkgEnvPath) =
 proc execEnv*(command: string, error = "none", passthrough = false, silentMode = false, path = kpkgEnvPath): int =
     ## Wrapper of execCmdKpkg and Bubblewrap that runs a command in the sandbox.
     # We can use bwrap to chroot.
+    # TODO: create overlayfs at kpkgOverlayPath, and mount it to `path` before invoking bubblewrap.
     if passthrough:
         debug "passthrough true, \""&command&"\""
         return execCmdKpkg("/bin/sh -c \""&command&"\"", error, silentMode = silentMode)
@@ -93,5 +95,6 @@ proc execEnv*(command: string, error = "none", passthrough = false, silentMode =
         return execCmdKpkg("bwrap --bind "&kpkgEnvPath&" / --bind "&kpkgTempDir1&" "&kpkgTempDir1&" --bind /etc/kpkg/repos /etc/kpkg/repos --bind "&kpkgTempDir2&" "&kpkgTempDir2&" --bind "&kpkgSourcesDir&" "&kpkgSourcesDir&" --dev /dev --proc /proc --perms 1777 --tmpfs /dev/shm --ro-bind /etc/resolv.conf /etc/resolv.conf /bin/sh -c \""&command&"\"", error, silentMode = silentMode)
 
 proc cleanEnv*(packages: seq[string], path = kpkgEnvPath) =
+    # TODO: replace with removal of overlayfs
     for package in packages:
         removeInternal(package, path)
