@@ -6,6 +6,7 @@ import parsecfg
 import ../modules/config
 import ../modules/logger
 import ../modules/lockfile
+import ../modules/isolation
 import ../modules/checksums
 import ../modules/runparser
 import ../modules/processes
@@ -154,6 +155,9 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
 
     # Run ldconfig afterwards for any new libraries
     discard execProcess("ldconfig")
+    
+    if dirExists(kpkgOverlayPath) and dirExists(kpkgMergedPath):
+        discard umountOverlay(error = "unmounting overlays")
     
     when defined(release):
         removeDir(kpkgTempDir1)

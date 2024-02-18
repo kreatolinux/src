@@ -181,6 +181,7 @@ proc builder*(package: string, destdir: string,
     else:
         const silentMode = false
             
+    createDir(kpkgTempDir2)
 
     let existsPrepare = execEnv(". "&path&"/run"&" && command -v prepare", passthrough = noSandbox, silentMode = silentMode)
     let existsInstall = execEnv(". "&path&"/run"&" && command -v package", passthrough = noSandbox, silentMode = silentMode)
@@ -524,13 +525,14 @@ proc build*(no = false, yes = false, root = "/",
     for i in deps:
         try:
             if not noSandbox:
-                if fullyCleanSandbox or (not dirExists(kpkgEnvPath)):
+                if not dirExists(kpkgEnvPath):
                     removeDir(kpkgEnvPath)
-                    createEnv(root, depsToClean, kpkgEnvPath)
-                else:
-                    depsToClean = deduplicate(dephandler(@[i], bdeps = true, isBuild = true, root = fullRootPath, forceInstallAll = true, isInstallDir = isInstallDir, ignoreInit = ignoreInit)&dephandler(@[i], isBuild = true, root = fullRootPath, forceInstallAll = true, isInstallDir = isInstallDir, ignoreInit = ignoreInit))
-                    for d in depsToClean:
-                        installFromRoot(d, root, kpkgEnvPath)
+                    createEnv(root)
+                
+                discard mountOverlay(error = "mounting overlay")
+                depsToClean = deduplicate(dephandler(@[i], bdeps = true, isBuild = true, root = fullRootPath, forceInstallAll = true, isInstallDir = isInstallDir, ignoreInit = ignoreInit)&dephandler(@[i], isBuild = true, root = fullRootPath, forceInstallAll = true, isInstallDir = isInstallDir, ignoreInit = ignoreInit))
+                for d in depsToClean:
+                    installFromRoot(d, root, kpkgEnvPath)
 
             let packageSplit = i.split("/")
             
@@ -550,9 +552,6 @@ proc build*(no = false, yes = false, root = "/",
 
             discard builder(pkgName, fullRootPath, offline = false,
                     dontInstall = dontInstall, useCacheIfAvailable = useCacheIfAvailable, tests = tests, manualInstallList = p, customRepo = customRepo, isInstallDir = isInstallDirFinal, isUpgrade = isUpgrade, target = target, actualRoot = root, ignorePostInstall = ignorePostInstall, noSandbox = noSandbox)
-            if (not noSandbox) and (not fullyCleanSandbox):
-                cleanEnv(depsToClean)
-                depsToClean = @[]
             
             success("built "&i&" successfully")
         except CatchableError:
@@ -560,6 +559,6 @@ proc build*(no = false, yes = false, root = "/",
                 err("Undefined error occured", true)
             else:
                 raise getCurrentException()
-
+    
     success("built all packages successfully")
     return 0

@@ -8,7 +8,6 @@ import processes
 import dephandler
 import commonTasks
 import commonPaths
-import removeInternal
 import ../commands/checkcmd
 import ../../kreastrap/commonProcs
 
@@ -42,10 +41,11 @@ proc installFromRoot*(package, root, destdir: string) =
     for dep in deduplicate(dephandler(@[package], root = root, chkInstalledDirInstead = true, forceInstallAll = true)&package):
         installFromRootInternal(dep, root, destdir)
 
-proc createEnv*(root: string, extraPackages = @[""], path = kpkgEnvPath) =
+proc createEnv*(root: string, path = kpkgEnvPath) =
     # TODO: cross-compilation support
     # TODO: Add ca-certificates
     # TODO: add date to kpkgEnvPath/date, and recreate the rootfs every 3 weeks to keep it up-to-date
+    info "initializing sandbox, this might take a while..."
     initDirectories(kpkgEnvPath, hostCPU, true)
     
     copyFileWithPermissionsAndOwnership(root&"/etc/kreato-release", kpkgEnvPath&"/etc/kreato-release")
@@ -77,24 +77,53 @@ proc createEnv*(root: string, extraPackages = @[""], path = kpkgEnvPath) =
     installFromRoot("kreato-fs-essentials", root, kpkgEnvPath)
     installFromRoot("git", root, kpkgEnvPath)
     installFromRoot("kpkg", root, kpkgEnvPath)
-    let extras = dict.getSectionValue("Extras", "extraPackages").split(" ")&extraPackages
+    let extras = dict.getSectionValue("Extras", "extraPackages").split(" ")
 
     if not isEmptyOrWhitespace(extras.join("")):
         for i in extras:
             installFromRoot(i, root, kpkgEnvPath)
 
-proc execEnv*(command: string, error = "none", passthrough = false, silentMode = false, path = kpkgEnvPath): int =
+proc umountOverlay*(error = "none", silentMode = false, merged = kpkgMergedPath, upperDir = kpkgOverlayPath&"/upperDir", workDir = kpkgOverlayPath&"/workDir"): int =
+    ## Unmounts the overlay.
+    discard execCmdKpkg("umount "&kpkgOverlayPath, error, silentMode = silentMode)
+    let returnCode = execCmdKpkg("umount "&merged, error, silentMode)
+    removeDir(merged)
+    removeDir(upperDir)
+    removeDir(workDir)
+    return returnCode
+
+proc mountOverlay*(upperDir = kpkgOverlayPath&"/upperDir", workDir = kpkgOverlayPath&"/workDir", lowerDir = kpkgEnvPath, merged = kpkgMergedPath, error = "none", silentMode = false): int =
+    ## Mounts the overlay.
+    ## Directories must have been unmounted.
+    try:
+        removeDir(kpkgOverlayPath)
+    except:
+        discard umountOverlay(error, silentMode, merged, upperDir, workDir)
+        removeDir(kpkgOverlayPath)
+
+    createDir(kpkgOverlayPath)
+    discard execCmdKpkg("mount -t tmpfs tmpfs "&kpkgOverlayPath, error, silentMode = silentMode)
+
+    removeDir(upperDir)
+    removeDir(merged)
+    removeDir(workDir)
+    createDir(upperDir)
+    createDir(merged)
+    createDir(workDir)
+
+
+    let cmd = "mount -t overlay overlay -o lowerdir="&lowerDir&",upperdir="&upperDir&",workdir="&workDir&" "&kpkgMergedPath
+    debug cmd
+    return execCmdKpkg(cmd, error, silentMode = silentMode) 
+
+proc execEnv*(command: string, error = "none", passthrough = false, silentMode = false, path = kpkgMergedPath): int =
     ## Wrapper of execCmdKpkg and Bubblewrap that runs a command in the sandbox.
     # We can use bwrap to chroot.
-    # TODO: create overlayfs at kpkgOverlayPath, and mount it to `path` before invoking bubblewrap.
     if passthrough:
         debug "passthrough true, \""&command&"\""
         return execCmdKpkg("/bin/sh -c \""&command&"\"", error, silentMode = silentMode)
     else:
         debug "passthrough false, \""&command&"\""
-        return execCmdKpkg("bwrap --bind "&kpkgEnvPath&" / --bind "&kpkgTempDir1&" "&kpkgTempDir1&" --bind /etc/kpkg/repos /etc/kpkg/repos --bind "&kpkgTempDir2&" "&kpkgTempDir2&" --bind "&kpkgSourcesDir&" "&kpkgSourcesDir&" --dev /dev --proc /proc --perms 1777 --tmpfs /dev/shm --ro-bind /etc/resolv.conf /etc/resolv.conf /bin/sh -c \""&command&"\"", error, silentMode = silentMode)
-
-proc cleanEnv*(packages: seq[string], path = kpkgEnvPath) =
-    # TODO: replace with removal of overlayfs
-    for package in packages:
-        removeInternal(package, path)
+        if not dirExists(path):
+            err("internal: you have to use mountOverlay() before running execEnv")
+        return execCmdKpkg("bwrap --bind "&path&" / --bind "&kpkgTempDir1&" "&kpkgTempDir1&" --bind /etc/kpkg/repos /etc/kpkg/repos --bind "&kpkgTempDir2&" "&kpkgTempDir2&" --bind "&kpkgSourcesDir&" "&kpkgSourcesDir&" --dev /dev --proc /proc --perms 1777 --tmpfs /dev/shm --ro-bind /etc/resolv.conf /etc/resolv.conf /bin/sh -c \""&command&"\"", error, silentMode = silentMode)
