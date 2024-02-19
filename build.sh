@@ -1,6 +1,7 @@
 #!/bin/sh
 prefix="./out"
-srcdir="$PWD"
+# https://stackoverflow.com/questions/29832037/how-to-get-script-directory-in-posix-sh
+srcdir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)
 projects=""
 buildType="release"
 branch="master"
@@ -12,15 +13,19 @@ err() {
 }
 
 buildNimMain() {
+  cd "$srcdir"
 	if [ "$1" = "chkupd" ]; then
 		nim c -d:$buildType $args $target -d:branch=$branch --threads:on -d:ssl -o="$prefix/$1" "$srcdir/$1/$1.nim" || err "building $1 failed"
 	else
  		nim c -d:$buildType $args $target --deepcopy:on --passL:-larchive -d:branch=$branch --threads:on -d:ssl -o="$prefix/$1" "$srcdir/$1/$1.nim" || err "building $1 failed"
-   	fi
+  fi
+  cd - > /dev/null
 }
 
 buildNimOther() {
+  cd "$srcdir"
 	nim c -d:$buildType $args $target --threads:$2 -o="$3" $5 "$srcdir/$1/$4" || err "building $1 failed"
+  cd - > /dev/null
 }
 
 printHelp() {
