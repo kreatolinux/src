@@ -41,7 +41,7 @@ proc fakerootWrap(srcdir: string, path: string, root: string, input: string,
 proc builder*(package: string, destdir: string,
     root = kpkgTempDir1&"/build", srcdir = kpkgTempDir1&"/srcdir", offline = false,
             dontInstall = false, useCacheIfAvailable = false,
-                    tests = false, manualInstallList: seq[string], customRepo = "", isInstallDir = false, isUpgrade = false, target = "default", actualRoot = "default", ignorePostInstall = false, noSandbox = false, sandboxRoot = kpkgEnvPath): bool =
+                    tests = false, manualInstallList: seq[string], customRepo = "", isInstallDir = false, isUpgrade = false, target = "default", actualRoot = "default", ignorePostInstall = false, noSandbox = false): bool =
     ## Builds the packages.
     
     debug "builder ran, package: '"&package&"', destdir: '"&destdir&"' root: '"&root&"', useCacheIfAvailable: '"&($useCacheIfAvailable)&"'"
@@ -532,7 +532,7 @@ proc build*(no = false, yes = false, root = "/",
                 discard mountOverlay(error = "mounting overlay")
                 depsToClean = deduplicate(dephandler(@[i], bdeps = true, isBuild = true, root = fullRootPath, forceInstallAll = true, isInstallDir = isInstallDir, ignoreInit = ignoreInit)&dephandler(@[i], isBuild = true, root = fullRootPath, forceInstallAll = true, isInstallDir = isInstallDir, ignoreInit = ignoreInit))
                 for d in depsToClean:
-                    installFromRoot(d, root, kpkgEnvPath)
+                    installFromRoot(d, root, kpkgOverlayPath&"/upperDir")
 
             let packageSplit = i.split("/")
             
