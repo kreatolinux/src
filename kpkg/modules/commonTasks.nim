@@ -13,8 +13,8 @@ proc copyFileWithPermissionsAndOwnership*(source, dest: string, options = {cfSym
     if symlinkExists(source) and (not fileExists(source)):
         # Cant chown the broken symlink, just redirect to createSymlink
         debug "cant chown, redirecting to createSymlink"
-        debug source&", "&dest
-        
+        debug expandSymlink(source)&", "&dest
+ 
         if fileExists(dest) or symlinkExists(dest):
             removeFile(dest)
 
