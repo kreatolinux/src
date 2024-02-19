@@ -1,18 +1,23 @@
 import os
 import ../modules/logger
+import ../modules/commonPaths
 
-proc clean*(sources = false, binaries = false, cache = false) =
+proc clean*(sources = false, binaries = false, cache = false, environment = false) =
   ## Cleanup kpkg cache.
   if sources:
-    removeDir("/var/cache/kpkg/sources")
+    removeDir(kpkgSourcesDir)
     success("Source tarballs removed from cache.")
 
   if binaries:
-    removeDir("/var/cache/kpkg/archives")
+    removeDir(kpkgArchivesDir)
     success("Binary tarballs removed from cache.")
 
   if cache:
-    removeDir("/var/cache/kpkg/ccache")
+    removeDir(kpkgCacheDir&"/ccache")
     success("ccache directory removed.")
+  
+  if environment:
+    removeDir(kpkgEnvPath)
+    success("Build environment directory removed.")
     
   info("done", true)
