@@ -127,7 +127,7 @@ dispatchMulti(
   ],
   [
   check, help = {
-    "root": "The directory the packages are gonna be checkd on",
+    "root": "The directory the packages are gonna be checked on",
     "package": "Set a specific package to check"
   }
   ]
