@@ -6,7 +6,6 @@ import parsecfg
 import installcmd
 import posix_utils
 import ../modules/logger
-import ../modules/shadow
 import ../modules/config
 import ../modules/lockfile
 import ../modules/isolation
@@ -208,9 +207,9 @@ proc builder*(package: string, destdir: string,
         try:
             if i.startsWith("git::"):
                 usesGit = true
-                if execEnv(sboxWrap("git clone "&i.split("::")[
+                if execEnv("git clone "&i.split("::")[
                         1]&" && cd "&lastPathPart(i.split("::")[
-                        1])&" && git branch -C "&i.split("::")[2]), passthrough = noSandbox) != 0:
+                        1])&" && git branch -C "&i.split("::")[2], passthrough = noSandbox) != 0:
                     err("Cloning repository failed!")
 
                 folder = lastPathPart(i.split("::")[1])
@@ -288,10 +287,6 @@ proc builder*(package: string, destdir: string,
             debug "Unknown error while trying to download sources"
             raise getCurrentException()
 
-    # Create homedir of _kpkg temporarily
-    createDir(homeDir)
-    setFilePermissions(homeDir, {fpUserExec, fpUserWrite, fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
-    discard posix.chown(cstring(homeDir), 999, 999)
     setFilePermissions(srcdir, {fpUserExec, fpUserWrite, fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
     discard posix.chown(cstring(srcdir), 999, 999)
     
