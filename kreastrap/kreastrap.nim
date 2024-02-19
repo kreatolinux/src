@@ -62,7 +62,7 @@ proc kreastrapInstall(package: string, installWithBinaries: bool,
         discard build(yes = true, root = "/", packages = toSeq([
                 package]),
                 useCacheIfAvailable = useCacheIfPossible,
-                forceInstallAll = true, target = target, fullyCleanSandbox = true)
+                forceInstallAll = true, target = target)
         var arch = target.split("-")[0]
         if arch == "x86_64":
                 arch = "amd64" # for compat purposes
