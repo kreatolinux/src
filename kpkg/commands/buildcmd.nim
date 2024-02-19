@@ -450,7 +450,7 @@ proc builder*(package: string, destdir: string,
     
     when defined(release):
         removeDir(srcdir)
-        removeDir(homeDir)
+        removeDir(kpkgTempDir2)
 
     return false
 

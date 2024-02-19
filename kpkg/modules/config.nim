@@ -1,4 +1,3 @@
-import shadow
 import parsecfg
 import os
 import logger
@@ -44,11 +43,6 @@ proc initializeConfig*(): Config =
   # config.setSectionKey("Upgrade, "dontUpgrade", "") # kpkg wont touch this package, seperate by space
 
   config.writeConfig(configPath)
-
-  # Add an _kpkg user if it doesn't exist
-  if not existsUser("_kpkg"):
-    if addUser("_kpkg") == false:
-      err("adding user _kpkg failed!")
 
   return config
 
