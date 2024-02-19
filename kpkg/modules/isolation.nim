@@ -11,7 +11,7 @@ import commonPaths
 import ../commands/checkcmd
 import ../../kreastrap/commonProcs
 
-proc installFromRootInternal(package, root, destdir: string) = 
+proc installFromRootInternal(package, root, destdir: string, removeDestdirOnError = false) = 
     # Check if package exists and has the right checksum
     check(package, root, true)
     
@@ -23,7 +23,9 @@ proc installFromRootInternal(package, root, destdir: string) =
         if not (fileExists(root&"/"&listFilesSplitted) or dirExists(root&"/"&listFilesSplitted)):
             debug "file: \""&listFilesSplitted&"\", package: \""&package&"\""
             when defined(release):
-                err("Internal error occured", false)
+                info "removing unfinished environment"
+                removeDir(destdir)
+                err("package \""&package&"\" has a broken symlink/invalid file structure, please reinstall the package", false)
         
         discard existsOrCreateDir(destdir)
         
@@ -36,16 +38,32 @@ proc installFromRootInternal(package, root, destdir: string) =
             copyFileWithPermissionsAndOwnership(root&"/"&listFilesSplitted, destdir&"/"&relativePath(listFilesSplitted, root))
     copyFileWithPermissionsAndOwnership(root&kpkgInstalledDir&"/"&package, destdir&kpkgInstalledDir&"/"&package)
 
-proc installFromRoot*(package, root, destdir: string) =
+proc installFromRoot*(package, root, destdir: string, removeDestdirOnError = false) =
     # A wrapper for installFromRootInternal that also resolves dependencies.
     for dep in deduplicate(dephandler(@[package], root = root, chkInstalledDirInstead = true, forceInstallAll = true)&package):
-        installFromRootInternal(dep, root, destdir)
+        try:
+            installFromRootInternal(dep, root, destdir, removeDestdirOnError)
+        except:
+            if removeDestdirOnError:
+                info "removing unfinished environment"
+                removeDir(destdir)
+
+            when defined(release):
+                err("undefined error, please open an issue", false)
+            else:
+                raise getCurrentException()
+
+proc createEnvCtrlC() {.noconv.} =
+    info "removing unfinished environment"
+    removeDir(kpkgEnvPath)
+    quit()
 
 proc createEnv*(root: string, path = kpkgEnvPath) =
     # TODO: cross-compilation support
     # TODO: Add ca-certificates
     # TODO: add date to kpkgEnvPath/date, and recreate the rootfs every 3 weeks to keep it up-to-date
     info "initializing sandbox, this might take a while..."
+    setControlCHook(createEnvCtrlC)
     initDirectories(kpkgEnvPath, hostCPU, true)
     
     copyFileWithPermissionsAndOwnership(root&"/etc/kreato-release", kpkgEnvPath&"/etc/kreato-release")

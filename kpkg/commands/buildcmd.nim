@@ -462,7 +462,7 @@ proc builder*(package: string, destdir: string,
 proc build*(no = false, yes = false, root = "/",
     packages: seq[string],
             useCacheIfAvailable = true, forceInstallAll = false,
-                    dontInstall = false, tests = true, ignorePostInstall = false, isInstallDir = false, isUpgrade = false, target = "default", fullyCleanSandbox = false, noSandbox = false): int =
+                    dontInstall = false, tests = true, ignorePostInstall = false, isInstallDir = false, isUpgrade = false, target = "default", fullyCleanSandbox = false): int =
     ## Build and install packages.
     let init = getInit(root)
     var deps: seq[string]
@@ -524,10 +524,9 @@ proc build*(no = false, yes = false, root = "/",
 
     for i in deps:
         try:
-            if not noSandbox:
-                if not dirExists(kpkgEnvPath):
-                    removeDir(kpkgEnvPath)
-                    createEnv(root)
+            if not dirExists(kpkgEnvPath):
+                removeDir(kpkgEnvPath)
+                createEnv(root)
                 
                 discard mountOverlay(error = "mounting overlay")
                 depsToClean = deduplicate(dephandler(@[i], bdeps = true, isBuild = true, root = fullRootPath, forceInstallAll = true, isInstallDir = isInstallDir, ignoreInit = ignoreInit)&dephandler(@[i], isBuild = true, root = fullRootPath, forceInstallAll = true, isInstallDir = isInstallDir, ignoreInit = ignoreInit))
@@ -551,7 +550,7 @@ proc build*(no = false, yes = false, root = "/",
                     pkgName = packageSplit[0]
 
             discard builder(pkgName, fullRootPath, offline = false,
-                    dontInstall = dontInstall, useCacheIfAvailable = useCacheIfAvailable, tests = tests, manualInstallList = p, customRepo = customRepo, isInstallDir = isInstallDirFinal, isUpgrade = isUpgrade, target = target, actualRoot = root, ignorePostInstall = ignorePostInstall, noSandbox = noSandbox)
+                    dontInstall = dontInstall, useCacheIfAvailable = useCacheIfAvailable, tests = tests, manualInstallList = p, customRepo = customRepo, isInstallDir = isInstallDirFinal, isUpgrade = isUpgrade, target = target, actualRoot = root, ignorePostInstall = ignorePostInstall)
             
             success("built "&i&" successfully")
         except CatchableError:
