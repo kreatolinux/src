@@ -108,7 +108,9 @@ dispatchMulti(
   [
   clean, help = {
     "sources": "Remove source tarballs from cache",
-    "binaries": "Remove binary tarballs from cache"
+    "binaries": "Remove binary tarballs from cache",
+    "cache": "Remove ccache directory",
+    "environment": "Remove build environment directory"
   }
   ],
   
