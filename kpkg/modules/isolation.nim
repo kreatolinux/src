@@ -128,7 +128,8 @@ proc mountOverlay*(upperDir = kpkgOverlayPath&"/upperDir", workDir = kpkgOverlay
     createDir(upperDir)
     createDir(merged)
     createDir(workDir)
-
+    
+    initDirectories(upperDir, hostCPU, true) 
 
     let cmd = "mount -t overlay overlay -o lowerdir="&lowerDir&",upperdir="&upperDir&",workdir="&workDir&" "&kpkgMergedPath
     debug cmd
