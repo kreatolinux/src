@@ -523,10 +523,10 @@ proc build*(no = false, yes = false, root = "/",
                 removeDir(kpkgEnvPath)
                 createEnv(root)
                 
-                discard mountOverlay(error = "mounting overlay")
-                depsToClean = deduplicate(dephandler(@[i], bdeps = true, isBuild = true, root = fullRootPath, forceInstallAll = true, isInstallDir = isInstallDir, ignoreInit = ignoreInit)&dephandler(@[i], isBuild = true, root = fullRootPath, forceInstallAll = true, isInstallDir = isInstallDir, ignoreInit = ignoreInit))
-                for d in depsToClean:
-                    installFromRoot(d, root, kpkgOverlayPath&"/upperDir")
+            discard mountOverlay(error = "mounting overlay")
+            depsToClean = deduplicate(dephandler(@[i], bdeps = true, isBuild = true, root = fullRootPath, forceInstallAll = true, isInstallDir = isInstallDir, ignoreInit = ignoreInit)&dephandler(@[i], isBuild = true, root = fullRootPath, forceInstallAll = true, isInstallDir = isInstallDir, ignoreInit = ignoreInit))
+            for d in depsToClean:
+                installFromRoot(d, root, kpkgOverlayPath&"/upperDir")
 
             let packageSplit = i.split("/")
             
