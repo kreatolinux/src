@@ -524,7 +524,8 @@ proc build*(no = false, yes = false, root = "/",
                 createEnv(root)
                 
             discard mountOverlay(error = "mounting overlay")
-            depsToClean = deduplicate(dephandler(@[i], bdeps = true, isBuild = true, root = fullRootPath, forceInstallAll = true, isInstallDir = isInstallDir, ignoreInit = ignoreInit)&dephandler(@[i], isBuild = true, root = fullRootPath, forceInstallAll = true, isInstallDir = isInstallDir, ignoreInit = ignoreInit))
+            # We set isBuild to false here as we don't want build dependencies of other packages on the sandbox.
+            depsToClean = deduplicate(parseRunfile(findPkgRepo(i)&"/"&i).bdeps&dephandler(@[i], isBuild = false, root = fullRootPath, forceInstallAll = true, isInstallDir = isInstallDir, ignoreInit = ignoreInit))
             for d in depsToClean:
                 installFromRoot(d, root, kpkgOverlayPath&"/upperDir")
 
