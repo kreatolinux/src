@@ -394,25 +394,18 @@ proc builder*(package: string, destdir: string,
     else:
         cmdStr = "true"
 
-    if pkg.sources.split(" ").len == 1:
-        if existsPrepare == 0 and amountOfFolders != 1:
-            debug "prepare() exist, autocd will not run"
-            discard execEnv(cmdStr, "build", passthrough = noSandbox)
-            discard fakerootWrap(srcdir, path, root, "check", tests = tests,
-                    isTest = true, existsTest = existsTest, typ = "Tests", passthrough = noSandbox)
-            discard fakerootWrap(srcdir, path, root, cmd3Str, typ = "Installation", passthrough = noSandbox)
-        else:
-            debug "prepare() doesn't exist, autocd will run"
-            discard execEnv("cd "&folder&" && "&cmdStr, "build", passthrough = noSandbox)
-            discard fakerootWrap(srcdir, path, root, "check", folder,
-                    tests = tests, isTest = true, existsTest = existsTest, typ = "Tests", passthrough = noSandbox)
-            discard fakerootWrap(srcdir, path, root, cmd3Str, folder, typ = "Installation", passthrough = noSandbox)
-
-    else:
+    if amountOfFolders != 1:
+        debug "amountOfFolder != 1, autocd will not run"
         discard execEnv(cmdStr, "build", passthrough = noSandbox)
         discard fakerootWrap(srcdir, path, root, "check", tests = tests,
                 isTest = true, existsTest = existsTest, typ = "Tests", passthrough = noSandbox)
         discard fakerootWrap(srcdir, path, root, cmd3Str, typ = "Installation", passthrough = noSandbox)
+    else:
+        debug "amountOfFolders == 1, autocd will run"
+        discard execEnv("cd "&folder&" && "&cmdStr, "build", passthrough = noSandbox)
+        discard fakerootWrap(srcdir, path, root, "check", folder,
+                tests = tests, isTest = true, existsTest = existsTest, typ = "Tests", passthrough = noSandbox)
+        discard fakerootWrap(srcdir, path, root, cmd3Str, folder, typ = "Installation", passthrough = noSandbox)
 
     var tarball = kpkgArchivesDir&"/system/"&kTarget
     
