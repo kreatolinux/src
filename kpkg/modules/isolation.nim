@@ -1,13 +1,14 @@
 # Module for isolating kpkg builds as much as possible
-import os
+import std/os
 import logger
-import sequtils
-import strutils
-import parsecfg
+import std/times
 import processes
 import dephandler
-import commonTasks
 import commonPaths
+import commonTasks
+import std/sequtils
+import std/strutils
+import std/parsecfg
 import ../commands/checkcmd
 import ../../kreastrap/commonProcs
 
@@ -63,10 +64,8 @@ proc createEnvCtrlC() {.noconv.} =
     removeDir(kpkgEnvPath)
     quit()
 
-proc createEnv*(root: string, path = kpkgEnvPath) =
+proc createEnv*(root: string) =
     # TODO: cross-compilation support
-    # TODO: Add ca-certificates
-    # TODO: add date to kpkgEnvPath/date, and recreate the rootfs every 3 weeks to keep it up-to-date
     info "initializing sandbox, this might take a while..."
     setControlCHook(createEnvCtrlC)
     initDirectories(kpkgEnvPath, hostCPU, true)
@@ -111,6 +110,8 @@ proc createEnv*(root: string, path = kpkgEnvPath) =
     if execCmdKpkg("bwrap --bind "&kpkgEnvPath&" / --bind /etc/resolv.conf /etc/resolv.conf /usr/bin/env update-ca-trust", silentMode = false) != 0:
         removeDir(root)
         err("creating sandbox environment failed", false)
+
+    writeFile(kpkgEnvPath&"/envDateBuilt", now().format("yyyy-MM-dd"))
 
 proc umountOverlay*(error = "none", silentMode = false, merged = kpkgMergedPath, upperDir = kpkgOverlayPath&"/upperDir", workDir = kpkgOverlayPath&"/workDir"): int =
     ## Unmounts the overlay.

@@ -1,5 +1,6 @@
 import os
 import posix
+import times
 import strutils
 import sequtils
 import parsecfg
@@ -512,7 +513,10 @@ proc build*(no = false, yes = false, root = "/",
 
     for i in deps:
         try:
-            if not dirExists(kpkgEnvPath):
+            # Rebuild the environment every two weeks so it stays up-to-date.
+            # If user needs to rebuild the environment at an earlier time, they can force a rebuild by doing
+            # `kpkg clean -e` and building a package.
+            if (not dirExists(kpkgEnvPath)) or (fileExists(kpkgEnvPath&"/envDateBuilt") and readFile(kpkgEnvPath&"/envDateBuilt").parse("yyyy-MM-dd") + 2.weeks <= now()):
                 removeDir(kpkgEnvPath)
                 createEnv(root)
                 
