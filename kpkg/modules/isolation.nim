@@ -27,6 +27,11 @@ proc installFromRootInternal(package, root, destdir: string, removeDestdirOnErro
                 removeDir(destdir)
                 err("package \""&package&"\" has a broken symlink/invalid file structure, please reinstall the package", false)
         
+        if dirExists(root&"/"&listFilesSplitted) and not symlinkExists(root&"/"&listFilesSplitted):
+            let dirPath = destdir&"/"&relativePath(root&"/"&listFilesSplitted, root)
+            createDirWithPermissionsAndOwnership(root&"/"&listFilesSplitted, dirPath)
+            continue
+
         discard existsOrCreateDir(destdir)
         
         if fileExists(root&"/"&listFilesSplitted):
@@ -95,11 +100,17 @@ proc createEnv*(root: string, path = kpkgEnvPath) =
     installFromRoot("kreato-fs-essentials", root, kpkgEnvPath)
     installFromRoot("git", root, kpkgEnvPath)
     installFromRoot("kpkg", root, kpkgEnvPath)
+    installFromRoot("ca-certificates", root, kpkgEnvPath)
+
     let extras = dict.getSectionValue("Extras", "extraPackages").split(" ")
 
     if not isEmptyOrWhitespace(extras.join("")):
         for i in extras:
             installFromRoot(i, root, kpkgEnvPath)
+    
+    if execCmdKpkg("bwrap --bind "&kpkgEnvPath&" / --bind /etc/resolv.conf /etc/resolv.conf /usr/bin/env update-ca-trust", silentMode = false) != 0:
+        removeDir(root)
+        err("creating sandbox environment failed", false)
 
 proc umountOverlay*(error = "none", silentMode = false, merged = kpkgMergedPath, upperDir = kpkgOverlayPath&"/upperDir", workDir = kpkgOverlayPath&"/workDir"): int =
     ## Unmounts the overlay.
