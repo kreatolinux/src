@@ -294,10 +294,10 @@ proc kreastrap(buildType = "builder", arch = "amd64",
         debug enableShadowedPw.output
         error "Enabling shadow failed"
 
-    # Install kpkg, p11-kit and make-ca here
+    # Install kpkg, p11-kit and ca-certificates here
     kreastrapInstall("kpkg", installWithBinaries, buildDir, useCacheIfPossible, target)
     kreastrapInstall("p11-kit", installWithBinaries, buildDir, useCacheIfPossible, target)
-    kreastrapInstall("make-ca", installWithBinaries, buildDir, useCacheIfPossible, target)
+    kreastrapInstall("ca-certificates", installWithBinaries, buildDir, useCacheIfPossible, target)
         
     # Install timezone database
     kreastrapInstall("tzdb", installWithBinaries, buildDir, useCacheIfPossible, target)
@@ -305,11 +305,7 @@ proc kreastrap(buildType = "builder", arch = "amd64",
     # Generate certdata here
     info_msg "Generating CA certificates"
 
-    setCurrentDir(buildDir)
-
-    download("https://hg.mozilla.org/releases/mozilla-release/raw-file/default/security/nss/lib/ckfw/builtins/certdata.txt", "certdata.txt")
-
-    let caCertCmd = execCmdEx("chroot "&buildDir&" /bin/sh -c '. /etc/profile && cd / && make-ca -C certdata.txt'")
+    let caCertCmd = execCmdEx("chroot "&buildDir&" /bin/sh -c 'update-ca-trust'")
 
     if caCertCmd.exitcode != 0:
         debug "CA certification generation output: "&caCertCmd.output
