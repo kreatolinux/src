@@ -100,6 +100,7 @@ proc createEnv*(root: string) =
     installFromRoot("git", root, kpkgEnvPath)
     installFromRoot("kpkg", root, kpkgEnvPath)
     installFromRoot("ca-certificates", root, kpkgEnvPath)
+    installFromRoot("python", root, kpkgEnvPath)
 
     let extras = dict.getSectionValue("Extras", "extraPackages").split(" ")
 
@@ -108,6 +109,10 @@ proc createEnv*(root: string) =
             installFromRoot(i, root, kpkgEnvPath)
     
     if execCmdKpkg("bwrap --bind "&kpkgEnvPath&" / --bind /etc/resolv.conf /etc/resolv.conf /usr/bin/env update-ca-trust", silentMode = false) != 0:
+        removeDir(root)
+        err("creating sandbox environment failed", false)
+    
+    if execCmdKpkg("bwrap --bind "&kpkgEnvPath&" / --bind /etc/resolv.conf /etc/resolv.conf /bin/sh -c 'python -m ensurepip || exit 1'", silentMode = false) != 0:
         removeDir(root)
         err("creating sandbox environment failed", false)
 
