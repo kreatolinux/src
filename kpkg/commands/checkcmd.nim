@@ -17,8 +17,8 @@ proc checkInternal(root, file: string) =
             #debug "'"&line&"' doesn't have checksum, skipping"
             continue
             
-        let filePath = root&"/"&splitted[0].multiReplace((" ", ""), ("\"", ""))
-        if getSum(filePath, "b2") != splitted[1].multiReplace((" ", ""), ("\"", "")):
+        let filePath = root&"/"&splitted[0].multiReplace(("\"", ""))
+        if getSum(filePath, "b2") != splitted[1].multiReplace(("\"", "")):
             let errorOutput = "'"&filePath.relativePath(root)&"' has an invalid checksum, please reinstall '"&lastPathPart(file.parentDir())&"'"
             when defined(release):
                 err errorOutput
