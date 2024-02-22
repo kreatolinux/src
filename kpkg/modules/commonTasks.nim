@@ -10,14 +10,14 @@ import posix_utils
 proc copyFileWithPermissionsAndOwnership*(source, dest: string, options = {cfSymlinkAsIs}) =
     ## Copies a file with both permissions and ownership.
     
-    debug source&", "&dest
+    #debug source&", "&dest
 
     if fileExists(dest) or symlinkExists(dest):
         removeFile(dest)
     
     if symlinkExists(source) and (not fileExists(source)):
         # Cant chown the broken symlink, just redirect to copyFile
-        debug "cant chown, redirecting to copyFile"
+        #debug "cant chown, redirecting to copyFile"
         copyFile(source, dest, options = {cfSymlinkAsIs})
         return
 
@@ -31,7 +31,7 @@ proc copyFileWithPermissionsAndOwnership*(source, dest: string, options = {cfSym
             copyFileWithPermissions(source, dest, options = options)
         
         if not symlinkExists(source):
-            debug "copyFileWithPermissions successful, setting chown"
+            #debug "copyFileWithPermissions successful, setting chown"
             assert posix.chown(dest, statVar.st_uid, statVar.st_gid) == 0
     
     except Exception:
