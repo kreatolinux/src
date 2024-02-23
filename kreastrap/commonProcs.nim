@@ -1,6 +1,15 @@
 import os
 import ../common/logging
 
+proc set_default_cc*(buildDir: string, cc: string) =
+    ## Sets the default compiler.
+    let files = ["/bin/gcc", "/bin/cc", "/bin/c99", "/bin/g++", "/bin/c++"]
+    var file: string
+    for i in files:
+        file = buildDir&i
+        if not fileExists(file):
+            createSymlink(cc, file)
+
 proc initDirectories*(buildDirectory: string, arch: string, silent = false) =
     # Initializes directories.
 

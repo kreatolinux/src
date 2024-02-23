@@ -72,15 +72,6 @@ proc kreastrapInstall(package: string, installWithBinaries: bool,
 
     ok("Package "&package&" installed successfully")
 
-proc set_default_cc(buildDir: string, cc: string) =
-    ## Sets the default compiler.
-    let files = ["/bin/gcc", "/bin/cc", "/bin/c99", "/bin/g++", "/bin/c++"]
-    var file: string
-    for i in files:
-        file = buildDir&i
-        if not fileExists(file):
-            createSymlink(cc, file)
-
 proc converterArch(arch: string): string =
         # Converts architectures to the different name.
         case arch:

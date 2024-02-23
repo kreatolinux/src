@@ -75,8 +75,18 @@ proc createEnv*(root: string) =
     let dict = loadConfig(kpkgEnvPath&"/etc/kreato-release")
     
     installFromRoot(dict.getSectionValue("Core", "libc"), root, kpkgEnvPath)
-    installFromRoot(dict.getSectionValue("Core", "compiler"), root, kpkgEnvPath)
+    let compiler = dict.getSectionValue("Core", "compiler")
+    installFromRoot(compiler, root, kpkgEnvPath)
     
+    try:
+        setDefaultCC(root, compiler)
+    except:
+        removeDir(root)
+        when defined(release):
+            err("setting default compiler in the environment failed", false)
+        else:
+            raise getCurrentException()
+
     case dict.getSectionValue("Core", "coreutils"):
         of "gnu":
             # TODO: add other stuff
@@ -101,7 +111,7 @@ proc createEnv*(root: string) =
     installFromRoot("kpkg", root, kpkgEnvPath)
     installFromRoot("ca-certificates", root, kpkgEnvPath)
     installFromRoot("python", root, kpkgEnvPath)
-
+    
     let extras = dict.getSectionValue("Extras", "extraPackages").split(" ")
 
     if not isEmptyOrWhitespace(extras.join("")):
@@ -117,9 +127,10 @@ proc createEnv*(root: string) =
         removeDir(root)
         err("creating sandbox environment failed", false)
     
-    if execCmdKpkg("bwrap --bind "&kpkgEnvPath&" / --bind /etc/resolv.conf /etc/resolv.conf /bin/sh -c 'ln -s $(which pip3) /bin/pip'", silentMode = false) != 0:
-        removeDir(root)
-        err("creating sandbox environment failed", false)
+    if not fileExists("/bin/pip"):
+        if execCmdKpkg("bwrap --bind "&kpkgEnvPath&" / --bind /etc/resolv.conf /etc/resolv.conf /bin/sh -c 'ln -s $(which pip3) /bin/pip || exit 1'", silentMode = false) != 0:
+            removeDir(root)
+            err("creating sandbox environment failed", false)
     # TEMP end
 
     writeFile(kpkgEnvPath&"/envDateBuilt", now().format("yyyy-MM-dd"))
