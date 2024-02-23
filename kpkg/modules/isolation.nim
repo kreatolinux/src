@@ -127,7 +127,7 @@ proc createEnv*(root: string) =
         removeDir(root)
         err("creating sandbox environment failed", false)
     
-    if not fileExists("/bin/pip"):
+    if not fileExists(kpkgEnvPath&"/bin/pip"):
         if execCmdKpkg("bwrap --bind "&kpkgEnvPath&" / --bind /etc/resolv.conf /etc/resolv.conf /bin/sh -c 'ln -s $(which pip3) /bin/pip || exit 1'", silentMode = false) != 0:
             removeDir(root)
             err("creating sandbox environment failed", false)
