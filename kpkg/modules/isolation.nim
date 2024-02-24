@@ -79,7 +79,7 @@ proc createEnv*(root: string) =
     installFromRoot(compiler, root, kpkgEnvPath)
     
     try:
-        setDefaultCC(root, compiler)
+        setDefaultCC(kpkgEnvPath, compiler)
     except:
         removeDir(root)
         when defined(release):
