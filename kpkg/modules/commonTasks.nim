@@ -13,9 +13,10 @@ proc copyFileWithPermissionsAndOwnership*(source, dest: string, options = {cfSym
     #debug source&", "&dest
 
     if fileExists(dest) or symlinkExists(dest):
+        debug "removing "&dest
         removeFile(dest)
     
-    if symlinkExists(source) and (not fileExists(source)):
+    if symlinkExists(source) and (not fileExists(source) and (not dirExists(dest) or fileExists(dest) or symlinkExists(dest))):
         # Cant chown the broken symlink, just redirect to copyFile
         #debug "cant chown, redirecting to copyFile"
         copyFile(source, dest, options = {cfSymlinkAsIs})
@@ -38,6 +39,8 @@ proc copyFileWithPermissionsAndOwnership*(source, dest: string, options = {cfSym
         raise getCurrentException()
 
 proc createDirWithPermissionsAndOwnership*(source, dest: string, followSymlinks = true) =
+    if dirExists(dest):
+        return
     var statVar: Stat
     assert stat(source, statVar) == 0
     createDir(dest)
