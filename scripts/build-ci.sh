@@ -3,7 +3,9 @@
 #
 
 e() {
-    ls -l /bin/sh
+    busybox ls -l /
+    busybox ls -l /bin/sh
+    busybox ls -l /bin/
     kpkg provides /bin/sh
     exit 1
 }
