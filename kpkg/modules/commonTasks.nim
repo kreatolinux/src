@@ -39,8 +39,10 @@ proc copyFileWithPermissionsAndOwnership*(source, dest: string, options = {cfSym
         raise getCurrentException()
 
 proc createDirWithPermissionsAndOwnership*(source, dest: string, followSymlinks = true) =
-    if dirExists(dest):
+    
+    if dirExists(dest) or symlinkExists(dest) or fileExists(dest):
         return
+
     var statVar: Stat
     assert stat(source, statVar) == 0
     createDir(dest)
