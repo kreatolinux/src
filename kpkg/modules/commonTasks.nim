@@ -11,14 +11,8 @@ proc copyFileWithPermissionsAndOwnership*(source, dest: string, options = {cfSym
     ## Copies a file with both permissions and ownership.
     
     #debug source&", "&dest
-    
-    # TODO: instead of this "hack", we should check which package that file comes from, 
-    # and error out if it is coming from a package.
-    if dirExists(dest):
-        debug "\""&dest&"\" exists as a dir, bailing early"
-        return
 
-    if fileExists(dest):
+    if fileExists(dest) or symlinkExists(dest):
         debug "removing "&dest
         removeFile(dest)
     
@@ -46,10 +40,7 @@ proc copyFileWithPermissionsAndOwnership*(source, dest: string, options = {cfSym
 
 proc createDirWithPermissionsAndOwnership*(source, dest: string, followSymlinks = true) =
     
-    # TODO: instead of this "hack", we should check which package that folder comes from, 
-    # and error out if it is coming from a package.
     if dirExists(dest) or symlinkExists(dest) or fileExists(dest):
-        debug "\""&dest&"\" exists as a dir, symlink, or file, bailing early"
         return
 
     var statVar: Stat
