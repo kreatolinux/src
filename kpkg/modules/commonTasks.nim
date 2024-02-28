@@ -19,14 +19,12 @@ proc copyFileWithPermissionsAndOwnership*(source, dest: string, options = {cfSym
         debug "this shouldn't happen"
         return
     
+    removeFile(dest)
     
     if symlinkExists(source):
         #debug "overwriting \""&dest&"\" with the symlink at \""&source&"\""
-        removeFile(dest)
         copyFile(source, dest, options = {cfSymlinkAsIs})
         return
-
-    removeFile(dest)
 
     var statVar: Stat
     assert stat(source, statVar) == 0
@@ -34,13 +32,9 @@ proc copyFileWithPermissionsAndOwnership*(source, dest: string, options = {cfSym
     try:
         copyFileWithPermissions(source, dest, options = options)
         #debug "copyFileWithPermissions successful, setting chown"
-        try:
-            assert posix.chown(dest, statVar.st_uid, statVar.st_gid) == 0
-        except:
-            debug dest
-            debug source
-            err "a"
+        assert posix.chown(dest, statVar.st_uid, statVar.st_gid) == 0
     except Exception:
+        debug "fatal, source: \""&source&"\", dest: \""&dest&"\""
         raise getCurrentException()    
 
 proc createDirWithPermissionsAndOwnership*(source, dest: string, followSymlinks = true) =
