@@ -42,7 +42,7 @@ proc installFromRootInternal(package, root, destdir: string, removeDestdirOnErro
                 createDirWithPermissionsAndOwnership(root&"/"&listFilesSplitted.parentDir(), dirPath)
             
             copyFileWithPermissionsAndOwnership(root&"/"&listFilesSplitted, destdir&"/"&relativePath(listFilesSplitted, root))
-    copyFileWithPermissionsAndOwnership(root&kpkgInstalledDir&"/"&package, destdir&kpkgInstalledDir&"/"&package)
+    copyDirWithPermissions(root&kpkgInstalledDir&"/"&package, destdir&kpkgInstalledDir&"/"&package)
 
 proc installFromRoot*(package, root, destdir: string, removeDestdirOnError = false) =
     # A wrapper for installFromRootInternal that also resolves dependencies.
