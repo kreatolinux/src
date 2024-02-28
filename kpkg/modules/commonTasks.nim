@@ -13,9 +13,16 @@ proc copyFileWithPermissionsAndOwnership*(source, dest: string, options = {cfSym
     #debug source&", "&dest
 
     if fileExists(dest) or symlinkExists(dest):
-        debug "Resorting to copyFile for "&dest
-        copyFile(source, dest, options = options)
-        return
+        when defined(release):
+            err "\""&dest&"\" already exists, will not overwrite"
+        else:
+            debug "\""&dest&"\" already exists, will overwrite"
+            if dirExists(dest):
+                debug "\""&dest&"\" is a directory, will just ignore instead"
+                return
+            else:
+                removeFile(dest)
+
         #removeFile(dest)
 
     if symlinkExists(source) and (not fileExists(source) and (not dirExists(dest) or fileExists(dest) or symlinkExists(dest))):
