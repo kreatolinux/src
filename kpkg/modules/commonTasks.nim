@@ -39,8 +39,8 @@ proc copyFileWithPermissionsAndOwnership*(source, dest: string, options = {cfSym
 
 proc createDirWithPermissionsAndOwnership*(source, dest: string, followSymlinks = true) =
     
-    if fileExists(dest):
-        debug "\""&dest&"\" is a file, returning early"
+    if fileExists(dest) or symlinkExists(dest):
+        debug "\""&dest&"\" is a file/symlink, returning early"
         return
     
     if isEmptyDir(dest):
