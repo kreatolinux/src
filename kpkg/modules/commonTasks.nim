@@ -3,50 +3,56 @@ import posix
 import config
 import logger
 import strutils
+import sequtils
 import parsecfg
 import runparser
 import posix_utils
 
+proc isEmptyDir(dir: string): bool = 
+    return toSeq(walkdir dir).len == 0
+
 proc copyFileWithPermissionsAndOwnership*(source, dest: string, options = {cfSymlinkAsIs}) =
     ## Copies a file with both permissions and ownership.
     
-    #debug source&", "&dest
-
-    if fileExists(dest) or symlinkExists(dest):
-        when defined(release):
-            err "\""&dest&"\" already exists, will not overwrite"
-        else:
-            debug "\""&dest&"\" already exists, will overwrite"
-            if dirExists(dest):
-                debug "\""&dest&"\" is a directory, will just ignore instead"
-                return
-            else:
-                removeFile(dest)
-
-        #removeFile(dest)
-
-    if symlinkExists(source) and (not fileExists(source) and (not dirExists(dest) or fileExists(dest) or symlinkExists(dest))):
-        # Cant chown the broken symlink, just redirect to copyFile
-        #debug "cant chown, redirecting to copyFile"
+    if dirExists(source) and not symlinkExists(source):
+        debug "\""&source&"\" is a dir (and not a symlink), just going to ignore"
+        debug "this shouldn't happen"
+        return
+    
+    
+    if symlinkExists(source):
+        #debug "overwriting \""&dest&"\" with the symlink at \""&source&"\""
+        removeFile(dest)
         copyFile(source, dest, options = {cfSymlinkAsIs})
         return
+
+    removeFile(dest)
 
     var statVar: Stat
     assert stat(source, statVar) == 0
     
     try:
         copyFileWithPermissions(source, dest, options = options)
-        
-        if not symlinkExists(source):
-            #debug "copyFileWithPermissions successful, setting chown"
+        #debug "copyFileWithPermissions successful, setting chown"
+        try:
             assert posix.chown(dest, statVar.st_uid, statVar.st_gid) == 0
-    
+        except:
+            debug dest
+            debug source
+            err "a"
     except Exception:
-        raise getCurrentException()
+        raise getCurrentException()    
 
 proc createDirWithPermissionsAndOwnership*(source, dest: string, followSymlinks = true) =
     
-    if dirExists(dest) or symlinkExists(dest) or fileExists(dest):
+    if fileExists(dest):
+        debug "\""&dest&"\" is a file, returning early"
+        return
+    
+    if isEmptyDir(dest):
+        debug "\""&dest&"\" is empty, just going to overwrite"
+        removeDir(dest)
+    else:
         return
 
     var statVar: Stat
