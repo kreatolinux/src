@@ -9,7 +9,12 @@ import runparser
 import posix_utils
 
 proc isEmptyDir(dir: string): bool = 
-    return toSeq(walkdir dir).len == 0
+    # Checks if a directory is empty or not.
+    # Returns false if it isn't a directory.
+    if dirExists(dir):
+        return toSeq(walkdir dir).len == 0
+    
+    return false
 
 proc copyFileWithPermissionsAndOwnership*(source, dest: string, options = {cfSymlinkAsIs}) =
     ## Copies a file with both permissions and ownership.
@@ -21,13 +26,14 @@ proc copyFileWithPermissionsAndOwnership*(source, dest: string, options = {cfSym
     
     # Return early if dest is a dir
     if dirExists(dest):
+        debug "\""&dest&"\" is a directory, cant use copyFileWithPermissionsAndOwnership"
         return
    
     debug "removing \""&dest&"\""
     removeFile(dest)
     
     if symlinkExists(source):
-        #debug "overwriting \""&dest&"\" with the symlink at \""&source&"\""
+        debug "overwriting \""&dest&"\" with the symlink at \""&source&"\""
         copyFile(source, dest, options = {cfSymlinkAsIs})
         return
 
