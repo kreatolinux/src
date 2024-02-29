@@ -19,6 +19,11 @@ proc copyFileWithPermissionsAndOwnership*(source, dest: string, options = {cfSym
         debug "this shouldn't happen"
         return
     
+    # Return early if dest is a dir
+    if dirExists(dest):
+        return
+   
+    debug "removing \""&dest&"\""
     removeFile(dest)
     
     if symlinkExists(source):
@@ -45,6 +50,7 @@ proc createDirWithPermissionsAndOwnership*(source, dest: string, followSymlinks 
     
     if isEmptyDir(dest):
         debug "\""&dest&"\" is empty, just going to overwrite"
+        debug "removing directory \""&dest&"\""
         removeDir(dest)
     else:
         return
