@@ -23,6 +23,15 @@ proc dependencyCheck(package: string, installedDir: string, root: string, force:
           return false
   return true
 
+proc tryRemoveFileCustom(file: string): bool =
+    # tryRemoveFile wrapper
+    # that checks if the file is a
+    # dir or not.
+    if dirExists(file):
+        return # We remove dirs on the second check
+    return tryRemoveFile(file)
+
+
 proc bloatDepends*(package: string, installedDir: string, root: string): seq[string] =
   ## Returns unused dependent packages, if they are available.
   setCurrentDir(installedDir)
@@ -79,9 +88,9 @@ proc removeInternal*(package: string, root = "",
     let line = actualLine.split("=")[0]
     if not removeConfigs and not noRunfile:
       if not (line in pkg.backup):
-        discard tryRemoveFile(root&"/"&line)
+        discard tryRemoveFileCustom(root&"/"&line)
     else:
-      discard tryRemoveFile(root&"/"&line)
+      discard tryRemoveFileCustom(root&"/"&line)
   debug "files removed"
 
   # Double check so every empty dir gets removed

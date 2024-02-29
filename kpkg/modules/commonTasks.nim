@@ -10,11 +10,7 @@ import posix_utils
 
 proc isEmptyDir(dir: string): bool = 
     # Checks if a directory is empty or not.
-    # Returns false if it isn't a directory.
-    if dirExists(dir):
-        return toSeq(walkdir dir).len == 0
-    
-    return false
+    return toSeq(walkdir dir).len == 0
 
 proc copyFileWithPermissionsAndOwnership*(source, dest: string, options = {cfSymlinkAsIs}) =
     ## Copies a file with both permissions and ownership.
