@@ -3,6 +3,11 @@
 # It will be sourced by build/package parts of the runFile.
 export KPKG_CONFIGURE_PATH="./configure"
 
+# We use root for building packages as
+# we already use a sandbox to build packages
+# and a sandbox user is unnecessary.
+export FORCE_UNSAFE_CONFIGURE="1" 
+
 make() {
   if [ "$KPKG_ARCH" != "$(uname -m)" ]; then
     export CFLAGS="$CFLAGS -I/usr/$KPKG_TARGET/usr/include"
