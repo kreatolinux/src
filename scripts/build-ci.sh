@@ -30,7 +30,8 @@ case $1 in
     
     # tmp
 		kpkg build shadow busybox -yu
-    kpkg build binutils busybox -f -y
+    kpkg build shadow busybox -f -y
+    kpkg build binutils -f -y
     # tmp end
 
     kpkg build python -y || exit 1
