@@ -29,7 +29,7 @@ case $1 in
       		kpkg build bzip2 -y || exit 1
     
     # tmp
-		kpkg build shadow busybox -yu
+		kpkg build shadow busybox -f -yu
     kpkg build shadow busybox -f -y
     kpkg build binutils -f -y
     # tmp end
