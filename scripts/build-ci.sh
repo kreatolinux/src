@@ -30,7 +30,7 @@ case $1 in
     
     # tmp
 		kpkg build shadow busybox -f -yu
-    kpkg build shadow busybox -f -y
+    kpkg install shadow busybox -y
     kpkg build binutils -f -y
     # tmp end
 
