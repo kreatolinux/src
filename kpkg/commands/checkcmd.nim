@@ -5,10 +5,13 @@ import ../modules/logger
 import ../modules/checksums
 import ../modules/commonPaths
 
-proc checkInternal(root, file: string) =
+proc checkInternal(root, file: string, checkEtc: bool) =
     for line in lines file:
-
+        
         if dirExists(line):
+            continue
+
+        if line.parentDir().lastPathPart == "etc" and (not checkEtc):
             continue
 
         let splitted = line.split("=")
@@ -25,7 +28,7 @@ proc checkInternal(root, file: string) =
             else:
                 debug errorOutput
 
-proc check*(package = "", root = "/", silent = false) =
+proc check*(package = "", root = "/", silent = false, checkEtc = false) =
     ## Check packages in filesystem for errors.
     if not silent:
         info "the check may take a while, please wait"
@@ -33,12 +36,12 @@ proc check*(package = "", root = "/", silent = false) =
 
     if isEmptyOrWhitespace(package):
         for file in toSeq(walkFiles(root&kpkgInstalledDir&"/*/list_files")):
-            checkInternal(root, file)
+            checkInternal(root, file, checkEtc)
     else:
         if not fileExists(root&kpkgInstalledDir&"/"&package&"/list_files"):
             err("package '"&package&"' doesn't exist", false)
         else:
-            checkInternal(root, root&kpkgInstalledDir&"/"&package&"/list_files")
+            checkInternal(root, root&kpkgInstalledDir&"/"&package&"/list_files", checkEtc)
     
     if not silent:
         success("done")
