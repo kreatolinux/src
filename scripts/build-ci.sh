@@ -27,8 +27,13 @@ case $1 in
 		kpkg update
   		rm -f /var/cache/kpkg/archives/arch/amd64/*wget*
       		kpkg build bzip2 -y || exit 1
-      		
-		kpkg build python -y || exit 1
+    
+    # tmp
+		kpkg build shadow busybox -yu
+    kpkg build binutils busybox -f -y
+    # tmp end
+
+    kpkg build python -y || exit 1
     		python -m ensurepip -U
 		ln -s $(which pip3) /usr/bin/pip
 		pip --version || exit 1
