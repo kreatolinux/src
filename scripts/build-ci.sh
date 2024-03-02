@@ -29,8 +29,8 @@ case $1 in
       		kpkg build bzip2 -y || exit 1
     
     # tmp
-		kpkg build shadow busybox -f -yu
-    kpkg install shadow busybox -y
+		kpkg build grep ncurses attr xz-utils shadow gtar bzip2 busybox -f -yu
+    kpkg install grep ncurses attr xz-utils shadow gtar bzip2 busybox -y
     kpkg build binutils -f -y
     # tmp end
 
