@@ -46,7 +46,14 @@ proc installFromRootInternal(package, root, destdir: string, removeDestdirOnErro
 
 proc installFromRoot*(package, root, destdir: string, removeDestdirOnError = false) =
     # A wrapper for installFromRootInternal that also resolves dependencies.
+    if isEmptyOrWhitespace(package):
+        return
+
     for dep in deduplicate(dephandler(@[package], root = root, chkInstalledDirInstead = true, forceInstallAll = true)&package):
+        
+        if isEmptyOrWhitespace(dep):
+            continue
+
         try:
             installFromRootInternal(dep, root, destdir, removeDestdirOnError)
         except:
