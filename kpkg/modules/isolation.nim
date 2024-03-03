@@ -111,6 +111,7 @@ proc createEnv*(root: string) =
     installFromRoot("kpkg", root, kpkgEnvPath)
     installFromRoot("ca-certificates", root, kpkgEnvPath)
     installFromRoot("python", root, kpkgEnvPath)
+    installFromRoot("python-pip", root, kpkgEnvPath)
     
     let extras = dict.getSectionValue("Extras", "extraPackages").split(" ")
 
@@ -122,17 +123,6 @@ proc createEnv*(root: string) =
         removeDir(root)
         err("creating sandbox environment failed", false)
     
-    # TEMP: remove afterwards
-    if execCmdKpkg("bwrap --bind "&kpkgEnvPath&" / --bind /etc/resolv.conf /etc/resolv.conf /bin/sh -c 'python -m ensurepip || exit 1'", silentMode = false) != 0:
-        removeDir(root)
-        err("creating sandbox environment failed", false)
-    
-    if not fileExists(kpkgEnvPath&"/bin/pip"):
-        if execCmdKpkg("bwrap --bind "&kpkgEnvPath&" / --bind /etc/resolv.conf /etc/resolv.conf /bin/sh -c 'ln -s $(which pip3) /bin/pip || exit 1'", silentMode = false) != 0:
-            removeDir(root)
-            err("creating sandbox environment failed", false)
-    # TEMP end
-
     writeFile(kpkgEnvPath&"/envDateBuilt", now().format("yyyy-MM-dd"))
 
 proc umountOverlay*(error = "none", silentMode = false, merged = kpkgMergedPath, upperDir = kpkgOverlayPath&"/upperDir", workDir = kpkgOverlayPath&"/workDir"): int =
