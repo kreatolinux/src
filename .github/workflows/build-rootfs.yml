@@ -25,21 +25,6 @@ jobs:
           restore-keys: |
             binary-cache
       
-      - name: Build nocc rootfs tarball
-        run: |
-          IS_ACTIONS=y sh $GITHUB_WORKSPACE/scripts/build-ci.sh init
-          IS_ACTIONS=y sh $GITHUB_WORKSPACE/scripts/build-ci.sh build nocc
-      
-      - name: Upload nocc Rootfs
-        uses: actions/upload-artifact@v3.1.1
-        with:
-          # Artifact name
-          name: nocc-rootfs # optional, default is artifact
-          # A file, directory or wildcard pattern that describes what to upload
-          path: ${{ github.workspace }}/kreato-linux-nocc-*.tar.gz
-          # The desired behavior if no files are found using the provided path.
-          if-no-files-found: error
-
       #- name: Build nocc-arm64 rootfs tarball
       #  run: |
       #    IS_ACTIONS=y sh $GITHUB_WORKSPACE/scripts/build-ci.sh build nocc arm64
@@ -56,6 +41,7 @@ jobs:
 
       - name: Build builder rootfs tarball
         run: |
+          IS_ACTIONS=y sh $GITHUB_WORKSPACE/scripts/build-ci.sh init # temp
           IS_ACTIONS=y sh $GITHUB_WORKSPACE/scripts/build-ci.sh build builder
     
       - name: Upload Builder Rootfs
@@ -81,11 +67,9 @@ jobs:
         
       - name: Prepare for Docker
         run: |
-            mkdir /tmp/docker.tmp /tmp/docker.tmp.nocc
-            cp $GITHUB_WORKSPACE/docker/Dockerfile /tmp/docker.tmp.nocc || exit 1
+            mkdir /tmp/docker.tmp
             cp $GITHUB_WORKSPACE/docker/Dockerfile /tmp/docker.tmp/ || exit 1
             tar -xvpf $GITHUB_WORKSPACE/builder-rootfs/kreato-linux-builder-*.tar.gz -C "/tmp/docker.tmp"
-            tar -xvpf $GITHUB_WORKSPACE/nocc-rootfs/kreato-linux-nocc-*.tar.gz -C "/tmp/docker.tmp.nocc"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
@@ -115,15 +99,3 @@ jobs:
         run: |
           sudo rm -rf /tmp/docker.tmp
           sudo docker rmi ghcr.io/kreatolinux/builder kreato/builder git.kreato.dev/kreatolinux/builder -f    
-      
-      - name: Build and push nocc image
-        uses: docker/build-push-action@v3
-        with:
-          context: /tmp/docker.tmp.nocc
-          push: true
-          tags: kreato/linux:latest,ghcr.io/kreatolinux/nocc:latest,git.kreato.dev/kreatolinux/nocc:latest
-
-      - name: Remove nocc image
-        run: |
-          sudo rm -rf /tmp/docker.tmp.nocc
-          sudo docker rmi ghcr.io/kreatolinux/nocc kreato/linux git.kreato.dev/kreatolinux/nocc -f    
