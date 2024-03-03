@@ -9,6 +9,10 @@ on:
 jobs:
   format:
     runs-on: ubuntu-latest
+    
+    permissions:
+      contents: write
+
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -26,6 +30,6 @@ jobs:
           done
         
       - name: Commit manpages
-        uses: EndBug/add-and-commit@v5
-        env:
-         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: Add latest built manpages
