@@ -4,6 +4,7 @@
 
 e() {
     busybox ls -l /var/cache/kpkg/installed
+    busybox ls -l /var/cache/kpkg/archives/arch/amd64
     busybox ls -l /
     busybox ls -l /bin/sh
     busybox ls -l /bin/

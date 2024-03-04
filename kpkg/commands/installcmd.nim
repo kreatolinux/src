@@ -246,7 +246,6 @@ proc down_bin(package: string, binrepos: seq[string], root: string,
             return
 
         let tarball = package&"-"&pkg.versionString&".kpkg"
-        let chksum = tarball&".sum"
 
         if fileExists(kpkgArchivesDir&"/system/"&kTarget&"/"&tarball) and (not forceDownload):
             info "Tarball already exists for '"&package&"', not gonna download again"
