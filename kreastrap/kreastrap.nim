@@ -10,7 +10,6 @@ import commonProcs
 import ../common/logging
 import ../common/version
 import ../kpkg/commands/buildcmd
-import ../kpkg/modules/downloader
 import ../kpkg/commands/updatecmd
 import ../kpkg/commands/installcmd
 
