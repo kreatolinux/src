@@ -158,7 +158,7 @@ proc builder*(package: string, destdir: string,
         if destdir != "/" and target == "default":
             installPkg(repo, actualPackage, "/", pkg, manualInstallList, ignorePostInstall = ignorePostInstall) # Install package on root too
 
-        installPkg(repo, actualPackage, destdir, pkg, manualInstallList, arch = arch, ignorePostInstall = ignorePostInstall)
+        installPkg(repo, actualPackage, destdir, pkg, manualInstallList, ignorePostInstall = ignorePostInstall)
         removeDir(root)
         removeDir(srcdir)
         return true
@@ -167,7 +167,7 @@ proc builder*(package: string, destdir: string,
 
     if pkg.isGroup:
         debug "Package is a group package"
-        installPkg(repo, actualPackage, destdir, pkg, manualInstallList, arch = arch, ignorePostInstall = ignorePostInstall)
+        installPkg(repo, actualPackage, destdir, pkg, manualInstallList, ignorePostInstall = ignorePostInstall)
         removeDir(root)
         removeDir(srcdir)
         return true
@@ -301,27 +301,27 @@ proc builder*(package: string, destdir: string,
                 discard extract(extractFilename(i))
             except Exception:
                 debug "extraction failed, continuing"
-        
-        for i in toSeq(walkDir(".")):
-          debug i.path
-          if dirExists(i.path):
+    
+
+    for i in toSeq(walkDir(".")):
+        debug i.path
+        if dirExists(i.path):
             folder = absolutePath(i.path)
-            setFilePermissions(folder, {fpUserExec, fpUserWrite, fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
-            discard posix.chown(cstring(folder), 999, 999)
-            for i in toSeq(walkDirRec(folder, {pcFile, pcLinkToFile, pcDir, pcLinkToDir})):
-                discard posix.chown(cstring(i), 999, 999)
-        
             amountOfFolders = amountOfFolders + 1
+            setFilePermissions(folder, {fpUserExec, fpUserWrite, fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
+        discard posix.chown(cstring(folder), 999, 999)
+        for i in toSeq(walkDirRec(folder, {pcFile, pcLinkToFile, pcDir, pcLinkToDir})):
+            discard posix.chown(cstring(i), 999, 999)
+        
+    if amountOfFolders == 1 and (not isEmptyOrWhitespace(folder)):
+        try:
+            setCurrentDir(folder)
+        except Exception:
+            when defined(release):
+                err("Unknown error occured while trying to enter the source directory")
 
-        if amountOfFolders == 1 and (not isEmptyOrWhitespace(folder)):
-            try:
-                setCurrentDir(folder)
-            except Exception:
-                when defined(release):
-                    err("Unknown error occured while trying to enter the source directory")
-
-                debug $folder
-                raise getCurrentException()
+            debug $folder
+            raise getCurrentException()
 
     if existsPrepare == 0:
         if execEnv(". "&path&"/run"&" && prepare", passthrough = noSandbox) != 0:
@@ -350,9 +350,6 @@ proc builder*(package: string, destdir: string,
         cmdStr = ". "&srcdir&"/runfCommands && export KPKG_ARCH="&arch&" && export KPKG_TARGET="&systemTarget(destdir)&" && "&cmdStr
         cmd3Str = ". "&srcdir&"/runfCommands && export KPKG_ARCH="&arch&" && export KPKG_TARGET="&systemTarget(destdir)&" && "&cmd3Str
 
-    if arch == "x86_64":
-        arch = "amd64" # Revert back the value
-    
     if parseBool(override.getSectionValue("Other", "ccache", getConfigValue("Options", "ccache", "false"))) and dirExists(kpkgInstalledDir&"/ccache"):
       
       if not dirExists(kpkgCacheDir&"/ccache"):
@@ -435,10 +432,10 @@ proc builder*(package: string, destdir: string,
     # because the dep is installed to destdir but not root.
     if destdir != "/" and not dirExists(
             kpkgInstalledDir&"/"&actualPackage) and (not dontInstall) and target == "default":
-        installPkg(repo, actualPackage, "/", pkg, manualInstallList, isUpgrade = isUpgrade, arch = arch, ignorePostInstall = ignorePostInstall)
+        installPkg(repo, actualPackage, "/", pkg, manualInstallList, isUpgrade = isUpgrade, ignorePostInstall = ignorePostInstall)
 
     if not dontInstall:
-        installPkg(repo, actualPackage, destdir, pkg, manualInstallList, isUpgrade = isUpgrade, arch = arch, ignorePostInstall = ignorePostInstall)
+        installPkg(repo, actualPackage, destdir, pkg, manualInstallList, isUpgrade = isUpgrade, ignorePostInstall = ignorePostInstall)
 
     removeLockfile()
     

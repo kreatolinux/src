@@ -20,7 +20,7 @@ import ../modules/removeInternal
 setControlCHook(ctrlc)
 
 proc installPkg*(repo: string, package: string, root: string, runf = runFile(
-        isParsed: false), manualInstallList: seq[string], isUpgrade = false, arch = hostCPU, kTarget = kpkgTarget(root), ignorePostInstall = false) =
+        isParsed: false), manualInstallList: seq[string], isUpgrade = false, kTarget = kpkgTarget(root), ignorePostInstall = false) =
     ## Installs a package.
 
     var pkg: runFile
@@ -69,7 +69,7 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
         if symlinkExists(root&kpkgInstalledDir&"/"&i):
             removeFile(root&kpkgInstalledDir&"/"&i)
         elif dirExists(root&kpkgInstalledDir&"/"&i):
-            if arch != hostCPU:
+            if kTarget != kpkgTarget(root):
                 removeInternal(i, root, initCheck = false)
             else:
                 removeInternal(i, root)
@@ -85,10 +85,10 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
             warn "please open an issue at https://github.com/kreatolinux/src with how this happened"
             removeDir(root&kpkgInstalledDir&"/"&package)
         else:
-            if arch != hostCPU:
+            if kTarget != kpkgTarget(root):
                 removeInternal(package, root, ignoreReplaces = true, noRunfile = true, initCheck = false)
             else:
-                removeInternal(package, root, ignoreReplaces = true, noRunfile = true)
+                removeInternal(package, root, ignoreReplaces = true, noRunfile = false, depCheck = false)
 
     discard existsOrCreateDir(root&"/var/cache")
     discard existsOrCreateDir(root&kpkgCacheDir)
@@ -137,7 +137,9 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
             
         # Installation loop 
         for file in extractTarball:
-            if relativePath(file, kpkgInstallTemp) in pkg.backup and (fileExists(root&"/"&file) or dirExists(root&"/"&file)):
+            let relPath = relativePath(file, kpkgInstallTemp)
+
+            if relPath in pkg.backup and (fileExists(root&"/"&relPath) or dirExists(root&"/"&relPath)):
                 debug "\""&file&"\" is in pkg.backup, not installing"
                 dict.delSectionKey("", relativePath(file, kpkgInstallTemp))
                 continue
@@ -274,7 +276,7 @@ proc install_bin(packages: seq[string], binrepos: seq[string], root: string,
     if not downloadOnly:
         for i in packages:
             repo = findPkgRepo(i)
-            install_pkg(repo, i, root, manualInstallList = manualInstallList, arch = arch)
+            install_pkg(repo, i, root, manualInstallList = manualInstallList)
             info "Installation for "&i&" complete"
 
     removeLockfile()
