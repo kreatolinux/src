@@ -12,6 +12,7 @@ import ../common/version
 import ../kpkg/commands/buildcmd
 import ../kpkg/commands/updatecmd
 import ../kpkg/commands/installcmd
+import ../kpkg/modules/commonTasks
 
 ## Kreato Linux's build tools.
 
@@ -50,7 +51,7 @@ proc initKrelease(conf: Config) =
             "BuildDirectory")&"/etc/kreato-release")
 
 proc kreastrapInstall(package: string, installWithBinaries: bool,
-        buildDir: string, useCacheIfPossible = true, target = "default") =
+        buildDir: string, useCacheIfPossible = true, target = kpkgTarget(buildDir)) =
     # Install a package.
     info_msg "Installing package '"&package&"'"
     if installWithBinaries == true:
@@ -62,12 +63,7 @@ proc kreastrapInstall(package: string, installWithBinaries: bool,
                 package]),
                 useCacheIfAvailable = useCacheIfPossible,
                 forceInstallAll = true, target = target)
-        var arch = target.split("-")[0]
-        if arch == "x86_64":
-                arch = "amd64" # for compat purposes
-        elif arch == "default":
-                arch = hostCPU
-        discard install(toSeq([package]), buildDir, true, offline = true, arch = arch)
+        discard install(toSeq([package]), buildDir, true, offline = true, target = target)
 
     ok("Package "&package&" installed successfully")
 
