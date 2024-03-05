@@ -54,6 +54,12 @@ proc kreastrapInstall(package: string, installWithBinaries: bool,
         buildDir: string, useCacheIfPossible = true, target = kpkgTarget(buildDir)) =
     # Install a package.
     info_msg "Installing package '"&package&"'"
+    
+    var targetFin = target
+
+    if targetFin == "default":
+        targetFin = kpkgTarget(buildDir)
+
     if installWithBinaries == true:
         debug "Installing package as a binary"
         discard install(toSeq([package]), buildDir, true)
