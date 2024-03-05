@@ -282,7 +282,7 @@ proc install_bin(packages: seq[string], binrepos: seq[string], root: string,
     removeLockfile()
 
 proc install*(promptPackages: seq[string], root = "/", yes: bool = false,
-        no: bool = false, forceDownload = false, offline = false, downloadOnly = false, ignoreDownloadErrors = false, isUpgrade = false, target = kpkgTarget(root)): int =
+        no: bool = false, forceDownload = false, offline = false, downloadOnly = false, ignoreDownloadErrors = false, isUpgrade = false, target = "default"): int =
     ## Download and install a package through a binary repository.
     if promptPackages.len == 0:
         err("please enter a package name", false)
@@ -315,10 +315,15 @@ proc install*(promptPackages: seq[string], root = "/", yes: bool = false,
 
     deps = deduplicate(deps&packages)
     printPackagesPrompt(deps.join(" "), yes, no)
+    
+    var kTarget = target
+
+    if target == "default":
+        kTarget = kpkgTarget(root)
 
     if not (deps.len == 0 and deps == @[""]):
         install_bin(deps, binrepos, fullRootPath, offline,
-                downloadOnly = downloadOnly, manualInstallList = promptPackages, kTarget = target, forceDownload = forceDownload, ignoreDownloadErrors = ignoreDownloadErrors)
+                downloadOnly = downloadOnly, manualInstallList = promptPackages, kTarget = kTarget, forceDownload = forceDownload, ignoreDownloadErrors = ignoreDownloadErrors)
 
     info("done")
     return 0
