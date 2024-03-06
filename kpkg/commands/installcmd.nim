@@ -255,6 +255,7 @@ proc down_bin(package: string, binrepos: seq[string], root: string,
         elif not offline:
             download("https://"&binrepo&"/system/"&kTarget&"/"&tarball, kpkgArchivesDir&"/system/"&kTarget&"/"&tarball)
         else:
+            debug kpkgArchivesDir&"/system/"&kTarget&"/"&tarball
             err("attempted to download tarball from binary repository in offline mode")
 
     if not downSuccess:
