@@ -459,12 +459,12 @@ proc build*(no = false, yes = false, root = "/",
     var fullRootPath = expandFilename(root)
     var ignoreInit = false
     
-    if target != "default":
-        if not crossCompilerExists(target):
-            err "cross-compiler for '"&target&"' doesn't exist, please build or install it (see handbook/cross-compilation)"
+    #if target != "default":
+    #    if not crossCompilerExists(target):
+    #        err "cross-compiler for '"&target&"' doesn't exist, please build or install it (see handbook/cross-compilation)"
         
-        fullRootPath = root&"/usr/"&target
-        ignoreInit = true
+    #    fullRootPath = root&"/usr/"&target
+    #    ignoreInit = true
 
     try:
         deps = deduplicate(dephandler(packages, bdeps = true, isBuild = true,
