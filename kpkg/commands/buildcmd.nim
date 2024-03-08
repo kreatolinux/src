@@ -157,8 +157,11 @@ proc builder*(package: string, destdir: string,
         debug "Tarball (and the sum) already exists, going to install"
         if destdir != "/" and target == "default":
             installPkg(repo, actualPackage, "/", pkg, manualInstallList, ignorePostInstall = ignorePostInstall) # Install package on root too
-
-        installPkg(repo, actualPackage, destdir, pkg, manualInstallList, ignorePostInstall = ignorePostInstall)
+        
+        if kTarget == kpkgTarget(destDir):
+            installPkg(repo, actualPackage, destdir, pkg, manualInstallList, ignorePostInstall = ignorePostInstall)
+        else:
+            info "the package target doesn't match the one on '"&destDir&"', skipping installation"
         removeDir(root)
         removeDir(srcdir)
         return true
@@ -443,8 +446,10 @@ proc builder*(package: string, destdir: string,
             kpkgInstalledDir&"/"&actualPackage) and (not dontInstall) and target == "default":
         installPkg(repo, actualPackage, "/", pkg, manualInstallList, isUpgrade = isUpgrade, ignorePostInstall = ignorePostInstall)
 
-    if not dontInstall:
+    if (not dontInstall) and (kTarget == kpkgTarget(destDir)) :
         installPkg(repo, actualPackage, destdir, pkg, manualInstallList, isUpgrade = isUpgrade, ignorePostInstall = ignorePostInstall)
+    else:
+        info "the package target doesn't match the one on '"&destDir&"', skipping installation"
 
     removeLockfile()
     
