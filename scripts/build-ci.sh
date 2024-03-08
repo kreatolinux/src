@@ -3,6 +3,7 @@
 #
 
 e() {
+    busybox cat /etc/resolv.conf
     busybox ls -l /var/cache/kpkg/installed
     busybox ls -l /var/cache/kpkg/archives/system/*
     busybox ls -l /
