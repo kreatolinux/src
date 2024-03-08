@@ -41,7 +41,7 @@ proc fakerootWrap(srcdir: string, path: string, root: string, input: string,
 proc builder*(package: string, destdir: string,
     root = kpkgTempDir1&"/build", srcdir = kpkgTempDir1&"/srcdir", offline = false,
             dontInstall = false, useCacheIfAvailable = false,
-                    tests = false, manualInstallList: seq[string], customRepo = "", isInstallDir = false, isUpgrade = false, target = "default", actualRoot = "default", ignorePostInstall = false, noSandbox = false): bool =
+                    tests = false, manualInstallList: seq[string], customRepo = "", isInstallDir = false, isUpgrade = false, target = "default", actualRoot = "default", ignorePostInstall = false, noSandbox = false, ignoreTarget = false): bool =
     ## Builds the packages.
     
     debug "builder ran, package: '"&package&"', destdir: '"&destdir&"' root: '"&root&"', useCacheIfAvailable: '"&($useCacheIfAvailable)&"'"
@@ -342,10 +342,19 @@ proc builder*(package: string, destdir: string,
 
     if arch == "amd64":
         arch = "x86_64" # For compatibility
+    
+    var actTarget: string
 
-    if target != "default":
-        cmdStr = ". "&srcdir&"/runfCommands && export KPKG_ARCH="&arch&" && export KPKG_TARGET="&target&" && export KPKG_HOST_TARGET="&systemTarget(actualRoot)&" && "&cmdStr
-        cmd3Str = ". "&srcdir&"/runfCommands && export KPKG_ARCH="&arch&" && export KPKG_TARGET="&target&" && export KPKG_HOST_TARGET="&systemTarget(actualRoot)&" && "&cmd3Str
+    let tSplit = target.split("-")
+    
+    if tSplit.len >= 4:
+        actTarget = tSplit[0]&"-"&tSplit[1]&"-"&tSplit[2]
+    else:
+        actTarget = target
+
+    if actTarget != "default" or actTarget != systemTarget("/"):
+        cmdStr = ". "&srcdir&"/runfCommands && export KPKG_ARCH="&arch&" && export KPKG_TARGET="&actTarget&" && export KPKG_HOST_TARGET="&systemTarget(actualRoot)&" && "&cmdStr
+        cmd3Str = ". "&srcdir&"/runfCommands && export KPKG_ARCH="&arch&" && export KPKG_TARGET="&actTarget&" && export KPKG_HOST_TARGET="&systemTarget(actualRoot)&" && "&cmd3Str
     else:
         cmdStr = ". "&srcdir&"/runfCommands && export KPKG_ARCH="&arch&" && export KPKG_TARGET="&systemTarget(destdir)&" && "&cmdStr
         cmd3Str = ". "&srcdir&"/runfCommands && export KPKG_ARCH="&arch&" && export KPKG_TARGET="&systemTarget(destdir)&" && "&cmd3Str
@@ -361,7 +370,7 @@ proc builder*(package: string, destdir: string,
     
     cmdStr = cmdStr&". "&path&"/run"
 
-    if target == "default":
+    if actTarget == "default" or actTarget == systemTarget("/"):
         cmdStr = cmdStr&" && export CC=\""&cc&"\" && export CXX=\""&cxx&"\" && "
    
     if not isEmptyOrWhitespace(override.getSectionValue("Flags", "extraArguments")):
