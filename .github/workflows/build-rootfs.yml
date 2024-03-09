@@ -31,7 +31,7 @@ jobs:
           IS_ACTIONS=y sh $GITHUB_WORKSPACE/scripts/build-ci.sh build nocc
       
       - name: Upload nocc Rootfs
-        uses: actions/upload-artifact@v3.1.1
+        uses: actions/upload-artifact@v4
         with:
           # Artifact name
           name: nocc-rootfs # optional, default is artifact
@@ -45,7 +45,7 @@ jobs:
       #    IS_ACTIONS=y sh $GITHUB_WORKSPACE/scripts/build-ci.sh build nocc arm64
 
       #- name: Upload nocc-arm64 Rootfs
-      #  uses: actions/upload-artifact@v3.1.1
+      #  uses: actions/upload-artifact@v4
       #  with:
           # Artifact name
       #    name: nocc-arm64 # optional, default is artifact
@@ -59,7 +59,7 @@ jobs:
           IS_ACTIONS=y sh $GITHUB_WORKSPACE/scripts/build-ci.sh build builder
     
       - name: Upload Builder Rootfs
-        uses: actions/upload-artifact@v3.1.1
+        uses: actions/upload-artifact@v4
         with:
           # Artifact name
           name: builder-rootfs # optional, default is artifact
@@ -73,7 +73,7 @@ jobs:
           IS_ACTIONS=y sh $GITHUB_WORKSPACE/scripts/build-ci.sh build builder-gnu
     
       - name: Upload builder-gnu Rootfs
-        uses: actions/upload-artifact@v3.1.1
+        uses: actions/upload-artifact@v4
         with:
           # Artifact name
           name: builder-gnu-rootfs # optional, default is artifact
