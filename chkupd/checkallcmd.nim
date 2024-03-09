@@ -12,7 +12,7 @@ proc checkAll*(repo: string, backend = "repology", autoUpdate = true,
     var failedUpdPackages: seq[string]
     var failedBuildPackages: seq[string]
     var pkgCount: int
-    let cmdStr = "docker run -e QEMU_CPU=max --rm -v "&repo&":/etc/kpkg/repos/main -v /var/cache/kpkg/archives:/var/cache/kpkg/archives ghcr.io/kreatolinux/builder-gnu:latest kpkg build -u -y "
+    let cmdStr = "docker run -e QEMU_CPU=max --privileged --rm -v "&repo&":/etc/kpkg/repos/main -v /var/cache/kpkg/archives:/var/cache/kpkg/archives ghcr.io/kreatolinux/builder-gnu:latest kpkg build -u -y "
 
     case backend:
         of "repology":
