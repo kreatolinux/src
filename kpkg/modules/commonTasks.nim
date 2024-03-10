@@ -13,7 +13,7 @@ proc isEmptyDir(dir: string): bool =
     # Checks if a directory is empty or not.
     return toSeq(walkdir dir).len == 0
 
-proc getDependents*(packages: seq[string], root = "/"): seq[string] =
+proc getDependents*(packages: seq[string], root = "/", addIfOutdated = true): seq[string] =
     # Gets dependents of a package
     # Eg. getDependents("neofetch") will return 
     # @["bash"]
@@ -28,7 +28,15 @@ proc getDependents*(packages: seq[string], root = "/"): seq[string] =
         
         for package in packages:
             if package in runF.deps:
-                res = res&lastPathPart(p.path)
+                if addIfOutdated:
+                    let packageLocalVer = parseRunfile(root&"/"&kpkgInstalledDir&"/"&package).versionString
+                    let packageUpstreamVer = parseRunfile(findPkgRepo(package)&"/"&package).versionString
+                    if packageLocalVer != packageUpstreamVer:
+                        res = res&lastPathPart(p.path)
+                    else:
+                        continue
+                else:    
+                    res = res&lastPathPart(p.path)
 
     return res
 
