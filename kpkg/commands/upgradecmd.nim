@@ -65,8 +65,8 @@ proc upgrade*(root = "/",
         success("done", true)
 
     if parseBool(getConfigValue("Upgrade", "buildByDefault", "false")):
-        discard build(yes = true, packages = packages, root = root, isUpgrade = true)
+        discard build(yes = yes, no = no, packages = packages, root = root, isUpgrade = true)
     else:
-        discard install(packages, root, yes = true, isUpgrade = true)
+        discard install(packages, root, yes = yes, no = no, isUpgrade = true)
     
     success("done", true)
