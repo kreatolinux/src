@@ -13,12 +13,13 @@ import ../modules/isolation
 import ../modules/runparser
 import ../modules/processes
 import ../modules/checksums
+import ../../common/version 
 import ../modules/dephandler
 import ../modules/libarchive
 import ../modules/downloader
 import ../modules/commonTasks
 import ../modules/commonPaths
-import ../modules/crossCompilation
+#import ../modules/crossCompilation
 
 proc cleanUp() {.noconv.} =
     ## Cleans up.
@@ -423,16 +424,50 @@ proc builder*(package: string, destdir: string,
     
     tarball = tarball&"/"&actualPackage&"-"&pkg.versionString&".kpkg"
     
+    # pkgInfo.ini
+    var pkgInfo = newConfig()
+
+    pkgInfo.setSectionKey("", "pkgVer", pkg.versionString)
+    pkgInfo.setSectionKey("", "apiVer", ver)
+
+    var depsInfo: string
+    
+
+    for dep in pkg.deps:
+        var pkg: runFile
+        
+        try:
+            let p = "/"&kpkgInstalledDir&"/"&dep
+
+            if dirExists(kpkgEnvPath&p):
+                pkg = parseRunfile(kpkgEnvPath&p)
+            elif dirExists(kpkgOverlayPath&"/upperDir/"&p):
+                pkg = parseRunfile(kpkgOverlayPath&"/upperDir/"&p)
+            else:
+                err "Unknown error occured while generating binary package"
+        except CatchableError:
+            raise 
+        if isEmptyOrWhitespace(depsInfo):
+            depsInfo = (dep&"#"&pkg.versionString)
+        else:
+            depsInfo = depsInfo&" "&(dep&"#"&pkg.versionString)
+
+    pkgInfo.setSectionKey("", "depends", depsInfo)
+        
+    pkgInfo.writeConfig(root&"/pkgInfo.ini")
+
+    # pkgsums.ini
     var dict = newConfig()
     
     for file in toSeq(walkDirRec(root, {pcFile, pcLinkToFile, pcDir, pcLinkToDir})):
+        if "pkgInfo.ini" == relativePath(file, root): continue
         if dirExists(file) or symlinkExists(file):
             dict.setSectionKey("", "\""&relativePath(file, root)&"\"", "")
         else:
             dict.setSectionKey("", "\""&relativePath(file, root)&"\"", getSum(file, "b2"))
         
     dict.writeConfig(root&"/pkgsums.ini")
-
+    
     if execCmdKpkg("bsdtar -czf "&tarball&" -C "&root&" .") != 0:
         err "creating binary tarball failed"
     #createArchive(tarball, root)

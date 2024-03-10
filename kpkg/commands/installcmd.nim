@@ -117,7 +117,7 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
             
         # Checking loop
         for file in extractTarball:
-            if "pkgsums.ini" == lastPathPart(file): continue
+            if "pkgsums.ini" == lastPathPart(file) or "pkgInfo.ini" == lastPathPart(file): continue
             let value = dict.getSectionValue("", relativePath(file, kpkgInstallTemp))
             let doesFileExist = (fileExists(kpkgInstallTemp&"/"&file) and not symlinkExists(kpkgInstallTemp&"/"&file))
             
@@ -134,6 +134,25 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
 
             if getSum(kpkgInstallTemp&"/"&file, "b2") != value:
                 err("sum for file '"&file&"' invalid")
+        
+        if fileExists(kpkgInstallTemp&"/pkgInfo.ini"): # pkgInfo is recommended, but not required
+
+            var dict2 = loadConfig(kpkgInstallTemp&"/pkgInfo.ini")
+        
+            for dep in dict2.getSectionValue("", "depends").split(" "):
+                let depSplit = dep.split("#")
+                
+                var rf: runFile
+                try:
+                    rf = parseRunfile(kpkgInstalledDir&"/"&depSplit[0])
+                except:
+                    raise
+
+                if rf.versionString != depSplit[1]:
+                    warn "this package is built with '"&dep&"', while the system has '"&depSplit[0]&"#"&rf.versionString&"'"
+                    warn "installing anyway, but issues may occur"
+                    warn "this may be an error in the future"
+                
             
         # Installation loop 
         for file in extractTarball:
@@ -143,8 +162,13 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
                 debug "\""&file&"\" is in pkg.backup, not installing"
                 dict.delSectionKey("", relativePath(file, kpkgInstallTemp))
                 continue
+            
+            if "pkgInfo.ini" == lastPathPart(file):
+                moveFile(kpkgInstallTemp&"/"&file, root&kpkgInstalledDir&"/"&package&"/pkgInfo.ini")
+
             if "pkgsums.ini" == lastPathPart(file):
                 moveFile(kpkgInstallTemp&"/"&file, root&kpkgInstalledDir&"/"&package&"/list_files")
+
             let doesFileExist = (fileExists(kpkgInstallTemp&"/"&file) or symlinkExists(kpkgInstallTemp&"/"&file))
             if doesFileExist:
                 if not dirExists(root&"/"&file.parentDir()):
