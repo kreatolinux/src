@@ -42,7 +42,7 @@ proc fakerootWrap(srcdir: string, path: string, root: string, input: string,
 proc builder*(package: string, destdir: string,
     root = kpkgTempDir1&"/build", srcdir = kpkgTempDir1&"/srcdir", offline = false,
             dontInstall = false, useCacheIfAvailable = false,
-                    tests = false, manualInstallList: seq[string], customRepo = "", isInstallDir = false, isUpgrade = false, target = "default", actualRoot = "default", ignorePostInstall = false, noSandbox = false, ignoreTarget = false): bool =
+                    tests = false, manualInstallList: seq[string], customRepo = "", isInstallDir = false, isUpgrade = false, target = "default", actualRoot = "default", ignorePostInstall = false, noSandbox = false, ignoreTarget = false, ignoreUseCacheIfAvailable = @[""]): bool =
     ## Builds the packages.
     
     debug "builder ran, package: '"&package&"', destdir: '"&destdir&"' root: '"&root&"', useCacheIfAvailable: '"&($useCacheIfAvailable)&"'"
@@ -153,7 +153,7 @@ proc builder*(package: string, destdir: string,
     else:
         override = newConfig() # So we don't get storage access errors
 
-    if fileExists(kpkgArchivesDir&"/system/"&kTarget&"/"&actualPackage&"-"&pkg.versionString&".kpkg") and useCacheIfAvailable == true and dontInstall == false:
+    if fileExists(kpkgArchivesDir&"/system/"&kTarget&"/"&actualPackage&"-"&pkg.versionString&".kpkg") and useCacheIfAvailable == true and dontInstall == false and not (actualPackage in ignoreUseCacheIfAvailable):
         
         debug "Tarball (and the sum) already exists, going to install"
         if destdir != "/" and target == "default":
@@ -536,12 +536,16 @@ proc build*(no = false, yes = false, root = "/",
 
     deps = deduplicate(deps&p)
 
+    let gD = getDependents(deps)
+    if not isEmptyOrWhitespace(gD.join("")):
+        deps = deps&gD
+
     printReplacesPrompt(p, fullRootPath, isInstallDir = isInstallDir)
     
     if isInstallDir:
-        printPackagesPrompt(deps.join(" "), yes, no, packages)
+        printPackagesPrompt(deps.join(" "), yes, no, packages, dependents = gD)
     else:
-        printPackagesPrompt(deps.join(" "), yes, no, @[""])
+        printPackagesPrompt(deps.join(" "), yes, no, @[""], dependents = gD)
 
     let pBackup = p
 
@@ -589,7 +593,7 @@ proc build*(no = false, yes = false, root = "/",
                     pkgName = packageSplit[0]
 
             discard builder(pkgName, fullRootPath, offline = false,
-                    dontInstall = dontInstall, useCacheIfAvailable = useCacheIfAvailable, tests = tests, manualInstallList = p, customRepo = customRepo, isInstallDir = isInstallDirFinal, isUpgrade = isUpgrade, target = target, actualRoot = root, ignorePostInstall = ignorePostInstall)
+                    dontInstall = dontInstall, useCacheIfAvailable = useCacheIfAvailable, tests = tests, manualInstallList = p, customRepo = customRepo, isInstallDir = isInstallDirFinal, isUpgrade = isUpgrade, target = target, actualRoot = root, ignorePostInstall = ignorePostInstall, ignoreUseCacheIfAvailable = gD)
             
             success("built "&i&" successfully")
         except CatchableError:

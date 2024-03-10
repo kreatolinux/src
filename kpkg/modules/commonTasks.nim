@@ -7,10 +7,31 @@ import sequtils
 import parsecfg
 import runparser
 import posix_utils
+import commonPaths
 
 proc isEmptyDir(dir: string): bool = 
     # Checks if a directory is empty or not.
     return toSeq(walkdir dir).len == 0
+
+proc getDependents*(packages: seq[string], root = "/"): seq[string] =
+    # Gets dependents of a package
+    # Eg. getDependents("neofetch") will return 
+    # @["bash"]
+    var res: seq[string]
+    
+    for p in walkDir(root&"/"&kpkgInstalledDir):
+        
+        if not dirExists(p.path):
+            continue
+
+        let runF = parseRunfile(p.path)
+        
+        for package in packages:
+            if package in runF.deps:
+                res = res&lastPathPart(p.path)
+
+    return res
+
 
 proc copyFileWithPermissionsAndOwnership*(source, dest: string, options = {cfSymlinkAsIs}) =
     ## Copies a file with both permissions and ownership.
@@ -111,6 +132,7 @@ proc kpkgTarget*(root: string, customTarget = ""): string =
   return system&"-"&conf.getSectionValue("Core", "init")&"-"&conf.getSectionValue("Core", "tlsLibrary")
 
 proc green*(s: string): string = "\e[32m" & s & "\e[0m" 
+proc blue*(s: string): string = "\e[34m" & s & "\e[0m" 
 
 proc appendInternal(f: string, t: string): string =
   # convenience proc to append.
@@ -129,7 +151,7 @@ proc appenderInternal(r: string, a: string, b: string, c = "", removeInt = 0): s
   return final
 
 
-proc printPackagesPrompt*(packages: string, yes: bool, no: bool, isInstallDir = @[""]) =
+proc printPackagesPrompt*(packages: string, yes: bool, no: bool, isInstallDir = @[""], dependents = @[""], binary = false) =
   ## Prints the packages summary prompt.
   var finalPkgs: string
   var pkgLen: int
@@ -163,11 +185,17 @@ proc printPackagesPrompt*(packages: string, yes: bool, no: bool, isInstallDir = 
           else:
             r = r&"-"&localRunf.versionString
             r = appenderInternal(r, pkg, lastPathPart(pkgRepo), localRunf.versionString)
-            r = r&"up-to-date"
+            if i in dependents:
+                if binary:
+                    r = r&"reinstall"
+                else:
+                    r = r&"rebuild"
+            else:
+                r = r&"up-to-date"
         else:
             r = appenderInternal(r, pkg, "", lastPathPart(pkgRepo), 1)
             r = r&upstreamRunf.versionString
-      
+
         echo r
       
   else:
@@ -191,9 +219,18 @@ proc printPackagesPrompt*(packages: string, yes: bool, no: bool, isInstallDir = 
 
       if fileExists("/var/cache/kpkg/installed/"&pkg&"/run") and pkgRepo != "":
         upstreamRunf = parseRunfile(pkgRepo&"/"&pkg)
+        
         if parseRunfile("/var/cache/kpkg/installed/"&pkg).versionString != upstreamRunf.versionString:
           finalPkgs = appendInternal(i&" -> ".green&upstreamRunf.versionString, finalPkgs)
           continue
+        elif pkg in dependents: 
+          if binary:
+            finalPkgs = appendInternal(i&" -> ".blue&"reinstall", finalPkgs)
+          else:
+            finalPkgs = appendInternal(i&" -> ".blue&"rebuild", finalPkgs)
+
+          continue
+            
 
       finalPkgs = appendInternal(i, finalPkgs)
   

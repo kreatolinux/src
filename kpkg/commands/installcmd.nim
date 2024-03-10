@@ -286,7 +286,7 @@ proc down_bin(package: string, binrepos: seq[string], root: string,
         err("couldn't download the binary")
 
 proc install_bin(packages: seq[string], binrepos: seq[string], root: string,
-        offline: bool, downloadOnly = false, manualInstallList: seq[string], kTarget = kpkgTarget(root), forceDownload = false, ignoreDownloadErrors = false) =
+        offline: bool, downloadOnly = false, manualInstallList: seq[string], kTarget = kpkgTarget(root), forceDownload = false, ignoreDownloadErrors = false, forceDownloadPackages = @[""]) =
     ## Downloads and installs binaries.
 
     var repo: string
@@ -296,7 +296,10 @@ proc install_bin(packages: seq[string], binrepos: seq[string], root: string,
     createLockfile()
 
     for i in packages:
-        down_bin(i, binrepos, root, offline, forceDownload, ignoreDownloadErrors = ignoreDownloadErrors) # TODO: add arch
+        var fdownload = false
+        if i in forceDownloadPackages or forceDownload:
+            fdownload = true
+        down_bin(i, binrepos, root, offline, fdownload, ignoreDownloadErrors = ignoreDownloadErrors, kTarget = kTarget)
 
     if not downloadOnly:
         for i in packages:
@@ -339,7 +342,12 @@ proc install*(promptPackages: seq[string], root = "/", yes: bool = false,
     let binrepos = getConfigValue("Repositories", "binRepos").split(" ")
 
     deps = deduplicate(deps&packages)
-    printPackagesPrompt(deps.join(" "), yes, no)
+    
+    let gD = getDependents(deps)
+    if not isEmptyOrWhitespace(gD.join("")):
+        deps = deps&gD
+
+    printPackagesPrompt(deps.join(" "), yes, no, dependents = gD, binary = true)
     
     var kTarget = target
 
