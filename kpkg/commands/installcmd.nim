@@ -138,10 +138,14 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
         if fileExists(kpkgInstallTemp&"/pkgInfo.ini"): # pkgInfo is recommended, but not required
 
             var dict2 = loadConfig(kpkgInstallTemp&"/pkgInfo.ini")
-        
+
             for dep in dict2.getSectionValue("", "depends").split(" "):
-                let depSplit = dep.split("#")
                 
+                if isEmptyOrWhitespace(dep):
+                    continue
+
+                let depSplit = dep.split("#")
+                 
                 var rf: runFile
                 try:
                     rf = parseRunfile(kpkgInstalledDir&"/"&depSplit[0])
