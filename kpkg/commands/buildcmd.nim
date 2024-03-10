@@ -434,6 +434,10 @@ proc builder*(package: string, destdir: string,
     
 
     for dep in pkg.deps:
+        
+        if isEmptyOrWhitespace(dep):
+            continue 
+
         var pkg: runFile
         
         try:
