@@ -10,8 +10,9 @@ jobs:
   genrelease:
     # The type of runner that the job will run on
     runs-on: ubuntu-latest
-    container: ghcr.io/kreatolinux/builder:latest
-      
+    container:
+        image: ghcr.io/kreatolinux/builder:latest
+        options: --privileged
     steps:
 
       - name: Checkout
