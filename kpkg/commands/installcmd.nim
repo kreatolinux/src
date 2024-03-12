@@ -90,6 +90,7 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
             else:
                 removeInternal(package, root, ignoreReplaces = true, noRunfile = false, depCheck = false)
 
+    discard existsOrCreateDir(root&"/var")
     discard existsOrCreateDir(root&"/var/cache")
     discard existsOrCreateDir(root&kpkgCacheDir)
     discard existsOrCreateDir(root&kpkgInstalledDir)
