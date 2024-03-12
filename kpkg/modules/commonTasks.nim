@@ -58,7 +58,7 @@ proc copyFileWithPermissionsAndOwnership*(source, dest: string, options = {cfSym
     removeFile(dest)
     
     if symlinkExists(source):
-        debug "overwriting \""&dest&"\" with the symlink at \""&source&"\""
+        #debug "overwriting \""&dest&"\" with the symlink at \""&source&"\""
         copyFile(source, dest, options = {cfSymlinkAsIs})
         return
 
