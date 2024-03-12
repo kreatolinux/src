@@ -148,7 +148,7 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
                  
                 var rf: runFile
                 try:
-                    rf = parseRunfile(kpkgInstalledDir&"/"&depSplit[0])
+                    rf = parseRunfile(root&"/"&kpkgInstalledDir&"/"&depSplit[0])
                 except:
                     raise
 
