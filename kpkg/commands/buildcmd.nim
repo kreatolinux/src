@@ -577,10 +577,12 @@ proc build*(no = false, yes = false, root = "/",
             discard mountOverlay(error = "mounting overlay")
             # We set isBuild to false here as we don't want build dependencies of other packages on the sandbox.
             depsToClean = deduplicate(parseRunfile(findPkgRepo(i)&"/"&i).bdeps&dephandler(@[i], isBuild = false, root = fullRootPath, forceInstallAll = true, isInstallDir = isInstallDir, ignoreInit = ignoreInit))
+            debug "depsToClean = \""&depsToClean.join(" ")&"\""
             if target != "default" and target != kpkgTarget("/"):
                 for d in depsToClean:
                     if isEmptyOrWhitespace(d):
                         continue
+                    debug "build: installPkg ran for '"&d&"'"
                     installPkg(findPkgRepo(d), d, kpkgOverlayPath&"/upperDir", isUpgrade = false, kTarget = target, manualInstallList = @[], umount = false)
             else:
                 for d in depsToClean:
