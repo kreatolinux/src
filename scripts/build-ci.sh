@@ -27,7 +27,7 @@ case $1 in
 		            mkdir /out
                 ln -s /out /work/out
                 cd /work || exit 1
-
+                
   	            kpkg # Initializes configs
 		            sed -i s/stable/master/g /etc/kpkg/kpkg.conf # Switch to master repos
 		            kpkg update
@@ -38,7 +38,10 @@ case $1 in
 		            kpkg build ninja -y
                 kpkg build llvm -y # Required by futhark
 
-        
+                
+                ln -s /var/cache/kpkg/archives/system/x86_64-linux-gnu-jumpstart-openssl /var/cache/kpkg/archives/system/x86_64-linux-gnu-systemd-openssl # temp, see #100
+
+                
                 export PATH=$PATH:$HOME/.nimble/bin # Add nimble path so opir can run
   	            ./build.sh -i
 		            nim c -d:branch=master --passL:-larchive --passC:-no-pie --threads:on -d:ssl -o=kreastrap/kreastrap kreastrap/kreastrap.nim
