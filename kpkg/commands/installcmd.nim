@@ -20,7 +20,7 @@ import ../modules/removeInternal
 setControlCHook(ctrlc)
 
 proc installPkg*(repo: string, package: string, root: string, runf = runFile(
-        isParsed: false), manualInstallList: seq[string], isUpgrade = false, kTarget = kpkgTarget(root), ignorePostInstall = false) =
+        isParsed: false), manualInstallList: seq[string], isUpgrade = false, kTarget = kpkgTarget(root), ignorePostInstall = false, umount = true) =
     ## Installs a package.
 
     var pkg: runFile
@@ -187,7 +187,7 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
     # Run ldconfig afterwards for any new libraries
     discard execProcess("ldconfig")
     
-    if dirExists(kpkgOverlayPath) and dirExists(kpkgMergedPath):
+    if dirExists(kpkgOverlayPath) and dirExists(kpkgMergedPath) and umount:
         discard umountOverlay(error = "unmounting overlays")
     
     when defined(release):
