@@ -583,7 +583,7 @@ proc build*(no = false, yes = false, root = "/",
                     if isEmptyOrWhitespace(d):
                         continue
                     debug "build: installPkg ran for '"&d&"'"
-                    installPkg(findPkgRepo(d), d, kpkgOverlayPath&"/upperDir", isUpgrade = false, kTarget = target, manualInstallList = @[], umount = false)
+                    installPkg(findPkgRepo(d), d, kpkgOverlayPath&"/upperDir", isUpgrade = false, kTarget = target, manualInstallList = @[], umount = false, disablePkgInfo = true)
             else:
                 for d in depsToClean:
                     installFromRoot(d, root, kpkgOverlayPath&"/upperDir")

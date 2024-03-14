@@ -20,7 +20,7 @@ import ../modules/removeInternal
 setControlCHook(ctrlc)
 
 proc installPkg*(repo: string, package: string, root: string, runf = runFile(
-        isParsed: false), manualInstallList: seq[string], isUpgrade = false, kTarget = kpkgTarget(root), ignorePostInstall = false, umount = true) =
+        isParsed: false), manualInstallList: seq[string], isUpgrade = false, kTarget = kpkgTarget(root), ignorePostInstall = false, umount = true, disablePkgInfo = false) =
     ## Installs a package.
 
     var pkg: runFile
@@ -136,7 +136,7 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
             if getSum(kpkgInstallTemp&"/"&file, "b2") != value:
                 err("sum for file '"&file&"' invalid")
         
-        if fileExists(kpkgInstallTemp&"/pkgInfo.ini"): # pkgInfo is recommended, but not required
+        if fileExists(kpkgInstallTemp&"/pkgInfo.ini") and (not disablePkgInfo): # pkgInfo is recommended, but not required
 
             var dict2 = loadConfig(kpkgInstallTemp&"/pkgInfo.ini")
 
