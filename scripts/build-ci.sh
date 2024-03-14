@@ -38,8 +38,8 @@ case $1 in
 		            kpkg build ninja -y
                 kpkg build llvm -y # Required by futhark
 
-                
-                cp -r /var/cache/kpkg/archives/system/x86_64-linux-gnu-jumpstart-openssl /var/cache/kpkg/archives/system/x86_64-linux-gnu-systemd-openssl # temp, see #100
+                #rm -r /var/cache/kpkg/archives/x86_64-linux-gnu-systemd-openssl
+                #cp -r /var/cache/kpkg/archives/system/x86_64-linux-gnu-jumpstart-openssl /var/cache/kpkg/archives/system/x86_64-linux-gnu-systemd-openssl # temp, see #100
 
                 
                 export PATH=$PATH:$HOME/.nimble/bin # Add nimble path so opir can run
