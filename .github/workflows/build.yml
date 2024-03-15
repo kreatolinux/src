@@ -37,7 +37,7 @@ jobs:
           IS_ACTIONS=y sh $GITHUB_WORKSPACE/scripts/build-ci.sh init
           export PATH=$PATH:$HOME/.nimble/bin
           make deps
-          ./build.sh -d -p kpkg 
+          ./build.sh -p kpkg 
       
       - uses: actions/upload-artifact@v4
         with:
