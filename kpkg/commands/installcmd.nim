@@ -168,6 +168,9 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
                 dict.delSectionKey("", relativePath(file, kpkgInstallTemp))
                 continue
             
+            if fileExists(root&"/"&relPath):
+                err "file \""&relPath&"\" already exists on filesystem, cannot continue"
+
             if "pkgInfo.ini" == lastPathPart(file):
                 moveFile(kpkgInstallTemp&"/"&file, root&kpkgInstalledDir&"/"&package&"/pkgInfo.ini")
 
