@@ -85,11 +85,20 @@ proc rmPackage*(name: string) =
 
 proc packageExists*(name: string): bool =
     # Check if a package exists in the database.
-    try:
-        discard getPackage(name)
-        return true
-    except:
-        return false
+    return kpkgDb.exists(Package, "name = ?", name)
+
+proc getListPackages*(): seq[string] =
+    # Returns a list of packages.
+    var packages = @[newPackageInternal()]
+    kpkgDb.selectAll(packages)
+    
+    var packageList: seq[string]
+
+    # feels wrong for some reason, hmu if theres a better way -kreatoo
+    for p in packages:
+        packageList = packageList&p.name    
+    
+    return packageList
 
 proc getListFiles*(packageName: string): seq[string] =
     # Gives a list of files.
