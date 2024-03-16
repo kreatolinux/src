@@ -2,6 +2,7 @@ import os
 import fuzzy
 import strutils
 import ../modules/config
+import ../modules/sqlite
 import ../modules/logger
 import ../modules/colors
 import ../modules/runparser
@@ -9,16 +10,24 @@ import ../modules/runparser
 proc printResult(repo: string, package: string, colors = true): string =
     ## Prints results for searches.
     var r: string
-    var pkgrunf: runFile
+    var isGroup = false
+    var version: string
+    var desc: string
 
-    if dirExists("/var/cache/kpkg/installed/"&package):
+    if packageExists(package):
         r = "i   "
-        pkgrunf = parseRunfile("/var/cache/kpkg/installed/"&package)
+        let pkg = getPackage(package, "/")
+        isGroup = pkg.isGroup
+        version = pkg.version
+        desc = pkg.desc
     else:
         r = "ni  "
-        pkgrunf = parseRunfile("/etc/kpkg/repos/"&repo&"/"&package)
+        let pkg = parseRunfile("/etc/kpkg/repos/"&repo&"/"&package)
+        isGroup = pkg.isGroup
+        version = pkg.version
+        desc = pkg.desc
 
-    if pkgrunf.isGroup:
+    if isGroup:
         
         if colors:
             r = cyanColor&"g"&resetColor&r
@@ -28,18 +37,18 @@ proc printResult(repo: string, package: string, colors = true): string =
         r = r&" "
 
     if colors:
-        r = r&cyanColor&repo&resetColor&"/"&package&"-"&pkgrunf.versionString
+        r = r&cyanColor&repo&resetColor&"/"&package&"-"&version
     else:
-        r = r&repo&"/"&package&"-"&pkgrunf.versionString
+        r = r&repo&"/"&package&"-"&version
         
     
-    for i in 1 .. 40 - (package.len + 1 + repo.len + pkgrunf.versionString.len):
+    for i in 1 .. 40 - (package.len + 1 + repo.len + version.len):
         r = r&" "
 
-    if isEmptyOrWhitespace(pkgrunf.desc):
+    if isEmptyOrWhitespace(desc):
         return r&"No description available"
     else:
-        return r&pkgrunf.desc
+        return r&desc
 
 proc search*(keyword: seq[string], colors = true) =
     ## Search packages.
