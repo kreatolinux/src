@@ -35,7 +35,8 @@ proc checkVersions(root: string, dependency: string, repo: string, split = @[
 
                 if repo == "local":
                     r = findPkgRepo(r)
-
+                
+                debug "parseRunfile ran, checkVersions"
                 deprf = parseRunfile(r&"/"&dSplit[0]).versionString
 
             let warnName = "Required dependency version for "&dSplit[
@@ -131,6 +132,7 @@ proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false,
         var pkgrf: runFile
 
         if repo != "local":
+            debug "parseRunfile ran, dephandler"
             pkgrf = parseRunfile(repo&"/"&pkg)
         else:
             pkgrf = packageToRunfile(getPackage(pkg, root))
@@ -174,6 +176,7 @@ proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false,
                 if repo == "local":
                     deprf = pkgrf
                 else:
+                    debug "parseRunfile ran, dephandler 2"
                     deprf = parseRunfile(repo&"/"&d)                
                 
                 if d in deps or d in ignoreDeps or isIn(deprf.replaces, deps):

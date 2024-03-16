@@ -30,6 +30,7 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
         if runf.isParsed:
             pkg = runf
         else:
+            debug "parseRunfile ran, installPkg"
             pkg = parseRunfile(repo&"/"&package)
     except CatchableError:
         err("Unknown error while trying to parse package on repository, possibly broken repo?")
@@ -263,6 +264,7 @@ proc down_bin(package: string, binrepos: seq[string], root: string,
         var pkg: runFile
 
         try:
+            debug "parseRunfile ran, down_bin"
             pkg = parseRunfile(repo&"/"&package)
         except CatchableError:
             err("Unknown error while trying to parse package on repository, possibly broken repo?")
