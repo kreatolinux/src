@@ -134,7 +134,7 @@ proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false,
         var pkgrf: runFile
 
         if repo != "local":
-            debug "parseRunfile ran, dephandler, repo:'"&repo&"'"
+            debug "parseRunfile ran, dephandler, repo: '"&repo&"', pkg: '"&pkg&"'"
             pkgrf = parseRunfile(repo&"/"&pkg)
         else:
             pkgrf = packageToRunfile(getPackage(pkg, root))

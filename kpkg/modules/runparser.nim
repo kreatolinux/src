@@ -154,7 +154,11 @@ proc parseRunfile*(path: string, removeLockfileWhenErr = true): runFile =
                 ).split(" ")
 
     except CatchableError:
-        err(path&" doesn't seem to have a runfile. possibly a broken package?", removeLockfileWhenErr)
+        when defined(release):
+            err(path&" doesn't seem to have a runfile. possibly a broken package?", removeLockfileWhenErr)
+        else:
+            debug(path&" doesn't seem to have a runfile. possibly a broken package?")
+            raise getCurrentException()
 
     when declared(ret.epoch):
         ret.versionString = ret.version&"-"&ret.release&"-"&ret.epoch
