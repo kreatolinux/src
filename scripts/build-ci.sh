@@ -3,17 +3,7 @@
 #
 
 e() {
-    busybox cat /etc/resolv.conf
-    busybox ls -l /opt/kpkg/overlay/upperDir
-    busybox ls -l /opt/kpkg/overlay/upperDir/var
-    busybox ls -l /opt/kpkg/overlay/upperDir/var/cache
-    busybox ls -l /opt/kpkg/overlay/upperDir/var/cache/kpkg/*
-    busybox ls -l /var/cache/kpkg/installed
-    busybox ls -l /var/cache/kpkg/archives/system/*
-    busybox ls -l /
-    busybox ls -l /bin/sh
-    busybox ls -l /bin/
-    kpkg provides /bin/sh
+    sqlite3 /var/cache/kpkg/kpkg.sqlite .dump
     exit 1
 }
 
