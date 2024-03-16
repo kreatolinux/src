@@ -447,7 +447,12 @@ proc builder*(package: string, destdir: string,
             elif packageExists(dep, kpkgOverlayPath&"/upperDir"):
                 pkg = getPackage(dep, kpkgOverlayPath&"/upperDir/")
             else:
-                err "Unknown error occured while generating binary package"
+                when defined(release):
+                    err "Unknown error occured while generating binary package"
+                else:
+                    debug "Unknown error occured while generating binary package"
+                    raise getCurrentException()
+
         except CatchableError:
             raise 
         if isEmptyOrWhitespace(depsInfo):
