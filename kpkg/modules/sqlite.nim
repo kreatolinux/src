@@ -57,6 +57,18 @@ proc newFile*(path, checksum: string, package: Package) =
     var res = newFileInternal(path, checksum, package)
     kpkgDb.insert(res)
 
+proc rootCheck(root: string) =
+    # Root checks (internal)
+    if root != "/":
+        var firstTime = false
+        if not fileExists(root&"/"&kpkgDbPath):
+            firstTime = true
+
+        kpkgDb = open(root&"/"&kpkgDbPath, "", "", "")
+
+        if firstTime:
+            kpkgDb.createTables(newFileInternal())
+
 proc pkgSumstoSQL*(file: string, package: Package) =
     # Converts pkgSums.ini into SQL
     for line in lines file:
@@ -68,8 +80,7 @@ proc pkgSumstoSQL*(file: string, package: Package) =
 
 proc getPackage*(name: string, root: string): Package =
     # Gets Package from package name.
-    if root != "/":
-        kpkgDb = open(root&"/"&kpkgDbPath, "", "", "")
+    rootCheck(root)
 
     var package = newPackageInternal()
     kpkgDb.select(package, "name = ?", name)
@@ -91,8 +102,7 @@ proc rmPackage*(name: string, root: string) =
 
 proc packageExists*(name: string, root = "/"): bool =
     # Check if a package exists in the database.
-    if root != "/":
-        kpkgDb = open(root&"/"&kpkgDbPath, "", "", "")
+    rootCheck(root)
 
     try:
         return kpkgDb.exists(Package, "name = ?", name)
@@ -102,8 +112,7 @@ proc packageExists*(name: string, root = "/"): bool =
 proc getListPackages*(root = "/"): seq[string] =
     # Returns a list of packages.
     
-    if root != "/":
-        kpkgDb = open(root&"/"&kpkgDbPath, "", "", "")
+    rootCheck(root)
     
     var packages = @[newPackageInternal()]
     kpkgDb.selectAll(packages)
@@ -118,8 +127,7 @@ proc getListPackages*(root = "/"): seq[string] =
 
 proc isReplaced*(name: string, root = "/"): bool =
     # Checks if a package is "replaced" or not.
-    if root != "/":
-        kpkgDb = open(root&"/"&kpkgDbPath, "", "", "")
+    rootCheck(root)
     
     # feels wrong for some reason, hmu if theres a better way -kreatoo
     var packages = @[newPackageInternal()]
@@ -137,8 +145,7 @@ proc getListFiles*(packageName: string, root: string): seq[string] =
     # Gives a list of files.
     # comparable to list_files in kpkg <v6.
     
-    if root != "/":
-        kpkgDb = open(root&"/"&kpkgDbPath, "", "", "")
+    rootCheck(root)
     
     var package = getPackage(packageName, root)
 
