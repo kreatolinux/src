@@ -75,6 +75,7 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
                 removeInternal(i, root)
     
     debug "packageExists:'"&($packageExists(package, root))&"'"
+    debug "listPackages :'"&($getlistPackages(root))&"'"
     if (packageExists(package, root)) and (not isGroup):
 
         info "package already installed, reinstalling"
