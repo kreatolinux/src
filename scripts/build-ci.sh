@@ -39,7 +39,6 @@ case $1 in
   	            ./build.sh -i
                 nim c --deepcopy:on scripts/sqlite.nim
                 scripts/sqlite || true
-                sqlite3 /var/cache/kpkg/kpkg.sqlite .dump
 
 		            nim c -d:branch=master --deepcopy:on --passL:-larchive --passC:-no-pie --threads:on -d:ssl -o=kreastrap/kreastrap kreastrap/kreastrap.nim
                 
