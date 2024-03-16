@@ -28,7 +28,7 @@ var firstTime = false
 if not fileExists(kpkgDbPath):
     firstTime = true
 
-let kpkgDb = open(kpkgDbPath, "", "", "")
+var kpkgDb = open(kpkgDbPath, "", "", "")
 
 func newPackageInternal(name = "", version = "", deps = "", bdeps = "", backup = "", replaces = "", manualInstall = false, isGroup = false): Package =
     # Initializes a new Package.
@@ -63,17 +63,20 @@ proc pkgSumstoSQL*(file: string, package: Package) =
         else:
             newFile(splittedLine[0], splittedLine[1], package)
 
-proc getPackage*(name: string): Package =
+proc getPackage*(name: string, root: string): Package =
     # Gets Package from package name.
+    if root != "/":
+        kpkgDb = open(root&"/"&kpkgDbPath, "", "", "")
+
     var package = newPackageInternal()
     kpkgDb.select(package, "name = ?", name)
     return package
 
 
-proc rmPackage*(name: string) =
+proc rmPackage*(name: string, root: string) =
     # Remove a package from the database.
     try:
-        var package = getPackage(name)
+        var package = getPackage(name, root)
 
         var file = @[newFileInternal()]
         kpkgDb.select(file, "package = ?", package)
@@ -83,12 +86,19 @@ proc rmPackage*(name: string) =
     except NotFoundError:
         discard
 
-proc packageExists*(name: string): bool =
+proc packageExists*(name: string, root = "/"): bool =
     # Check if a package exists in the database.
+    if root != "/":
+        kpkgDb = open(root&"/"&kpkgDbPath, "", "", "")
+
     return kpkgDb.exists(Package, "name = ?", name)
 
-proc getListPackages*(): seq[string] =
+proc getListPackages*(root = "/"): seq[string] =
     # Returns a list of packages.
+    
+    if root != "/":
+        kpkgDb = open(root&"/"&kpkgDbPath, "", "", "")
+    
     var packages = @[newPackageInternal()]
     kpkgDb.selectAll(packages)
     
@@ -100,11 +110,14 @@ proc getListPackages*(): seq[string] =
     
     return packageList
 
-proc getListFiles*(packageName: string): seq[string] =
+proc getListFiles*(packageName: string, root: string): seq[string] =
     # Gives a list of files.
     # comparable to list_files in kpkg <v6.
     
-    var package = getPackage(packageName)
+    if root != "/":
+        kpkgDb = open(root&"/"&kpkgDbPath, "", "", "")
+    
+    var package = getPackage(packageName, root)
 
     var files = @[newFileInternal()]
     kpkgDb.select(files, "package = ?", package)

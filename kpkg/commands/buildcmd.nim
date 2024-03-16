@@ -6,6 +6,7 @@ import sequtils
 import parsecfg
 import installcmd
 import posix_utils
+import ../modules/sqlite
 import ../modules/logger
 import ../modules/config
 import ../modules/lockfile
@@ -363,7 +364,7 @@ proc builder*(package: string, destdir: string,
         cmdStr = ". "&srcdir&"/runfCommands && export KPKG_ARCH="&arch&" && export KPKG_TARGET="&systemTarget(destdir)&" && "&cmdStr
         cmd3Str = ". "&srcdir&"/runfCommands && export KPKG_ARCH="&arch&" && export KPKG_TARGET="&systemTarget(destdir)&" && "&cmd3Str
 
-    if parseBool(override.getSectionValue("Other", "ccache", getConfigValue("Options", "ccache", "false"))) and dirExists(kpkgInstalledDir&"/ccache"):
+    if parseBool(override.getSectionValue("Other", "ccache", getConfigValue("Options", "ccache", "false"))) and packageExists("ccache"):
       
       if not dirExists(kpkgCacheDir&"/ccache"):
         createDir(kpkgCacheDir&"/ccache")
@@ -438,23 +439,21 @@ proc builder*(package: string, destdir: string,
         if isEmptyOrWhitespace(dep):
             continue 
 
-        var pkg: runFile
+        var pkg: Package
         
         try:
-            let p = "/"&kpkgInstalledDir&"/"&dep
-
-            if dirExists(kpkgEnvPath&p):
-                pkg = parseRunfile(kpkgEnvPath&p)
-            elif dirExists(kpkgOverlayPath&"/upperDir/"&p):
-                pkg = parseRunfile(kpkgOverlayPath&"/upperDir/"&p)
+            if packageExists(dep, kpkgEnvPath):
+                pkg = getPackage(dep, kpkgEnvPath)
+            elif packageExists(dep, kpkgOverlayPath&"/upperDir"):
+                pkg = getPackage(dep, kpkgOverlayPath&"/upperDir/")
             else:
                 err "Unknown error occured while generating binary package"
         except CatchableError:
             raise 
         if isEmptyOrWhitespace(depsInfo):
-            depsInfo = (dep&"#"&pkg.versionString)
+            depsInfo = (dep&"#"&pkg.version)
         else:
-            depsInfo = depsInfo&" "&(dep&"#"&pkg.versionString)
+            depsInfo = depsInfo&" "&(dep&"#"&pkg.version)
 
     pkgInfo.setSectionKey("", "depends", depsInfo)
         
@@ -481,8 +480,7 @@ proc builder*(package: string, destdir: string,
 
     # Install package to root aswell so dependency errors doesnt happen
     # because the dep is installed to destdir but not root.
-    if destdir != "/" and not dirExists(
-            kpkgInstalledDir&"/"&actualPackage) and (not dontInstall) and target == "default":
+    if destdir != "/" and not packageExists(actualPackage) and (not dontInstall) and target == "default":
         installPkg(repo, actualPackage, "/", pkg, manualInstallList, isUpgrade = isUpgrade, ignorePostInstall = ignorePostInstall)
 
     if (not dontInstall) and (kTarget == kpkgTarget(destDir)) :

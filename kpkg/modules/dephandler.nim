@@ -1,5 +1,6 @@
 import os
 import config
+import sqlite
 import logger
 import sequtils
 import strutils
@@ -21,12 +22,12 @@ proc checkVersions(root: string, dependency: string, repo: string, split = @[
         if i in dependency:
 
             let dSplit = dependency.split(i)
-            var deprf: runFile
+            var deprf: string
 
-            if dirExists(root&"/var/cache/kpkg/installed/"&dSplit[0]):
-                deprf = parseRunfile(root&"/var/cache/kpkg/installed/"&dSplit[0])
+            if packageExists(dSplit[0], root):
+                deprf = getPackage(dSplit[0], root).version
             else:
-                deprf = parseRunfile(repo&"/"&dSplit[0])
+                deprf = parseRunfile(repo&"/"&dSplit[0]).versionString
 
             let warnName = "Required dependency version for "&dSplit[
                     0]&" not found, upgrading"
@@ -36,36 +37,36 @@ proc checkVersions(root: string, dependency: string, repo: string, split = @[
 
             case i:
                 of "<=":
-                    if not (deprf.versionString <= dSplit[1]):
-                        if dirExists(root&"/var/cache/kpkg/installed/"&dSplit[0]):
+                    if not (deprf <= dSplit[1]):
+                        if packageExists(dSplit[0], root):
                             warn(warnName)
                             return @["upgrade", dSplit[0]]
                         else:
                             err(errName, false)
                 of ">=":
-                    if not (deprf.versionString >= dSplit[1]):
-                        if dirExists(root&"/var/cache/kpkg/installed/"&dSplit[0]):
+                    if not (deprf >= dSplit[1]):
+                        if packageExists(dSplit[0], root):
                             warn(warnName)
                             return @["upgrade", dSplit[0]]
                         else:
                             err(errName, false)
                 of "<":
-                    if not (deprf.versionString < dSplit[1]):
-                        if dirExists(root&"/var/cache/kpkg/installed/"&dSplit[0]):
+                    if not (deprf < dSplit[1]):
+                        if packageExists(dSplit[0], root):
                             warn(warnName)
                             return @["upgrade", dSplit[0]]
                         else:
                             err(errName, false)
                 of ">":
-                    if not (deprf.versionString > dSplit[1]):
-                        if dirExists(root&"/var/cache/kpkg/installed/"&dSplit[0]):
+                    if not (deprf > dSplit[1]):
+                        if packageExists(dSplit[0], root):
                             warn(warnName)
                             return @["upgrade", dSplit[0]]
                         else:
                             err(errName, false)
                 of "=":
-                    if deprf.versionString != dSplit[1]:
-                        if dirExists(root&"/var/cache/kpkg/installed/"&dSplit[0]):
+                    if deprf != dSplit[1]:
+                        if packageExists(dSplit[0], root):
                             warn(warnName)
                             return @["upgrade", dSplit[0]]
                         else:
@@ -132,8 +133,7 @@ proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false,
             for dep in pkgdeps:
 
                 if prevPkgName == dep:
-                    if isBuild and not dirExists(
-                            "/var/cache/kpkg/installed/"&dep):
+                    if isBuild and not packageExists(dep, "/"):
                         err("circular dependency detected for '"&dep&"'", false)
                     else:
                         return deps.filterit(it.len != 0)
@@ -142,9 +142,9 @@ proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false,
                 let chkVer = checkVersions(root, dep, repo)
                 let d = chkVer[1]
 
-                if fileExists(root&"/var/cache/kpkg/installed/"&d&"/list_files") and chkVer[
+                if packageExists(d, root) and chkVer[
                         0] != "upgrade" and not forceInstallAll:
-                    debug "dephandler: '"&root&"/var/cache/kpkg/installed/"&d&"/list_files' exist, continuing"
+                    debug "dephandler: package '"&d&"' exist in the db, continuing"
                     continue
                 
                 if not chkInstalledDirInstead:

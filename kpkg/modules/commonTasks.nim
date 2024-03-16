@@ -1,5 +1,6 @@
 import os
 import posix
+import sqlite
 import config
 import logger
 import strutils
@@ -7,7 +8,6 @@ import sequtils
 import parsecfg
 import runparser
 import posix_utils
-import commonPaths
 
 proc isEmptyDir(dir: string): bool = 
     # Checks if a directory is empty or not.
@@ -19,24 +19,24 @@ proc getDependents*(packages: seq[string], root = "/", addIfOutdated = true): se
     # @["bash"]
     var res: seq[string]
     
-    for p in walkDir(root&"/"&kpkgInstalledDir):
+    for p in getListPackages():
         
-        if not dirExists(p.path):
+        if not dirExists(p):
             continue
 
-        let runF = parseRunfile(p.path)
+        let runF = parseRunfile(p)
         
         for package in packages:
             if package in runF.deps:
                 if addIfOutdated:
-                    let packageLocalVer = parseRunfile(root&"/"&kpkgInstalledDir&"/"&package).versionString
+                    let packageLocalVer = getPackage(package, root).version
                     let packageUpstreamVer = parseRunfile(findPkgRepo(package)&"/"&package).versionString
                     if packageLocalVer != packageUpstreamVer:
-                        res = res&lastPathPart(p.path)
+                        res = res&lastPathPart(p)
                     else:
                         continue
                 else:    
-                    res = res&lastPathPart(p.path)
+                    res = res&lastPathPart(p)
 
     return res
 
@@ -100,13 +100,6 @@ proc getInit*(root: string): string =
     return loadConfig(root&"/etc/kreato-release").getSectionValue("Core", "init")
   except CatchableError:
     err("couldn't load "&root&"/etc/kreato-release")
-
-proc packageInstalled*(package, root: string): bool =
-  # Checks if an package is installed.
-  if dirExists("/var/cache/kpkg/installed/"&package):
-    return true
-  else:
-    return false
 
 proc getLibc*(root: string): string =
   ## Returns the libc.

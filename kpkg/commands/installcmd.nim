@@ -52,7 +52,7 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
     let isGroup = pkg.isGroup
 
     for i in pkg.conflicts:
-        if dirExists(root&kpkgInstalledDir&"/"&i):
+        if packageExists(i, root):
             err(i&" conflicts with "&package)
     
     removeDir("/tmp/kpkg/reinstall/"&package&"-old")
@@ -67,29 +67,19 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
     setCurrentDir(kpkgArchivesDir)
     
     for i in pkg.replaces:
-        if symlinkExists(root&kpkgInstalledDir&"/"&i):
-            removeFile(root&kpkgInstalledDir&"/"&i)
-        elif dirExists(root&kpkgInstalledDir&"/"&i):
+        if packageExists(i, root):
             if kTarget != kpkgTarget(root):
                 removeInternal(i, root, initCheck = false)
             else:
                 removeInternal(i, root)
-        createSymlink(package, root&kpkgInstalledDir&"/"&i)
 
-    if dirExists(root&kpkgInstalledDir&"/"&package) and
-            not symlinkExists(root&kpkgInstalledDir&"/"&package) and not isGroup:
+    if packageExists(package, root) and not isGroup:
 
         info "package already installed, reinstalling"
-        if not fileExists(root&kpkgInstalledDir&"/"&package&"/list_files"):
-            warn "'"&package&"' seems to be not installed correctly"
-            warn "removing '"&package&"' from database, but there may be some leftovers"
-            warn "please open an issue at https://github.com/kreatolinux/src with how this happened"
-            removeDir(root&kpkgInstalledDir&"/"&package)
+        if kTarget != kpkgTarget(root):
+            removeInternal(package, root, ignoreReplaces = true, noRunfile = true, initCheck = false)
         else:
-            if kTarget != kpkgTarget(root):
-                removeInternal(package, root, ignoreReplaces = true, noRunfile = true, initCheck = false)
-            else:
-                removeInternal(package, root, ignoreReplaces = true, noRunfile = false, depCheck = false)
+            removeInternal(package, root, ignoreReplaces = true, noRunfile = false, depCheck = false)
 
     discard existsOrCreateDir(root&"/var")
     discard existsOrCreateDir(root&"/var/cache")
@@ -144,14 +134,14 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
 
                 let depSplit = dep.split("#")
                  
-                var rf: runFile
+                var db: Package
                 try:
-                    rf = parseRunfile(root&"/"&kpkgInstalledDir&"/"&depSplit[0])
+                    db = getPackage(depSplit[0], root)
                 except:
                     raise
 
-                if rf.versionString != depSplit[1]:
-                    warn "this package is built with '"&dep&"', while the system has '"&depSplit[0]&"#"&rf.versionString&"'"
+                if db.version != depSplit[1]:
+                    warn "this package is built with '"&dep&"', while the system has '"&depSplit[0]&"#"&db.version&"'"
                     warn "installing anyway, but issues may occur"
                     warn "this may be an error in the future"
     
@@ -178,6 +168,11 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
 
             if "pkgsums.ini" == lastPathPart(file):
                 pkgSumsToSQL(kpkgInstallTemp&"/"&file, pkgType)
+                continue
+
+            if "pkgInfo.ini" == lastPathPart(file):
+                # TODO: add pkgInfo class to modules/sqlite
+                continue
 
             let doesFileExist = (fileExists(kpkgInstallTemp&"/"&file) or symlinkExists(kpkgInstallTemp&"/"&file))
             if doesFileExist:

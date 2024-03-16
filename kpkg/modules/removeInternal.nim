@@ -64,10 +64,10 @@ proc removeInternal*(package: string, root = "",
   else:
     actualPackage = package
 
-  if not packageExists(actualPackage):
+  if not packageExists(actualPackage, root):
     err("package "&package&" is not installed")
 
-  var pkg = getPackage(actualPackage)
+  var pkg = getPackage(actualPackage, root)
 
   if not noRunfile:
 
@@ -79,7 +79,7 @@ proc removeInternal*(package: string, root = "",
     if not pkg.isGroup:
       debug "Starting removal process"
  
-  let listFiles = getListFiles(actualPackage)
+  let listFiles = getListFiles(actualPackage, root)
     
   for line in listFiles:
     if not removeConfigs and not noRunfile:
@@ -100,7 +100,7 @@ proc removeInternal*(package: string, root = "",
       if symlinkExists(installedDir&"/"&i):
         removeFile(installedDir&"/"&i)
   
-  rmPackage(actualPackage)
+  rmPackage(actualPackage, root)
 
   if runPostRemove:
     if execCmdEx(". "&installedDir&"/"&actualPackage&"/run && command -v postremove > /dev/null").exitCode == 0:

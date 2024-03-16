@@ -1,6 +1,7 @@
 # Module for isolating kpkg builds as much as possible
 import std/os
 import logger
+import sqlite
 import std/times
 import processes
 import dephandler
@@ -16,9 +17,9 @@ proc installFromRootInternal(package, root, destdir: string, removeDestdirOnErro
     # Check if package exists and has the right checksum
     check(package, root, true)
     
-    let listFiles = root&kpkgInstalledDir&"/"&package&"/list_files"
+    let listFiles = getListFiles(package, root)
 
-    for line in lines listFiles:
+    for line in listFiles:
         let listFilesSplitted = line.split("=")[0].replace("\"", "")
         
         if not (fileExists(root&"/"&listFilesSplitted) or dirExists(root&"/"&listFilesSplitted)):
@@ -42,7 +43,6 @@ proc installFromRootInternal(package, root, destdir: string, removeDestdirOnErro
                 createDirWithPermissionsAndOwnership(root&"/"&listFilesSplitted.parentDir(), dirPath)
             
             copyFileWithPermissionsAndOwnership(root&"/"&listFilesSplitted, destdir&"/"&relativePath(listFilesSplitted, root))
-    copyDirWithPermissions(root&kpkgInstalledDir&"/"&package, destdir&kpkgInstalledDir&"/"&package)
 
 proc installFromRoot*(package, root, destdir: string, removeDestdirOnError = false) =
     # A wrapper for installFromRootInternal that also resolves dependencies.
