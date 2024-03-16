@@ -111,6 +111,23 @@ proc getListPackages*(root = "/"): seq[string] =
     
     return packageList
 
+proc isReplaced*(name: string, root = "/"): bool =
+    # Checks if a package is "replaced" or not.
+    if root != "/":
+        kpkgDb = open(root&"/"&kpkgDbPath, "", "", "")
+    
+    # feels wrong for some reason, hmu if theres a better way -kreatoo
+    var packages = @[newPackageInternal()]
+    kpkgDb.selectAll(packages)
+    
+    for package in packages:
+        if name in package.replaces.split("!!k!!"):
+            return true
+
+    return false
+
+
+
 proc getListFiles*(packageName: string, root: string): seq[string] =
     # Gives a list of files.
     # comparable to list_files in kpkg <v6.
