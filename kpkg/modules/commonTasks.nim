@@ -177,15 +177,15 @@ proc printPackagesPrompt*(packages: string, yes: bool, no: bool, isInstallDir = 
 
         let upstreamRunf = parseRunfile(pkgRepo&"/"&pkg)
         var r = lastPathPart(pkgRepo)&"/"&pkg
-        if fileExists("/var/cache/kpkg/installed/"&pkg&"/run"):
-          let localRunf = parseRunfile("/var/cache/kpkg/installed/"&pkg)
-          if localRunf.versionString != upstreamRunf.versionString:
-            r = r&"-"&localRunf.versionString
-            r = appenderInternal(r, pkg, lastPathPart(pkgRepo), localRunf.versionString)
+        if packageExists(pkg, "/"):
+          let localPkg = getPackage(pkg, "/")
+          if localPkg.version != upstreamRunf.versionString:
+            r = r&"-"&localPkg.version
+            r = appenderInternal(r, pkg, lastPathPart(pkgRepo), localPkg.version)
             r = r&upstreamRunf.versionString
           else:
-            r = r&"-"&localRunf.versionString
-            r = appenderInternal(r, pkg, lastPathPart(pkgRepo), localRunf.versionString)
+            r = r&"-"&localPkg.version
+            r = appenderInternal(r, pkg, lastPathPart(pkgRepo), localPkg.version)
             if i in dependents:
                 if binary:
                     r = r&"reinstall"
@@ -218,10 +218,10 @@ proc printPackagesPrompt*(packages: string, yes: bool, no: bool, isInstallDir = 
         else:
           pkgRepo = findPkgRepo(i)
 
-      if fileExists("/var/cache/kpkg/installed/"&pkg&"/run") and pkgRepo != "":
+      if packageExists(pkg, "/") and pkgRepo != "":
         upstreamRunf = parseRunfile(pkgRepo&"/"&pkg)
         
-        if parseRunfile("/var/cache/kpkg/installed/"&pkg).versionString != upstreamRunf.versionString:
+        if getPackage(pkg, "/").version != upstreamRunf.versionString:
           finalPkgs = appendInternal(i&" -> ".green&upstreamRunf.versionString, finalPkgs)
           continue
         elif pkg in dependents: 
@@ -276,9 +276,8 @@ proc printReplacesPrompt*(pkgs: seq[string], root: string, isDeps = false, isIns
         pkgRepo = findPkgRepo(i)
 
     for p in parseRunfile(pkgRepo&"/"&pkg).replaces:
-      if isDeps and dirExists(root&"/var/cache/kpkg/installed/"&p):
+      if isDeps and packageExists(p, root):
         continue
-      if dirExists(root&"/var/cache/kpkg/installed/"&p) and not symlinkExists(
-          root&"/var/cache/installed/"&p):
+      if packageExists(p, root) and not isReplaced(p, root):
         info "'"&i&"' replaces '"&p&"'"
 
