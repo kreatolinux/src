@@ -160,10 +160,13 @@ proc getListFiles*(packageName: string, root: string): seq[string] =
     
     return listFiles
 
-for i in walkDir("/var/cache/kpkg/installed/*"):
+for i in walkDirs("/var/cache/kpkg/installed/*"):
     echo i
-    let runf = parseRunfile(i.path)
-    let pkg =  newPackage(lastPathPart(i.path), runf.versionString, runf.release, runf.epoch, runf.deps.join("!!k!!"), runf.bdeps.join("!!k!!"), runf.backup.join("!!k!!"), runf.replaces.join("!!k!!"), runf.desc, true, runf.isGroup)
-    for line in lines i.path&"/list_files":
+    let runf = parseRunfile(i)
+    let pkg =  newPackage(lastPathPart(i), runf.versionString, runf.release, runf.epoch, runf.deps.join("!!k!!"), runf.bdeps.join("!!k!!"), runf.backup.join("!!k!!"), runf.replaces.join("!!k!!"), runf.desc, true, runf.isGroup)
+    for line in lines i&"/list_files":
         let lineSplit = line.split("=")
-        newFile(lineSplit[0], lineSplit[1], pkg)
+        if lineSplit.len == 2:
+            newFile(lineSplit[0], lineSplit[1], pkg)
+        else:
+            newFile(lineSplit[0], "", pkg)
