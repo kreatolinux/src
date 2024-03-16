@@ -44,7 +44,7 @@ case $1 in
                 
                 export PATH=$PATH:$HOME/.nimble/bin # Add nimble path so opir can run
   	            ./build.sh -i
-		            nim c -d:branch=master --passL:-larchive --passC:-no-pie --threads:on -d:ssl -o=kreastrap/kreastrap kreastrap/kreastrap.nim
+		            nim c -d:branch=master --deepcopy:on --passL:-larchive --passC:-no-pie --threads:on -d:ssl -o=kreastrap/kreastrap kreastrap/kreastrap.nim
                 
 		            cat /etc/group | grep tty || addgroup tty
         ;;
