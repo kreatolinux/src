@@ -143,6 +143,7 @@ proc builder*(package: string, destdir: string,
 
     var pkg: runFile
     try:
+        debug "parseRunfile ran from buildcmd"
         pkg = parseRunfile(path)
     except CatchableError:
         err("Unknown error while trying to parse package on repository, possibly broken repo?", false)
@@ -579,6 +580,7 @@ proc build*(no = false, yes = false, root = "/",
                 
             discard mountOverlay(error = "mounting overlay")
             # We set isBuild to false here as we don't want build dependencies of other packages on the sandbox.
+            debug "parseRunfile ran from buildcmd, depsToClean"
             depsToClean = deduplicate(parseRunfile(findPkgRepo(i)&"/"&i).bdeps&dephandler(@[i], isBuild = false, root = fullRootPath, forceInstallAll = true, isInstallDir = isInstallDir, ignoreInit = ignoreInit))
             debug "depsToClean = \""&depsToClean.join(" ")&"\""
             if target != "default" and target != kpkgTarget("/"):
