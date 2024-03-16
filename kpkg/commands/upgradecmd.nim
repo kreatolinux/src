@@ -3,6 +3,7 @@ import strutils
 import buildcmd
 import installcmd
 import ../modules/config
+import ../modules/sqlite
 import ../modules/logger
 import ../modules/lockfile
 import ../modules/runparser
@@ -19,47 +20,46 @@ proc upgrade*(root = "/",
     var packages: seq[string]
     var repo: string
     
-    for i in walkDir("/var/cache/kpkg/installed"):
-        if i.kind == pcDir:
+    for i in getListPackages(root):
             
-            let pkg = lastPathPart(i.path)
-            var localPkg: runFile
-            try:
-                localPkg = parse_runfile(i.path)
-            except CatchableError:
-                err("Unknown error while reading installed package")
+        let pkg = lastPathPart(i)
+        var localPkg: Package
+        try:
+            localPkg = getPackage(i, root)
+        except CatchableError:
+            err("Unknown error while reading installed package")
 
-            var isAReplacesPackage: bool
+        var isAReplacesPackage: bool
 
-            for r in localPkg.replaces:
-                if r == pkg:
-                    isAReplacesPackage = true
+        for r in localPkg.replaces.split("!!k!!"):
+            if r == pkg:
+                isAReplacesPackage = true
 
-            if isAReplacesPackage:
-                continue
+        if isAReplacesPackage:
+            continue
 
-            if localPkg.pkg in getConfigValue("Upgrade", "dontUpgrade").split(" "):
-                info "skipping "&localPkg.pkg&": selected to not upgrade in kpkg.conf"
-                continue
+        if localPkg.name in getConfigValue("Upgrade", "dontUpgrade").split(" "):
+            info "skipping "&localPkg.name&": selected to not upgrade in kpkg.conf"
+            continue
 
-            when declared(localPkg.epoch):
-                let epoch_local = epoch
+        when declared(localPkg.epoch):
+            let epoch_local = epoch
 
-            repo = findPkgRepo(pkg)
-            if isEmptyOrWhitespace(repo):
-                warn "skipping "&localPkg.pkg&": not found in available repositories"
-                continue
+        repo = findPkgRepo(pkg)
+        if isEmptyOrWhitespace(repo):
+            warn "skipping "&localPkg.name&": not found in available repositories"
+            continue
 
-            var upstreamPkg: runFile
-            try:
-                upstreamPkg = parse_runfile(repo&"/"&pkg)
-            except CatchableError:
-                err("Unknown error while reading package on repository, possibly broken repo?")
+        var upstreamPkg: runFile
+        try:
+            upstreamPkg = parse_runfile(repo&"/"&pkg)
+        except CatchableError:
+            err("Unknown error while reading package on repository, possibly broken repo?")
 
-            if localPkg.version < upstreamPkg.version or localPkg.release <
-              upstreamPkg.release or (localPkg.epoch != "no" and
-                      localPkg.epoch < upstreamPkg.epoch):
-                packages = packages&pkg
+        if localPkg.version < upstreamPkg.version or localPkg.release <
+            upstreamPkg.release or (localPkg.epoch != "no" and
+                    localPkg.epoch < upstreamPkg.epoch):
+            packages = packages&pkg
 
     if packages.len == 0 and isEmptyOrWhitespace(packages.join("")):
         success("done", true)
