@@ -21,10 +21,6 @@ type
         blake2Checksum*: string
         package*: Package
 
-    Replace* = ref object of Model
-        first*: Package
-        second*: Package
-
 
 createDir(kpkgDbPath.parentDir())
 
@@ -40,16 +36,12 @@ func newPackageInternal(name = "", version = "", deps = "", bdeps = "", backup =
     Package(name: name, version: version, deps: deps, bdeps: bdeps, manualInstall: manualInstall, isGroup: isGroup, backup: backup, replaces: replaces, desc: desc)
 
 func newFileInternal(path = "", checksum = "", package = newPackageInternal()): File =
-    # Initializes a new File.
+    # Initializes a new Package.
     File(path: path, blake2Checksum: checksum, package: package)
-
-func newReplaceInternal(first = newPackageInternal(), second = newPackageInternal()): Replace =
-    # Initializes a new Replace.
-    Replace(first: first, second: second)
 
 if firstTime:
     kpkgDb.createTables(newFileInternal())
-    kpkgDb.createTables(newReplaceInternal())
+    
 
 proc newPackage*(name, version, deps, bdeps, backup, replaces, desc: string, manualInstall, isGroup: bool): Package =
     # Initialize a new Package (wrapper)
@@ -57,11 +49,6 @@ proc newPackage*(name, version, deps, bdeps, backup, replaces, desc: string, man
     var res = newPackageInternal(name, version, deps, bdeps, backup, replaces, desc, manualInstall, isGroup)
     kpkgDb.insert(res)
     return res
-
-proc newReplace(first, second: Package) =
-    # Initialize a new Replace (wrapper)
-    var res = newReplaceInternal(first, second)
-    kpkgDb.insert(res)
 
 proc newFile*(path, checksum: string, package: Package) =
     # Initialize a File (wrapper)
@@ -123,17 +110,6 @@ proc getListPackages*(root = "/"): seq[string] =
         packageList = packageList&p.name    
     
     return packageList
-
-proc isReplace*(name: string, root: string): bool =
-    # Checks if a package is a Replace.
-    # Returns false if package doesn't exist.
-    
-    if not packageExists(name, root):
-        return false
-
-    var package = getPackage(name, root)
-    
-    return kpkgDb.exists(Replace, "first = ?", package)
 
 proc getListFiles*(packageName: string, root: string): seq[string] =
     # Gives a list of files.
