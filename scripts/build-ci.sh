@@ -3,9 +3,9 @@
 #
 
 e() {
-    sqlite3 /var/cache/kpkg/kpkg.sqlite .dump
-    sqlite3 /var/cache/kpkg/env/var/cache/kpkg/kpkg.sqlite .dump
-    sqlite3 /opt/kpkg/overlay/upperDir/var/cache/kpkg/kpkg.sqlite .dump
+    #sqlite3 /var/cache/kpkg/kpkg.sqlite .dump
+    #sqlite3 /var/cache/kpkg/env/var/cache/kpkg/kpkg.sqlite .dump
+    #sqlite3 /opt/kpkg/overlay/upperDir/var/cache/kpkg/kpkg.sqlite .dump
     exit 1
 }
 
