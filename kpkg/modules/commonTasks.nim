@@ -24,19 +24,19 @@ proc getDependents*(packages: seq[string], root = "/", addIfOutdated = true): se
         if not dirExists(p):
             continue
 
-        let runF = parseRunfile(p)
+        let pkg = getPackage(p, root) 
         
         for package in packages:
-            if package in runF.deps:
+            if package in pkg.deps.split("!!k!!"):
                 if addIfOutdated:
-                    let packageLocalVer = getPackage(package, root).version
+                    let packageLocalVer = pkg.version
                     let packageUpstreamVer = parseRunfile(findPkgRepo(package)&"/"&package).versionString
                     if packageLocalVer != packageUpstreamVer:
-                        res = res&lastPathPart(p)
+                        res = res&p
                     else:
                         continue
                 else:    
-                    res = res&lastPathPart(p)
+                    res = res&p
 
     return res
 
