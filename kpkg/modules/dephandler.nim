@@ -117,7 +117,9 @@ proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false,
                 repo = "/etc/kpkg/repos/"&pkgSplit[0]
                 pkg = pkgSplit[1]
             elif not chkInstalledDirInstead:
+                debug "findPkgRepo ran"
                 repo = findPkgRepo(pkg)
+                debug "repo: '"&repo&"'"
             else:
                 repo = "local"
 
@@ -132,7 +134,7 @@ proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false,
         var pkgrf: runFile
 
         if repo != "local":
-            debug "parseRunfile ran, dephandler"
+            debug "parseRunfile ran, dephandler, repo:'"&repo&"'"
             pkgrf = parseRunfile(repo&"/"&pkg)
         else:
             pkgrf = packageToRunfile(getPackage(pkg, root))
