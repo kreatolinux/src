@@ -74,7 +74,7 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
             else:
                 removeInternal(i, root)
 
-    if packageExists(package, root) and not isGroup:
+    if (not packageExists(package, root)) and (not isGroup):
 
         info "package already installed, reinstalling"
         if kTarget != kpkgTarget(root):
