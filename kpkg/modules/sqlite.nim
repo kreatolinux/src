@@ -94,7 +94,10 @@ proc packageExists*(name: string, root = "/"): bool =
     if root != "/":
         kpkgDb = open(root&"/"&kpkgDbPath, "", "", "")
 
-    return kpkgDb.exists(Package, "name = ?", name)
+    try:
+        return kpkgDb.exists(Package, "name = ?", name)
+    except:
+        return false
 
 proc getListPackages*(root = "/"): seq[string] =
     # Returns a list of packages.
