@@ -14,6 +14,10 @@ proc isIn(one, two: seq[string]): bool =
             return true
     return false
 
+proc packageToRunFile(package: Package): runFile =
+    # Converts package to runFile. Not all variables are available.
+    return runFile(pkg: package.name, version: package.version, versionString: package.version, release: package.release, epoch: package.epoch, deps: package.deps.split("!!k!!"), bdeps: package.bdeps.split("!!k!!"))
+
 proc checkVersions(root: string, dependency: string, repo: string, split = @[
         "<=", ">=", "<", ">", "="]): seq[string] =
     ## Internal proc for checking versions on dependencies (if it exists)
@@ -109,16 +113,23 @@ proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false,
             elif not chkInstalledDirInstead:
                 repo = findPkgRepo(pkg)
             else:
-                repo = root&"/var/cache/kpkg/installed"
+                repo = "local"
 
         if repo == "":
             err("Package '"&pkg&"' doesn't exist", false)
-        elif not dirExists(repo):
+        elif not dirExists(repo) and repo != "local":
             err("The repository '"&repo&"' doesn't exist", false)
-        elif not fileExists(repo&"/"&pkg&"/run"):
+        elif not fileExists(repo&"/"&pkg&"/run") and repo != "local":
             err("The package '"&pkg&"' doesn't exist on the repository "&repo, false)
         
-        let pkgrf = parseRunfile(repo&"/"&pkg)
+        
+        var pkgrf: runFile
+
+        if repo != "local":
+            pkgrf = parseRunfile(repo&"/"&pkg)
+        else:
+            pkgrf = packageToRunfile(getPackage(pkg, root))
+
         var pkgdeps: seq[string]
 
         if bdeps:
