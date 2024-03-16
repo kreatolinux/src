@@ -152,7 +152,7 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
             info "Setting as manually installed"
             mI = true
 
-        var pkgType = newPackage(package, pkg.versionString, pkg.deps.join("!!k!!"), pkg.bdeps.join("!!k!!"), pkg.backup.join("!!k!!"), pkg.replaces.join("!!k!!"), pkg.desc, mI, pkg.isGroup) 
+        var pkgType = newPackage(package, pkg.versionString, pkg.release, pkg.epoch, pkg.deps.join("!!k!!"), pkg.bdeps.join("!!k!!"), pkg.backup.join("!!k!!"), pkg.replaces.join("!!k!!"), pkg.desc, mI, pkg.isGroup) 
             
         # Installation loop 
         for file in extractTarball:

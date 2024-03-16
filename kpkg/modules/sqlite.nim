@@ -8,6 +8,8 @@ type
     Package* = ref object of Model
         name*: string
         version*: string
+        release*: string
+        epoch*: string
         deps*: string
         bdeps*: string
         manualInstall*: bool
@@ -31,9 +33,9 @@ if not fileExists(kpkgDbPath):
 
 var kpkgDb = open(kpkgDbPath, "", "", "")
 
-func newPackageInternal(name = "", version = "", deps = "", bdeps = "", backup = "", replaces = "", desc = "", manualInstall = false, isGroup = false): Package =
+func newPackageInternal(name = "", version = "", deps = "", bdeps = "", backup = "", replaces = "", desc = "", release = "", epoch = "", manualInstall = false, isGroup = false): Package =
     # Initializes a new Package.
-    Package(name: name, version: version, deps: deps, bdeps: bdeps, manualInstall: manualInstall, isGroup: isGroup, backup: backup, replaces: replaces, desc: desc)
+    Package(name: name, version: version, release: release, epoch: epoch, deps: deps, bdeps: bdeps, manualInstall: manualInstall, isGroup: isGroup, backup: backup, replaces: replaces, desc: desc)
 
 func newFileInternal(path = "", checksum = "", package = newPackageInternal()): File =
     # Initializes a new Package.
@@ -43,10 +45,10 @@ if firstTime:
     kpkgDb.createTables(newFileInternal())
     
 
-proc newPackage*(name, version, deps, bdeps, backup, replaces, desc: string, manualInstall, isGroup: bool): Package =
+proc newPackage*(name, version, release, epoch, deps, bdeps, backup, replaces, desc: string, manualInstall, isGroup: bool): Package =
     # Initialize a new Package (wrapper)
     debug "newPackage ran"
-    var res = newPackageInternal(name, version, deps, bdeps, backup, replaces, desc, manualInstall, isGroup)
+    var res = newPackageInternal(name, version, deps, bdeps, backup, replaces, desc, release, epoch, manualInstall, isGroup)
     kpkgDb.insert(res)
     return res
 
