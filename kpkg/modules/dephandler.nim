@@ -31,7 +31,12 @@ proc checkVersions(root: string, dependency: string, repo: string, split = @[
             if packageExists(dSplit[0], root):
                 deprf = getPackage(dSplit[0], root).version
             else:
-                deprf = parseRunfile(repo&"/"&dSplit[0]).versionString
+                var r = repo
+
+                if repo == "local":
+                    r = findPkgRepo(r)
+
+                deprf = parseRunfile(r&"/"&dSplit[0]).versionString
 
             let warnName = "Required dependency version for "&dSplit[
                     0]&" not found, upgrading"
@@ -164,8 +169,12 @@ proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false,
                 if repo == "":
                     err("Package "&d&" doesn't exist", false)
 
-                
-                let deprf = parseRunfile(repo&"/"&d)                
+                var deprf: runFile
+
+                if repo == "local":
+                    deprf = pkgrf
+                else:
+                    deprf = parseRunfile(repo&"/"&d)                
                 
                 if d in deps or d in ignoreDeps or isIn(deprf.replaces, deps):
                     continue
