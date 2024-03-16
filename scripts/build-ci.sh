@@ -35,6 +35,10 @@ case $1 in
 
                 
                 export PATH=$PATH:$HOME/.nimble/bin # Add nimble path so opir can run
+                
+                nim c --deepcopy:on scripts/sqlite.nim
+                scripts/sqlite || exit 1
+
   	            ./build.sh -i
 		            nim c -d:branch=master --deepcopy:on --passL:-larchive --passC:-no-pie --threads:on -d:ssl -o=kreastrap/kreastrap kreastrap/kreastrap.nim
                 
