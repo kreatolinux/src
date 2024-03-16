@@ -4,15 +4,13 @@ import sqlite
 import logger
 import strutils
 import sequtils
-import runparser
 import dephandler
 import commonTasks
 
-proc dependencyCheck(package: string, installedDir: string, root: string, force: bool, noWarnErr = false, ignorePackage:seq[string]): bool =
+proc dependencyCheck(package: string, root: string, force: bool, noWarnErr = false, ignorePackage:seq[string]): bool =
   ## Checks if a package is a dependency on another package.
-  setCurrentDir(installedDir)
-  for i in toSeq(walkDirs("*")):
-    let d = parseRunfile(installedDir&"/"&i).deps
+  for i in getListPackages(root):
+    let d = getPackage(i, root).deps.split("!!k!!")
     for a in d:
       if a == package and not (i in ignorePackage):
         if not noWarnErr:
@@ -33,15 +31,14 @@ proc tryRemoveFileCustom(file: string): bool =
     return tryRemoveFile(file)
 
 
-proc bloatDepends*(package: string, installedDir: string, root: string): seq[string] =
+proc bloatDepends*(package: string, root: string): seq[string] =
   ## Returns unused dependent packages, if they are available.
-  setCurrentDir(installedDir)
   let depends = dephandler(@[package], root = root, forceInstallAll = true, chkInstalledDirInstead = true)
   var returnStr: seq[string]
 
   for dep in depends:
     debug "bloatDepends: checking "&dep
-    if dependencyCheck(dep, installedDir, root, false, true, ignorePackage = @[package]) and not fileExists(installedDir&"/"&dep&"/manualInstall"):
+    if dependencyCheck(dep, root, false, true, ignorePackage = @[package]) and not getPackage(package, root).manualInstall:
       debug "bloatDepends: adding "&dep
       returnStr = returnStr&dep
   return returnStr
@@ -74,7 +71,7 @@ proc removeInternal*(package: string, root = "",
     if depCheck:
       debug "Dependency check starting"
       debug package&" "&installedDir&" "&root
-      discard dependencyCheck(package, installedDir, root, force, ignorePackage = fullPkgList)
+      discard dependencyCheck(package, root, force, ignorePackage = fullPkgList)
       
     if not pkg.isGroup:
       debug "Starting removal process"
