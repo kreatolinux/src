@@ -132,7 +132,15 @@ proc isReplaced*(name: string, root = "/"): bool =
 
     return false
 
+proc newPackageFromRoot*(root, package, destdir: string) =
+    # Gets package from root, and adds it to destdir.
+    rootCheck(root)
 
+    var res = getPackage(package, root)
+    
+    rootCheck(destdir)
+    
+    kpkgDb.insert(res)
 
 proc getListFiles*(packageName: string, root: string): seq[string] =
     # Gives a list of files.
