@@ -74,8 +74,6 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
             else:
                 removeInternal(i, root)
     
-    debug "packageExists:'"&($packageExists(package, root))&"'"
-    debug "listPackages :'"&($getlistPackages(root))&"'"
     if (packageExists(package, root)) and (not isGroup):
 
         info "package already installed, reinstalling"
@@ -155,7 +153,7 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
             info "Setting as manually installed"
             mI = true
 
-        var pkgType = newPackage(package, pkg.versionString, pkg.release, pkg.epoch, pkg.deps.join("!!k!!"), pkg.bdeps.join("!!k!!"), pkg.backup.join("!!k!!"), pkg.replaces.join("!!k!!"), pkg.desc, mI, pkg.isGroup) 
+        var pkgType = newPackage(package, pkg.versionString, pkg.release, pkg.epoch, pkg.deps.join("!!k!!"), pkg.bdeps.join("!!k!!"), pkg.backup.join("!!k!!"), pkg.replaces.join("!!k!!"), pkg.desc, mI, pkg.isGroup, root) 
             
         # Installation loop 
         for file in extractTarball:
@@ -170,7 +168,7 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
                 err "file \""&relPath&"\" already exists on filesystem, cannot continue"
 
             if "pkgsums.ini" == lastPathPart(file):
-                pkgSumsToSQL(kpkgInstallTemp&"/"&file, pkgType)
+                pkgSumsToSQL(kpkgInstallTemp&"/"&file, pkgType, root)
                 continue
 
             if "pkgInfo.ini" == lastPathPart(file):

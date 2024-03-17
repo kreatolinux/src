@@ -24,14 +24,8 @@ type
         package*: Package
 
 
-createDir(kpkgDbPath.parentDir())
 
-var firstTime = false
-
-if not fileExists(kpkgDbPath):
-    firstTime = true
-
-var kpkgDb = open(kpkgDbPath, "", "", "")
+var kpkgDb: DbConn
 
 func newPackageInternal(name = "", version = "", deps = "", bdeps = "", backup = "", replaces = "", desc = "", release = "", epoch = "", manualInstall = false, isGroup = false): Package =
     # Initializes a new Package.
@@ -41,42 +35,40 @@ func newFileInternal(path = "", checksum = "", package = newPackageInternal()): 
     # Initializes a new Package.
     File(path: path, blake2Checksum: checksum, package: package)
 
-if firstTime:
-    kpkgDb.createTables(newFileInternal())
+proc rootCheck(root: string) =
+    # Root checks (internal)
+    var firstTime = false
     
+    if not fileExists(root&"/"&kpkgDbPath):
+        firstTime = true
 
-proc newPackage*(name, version, release, epoch, deps, bdeps, backup, replaces, desc: string, manualInstall, isGroup: bool): Package =
+    kpkgDb = open(root&"/"&kpkgDbPath, "", "", "")
+
+    if firstTime:
+        kpkgDb.createTables(newFileInternal())
+
+proc newPackage*(name, version, release, epoch, deps, bdeps, backup, replaces, desc: string, manualInstall, isGroup: bool, root: string): Package =
     # Initialize a new Package (wrapper)
+    rootCheck(root)
     debug "newPackage ran"
     var res = newPackageInternal(name, version, deps, bdeps, backup, replaces, desc, release, epoch, manualInstall, isGroup)
     kpkgDb.insert(res)
     return res
 
-proc newFile*(path, checksum: string, package: Package) =
+proc newFile*(path, checksum: string, package: Package, root: string) =
     # Initialize a File (wrapper)
+    rootCheck(root)
     var res = newFileInternal(path, checksum, package)
     kpkgDb.insert(res)
 
-proc rootCheck(root: string) =
-    # Root checks (internal)
-    if root != "/":
-        var firstTime = false
-        if not fileExists(root&"/"&kpkgDbPath):
-            firstTime = true
-
-        kpkgDb = open(root&"/"&kpkgDbPath, "", "", "")
-
-        if firstTime:
-            kpkgDb.createTables(newFileInternal())
-
-proc pkgSumstoSQL*(file: string, package: Package) =
+proc pkgSumstoSQL*(file: string, package: Package, root: string) =
     # Converts pkgSums.ini into SQL
     for line in lines file:
         let splittedLine = line.split("=")
         if splittedLine.len != 2:
-            newFile(splittedLine[0], "", package)
+            newFile(splittedLine[0], "", package, root)
         else:
-            newFile(splittedLine[0], splittedLine[1], package)
+            newFile(splittedLine[0], splittedLine[1], package, root)
 
 proc getPackage*(name: string, root: string): Package =
     # Gets Package from package name.
@@ -89,6 +81,7 @@ proc getPackage*(name: string, root: string): Package =
 
 proc rmPackage*(name: string, root: string) =
     # Remove a package from the database.
+    rootCheck(root)
     try:
         var package = getPackage(name, root)
 
