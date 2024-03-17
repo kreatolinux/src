@@ -88,8 +88,6 @@ proc checkVersions(root: string, dependency: string, repo: string, split = @[
 
 
 
-var replaceList: seq[tuple[package: string, replacedBy: seq[string]]]
-
 proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false,
         isBuild = false, root: string, prevPkgName = "",
                 forceInstallAll = false, chkInstalledDirInstead = false, isInstallDir = false, ignoreInit = false): seq[string] =
@@ -188,16 +186,6 @@ proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false,
                     if findPkgRepo(dep&"-"&init) != "":
                         deps.add(dep&"-"&init)
                 
-                var dontAdd = false
-
-                for i in replaceList:
-                    if i.package == d or d in i.replacedBy:
-                        dontAdd = true
-                        
-
-                if deprf.replaces.len > 0 and not dontAdd:
-                    replaceList = replaceList&(dep, deprf.replaces)
-                
                 if not isEmptyOrWhitespace(deprf.bdeps.join()) and isBuild:
                     deps.add(dephandler(@[d], deprf.replaces&deps&ignoreDeps, bdeps = true,
                             isBuild = true, root = root, prevPkgName = pkg, chkInstalledDirInstead = chkInstalledDirInstead, forceInstallAll = forceInstallAll, ignoreInit = ignoreInit))
@@ -208,16 +196,4 @@ proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false,
 
                 deps.add(d)
 
-    for i in replaceList:
-        debug "replaceList: '"&replaceList.join(" ")&"'"
-        for replacePackage in i.replacedBy:
-            if not (replacePackage in deps):
-                
-                while deps.find(replacePackage) != -1:
-                    let index = deps.find(replacePackage)
-                    debug "deleting '"&replacePackage&"'"
-                    deps.delete(index)
-                    debug "inserting '"&i.package&"' instead"
-                    deps.insert(i.package, index)
- 
     return deduplicate(deps.filterit(it.len != 0))
