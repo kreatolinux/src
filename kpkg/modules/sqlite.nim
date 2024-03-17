@@ -136,9 +136,11 @@ proc newPackageFromRoot*(root, package, destdir: string) =
     # Gets package from root, and adds it to destdir.
     rootCheck(root)
 
-    var res = getPackage(package, root)
-    
+    var og = getPackage(package, root)
+     
     rootCheck(destdir)
+    
+    var res = newPackageInternal(og.name, og.version, og.deps, og.bdeps, og.backup, og.replaces, og.desc, og.release, og.epoch, og.manualInstall, og.isGroup)
     
     kpkgDb.insert(res)
 
