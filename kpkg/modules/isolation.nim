@@ -135,8 +135,8 @@ proc createEnv*(root: string) =
 
 proc umountOverlay*(error = "none", silentMode = false, merged = kpkgMergedPath, upperDir = kpkgOverlayPath&"/upperDir", workDir = kpkgOverlayPath&"/workDir"): int =
     ## Unmounts the overlay.
-    let returnCode = execCmdKpkg("umount -l "&merged, error, silentMode)
-    discard execCmdKpkg("umount -l "&kpkgOverlayPath, error, silentMode = silentMode)
+    let returnCode = execCmdKpkg("umount "&merged, error, silentMode)
+    discard execCmdKpkg("umount "&kpkgOverlayPath, error, silentMode = silentMode)
     removeDir(merged)
     removeDir(upperDir)
     removeDir(workDir)
