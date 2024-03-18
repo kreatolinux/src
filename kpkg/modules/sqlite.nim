@@ -35,9 +35,13 @@ func newFileInternal(path = "", checksum = "", package = newPackageInternal()): 
     # Initializes a new Package.
     File(path: path, blake2Checksum: checksum, package: package)
 
+proc closeDb*() =
+    # Wrapper for close.
+    close kpkgDb
+
 proc rootCheck(root: string) =
     # Root checks (internal)
-    close kpkgDb
+    closeDb()
     var firstTime = false
     
     if not fileExists(root&"/"&kpkgDbPath):
