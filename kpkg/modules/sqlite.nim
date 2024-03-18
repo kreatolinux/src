@@ -26,6 +26,8 @@ type
 
 
 var kpkgDb: DbConn
+var connOn = false
+
 
 func newPackageInternal(name = "", version = "", deps = "", bdeps = "", backup = "", replaces = "", desc = "", release = "", epoch = "", manualInstall = false, isGroup = false): Package =
     # Initializes a new Package.
@@ -37,7 +39,9 @@ func newFileInternal(path = "", checksum = "", package = newPackageInternal()): 
 
 proc closeDb*() =
     # Wrapper for close.
-    close kpkgDb
+    if connOn:
+        close kpkgDb
+        connOn = false
 
 proc rootCheck(root: string) =
     # Root checks (internal)
@@ -48,6 +52,7 @@ proc rootCheck(root: string) =
         firstTime = true
     
     kpkgDb = open(root&"/"&kpkgDbPath, "", "", "")
+    connOn = true
 
     if firstTime:
         kpkgDb.createTables(newFileInternal())
