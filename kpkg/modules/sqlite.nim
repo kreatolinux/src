@@ -37,6 +37,7 @@ func newFileInternal(path = "", checksum = "", package = newPackageInternal()): 
 
 proc rootCheck(root: string) =
     # Root checks (internal)
+    close kpkgDb
     var firstTime = false
     
     if not fileExists(root&"/"&kpkgDbPath):
@@ -53,7 +54,6 @@ proc newPackage*(name, version, release, epoch, deps, bdeps, backup, replaces, d
     debug "newPackage ran"
     var res = newPackageInternal(name, version, deps, bdeps, backup, replaces, desc, release, epoch, manualInstall, isGroup)
     kpkgDb.insert(res)
-    close kpkgDb
     return res
 
 proc newFile*(path, checksum: string, package: Package, root: string) =
@@ -61,7 +61,6 @@ proc newFile*(path, checksum: string, package: Package, root: string) =
     rootCheck(root)
     var res = newFileInternal(path, checksum, package)
     kpkgDb.insert(res)
-    close kpkgDb
 
 proc pkgSumstoSQL*(file: string, package: Package, root: string) =
     # Converts pkgSums.ini into SQL
@@ -78,7 +77,6 @@ proc getPackage*(name: string, root: string): Package =
 
     var package = newPackageInternal()
     kpkgDb.select(package, "name = ?", name)
-    close kpkgDb
     return package
 
 
@@ -96,15 +94,12 @@ proc rmPackage*(name: string, root: string) =
     except NotFoundError:
         discard
     
-    close kpkgDb
-
 proc packageExists*(name: string, root = "/"): bool =
     # Check if a package exists in the database.
     rootCheck(root)
 
     try:
         let res = kpkgDb.exists(Package, "name = ?", name)
-        close kpkgDb
         return res 
     except:
         return false
@@ -123,7 +118,6 @@ proc getListPackages*(root = "/"): seq[string] =
     for p in packages:
         packageList = packageList&p.name    
     
-    close kpkgDb
     return packageList
 
 proc isReplaced*(name: string, root = "/"): bool =
@@ -136,10 +130,8 @@ proc isReplaced*(name: string, root = "/"): bool =
      
     for package in packages:
         if name in package.replaces.split("!!k!!"):
-            close kpkgDb
             return true
     
-    close kpkgDb
     return false
 
 proc newPackageFromRoot*(root, package, destdir: string) =
@@ -153,7 +145,6 @@ proc newPackageFromRoot*(root, package, destdir: string) =
     var res = newPackageInternal(og.name, og.version, og.deps, og.bdeps, og.backup, og.replaces, og.desc, og.release, og.epoch, og.manualInstall, og.isGroup)
     
     kpkgDb.insert(res)
-    close kpkgDb
 
 proc getListFiles*(packageName: string, root: string): seq[string] =
     # Gives a list of files.
@@ -171,5 +162,4 @@ proc getListFiles*(packageName: string, root: string): seq[string] =
     for file in files:
         listFiles = listFiles&file.path.replace("\"", "")
     
-    close kpkgDb
     return listFiles
