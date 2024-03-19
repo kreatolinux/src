@@ -150,7 +150,7 @@ jobs:
       
       - name: Build and push nocc image
         uses: docker/build-push-action@v5
-        withi:
+        with:
           context: /tmp/docker.tmp.nocc
           push: true
           tags: kreato/linux:latest,ghcr.io/kreatolinux/nocc:latest,git.kreato.dev/kreatolinux/nocc:latest
