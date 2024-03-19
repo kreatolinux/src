@@ -22,6 +22,8 @@ case $1 in
   	            kpkg # Initializes configs
 		            sed -i s/stable/master/g /etc/kpkg/kpkg.conf # Switch to master repos
 		            kpkg update
+                kpkg build kpkg -y
+
                 kpkg build bzip2 -y || exit 1
     
                 kpkg build python -y || exit 1
