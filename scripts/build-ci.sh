@@ -41,8 +41,8 @@ case $1 in
                 
   	            kpkg clean -e
                 ./build.sh -i
-                nim c --deepcopy:on scripts/sqlite.nim
-                scripts/sqlite || true
+                #nim c --deepcopy:on scripts/sqlite.nim
+                #scripts/sqlite || true
 
 		            nim c -d:branch=master --deepcopy:on --passL:-larchive --passC:-no-pie --threads:on -d:ssl -o=kreastrap/kreastrap kreastrap/kreastrap.nim
                 
