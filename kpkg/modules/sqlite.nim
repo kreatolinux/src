@@ -84,6 +84,8 @@ proc getPackage*(name: string, root: string): Package =
     # Gets Package from package name.
     rootCheck(root)
 
+    debug "getPackage ran, name: '"&name&"', root: '"&root&"'"
+
     var package = newPackageInternal()
     kpkgDb.select(package, "name = ?", name)
     return package

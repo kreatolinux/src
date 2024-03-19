@@ -135,6 +135,7 @@ proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false,
             debug "parseRunfile ran, dephandler, repo: '"&repo&"', pkg: '"&pkg&"'"
             pkgrf = parseRunfile(repo&"/"&pkg)
         else:
+            debug "packageToRunfile ran, dephandler, pkg: '"&pkg&"' root: '"&root&"'"
             pkgrf = packageToRunfile(getPackage(pkg, root))
 
         var pkgdeps: seq[string]
