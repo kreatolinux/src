@@ -3,12 +3,8 @@
 #
 
 e() {
-    mount
-    #sqlite3 /var/cache/kpkg/kpkg.sqlite .dump
-    dmesg -T| grep -E -i -B100 'killed process'
-    sqlite3 /var/cache/kpkg/env/var/cache/kpkg/kpkg.sqlite .dump
-    sqlite3 /opt/kpkg/overlay/upperDir/var/cache/kpkg/kpkg.sqlite .dump
-    ls -l /opt/kpkg/overlay/upperDir/var/cache/kpkg/kpkg.sqlite
+    sqlite3 /var/cache/kpkg/kpkg.sqlite .dump
+    kpkg info bison
     exit 1
 }
 
