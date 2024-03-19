@@ -3,12 +3,6 @@
 #
 
 e() {
-    mount
-    #sqlite3 /var/cache/kpkg/kpkg.sqlite .dump
-    dmesg -T| grep -E -i -B100 'killed process'
-    sqlite3 /var/cache/kpkg/env/var/cache/kpkg/kpkg.sqlite .dump
-    sqlite3 /opt/kpkg/overlay/upperDir/var/cache/kpkg/kpkg.sqlite .dump
-    ls -l /opt/kpkg/overlay/upperDir/var/cache/kpkg/kpkg.sqlite
     exit 1
 }
 
@@ -41,8 +35,6 @@ case $1 in
                 
   	            kpkg clean -e
                 ./build.sh -i
-                nim c --deepcopy:on scripts/sqlite.nim
-                scripts/sqlite || true
 
 		            nim c -d:branch=master --deepcopy:on --passL:-larchive --passC:-no-pie --threads:on -d:ssl -o=kreastrap/kreastrap kreastrap/kreastrap.nim
                 
