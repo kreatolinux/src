@@ -80,14 +80,34 @@ proc pkgSumstoSQL*(file: string, package: Package, root: string) =
         else:
             newFile(splittedLine[0], splittedLine[1], package, root)
 
+proc isReplaced*(name: string, root = "/"): tuple[replaced: bool, package: Package] =
+    # Checks if a package is "replaced" or not.
+    rootCheck(root)
+    
+    # feels wrong for some reason, hmu if theres a better way -kreatoo
+    var packages = @[newPackageInternal()]
+    kpkgDb.selectAll(packages)
+     
+    for package in packages:
+        if name in package.replaces.split("!!k!!"):
+            return (true, package)
+    
+    return (false, newPackageInternal())
+
 proc getPackage*(name: string, root: string): Package =
     # Gets Package from package name.
     rootCheck(root)
 
     debug "getPackage ran, name: '"&name&"', root: '"&root&"'"
 
+
     var package = newPackageInternal()
-    kpkgDb.select(package, "name = ?", name)
+    
+    package = isReplaced(name, root).package
+
+    if isEmptyOrWhitespace(package.name):
+        kpkgDb.select(package, "name = ?", name)
+
     return package
 
 
@@ -131,19 +151,6 @@ proc getListPackages*(root = "/"): seq[string] =
     
     return packageList
 
-proc isReplaced*(name: string, root = "/"): bool =
-    # Checks if a package is "replaced" or not.
-    rootCheck(root)
-    
-    # feels wrong for some reason, hmu if theres a better way -kreatoo
-    var packages = @[newPackageInternal()]
-    kpkgDb.selectAll(packages)
-     
-    for package in packages:
-        if name in package.replaces.split("!!k!!"):
-            return true
-    
-    return false
 
 proc newPackageFromRoot*(root, package, destdir: string) =
     # Gets package from root, and adds it to destdir.

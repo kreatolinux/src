@@ -278,6 +278,6 @@ proc printReplacesPrompt*(pkgs: seq[string], root: string, isDeps = false, isIns
     for p in parseRunfile(pkgRepo&"/"&pkg).replaces:
       if isDeps and packageExists(p, root):
         continue
-      if packageExists(p, root) and not isReplaced(p, root):
+      if packageExists(p, root) and not isReplaced(p, root).replaced:
         info "'"&i&"' replaces '"&p&"'"
 
