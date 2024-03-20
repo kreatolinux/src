@@ -49,6 +49,7 @@ proc rootCheck(root: string) =
     var firstTime = false
     
     if not fileExists(root&"/"&kpkgDbPath):
+        createDir(kpkgLibDir)
         firstTime = true
     
     kpkgDb = open(root&"/"&kpkgDbPath, "", "", "")

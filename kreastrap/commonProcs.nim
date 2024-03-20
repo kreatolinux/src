@@ -26,7 +26,9 @@ proc initDirectories*(buildDirectory: string, arch: string, silent = false) =
     createDir(buildDirectory&"/usr/lib")
     createDir(buildDirectory&"/var")
     createDir(buildDirectory&"/var/cache")
+    createDir(buildDirectory&"/var/lib")
     createDir(buildDirectory&"/var/cache/kpkg")
+    createDir(buildDirectory&"/var/lib/kpkg")
     createDir(buildDirectory&"/boot")
     createDir(buildDirectory&"/root")
     createDir(buildDirectory&"/dev")
@@ -66,9 +68,15 @@ proc initDirectories*(buildDirectory: string, arch: string, silent = false) =
     setFilePermissions(buildDirectory&"/var/cache", {fpUserExec, fpUserWrite,
             fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
 
+    setFilePermissions(buildDirectory&"/var/lib", {fpUserExec, fpUserWrite,
+            fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
+
     setFilePermissions(buildDirectory&"/var/cache/kpkg", {fpUserExec,
             fpUserWrite, fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
 
+    setFilePermissions(buildDirectory&"/var/lib/kpkg", {fpUserExec,
+            fpUserWrite, fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
+    
     setFilePermissions(buildDirectory&"/boot", {fpUserExec, fpUserRead,
             fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
 

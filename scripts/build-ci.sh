@@ -43,7 +43,12 @@ case $1 in
                 #scripts/sqlite || true
 
 		            nim c -d:branch=master --deepcopy:on --passL:-larchive --passC:-no-pie --threads:on -d:ssl -o=kreastrap/kreastrap kreastrap/kreastrap.nim
-                
+                    
+                if [ -f "/var/cache/kpkg/kpkg.sqlite" ]; then
+                    mkdir -p /var/lib/kpkg
+                    cp /var/cache/kpkg/kpkg.sqlite /var/lib/kpkg/kpkg.sqlite
+                fi
+
 		            cat /etc/group | grep tty || addgroup tty
         ;;
 
