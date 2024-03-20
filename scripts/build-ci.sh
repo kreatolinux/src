@@ -3,17 +3,8 @@
 #
 
 e() {
-    busybox cat /etc/resolv.conf
-    busybox ls -l /opt/kpkg/overlay/upperDir
-    busybox ls -l /opt/kpkg/overlay/upperDir/var
-    busybox ls -l /opt/kpkg/overlay/upperDir/var/cache
-    busybox ls -l /opt/kpkg/overlay/upperDir/var/cache/kpkg/*
-    busybox ls -l /var/cache/kpkg/installed
-    busybox ls -l /var/cache/kpkg/archives/system/*
-    busybox ls -l /
-    busybox ls -l /bin/sh
-    busybox ls -l /bin/
-    kpkg provides /bin/sh
+    sqlite3 /var/cache/kpkg/kpkg.sqlite .dump
+    kpkg info bison
     exit 1
 }
 
@@ -31,6 +22,8 @@ case $1 in
   	            kpkg # Initializes configs
 		            sed -i s/stable/master/g /etc/kpkg/kpkg.conf # Switch to master repos
 		            kpkg update
+                kpkg build kpkg -y
+
                 kpkg build bzip2 -y || exit 1
     
                 kpkg build python -y || exit 1
@@ -43,8 +36,13 @@ case $1 in
 
                 
                 export PATH=$PATH:$HOME/.nimble/bin # Add nimble path so opir can run
-  	            ./build.sh -i
-		            nim c -d:branch=master --passL:-larchive --passC:-no-pie --threads:on -d:ssl -o=kreastrap/kreastrap kreastrap/kreastrap.nim
+                
+  	            kpkg clean -e
+                ./build.sh -i
+                #nim c --deepcopy:on scripts/sqlite.nim
+                #scripts/sqlite || true
+
+		            nim c -d:branch=master --deepcopy:on --passL:-larchive --passC:-no-pie --threads:on -d:ssl -o=kreastrap/kreastrap kreastrap/kreastrap.nim
                 
 		            cat /etc/group | grep tty || addgroup tty
         ;;

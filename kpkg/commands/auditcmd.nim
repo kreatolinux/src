@@ -2,11 +2,11 @@ import os
 import strutils
 import times
 import ../modules/cveparser
-import ../modules/runparser
 import ../modules/logger
+import ../modules/sqlite
 import ../modules/downloader
 import ../modules/libarchive
-import norm/[model, sqlite]
+import norm/sqlite
 
 proc verChecker*(ver1, ver2: string): bool =
     # Check version, and return true if ver1 >= ver2.
@@ -21,15 +21,15 @@ proc verChecker*(ver1, ver2: string): bool =
     return false
 
 proc vulnChecker(package, runfPath: string, dbConn: DbConn, description: bool) =
-    let runf = parseRunfile(runfPath, removeLockfileWhenErr = false)
+    let pkgLocal = getPackage(package, "/") 
     var packageVulns = @[newVulnerability()]
-    dbConn.select(packageVulns, "vulnerability.package = ?", lastPathPart(runfPath)) # TODO: get name from runFile AUDIT_NAME variable, etc.
+    dbConn.select(packageVulns, "vulnerability.package = ?", package) # TODO: get name from runFile AUDIT_NAME variable, etc.
     for vuln in packageVulns:
         for version in vuln.versionEndExcluding.split("::"):
-            if verChecker(runf.version, version) or runf.version >= version:
+            if verChecker(pkgLocal.version, version) or pkgLocal.version >= version:
                 continue
             elif version != "false":
-                info "vulnerability found in package '"&lastPathPart(runfPath)&"', "&vuln.cve 
+                info "vulnerability found in package '"&package&"', "&vuln.cve 
                     
                 if description:
                     echo "\nDescription of '"&vuln.cve&"': \n\n"&vuln.description.strip()&"\n"

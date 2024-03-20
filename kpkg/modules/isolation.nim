@@ -1,6 +1,7 @@
 # Module for isolating kpkg builds as much as possible
 import std/os
 import logger
+import sqlite
 import std/times
 import processes
 import dephandler
@@ -16,9 +17,9 @@ proc installFromRootInternal(package, root, destdir: string, removeDestdirOnErro
     # Check if package exists and has the right checksum
     check(package, root, true)
     
-    let listFiles = root&kpkgInstalledDir&"/"&package&"/list_files"
+    let listFiles = getListFiles(package, root)
 
-    for line in lines listFiles:
+    for line in listFiles:
         let listFilesSplitted = line.split("=")[0].replace("\"", "")
         
         if not (fileExists(root&"/"&listFilesSplitted) or dirExists(root&"/"&listFilesSplitted)):
@@ -42,7 +43,7 @@ proc installFromRootInternal(package, root, destdir: string, removeDestdirOnErro
                 createDirWithPermissionsAndOwnership(root&"/"&listFilesSplitted.parentDir(), dirPath)
             
             copyFileWithPermissionsAndOwnership(root&"/"&listFilesSplitted, destdir&"/"&relativePath(listFilesSplitted, root))
-    copyDirWithPermissions(root&kpkgInstalledDir&"/"&package, destdir&kpkgInstalledDir&"/"&package)
+    newPackageFromRoot(root, package, destdir)
 
 proc installFromRoot*(package, root, destdir: string, removeDestdirOnError = false) =
     # A wrapper for installFromRootInternal that also resolves dependencies.
@@ -134,8 +135,9 @@ proc createEnv*(root: string) =
 
 proc umountOverlay*(error = "none", silentMode = false, merged = kpkgMergedPath, upperDir = kpkgOverlayPath&"/upperDir", workDir = kpkgOverlayPath&"/workDir"): int =
     ## Unmounts the overlay.
-    discard execCmdKpkg("umount "&kpkgOverlayPath, error, silentMode = silentMode)
+    closeDb()
     let returnCode = execCmdKpkg("umount "&merged, error, silentMode)
+    discard execCmdKpkg("umount "&kpkgOverlayPath, error, silentMode = silentMode)
     removeDir(merged)
     removeDir(upperDir)
     removeDir(workDir)

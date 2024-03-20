@@ -1,5 +1,6 @@
 import os
 import config
+import sqlite
 import logger
 import sequtils
 import strutils
@@ -13,6 +14,10 @@ proc isIn(one, two: seq[string]): bool =
             return true
     return false
 
+proc packageToRunFile(package: Package): runFile =
+    # Converts package to runFile. Not all variables are available.
+    return runFile(pkg: package.name, version: package.version, versionString: package.version, release: package.release, epoch: package.epoch, deps: package.deps.split("!!k!!"), bdeps: package.bdeps.split("!!k!!"))
+
 proc checkVersions(root: string, dependency: string, repo: string, split = @[
         "<=", ">=", "<", ">", "="]): seq[string] =
     ## Internal proc for checking versions on dependencies (if it exists)
@@ -21,12 +26,18 @@ proc checkVersions(root: string, dependency: string, repo: string, split = @[
         if i in dependency:
 
             let dSplit = dependency.split(i)
-            var deprf: runFile
+            var deprf: string
 
-            if dirExists(root&"/var/cache/kpkg/installed/"&dSplit[0]):
-                deprf = parseRunfile(root&"/var/cache/kpkg/installed/"&dSplit[0])
+            if packageExists(dSplit[0], root):
+                deprf = getPackage(dSplit[0], root).version
             else:
-                deprf = parseRunfile(repo&"/"&dSplit[0])
+                var r = repo
+
+                if repo == "local":
+                    r = findPkgRepo(r)
+                
+                debug "parseRunfile ran, checkVersions"
+                deprf = parseRunfile(r&"/"&dSplit[0]).versionString
 
             let warnName = "Required dependency version for "&dSplit[
                     0]&" not found, upgrading"
@@ -36,36 +47,36 @@ proc checkVersions(root: string, dependency: string, repo: string, split = @[
 
             case i:
                 of "<=":
-                    if not (deprf.versionString <= dSplit[1]):
-                        if dirExists(root&"/var/cache/kpkg/installed/"&dSplit[0]):
+                    if not (deprf <= dSplit[1]):
+                        if packageExists(dSplit[0], root):
                             warn(warnName)
                             return @["upgrade", dSplit[0]]
                         else:
                             err(errName, false)
                 of ">=":
-                    if not (deprf.versionString >= dSplit[1]):
-                        if dirExists(root&"/var/cache/kpkg/installed/"&dSplit[0]):
+                    if not (deprf >= dSplit[1]):
+                        if packageExists(dSplit[0], root):
                             warn(warnName)
                             return @["upgrade", dSplit[0]]
                         else:
                             err(errName, false)
                 of "<":
-                    if not (deprf.versionString < dSplit[1]):
-                        if dirExists(root&"/var/cache/kpkg/installed/"&dSplit[0]):
+                    if not (deprf < dSplit[1]):
+                        if packageExists(dSplit[0], root):
                             warn(warnName)
                             return @["upgrade", dSplit[0]]
                         else:
                             err(errName, false)
                 of ">":
-                    if not (deprf.versionString > dSplit[1]):
-                        if dirExists(root&"/var/cache/kpkg/installed/"&dSplit[0]):
+                    if not (deprf > dSplit[1]):
+                        if packageExists(dSplit[0], root):
                             warn(warnName)
                             return @["upgrade", dSplit[0]]
                         else:
                             err(errName, false)
                 of "=":
-                    if deprf.versionString != dSplit[1]:
-                        if dirExists(root&"/var/cache/kpkg/installed/"&dSplit[0]):
+                    if deprf != dSplit[1]:
+                        if packageExists(dSplit[0], root):
                             warn(warnName)
                             return @["upgrade", dSplit[0]]
                         else:
@@ -76,8 +87,6 @@ proc checkVersions(root: string, dependency: string, repo: string, split = @[
     return @["noupgrade", dependency]
 
 
-
-var replaceList: seq[tuple[package: string, replacedBy: seq[string]]]
 
 proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false,
         isBuild = false, root: string, prevPkgName = "",
@@ -106,18 +115,29 @@ proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false,
                 repo = "/etc/kpkg/repos/"&pkgSplit[0]
                 pkg = pkgSplit[1]
             elif not chkInstalledDirInstead:
+                debug "findPkgRepo ran"
                 repo = findPkgRepo(pkg)
+                debug "repo: '"&repo&"'"
             else:
-                repo = root&"/var/cache/kpkg/installed"
+                repo = "local"
 
         if repo == "":
             err("Package '"&pkg&"' doesn't exist", false)
-        elif not dirExists(repo):
+        elif not dirExists(repo) and repo != "local":
             err("The repository '"&repo&"' doesn't exist", false)
-        elif not fileExists(repo&"/"&pkg&"/run"):
+        elif not fileExists(repo&"/"&pkg&"/run") and repo != "local":
             err("The package '"&pkg&"' doesn't exist on the repository "&repo, false)
         
-        let pkgrf = parseRunfile(repo&"/"&pkg)
+        
+        var pkgrf: runFile
+
+        if repo != "local":
+            debug "parseRunfile ran, dephandler, repo: '"&repo&"', pkg: '"&pkg&"'"
+            pkgrf = parseRunfile(repo&"/"&pkg)
+        else:
+            debug "packageToRunfile ran, dephandler, pkg: '"&pkg&"' root: '"&root&"'"
+            pkgrf = packageToRunfile(getPackage(pkg, root))
+
         var pkgdeps: seq[string]
 
         if bdeps:
@@ -132,8 +152,7 @@ proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false,
             for dep in pkgdeps:
 
                 if prevPkgName == dep:
-                    if isBuild and not dirExists(
-                            "/var/cache/kpkg/installed/"&dep):
+                    if isBuild and not packageExists(dep, "/"):
                         err("circular dependency detected for '"&dep&"'", false)
                     else:
                         return deps.filterit(it.len != 0)
@@ -142,9 +161,9 @@ proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false,
                 let chkVer = checkVersions(root, dep, repo)
                 let d = chkVer[1]
 
-                if fileExists(root&"/var/cache/kpkg/installed/"&d&"/list_files") and chkVer[
+                if packageExists(d, root) and chkVer[
                         0] != "upgrade" and not forceInstallAll:
-                    debug "dephandler: '"&root&"/var/cache/kpkg/installed/"&d&"/list_files' exist, continuing"
+                    debug "dephandler: package '"&d&"' exist in the db, continuing"
                     continue
                 
                 if not chkInstalledDirInstead:
@@ -153,8 +172,13 @@ proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false,
                 if repo == "":
                     err("Package "&d&" doesn't exist", false)
 
-                
-                let deprf = parseRunfile(repo&"/"&d)                
+                var deprf: runFile
+
+                if repo == "local":
+                    deprf = pkgrf
+                else:
+                    debug "parseRunfile ran, dephandler 2"
+                    deprf = parseRunfile(repo&"/"&d)                
                 
                 if d in deps or d in ignoreDeps or isIn(deprf.replaces, deps):
                     continue
@@ -162,16 +186,6 @@ proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false,
                 if not ignoreInit:
                     if findPkgRepo(dep&"-"&init) != "":
                         deps.add(dep&"-"&init)
-                
-                var dontAdd = false
-
-                for i in replaceList:
-                    if i.package == d or d in i.replacedBy:
-                        dontAdd = true
-                        
-
-                if deprf.replaces.len > 0 and not dontAdd:
-                    replaceList = replaceList&(dep, deprf.replaces)
                 
                 if not isEmptyOrWhitespace(deprf.bdeps.join()) and isBuild:
                     deps.add(dephandler(@[d], deprf.replaces&deps&ignoreDeps, bdeps = true,
@@ -183,16 +197,4 @@ proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false,
 
                 deps.add(d)
 
-    for i in replaceList:
-        debug "replaceList: '"&replaceList.join(" ")&"'"
-        for replacePackage in i.replacedBy:
-            if not (replacePackage in deps):
-                
-                while deps.find(replacePackage) != -1:
-                    let index = deps.find(replacePackage)
-                    debug "deleting '"&replacePackage&"'"
-                    deps.delete(index)
-                    debug "inserting '"&i.package&"' instead"
-                    deps.insert(i.package, index)
- 
     return deduplicate(deps.filterit(it.len != 0))

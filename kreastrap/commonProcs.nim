@@ -118,7 +118,7 @@ proc initDirectories*(buildDirectory: string, arch: string, silent = false) =
     setFilePermissions(buildDirectory&"/usr/include", {fpUserExec, fpUserWrite,
             fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
 
-    createDir(buildDirectory&"/var/cache/kpkg/installed")
+    createDir(buildDirectory&"/var/cache/kpkg")
     createDir(buildDirectory&"/run")
 
     setFilePermissions(buildDirectory&"/run", {fpUserExec, fpUserWrite,

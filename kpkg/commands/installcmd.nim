@@ -3,6 +3,7 @@ import osproc
 import strutils
 import sequtils
 import parsecfg
+import ../modules/sqlite
 import ../modules/config
 import ../modules/logger
 import ../modules/lockfile
@@ -29,6 +30,7 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
         if runf.isParsed:
             pkg = runf
         else:
+            debug "parseRunfile ran, installPkg"
             pkg = parseRunfile(repo&"/"&package)
     except CatchableError:
         err("Unknown error while trying to parse package on repository, possibly broken repo?")
@@ -51,7 +53,7 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
     let isGroup = pkg.isGroup
 
     for i in pkg.conflicts:
-        if dirExists(root&kpkgInstalledDir&"/"&i):
+        if packageExists(i, root):
             err(i&" conflicts with "&package)
     
     removeDir("/tmp/kpkg/reinstall/"&package&"-old")
@@ -66,36 +68,23 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
     setCurrentDir(kpkgArchivesDir)
     
     for i in pkg.replaces:
-        if symlinkExists(root&kpkgInstalledDir&"/"&i):
-            removeFile(root&kpkgInstalledDir&"/"&i)
-        elif dirExists(root&kpkgInstalledDir&"/"&i):
+        if packageExists(i, root):
             if kTarget != kpkgTarget(root):
                 removeInternal(i, root, initCheck = false)
             else:
                 removeInternal(i, root)
-        createSymlink(package, root&kpkgInstalledDir&"/"&i)
-
-    if dirExists(root&kpkgInstalledDir&"/"&package) and
-            not symlinkExists(root&kpkgInstalledDir&"/"&package) and not isGroup:
+    
+    if (packageExists(package, root)) and (not isGroup):
 
         info "package already installed, reinstalling"
-        if not fileExists(root&kpkgInstalledDir&"/"&package&"/list_files"):
-            warn "'"&package&"' seems to be not installed correctly"
-            warn "removing '"&package&"' from database, but there may be some leftovers"
-            warn "please open an issue at https://github.com/kreatolinux/src with how this happened"
-            removeDir(root&kpkgInstalledDir&"/"&package)
+        if kTarget != kpkgTarget(root):
+            removeInternal(package, root, ignoreReplaces = true, noRunfile = true, initCheck = false)
         else:
-            if kTarget != kpkgTarget(root):
-                removeInternal(package, root, ignoreReplaces = true, noRunfile = true, initCheck = false)
-            else:
-                removeInternal(package, root, ignoreReplaces = true, noRunfile = false, depCheck = false)
+            removeInternal(package, root, ignoreReplaces = true, noRunfile = false, depCheck = false)
 
     discard existsOrCreateDir(root&"/var")
     discard existsOrCreateDir(root&"/var/cache")
     discard existsOrCreateDir(root&kpkgCacheDir)
-    discard existsOrCreateDir(root&kpkgInstalledDir)
-    removeDir(root&kpkgInstalledDir&"/"&package)
-    copyDir(repo&"/"&package, root&kpkgInstalledDir&"/"&package)
     
     if not isGroup:
         var extractTarball: seq[string]
@@ -108,7 +97,6 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
         try:
           extractTarball = extract(tarball, kpkgInstallTemp)
         except Exception:
-            removeDir(root&kpkgInstalledDir&"/"&package)
             when defined(release):
                 err("extracting the tarball failed for "&package)
             else:
@@ -147,17 +135,25 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
 
                 let depSplit = dep.split("#")
                  
-                var rf: runFile
+                var db: Package
                 try:
-                    rf = parseRunfile(root&"/"&kpkgInstalledDir&"/"&depSplit[0])
+                    db = getPackage(depSplit[0], root)
                 except:
                     raise
 
-                if rf.versionString != depSplit[1]:
-                    warn "this package is built with '"&dep&"', while the system has '"&depSplit[0]&"#"&rf.versionString&"'"
+                if db.version != depSplit[1]:
+                    warn "this package is built with '"&dep&"', while the system has '"&depSplit[0]&"#"&db.version&"'"
                     warn "installing anyway, but issues may occur"
                     warn "this may be an error in the future"
-                
+    
+        
+        var mI = false
+    
+        if package in manualInstallList:
+            info "Setting as manually installed"
+            mI = true
+
+        var pkgType = newPackage(package, pkg.versionString, pkg.release, pkg.epoch, pkg.deps.join("!!k!!"), pkg.bdeps.join("!!k!!"), pkg.backup.join("!!k!!"), pkg.replaces.join("!!k!!"), pkg.desc, mI, pkg.isGroup, root) 
             
         # Installation loop 
         for file in extractTarball:
@@ -168,14 +164,16 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
                 dict.delSectionKey("", relativePath(file, kpkgInstallTemp))
                 continue
             
-            if fileExists(root&"/"&relPath):
-                err "file \""&relPath&"\" already exists on filesystem, cannot continue"
-
-            if "pkgInfo.ini" == lastPathPart(file):
-                moveFile(kpkgInstallTemp&"/"&file, root&kpkgInstalledDir&"/"&package&"/pkgInfo.ini")
+            #if fileExists(root&"/"&relPath):
+            #    err "file \""&relPath&"\" already exists on filesystem, cannot continue"
 
             if "pkgsums.ini" == lastPathPart(file):
-                moveFile(kpkgInstallTemp&"/"&file, root&kpkgInstalledDir&"/"&package&"/list_files")
+                pkgSumsToSQL(kpkgInstallTemp&"/"&file, pkgType, root)
+                continue
+
+            if "pkgInfo.ini" == lastPathPart(file):
+                # TODO: add pkgInfo class to modules/sqlite
+                continue
 
             let doesFileExist = (fileExists(kpkgInstallTemp&"/"&file) or symlinkExists(kpkgInstallTemp&"/"&file))
             if doesFileExist:
@@ -184,8 +182,6 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
                 copyFileWithPermissionsAndOwnership(kpkgInstallTemp&"/"&file, root&"/"&file)
             elif dirExists(kpkgInstallTemp&"/"&file) and (not dirExists(root&"/"&file)):
                 createDirWithPermissionsAndOwnership(kpkgInstallTemp&"/"&file, root&"/"&file)
-
-        dict.writeConfig(root&kpkgInstalledDir&"/"&package&"/list_files")
 
     # Run ldconfig afterwards for any new libraries
     discard execProcess("ldconfig")
@@ -196,11 +192,7 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
     when defined(release):
         removeDir(kpkgTempDir1)
         removeDir(kpkgTempDir2)
-
-    if package in manualInstallList:
-      info "Setting as manually installed"
-      writeFile(root&kpkgInstalledDir&"/"&package&"/manualInstall", "")
-
+    
     var existsPkgPostinstall = execCmdEx(
             ". "&repo&"/"&package&"/run"&" && command -v postinstall_"&replace(
                     package, '-', '_')).exitCode
@@ -272,6 +264,7 @@ proc down_bin(package: string, binrepos: seq[string], root: string,
         var pkg: runFile
 
         try:
+            debug "parseRunfile ran, down_bin"
             pkg = parseRunfile(repo&"/"&package)
         except CatchableError:
             err("Unknown error while trying to parse package on repository, possibly broken repo?")

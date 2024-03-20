@@ -1,8 +1,10 @@
 import os
 import strutils
 import ../modules/config
+import ../modules/sqlite
 import ../modules/colors
 import ../modules/runparser
+
 
 proc printProvides(path, package: string, color: bool): string =
     # Prints provides prompt.
@@ -14,19 +16,19 @@ proc printProvides(path, package: string, color: bool): string =
         enableRunfile = false
     
     if enableRunfile:    
-        var pkgrunf: runFile
+        var pkgVer: string
 
-        if dirExists("/var/cache/kpkg/installed/"&package):
-            pkgrunf = parseRunfile("/var/cache/kpkg/installed/"&package)
+        if packageExists(package, "/"):
+            pkgVer = getPackage(package, "/").version
         else:
-            pkgrunf = parseRunfile("/etc/kpkg/repos/"&lastPathPart(repo)&"/"&package)
+            pkgVer = parseRunfile("/etc/kpkg/repos/"&lastPathPart(repo)&"/"&package).versionString
 
         if color:
             finalResult = finalResult&cyanColor&lastPathPart(repo)&resetColor
         else:
             finalResult = finalResult&lastPathPart(repo)
 
-        finalResult = finalResult&"/"&package&"-"&pkgrunf.versionString
+        finalResult = finalResult&"/"&package&"-"&pkgVer
     else:
         finalResult = finalResult&package
     
@@ -36,11 +38,10 @@ proc provides*(files: seq[string], color = true) =
     ## List packages that contains a file.
     setCurrentDir("/")
     for file in files:
-        for listFiles in walkFiles("/var/cache/kpkg/installed/*/list_files"):
-            for line in lines listFiles:
+        for packageName in getListPackages("/"):
+            for line in getListFiles(packageName, "/"):
                 if relativePath(file, "/") in line:
                     var res = line
-                    let pkg = relativePath(listFiles, "/var/cache/kpkg/installed/").replace("/list_files", "")
                     normalizePath(res)
-                    echo printProvides(absolutePath(res), pkg, color)
+                    echo printProvides(absolutePath(res), packageName, color)
                 

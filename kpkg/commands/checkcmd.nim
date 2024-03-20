@@ -1,12 +1,11 @@
 import os
-import sequtils
 import strutils
+import ../modules/sqlite
 import ../modules/logger
 import ../modules/checksums
-import ../modules/commonPaths
 
-proc checkInternal(root, file: string, checkEtc: bool) =
-    for line in lines file:
+proc checkInternal(package: string, root: string, lines: seq[string], checkEtc: bool) =
+    for line in lines:
         
         if dirExists(line):
             continue
@@ -22,7 +21,7 @@ proc checkInternal(root, file: string, checkEtc: bool) =
             
         let filePath = root&"/"&splitted[0].multiReplace(("\"", ""))
         if getSum(filePath, "b2") != splitted[1].multiReplace(("\"", "")):
-            let errorOutput = "'"&filePath.relativePath(root)&"' has an invalid checksum, please reinstall '"&lastPathPart(file.parentDir())&"'"
+            let errorOutput = "'"&filePath.relativePath(root)&"' has an invalid checksum, please reinstall '"&package&"'"
             when defined(release):
                 err errorOutput
             else:
@@ -35,13 +34,13 @@ proc check*(package = "", root = "/", silent = false, checkEtc = false) =
     setCurrentDir(root)
 
     if isEmptyOrWhitespace(package):
-        for file in toSeq(walkFiles(root&kpkgInstalledDir&"/*/list_files")):
-            checkInternal(root, file, checkEtc)
+        for pkg in getListPackages(root):
+            checkInternal(pkg, root, getListFiles(pkg, root), checkEtc)
     else:
-        if not fileExists(root&kpkgInstalledDir&"/"&package&"/list_files"):
+        if not packageExists(package, root):
             err("package '"&package&"' doesn't exist", false)
         else:
-            checkInternal(root, root&kpkgInstalledDir&"/"&package&"/list_files", checkEtc)
+            checkInternal(package, root, getListFiles(package, root), checkEtc)
     
     if not silent:
         success("done")

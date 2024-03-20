@@ -1,5 +1,6 @@
 import os
 import strutils
+import ../modules/sqlite
 import ../modules/logger
 import ../modules/lockfile
 import ../modules/processes
@@ -24,9 +25,9 @@ proc remove*(packages: seq[string], yes = false, root = "",
     
     if autoRemove:
       for package in packages:
-        if not dirExists(root&"/var/cache/kpkg/installed/"&package):
+        if not packageExists(package, root):
           err("package "&package&" is not installed", false)
-        packagesFinal = bloatDepends(package, root&"/var/cache/kpkg/installed", root)&packagesFinal
+        packagesFinal = bloatDepends(package, root)&packagesFinal
 
     if not yes:
         echo "Removing: "&packagesFinal.join(" ")
