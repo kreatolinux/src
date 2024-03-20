@@ -130,8 +130,11 @@ proc packageExists*(name: string, root = "/"): bool =
     rootCheck(root)
 
     try:
-        let res = kpkgDb.exists(Package, "name = ?", name)
-        return res 
+        if isReplaced(name, root).replaced:
+            return true
+        else:
+            let res = kpkgDb.exists(Package, "name = ?", name)
+            return res 
     except:
         return false
 
