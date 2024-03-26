@@ -7,7 +7,7 @@ import backends/repology
 import ../kpkg/modules/runparser
 
 proc checkAll*(repo: string, backend = "repology", autoUpdate = true,
-        autoBuild = true, jsonPath = "chkupd.json") =
+        autoBuild = false, jsonPath = "chkupd.json") =
     ## Checks all packages, and updates them automatically.
     var failedUpdPackages: seq[string]
     var failedBuildPackages: seq[string]
