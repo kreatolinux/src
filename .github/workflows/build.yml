@@ -32,14 +32,26 @@ jobs:
             binary-cache
     
 
-      - name: build (amd64)
+      - name: build (amd64) (release)
         run: |
           IS_ACTIONS=y sh $GITHUB_WORKSPACE/scripts/build-ci.sh init
           export PATH=$PATH:$HOME/.nimble/bin
           make deps
-          ./build.sh -p kpkg 
+          ./build.sh -p kpkg
+          mv out out-release
+      
+      - name: build (amd64) (debug)
+        run: |
+          ./build.sh -d -p kpkg
+          mv out out-debug
       
       - uses: actions/upload-artifact@v4
         with:
-          name: kpkg-amd64-linux
-          path: ${{ github.workspace }}/out/kpkg
+          name: kpkg-amd64-linux-release
+          path: ${{ github.workspace }}/out-release/kpkg
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kpkg-amd64-linux-debug
+          path: ${{ github.workspace }}/out-debug/kpkg
+
