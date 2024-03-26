@@ -100,6 +100,7 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
             when defined(release):
                 err("extracting the tarball failed for "&package)
             else:
+                removeLockfile()
                 raise getCurrentException()
         
         var dict = loadConfig(kpkgInstallTemp&"/pkgsums.ini")
