@@ -279,7 +279,10 @@ proc down_bin(package: string, binrepos: seq[string], root: string,
             info "Tarball already exists for '"&package&"', not gonna download again"
             downSuccess = true
         elif not offline:
-            download("https://"&binrepo&"/system/"&kTarget&"/"&tarball, kpkgArchivesDir&"/system/"&kTarget&"/"&tarball)
+            try:
+                download("https://"&binrepo&"/system/"&kTarget&"/"&tarball, kpkgArchivesDir&"/system/"&kTarget&"/"&tarball)
+            except:
+                err "an error occured while downloading package binary"
         else:
             debug kpkgArchivesDir&"/system/"&kTarget&"/"&tarball
             err("attempted to download tarball from binary repository in offline mode")
