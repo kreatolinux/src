@@ -106,7 +106,7 @@ jobs:
           # Artifact name
           name: builder-repo-rootfs # optional, default is artifact
           # A file, directory or wildcard pattern that describes what to upload
-          path: ${{ github.workspace }}/kreato-linux-builder-systemd-*.tar.gz
+          path: ${{ github.workspace }}/kreato-linux-builder-repo-*.tar.gz
           # The desired behavior if no files are found using the provided path.
           if-no-files-found: error
 
