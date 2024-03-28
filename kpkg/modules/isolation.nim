@@ -121,11 +121,11 @@ proc createEnv*(root: string) =
     installFromRoot("python", root, kpkgEnvPath)
     installFromRoot("python-pip", root, kpkgEnvPath)
     
-    let extras = dict.getSectionValue("Extras", "extraPackages").split(" ")
+    #let extras = dict.getSectionValue("Extras", "extraPackages").split(" ")
 
-    if not isEmptyOrWhitespace(extras.join("")):
-        for i in extras:
-            installFromRoot(i, root, kpkgEnvPath)
+    #if not isEmptyOrWhitespace(extras.join("")):
+    #    for i in extras:
+    #        installFromRoot(i, root, kpkgEnvPath)
     
     if execCmdKpkg("bwrap --bind "&kpkgEnvPath&" / --bind /etc/resolv.conf /etc/resolv.conf /usr/bin/env update-ca-trust", silentMode = false) != 0:
         removeDir(root)
