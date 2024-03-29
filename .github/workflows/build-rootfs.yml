@@ -158,53 +158,54 @@ jobs:
         with:
           context: /tmp/docker.tmp
           push: true
-          tags: kreato/builder:latest,ghcr.io/kreatolinux/builder:latest,git.kreato.dev/kreatolinux/builder:latest
+          tags: kreato/builder:latest,ghcr.io/kreatolinux/builder:latest #,git.kreato.dev/kreatolinux/builder:latest
       
       - name: Remove builder image
         run: |
           sudo rm -rf /tmp/docker.tmp
-          sudo docker rmi ghcr.io/kreatolinux/builder kreato/builder git.kreato.dev/kreatolinux/builder -f    
+          sudo docker rmi ghcr.io/kreatolinux/builder kreato/builder -f
+          #git.kreato.dev/kreatolinux/builder -f    
       
       - name: Build and push nocc image
         uses: docker/build-push-action@v5
         with:
           context: /tmp/docker.tmp.nocc
           push: true
-          tags: kreato/linux:latest,ghcr.io/kreatolinux/nocc:latest,git.kreato.dev/kreatolinux/nocc:latest
+          tags: kreato/linux:latest,ghcr.io/kreatolinux/nocc:latest #,git.kreato.dev/kreatolinux/nocc:latest
 
       - name: Remove nocc image
         run: |
           sudo rm -rf /tmp/docker.tmp.nocc
-          sudo docker rmi ghcr.io/kreatolinux/nocc kreato/linux git.kreato.dev/kreatolinux/nocc -f    
+          sudo docker rmi ghcr.io/kreatolinux/nocc kreato/linux -f # git.kreato.dev/kreatolinux/nocc -f    
+      
+      - name: Build and push builder-repo image
+        uses: docker/build-push-action@v5
+        with:
+          context: /tmp/docker.tmp.builder-repo
+          push: true
+          tags: kreato/builder-repo:latest,ghcr.io/kreatolinux/builder-repo:latest #,git.kreato.dev/kreatolinux/builder-repo:latest
       
       - name: Build and push builder-gnu image
         uses: docker/build-push-action@v5
         with:
           context: /tmp/docker.tmp.builder-gnu
           push: true
-          tags: kreato/builder-gnu:latest,ghcr.io/kreatolinux/builder-gnu:latest,git.kreato.dev/kreatolinux/builder-gnu:latest
-
-      - name: Build and push builder-repo image
-        uses: docker/build-push-action@v5
-        with:
-          context: /tmp/docker.tmp.builder-repo
-          push: true
-          tags: kreato/builder-repo:latest,ghcr.io/kreatolinux/builder-repo:latest,git.kreato.dev/kreatolinux/builder-repo:latest
+          tags: kreato/builder-gnu:latest,ghcr.io/kreatolinux/builder-gnu:latest #,git.kreato.dev/kreatolinux/builder-gnu:latest
       
       - name: Remove builder-repo image
         run: |
           sudo rm -rf /tmp/docker.tmp.builder-repo
-          sudo docker rmi ghcr.io/kreatolinux/builder-repo kreato/builder-repo git.kreato.dev/kreatolinux/builder-repo -f     
+          sudo docker rmi ghcr.io/kreatolinux/builder-repo kreato/builder-repo -f #git.kreato.dev/kreatolinux/builder-repo -f     
 
 
       - name: Remove builder-gnu image
         run: |
           sudo rm -rf /tmp/docker.tmp.builder-gnu
-          sudo docker rmi ghcr.io/kreatolinux/builder-gnu kreato/builder-gnu git.kreato.dev/kreatolinux/builder-gnu -f   
+          sudo docker rmi ghcr.io/kreatolinux/builder-gnu kreato/builder-gnu -f #git.kreato.dev/kreatolinux/builder-gnu -f   
 
       - name: Build and push builder-systemd image
         uses: docker/build-push-action@v5
         with:
           context: /tmp/docker.tmp.builder-systemd
           push: true
-          tags: kreato/builder-systemd:latest,ghcr.io/kreatolinux/builder-systemd:latest,git.kreato.dev/kreatolinux/builder-systemd:latest
+          tags: kreato/builder-systemd:latest,ghcr.io/kreatolinux/builder-systemd:latest #,git.kreato.dev/kreatolinux/builder-systemd:latest
