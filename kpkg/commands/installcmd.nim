@@ -280,7 +280,8 @@ proc down_bin(package: string, binrepos: seq[string], root: string,
             downSuccess = true
         elif not offline:
             try:
-                download("https://"&binrepo&"/system/"&kTarget&"/"&tarball, kpkgArchivesDir&"/system/"&kTarget&"/"&tarball)
+                download("https://"&binrepo&"/archives/system/"&kTarget&"/"&tarball, kpkgArchivesDir&"/system/"&kTarget&"/"&tarball)
+                downSuccess = true
             except:
                 err "an error occured while downloading package binary"
         else:
