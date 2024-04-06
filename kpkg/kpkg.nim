@@ -29,12 +29,16 @@ import commands/auditcmd
 import commands/providescmd
 import commands/checkcmd
 import commands/listcmd
+import commands/initcmd
 import ../common/version
 
 if commitVer != "unavailable":
   clCfg.version = "kpkg "&ver&", commit "&commitVer
 else:
   clCfg.version = "kpkg "&ver
+
+
+dispatchMultiGen([ "init" ], [sandbox, mergeNames = @[ "kpkg", "init" ]], [package, mergeNames = @["kpkg", "init"]], #[ insert system here ]# [override, mergeNames = @["kpkg", "init"]], [hook, mergeNames = @["kpkg", "init"]])
 
 dispatchMulti(
   [
@@ -136,5 +140,8 @@ dispatchMulti(
   ],
   [
   list
+  ],
+  [
+  init, doc = "Initialize multiple types of files", usage = "$doc\n", stopWords = @["sandbox", "package", "override", "hook"]
   ]
 )
