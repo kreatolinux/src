@@ -358,7 +358,7 @@ proc builder*(package: string, destdir: string,
     else:
         actTarget = target
 
-    if actTarget != "default" or actTarget != systemTarget("/"):
+    if actTarget != "default" and actTarget != systemTarget("/"):
         cmdStr = ". "&srcdir&"/runfCommands && export KPKG_ARCH="&arch&" && export KPKG_TARGET="&actTarget&" && export KPKG_HOST_TARGET="&systemTarget(actualRoot)&" && "&cmdStr
         cmd3Str = ". "&srcdir&"/runfCommands && export KPKG_ARCH="&arch&" && export KPKG_TARGET="&actTarget&" && export KPKG_HOST_TARGET="&systemTarget(actualRoot)&" && "&cmd3Str
     else:
