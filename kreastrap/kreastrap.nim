@@ -177,10 +177,12 @@ proc kreastrap(buildType = "builder", arch = "amd64",
             info_msg "Installing GCC as Compiler"
             kreastrapInstall("gcc", installWithBinaries, buildDir, useCacheIfPossible, target)
             set_default_cc(buildDir, "gcc")
+            kreastrapInstall("gmake", installWithBinaries, buildDir, useCacheIfPossible, target)
         of "clang":
             info_msg "Installing clang as Compiler"
             kreastrapInstall("llvm", installWithBinaries, buildDir, useCacheIfPossible, target)
             set_default_cc(buildDir, "clang")
+            kreastrapInstall("gmake", installWithBinaries, buildDir, useCacheIfPossible, target)
         of "no":
             warn "Skipping compiler installation"
         else:

@@ -120,6 +120,7 @@ proc createEnv*(root: string) =
     installFromRoot("ca-certificates", root, kpkgEnvPath)
     installFromRoot("python", root, kpkgEnvPath)
     installFromRoot("python-pip", root, kpkgEnvPath)
+    installFromRoot("gmake", root, kpkgEnvPath)
     
     #let extras = dict.getSectionValue("Extras", "extraPackages").split(" ")
 
