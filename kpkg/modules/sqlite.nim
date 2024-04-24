@@ -95,6 +95,19 @@ proc isReplaced*(name: string, root = "/"): tuple[replaced: bool, package: Packa
     
     return (false, newPackageInternal())
 
+ proc packageExists*(name: string, root = "/"): bool =
+     # Check if a package exists in the database.
+     rootCheck(root)
+
+     try:
+         if isReplaced(name, root).replaced:
+             return true
+         else:
+             let res = kpkgDb.exists(Package, "name = ?", name)
+             return res
+     except:
+         return false
+
 proc getPackage*(name: string, root: string): Package =
     # Gets Package from package name.
     rootCheck(root)
@@ -128,18 +141,6 @@ proc rmPackage*(name: string, root: string) =
     except NotFoundError:
         discard
     
-proc packageExists*(name: string, root = "/"): bool =
-    # Check if a package exists in the database.
-    rootCheck(root)
-
-    try:
-        if isReplaced(name, root).replaced:
-            return true
-        else:
-            let res = kpkgDb.exists(Package, "name = ?", name)
-            return res 
-    except:
-        return false
 
 proc getListPackages*(root = "/"): seq[string] =
     # Returns a list of packages.
