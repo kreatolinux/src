@@ -102,7 +102,7 @@ proc getPackage*(name: string, root: string): Package =
     debug "getPackage ran, name: '"&name&"', root: '"&root&"'"
     
     if not packageExists(name, root):
-	err("internal: package '"&name&"' doesn't exist at '"&root&"', but attempted to getPackage anyway", false)
+        err("internal: package '"&name&"' doesn't exist at '"&root&"', but attempted to getPackage anyway", false)
 
     var package = newPackageInternal()
     
