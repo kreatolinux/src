@@ -16,7 +16,7 @@ proc initDirectories*(buildDirectory: string, arch: string, silent = false) =
     #if dirExists(buildDirectory):
     #    info_msg "rootfs directory exist, removing"
     #    removeDir(buildDirectory)
-    
+
     debug "Making initial rootfs directories"
 
     createDir(buildDirectory)
@@ -76,7 +76,7 @@ proc initDirectories*(buildDirectory: string, arch: string, silent = false) =
 
     setFilePermissions(buildDirectory&"/var/lib/kpkg", {fpUserExec,
             fpUserWrite, fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
-    
+
     setFilePermissions(buildDirectory&"/boot", {fpUserExec, fpUserRead,
             fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
 
@@ -140,6 +140,6 @@ proc initDirectories*(buildDirectory: string, arch: string, silent = false) =
     createSymlink("bin", buildDirectory&"/usr/sbin")
     createSymlink("usr/bin", buildDirectory&"/bin")
     createSymlink("usr/lib", buildDirectory&"/lib")
-    
+
     if not silent:
         info_msg "Root directory structure created."
