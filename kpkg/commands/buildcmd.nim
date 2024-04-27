@@ -540,14 +540,13 @@ proc build*(no = false, yes = false, root = "/",
        if findPkgRepo(currentPackage&"-"&init) != "":
             p = p&(currentPackage&"-"&init)
 
-    
-
-    deps = deduplicate(deps&p)
-
     let gD = getDependents(deps)
+    
     if not isEmptyOrWhitespace(gD.join("")):
-        deps = deps&gD
-
+        deps = deps&deduplicate(dephandler(gD, bdeps = true, isBuild = true, root = fullRootPath, forceInstallAll = forceInstallAll, isInstallDir = isInstallDir, ignoreInit = ignoreInit)&gD)
+    
+    
+    deps = deduplicate(deps&p)
     printReplacesPrompt(p, fullRootPath, isInstallDir = isInstallDir)
     
     if isInstallDir:
@@ -581,13 +580,13 @@ proc build*(no = false, yes = false, root = "/",
             discard mountOverlay(error = "mounting overlay")
             # We set isBuild to false here as we don't want build dependencies of other packages on the sandbox.
             debug "parseRunfile ran from buildcmd, depsToClean"
-	    let runfTmp = parseRunfile(findPkgRepo(i)&"/"&i)
+            let runfTmp = parseRunfile(findPkgRepo(i)&"/"&i)
             
-	    depsToClean = deduplicate(runfTmp.bdeps&dephandler(@[i], isBuild = false, root = fullRootPath, forceInstallAll = true, isInstallDir = isInstallDir, ignoreInit = ignoreInit))
-	    
-	    for optDep in runfTmp.split(" ;; "):
-		if packageExists(optDep.split(":")[0]):
-		    depsToClean = depsToClean&optDep.split(":")[0]
+            depsToClean = deduplicate(runfTmp.bdeps&dephandler(@[i], isBuild = false, root = fullRootPath, forceInstallAll = true, isInstallDir = isInstallDir, ignoreInit = ignoreInit))
+
+            for optDep in runfTmp.optdeps:
+                if packageExists(optDep.split(":")[0]):
+                    depsToClean = depsToClean&optDep.split(":")[0]
 
             debug "depsToClean = \""&depsToClean.join(" ")&"\""
             if target != "default" and target != kpkgTarget("/"):
@@ -595,7 +594,7 @@ proc build*(no = false, yes = false, root = "/",
                     if isEmptyOrWhitespace(d):
                         continue
                     
-		    debug "build: installPkg ran for '"&d&"'"
+                    debug "build: installPkg ran for '"&d&"'"
                     installPkg(findPkgRepo(d), d, kpkgOverlayPath&"/upperDir", isUpgrade = false, kTarget = target, manualInstallList = @[], umount = false, disablePkgInfo = true)
             else:
                 for d in depsToClean:
