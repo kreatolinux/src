@@ -212,44 +212,8 @@ proc kreastrap(buildType = "builder", arch = "amd64",
             kreastrapInstall("busybox", installWithBinaries, buildDir, useCacheIfPossible, target)
         of "gnu":
             info_msg "Installing GNU Coreutils as Coreutils"
-            kreastrapInstall("gnu-coreutils", installWithBinaries,
-                    buildDir, useCacheIfPossible, target)
-
-            # Install pigz and xz-utils because it is needed for kpkg tarballs
-            kreastrapInstall("pigz", installWithBinaries,
-                    buildDir, useCacheIfPossible, target)
-
-            kreastrapInstall("xz-utils", installWithBinaries,
-                    buildDir, useCacheIfPossible, target)
-
-            kreastrapInstall("bash", installWithBinaries,
-                    buildDir, useCacheIfPossible, target)
-
-            kreastrapInstall("gsed", installWithBinaries,
-                    buildDir, useCacheIfPossible, target)
-
-            kreastrapInstall("bzip2", installWithBinaries,
-                    buildDir, useCacheIfPossible, target)
-
-            kreastrapInstall("patch", installWithBinaries,
-                    buildDir, useCacheIfPossible, target)
-
-            kreastrapInstall("diffutils", installWithBinaries,
-                    buildDir, useCacheIfPossible, target)
-
-            kreastrapInstall("findutils", installWithBinaries,
-                    buildDir, useCacheIfPossible, target)
-
-            kreastrapInstall("util-linux", installWithBinaries,
-                    buildDir, useCacheIfPossible, target)
-
-            kreastrapInstall("bc", installWithBinaries,
-                    buildDir, useCacheIfPossible, target)
-
-            kreastrapInstall("cpio", installWithBinaries,
-                    buildDir, useCacheIfPossible, target)
-
-            kreastrapInstall("which", installWithBinaries,
+            
+	    kreastrapInstall("gnu-core", installWithBinaries,
                     buildDir, useCacheIfPossible, target)
 
             createSymlink("/bin/bash", buildDir&"/bin/sh")

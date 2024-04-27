@@ -97,9 +97,8 @@ proc createEnv*(root: string) =
 
     case dict.getSectionValue("Core", "coreutils"):
         of "gnu":
-            # TODO: add other stuff
-            installFromRoot("gnu-coreutils", root, kpkgEnvPath)
-        of "busybox":
+            installFromRoot("gnu-core", root, kpkgEnvPath)
+	of "busybox":
             installFromRoot("busybox", root, kpkgEnvPath)
 
     installFromRoot(dict.getSectionValue("Core", "tlsLibrary"), root, kpkgEnvPath)
