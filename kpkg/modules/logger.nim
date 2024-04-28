@@ -1,9 +1,13 @@
 import os
+import strutils
 import terminal
 
 proc debug*(debug: string) =
     ## Handles debug messages.
-    when not defined(release):
+    
+    # KPKG_ENABLE_DEBUG will be "true" as default if
+    # the binary is built as anything but release.
+    if parseBool(getEnv("KPKG_ENABLE_DEBUG", $(not defined(release)))):
         styledEcho("kpkg: ", fgYellow, "debug: ", fgDefault, debug)
 
 proc info*(info: string, exitAfterwards = false) =

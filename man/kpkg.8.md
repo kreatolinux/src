@@ -48,6 +48,10 @@ kpkg uses simple build scripts called runfiles, similar to PKGBUILDs found in th
 
 For full arguments, please see `kpkg help`
 
+# ENVIRONMENT VARIABLES
+
+* `KPKG_ENABLE_DEBUG`: Boolean that enables debug messages on kpkg. Is very useful for bug reports. Set to one of `y`, `yes`, `true` or `1` to enable.
+
 # AUTHOR
 Written by Kreato.
 
