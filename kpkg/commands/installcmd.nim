@@ -36,8 +36,10 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
         err("Unknown error while trying to parse package on repository, possibly broken repo?")
 
     debug "installPkg ran, repo: '"&repo&"', package: '"&package&"', root: '"&root&"', manualInstallList: '"&manualInstallList.join(" ")&"'"
+    
+    let isUpgradeActual = (packageExists(package, root) and getPackage(package, root).version != pkg.versionString) or isUpgrade
 
-    if isUpgrade:
+    if isUpgradeActual:
         let existsPkgPreUpgrade = execCmdEx(". "&repo&"/"&package&"/run"&" && command -v preupgrade_"&replace(package, '-', '_')).exitCode
         let existsPreUpgrade = execCmdEx(". "&repo&"/"&package&"/run"&" && command -v preupgrade").exitCode
 
@@ -215,7 +217,7 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
                 err("postinstall failed")
 
     
-    if isUpgrade:
+    if isUpgradeActual:
         var existsPkgPostUpgrade = execCmdEx(". "&repo&"/"&package&"/run"&" && command -v postupgrade_"&replace(package, '-', '_')).exitCode
         var existsPostUpgrade = execCmdEx(". "&repo&"/"&package&"/run"&" && command -v postupgrade").exitCode
         
@@ -310,7 +312,7 @@ proc install_bin(packages: seq[string], binrepos: seq[string], root: string,
     if not downloadOnly:
         for i in packages:
             repo = findPkgRepo(i)
-            install_pkg(repo, i, root, manualInstallList = manualInstallList, kTarget = kTarget)
+            installPkg(repo, i, root, manualInstallList = manualInstallList, kTarget = kTarget)
             info "Installation for "&i&" complete"
 
     removeLockfile()
