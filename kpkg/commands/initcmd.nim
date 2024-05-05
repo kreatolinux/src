@@ -65,7 +65,3 @@ proc override*(packages: seq[string], extraArguments = "", cflags = "", cxxflags
     
     for package in packages:
         dict.writeConfig("/etc/kpkg/override/"&package&".conf")
-
-proc hook*() =
-    ## Initializes a new kpkg hook.
-    echo "wip"

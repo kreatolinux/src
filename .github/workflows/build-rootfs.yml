@@ -10,7 +10,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     container: 
-        image: ghcr.io/kreatolinux/builder:latest #@sha256:dfdbf71535be96b19d3c5d382b9876a788c246b7ba7b2e2f0290ac42687fdb49 #ghcr.io/kreatolinux/builder-aarch64-cross-gnu@sha256:c69a427737f005277a8b3a1aaceea81beb9b1f4aa0e25d51934d9669ba027942
+        image: ghcr.io/kreatolinux/builder@sha256:9b988b2bb9c83e28e329cfe7ebcc92494760cfccc2e50d3e7604bfa04ea49091 #ghcr.io/kreatolinux/builder-aarch64-cross-gnu@sha256:c69a427737f005277a8b3a1aaceea81beb9b1f4aa0e25d51934d9669ba027942
         options: --privileged
     steps:
 
