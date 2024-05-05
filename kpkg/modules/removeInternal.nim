@@ -26,7 +26,7 @@ proc tryRemoveFileCustom(file: string): bool =
     # tryRemoveFile wrapper
     # that checks if the file is a
     # dir or not.
-    if dirExists(file):
+    if dirExists(file) and not symlinkExists(file):
         return # We remove dirs on the second check
     return tryRemoveFile(file)
 
@@ -88,7 +88,7 @@ proc removeInternal*(package: string, root = "",
 
   # Double check so every empty dir gets removed
   for line in listFiles:
-    if isEmptyOrWhitespace(toSeq(walkDir(root&"/"&line)).join("")) and dirExists(root&"/"&line):
+    if isEmptyOrWhitespace(toSeq(walkDir(root&"/"&line)).join("")) and dirExists(root&"/"&line) and not symlinkExists(root&"/"&line):
       removeDir(root&"/"&line)
   debug "dirs removed"
 
