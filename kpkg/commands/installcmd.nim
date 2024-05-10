@@ -21,7 +21,7 @@ import ../modules/removeInternal
 setControlCHook(ctrlc)
 
 proc installPkg*(repo: string, package: string, root: string, runf = runFile(
-        isParsed: false), manualInstallList: seq[string], isUpgrade = false, kTarget = kpkgTarget(root), ignorePostInstall = false, umount = true, disablePkgInfo = false) =
+        isParsed: false), manualInstallList: seq[string], isUpgrade = false, kTarget = kpkgTarget(root), ignorePostInstall = false, umount = true, disablePkgInfo = false, ignorePreInstall = false) =
     ## Installs a package.
 
     var pkg: runFile
@@ -51,7 +51,32 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
         if existsPreUpgrade == 0:
             if execCmdKpkg(". "&repo&"/"&package&"/run"&" && preupgrade") != 0:
                 err("preupgrade failed")
-    
+
+    if not packageExists(package, root):
+ 
+        var existsPkgPreinstall = execCmdEx(
+                ". "&repo&"/"&package&"/run"&" && command -v preinstall_"&replace(
+                        package, '-', '_')).exitCode
+        var existsPreinstall = execCmdEx(
+                ". "&repo&"/"&package&"/run"&" && command -v preinstall").exitCode
+
+        if existsPkgPreinstall == 0:
+            if execCmdKpkg(". "&repo&"/"&package&"/run"&" && preinstall_"&replace(
+                    package, '-', '_')) != 0:
+                if ignorePreInstall:
+                    warn "preinstall failed"
+                else:
+                    err("preinstall failed")
+        elif existsPreinstall == 0:
+            if execCmdKpkg(". "&repo&"/"&package&"/run"&" && preinstall") != 0:
+                if ignorePreInstall:
+                    warn "preinstall failed"
+                else:
+                    err("preinstall failed")
+
+
+
+
     let isGroup = pkg.isGroup
 
     for i in pkg.conflicts:

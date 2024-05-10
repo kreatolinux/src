@@ -46,6 +46,10 @@ preupgrade() {
     echo "run before upgrade"
 }
 
+preinstall() {
+    echo "run before first install"
+}
+
 package() {
     cd testfile
     make install
@@ -102,6 +106,7 @@ Now lets break it down.
 * IS_GROUP: Specify if the package is a group package or not. False by default. Will be enabled if it is one of these values; "y, yes, true, 1, on"
 * DEPENDS_PACKAGENAME: Change PACKAGENAME with the package name. You can add/remove dependencies, depending on the usecase like `DEPENDS_PACKAGENAME+="packagename"`, `DEPENDS_PACKAGENAME-="packagename"`, and you can set the dependencies completely with `DEPENDS_PACKAGENAME="packagename"` 
 * BACKUP: preserves stuff such as configuration files. Don't put / in the path name (eg. `etc/bluetooth/main.conf` instead of `/etc/bluetooth/main.conf`). Seperate by space.
+* preinstall() Pre-install function. Will run when the package is installed for the first time, not when it is upgraded.
 
 ## VARIABLE NAMING
 Runfile variables are case insensitive. They also support popular variable styles such as camelCase, PascalCase, kebab-case and snake_case.
