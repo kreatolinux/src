@@ -53,6 +53,10 @@ preupgrade() {
     echo \[dq]run before upgrade\[dq]
 }
 
+preinstall() {
+    echo \[dq]run before first install\[dq]
+}
+
 package() {
     cd testfile
     make install
@@ -187,6 +191,10 @@ Don\[cq]t put / in the path name (eg.
 \f[C]etc/bluetooth/main.conf\f[R] instead of
 \f[C]/etc/bluetooth/main.conf\f[R]).
 Seperate by space.
+.IP \[bu] 2
+preinstall() Pre-install function.
+Will run when the package is installed for the first time, not when it
+is upgraded.
 .SS VARIABLE NAMING
 .PP
 Runfile variables are case insensitive.
