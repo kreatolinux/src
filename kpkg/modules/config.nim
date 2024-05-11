@@ -1,6 +1,7 @@
 import parsecfg
 import os
 import logger
+import streams
 import strutils
 
 const configPath = "/etc/kpkg/kpkg.conf"
@@ -55,6 +56,38 @@ proc getConfigValue*(section: string, key: string, defaultVal = ""): string =
     config = loadConfig(configPath)
   return config.getSectionValue(section, key, defaultVal)
 
+proc getConfigSection*(section: string, defaultVal = ""): string =
+  ## Reads the configuration file and returns value of section.
+  if not fileExists(configPath):
+    config = initializeConfig()
+  else:
+    config = loadConfig(configPath)
+
+  var fileStr = newFileStream(configPath, fmRead)
+  var parser: CfgParser
+  var res: string
+  var reachedSection = false
+
+  open(parser, fileStr, configPath)
+  while true:
+    var entry = next(parser)
+
+    if entry.kind == cfgEof: break
+
+    if reachedSection:
+        if entry.kind == cfgKeyValuePair:
+            if isEmptyOrWhitespace(res):
+                res = entry.key & "=" & entry.value
+            else:
+                res.add("\n" & entry.key & "=" & entry.value)
+        else:
+            break
+
+    if entry.kind == cfgSectionStart and entry.section == section:
+        reachedSection = true
+
+  return res
+
 proc setConfigValue*(section: string, key: string, value: string) =
   ## Writes a section to the configuration file.
   config.setSectionKey(section, key, value)
@@ -67,6 +100,16 @@ proc findPkgRepo*(package: string): string =
       return i
   # return blank line if not found
   return ""
+
+proc returnConfig*(): string =
+  ## Returns the full configuration file.
+  if not fileExists(configPath):
+    config = initializeConfig()
+  else:
+    config = loadConfig(configPath)
+  
+  echo ($config).strip()
+
 
 if not fileExists(configPath):
   config = initializeConfig()

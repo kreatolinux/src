@@ -17,6 +17,7 @@
 # along with Kreato Linux.  If not, see <https://www.gnu.org/licenses/>.
 
 import cligen
+import commands/getsetcmd
 import commands/infocmd
 import commands/buildcmd
 import commands/updatecmd
@@ -38,7 +39,7 @@ else:
   clCfg.version = "kpkg "&ver
 
 
-dispatchMultiGen([ "init" ], [sandbox, mergeNames = @[ "kpkg", "init" ]], [package, mergeNames = @["kpkg", "init"]], #[ insert system here ]# [override, mergeNames = @["kpkg", "init"]], [hook, mergeNames = @["kpkg", "init"]])
+dispatchMultiGen([ "init" ], [sandbox, mergeNames = @[ "kpkg", "init" ]], [package, mergeNames = @["kpkg", "init"]], #[ insert system here ]# [override, mergeNames = @["kpkg", "init"]])
 
 dispatchMulti(
   [
@@ -140,6 +141,9 @@ dispatchMulti(
   ],
   [
   list
+  ],
+  [
+  get
   ],
   [
   init, doc = "Initialize multiple types of files", usage = "$doc\n", stopWords = @["sandbox", "package", "override", "hook"]

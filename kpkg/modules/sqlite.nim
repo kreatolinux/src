@@ -24,7 +24,6 @@ type
         package*: Package
 
 
-
 var kpkgDb: DbConn
 var connOn = false
 
@@ -58,6 +57,42 @@ proc rootCheck(root: string) =
     if firstTime:
         kpkgDb.createTables(newFileInternal())
 
+
+
+proc getFileByValue*(file = newFileInternal(), field = ""): string =
+    # Get a file field by value.
+    # usage: getPackageByValue(package, "name")
+
+    # thanks to getchoo to make me not yanderedev this shit
+    result = "File("&file.path&"):"
+    for fieldName, value in file[].fieldPairs:
+        if isEmptyOrWhitespace(field):
+            when value is bool:
+                result.add("\n\t" & fieldName & " is " & $value)
+            elif value is Package:
+                result.add("\n\t" & fieldName & " is Package(" & value.name & ")")
+            else:
+                if fieldName == "blake2Checksum":
+                    # Add an alias
+                    result.add("\n\t" & "blake2Checksum | b2Sum" & " '" & $value & "'")
+                else:
+                    result.add("\n\t" & fieldName & " '" & $value & "'")
+        elif field == fieldName or (fieldName == "blake2Checksum" and field == "b2Sum"):
+            when value is Package:
+                return("\n\t" & fieldName & " is Package(" & value.name & ")")
+            else:
+                return $value
+
+proc getFileByValueAll*(root: string, field = "") =
+    # Return getPackageByValue for all packages.
+    rootCheck(root)
+    
+    var files = @[newFileInternal()]
+    kpkgDb.selectAll(files)
+    
+    for f in files:
+        echo getFileByValue(f, field)&"\n"
+    
 proc newPackage*(name, version, release, epoch, deps, bdeps, backup, replaces, desc: string, manualInstall, isGroup: bool, root: string): Package =
     # Initialize a new Package (wrapper)
     rootCheck(root)
@@ -126,6 +161,22 @@ proc getPackage*(name: string, root: string): Package =
 
     return package
 
+proc getFile*(path: string, root: string): File =
+    # Gets File from path.
+    rootCheck(root)
+
+    debug "getFile ran, path: '"&path&"', root: '"&root&"'"
+    
+    #if not packageExists(name, root):
+    #    err("internal: package '"&name&"' doesn't exist at '"&root&"', but attempted to getPackage anyway", false)
+
+    var file = newFileInternal()
+    
+    kpkgDb.select(file, "path = ?", "\""&path&"\"")
+
+    return file
+
+
 
 proc rmPackage*(name: string, root: string) =
     # Remove a package from the database.
@@ -171,13 +222,11 @@ proc newPackageFromRoot*(root, package, destdir: string) =
     
     kpkgDb.insert(res)
 
-proc getListFiles*(packageName: string, root: string): seq[string] =
+proc getListFiles*(packageName: string, root: string, package = getPackage(packageName, root)): seq[string] =
     # Gives a list of files.
     # comparable to list_files in kpkg <v6.
     
     rootCheck(root)
-    
-    var package = getPackage(packageName, root)
 
     var files = @[newFileInternal()]
     kpkgDb.select(files, "package = ?", package)
@@ -188,3 +237,32 @@ proc getListFiles*(packageName: string, root: string): seq[string] =
         listFiles = listFiles&file.path.replace("\"", "")
     
     return listFiles
+
+proc getPackageByValue*(package = newPackageInternal(), field = ""): string =
+    # Get a package field by value.
+    # usage: getPackageByValue(package, "name")
+    
+    if field == "listFiles":
+        return getListFiles(package.name, "/", package).join("\n")
+
+    # thanks to getchoo to make me not yanderedev this shit
+    result = "Package("&package.name&"):"
+    for fieldName, value in package[].fieldPairs:
+        if isEmptyOrWhitespace(field):
+            when value is bool:
+                result.add("\n\t" & fieldName & " is " & $value)
+            else:
+                result.add("\n\t" & fieldName & " '" & $value & "'")
+        elif field == fieldName:
+            return $value
+    result.add("\n\tlistFiles listFiles("&package.name&")")
+
+proc getPackageByValueAll*(root: string, field = "") =
+    # Return getPackageByValue for all packages.
+    rootCheck(root)
+    
+    var packages = @[newPackageInternal()]
+    kpkgDb.selectAll(packages)
+    
+    for f in packages:
+        echo getPackageByValue(f, field)&"\n"
