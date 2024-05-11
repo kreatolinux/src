@@ -40,7 +40,7 @@ proc printProvides*(path = "", package: string, color: bool, enablePath = true):
     return finalResult
 
 proc provides*(files: seq[string], color = true) =
-    ## List packages that contains a file.
+    ## List packages that contain a specified file.
     setCurrentDir("/")
     for file in files:
         for packageName in getListPackages("/"):
