@@ -18,6 +18,7 @@ type
         backup*: string
         replaces*: string
         desc*: string
+        basePackage*: bool
 
     File* = ref object of Model
         path*: string
