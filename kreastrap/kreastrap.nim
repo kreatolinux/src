@@ -62,7 +62,7 @@ proc kreastrapInstall(package: string, installWithBinaries: bool,
 
     if installWithBinaries == true:
         debug "Installing package as a binary"
-        discard install(toSeq([package]), buildDir, true, target = targetFin)
+        discard install(toSeq([package]), buildDir, true, target = targetFin, basePackage = true)
     else:
         debug "Building package from source"
         discard build(yes = true, root = "/", packages = toSeq([
@@ -70,7 +70,7 @@ proc kreastrapInstall(package: string, installWithBinaries: bool,
                 useCacheIfAvailable = useCacheIfPossible,
                 forceInstallAll = true, target = targetFin)
         discard install(toSeq([package]), buildDir, true, offline = true,
-                target = targetFin)
+                target = targetFin, basePackage = true)
 
     ok("Package "&package&" installed successfully")
 

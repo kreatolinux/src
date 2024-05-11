@@ -67,7 +67,7 @@ dispatchMulti(
     "downloadOnly": "Only download the binary, don't install",
     "ignoreDownloadErrors": "Ignore errors that may occur while downloading packages"
     },
-    suppress = @["isUpgrade"] # Internal variable for commands/upgradecmd
+    suppress = @["isUpgrade", "basePackage"] # Internal variable for commands/upgradecmd, Internal variable of kreastrap
   ],
 
   [
@@ -143,9 +143,12 @@ dispatchMulti(
   list
   ],
   [
+  init, doc = "Initialize multiple types of files", usage = "$doc\n", stopWords = @["sandbox", "package", "override", "hook"]
+  ],
+  [
   get
   ],
   [
-  init, doc = "Initialize multiple types of files", usage = "$doc\n", stopWords = @["sandbox", "package", "override", "hook"]
+  getsetcmd.set
   ]
 )

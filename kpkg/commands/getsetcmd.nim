@@ -79,3 +79,33 @@ proc get*(invocations: seq[string]) =
           else:
             err("'"&invoc&"': invalid invocation. Available invocations: db, config, overrides. See kpkg_get(5) for more information.", false)
             continue
+
+proc set*(append = false, invocation: seq[string]) =
+    ## Sets a kpkg value. See kpkg_set(5) for more information.
+    if invocation.len < 2:
+        err("No invocation provided. See kpkg_set(5) for more information.", false)
+        return
+
+    let invocSplit = invocation[0].split(".")
+
+    case invocSplit[0]:
+        of "config":
+            if invocSplit.len < 4:
+                err("'"&invocation[0]&"': invalid invocation.", false)
+
+            if append:
+                setConfigValue(invocSplit[1], invocSplit[2], getConfigValue(invocSplit[1], invocSplit[2])&" "&invocation[1])
+            else:
+                setConfigValue(invocSplit[1], invocSplit[2], invocation[1])
+            
+            echo getConfigValue(invocSplit[1], invocSplit[2])
+        of "overrides":
+            if invocSplit.len < 3:
+                err("'"&invocation[0]&"': invalid invocation.", false)
+
+            if append:
+                setOverrideValue(invocSplit[1], invocSplit[2], invocSplit[3], getOverrideValue(invocSplit[1], invocSplit[2], invocSplit[3])&" "&invocation[1])
+            else:
+                setOverrideValue(invocSplit[1], invocSplit[2], invocSplit[3], invocation[1])
+
+            echo getOverrideValue(invocSplit[1], invocSplit[2], invocSplit[3])

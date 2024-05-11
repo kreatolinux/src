@@ -1,4 +1,5 @@
 import os
+import parsecfg
 import strutils
 import ../modules/sqlite
 import ../modules/logger
@@ -7,7 +8,7 @@ import ../modules/processes
 import ../modules/removeInternal
 
 proc remove*(packages: seq[string], yes = false, root = "",
-        force = false, autoRemove = false, configRemove = false): string =
+        force = false, autoRemove = false, configRemove = false, ignoreBasePackages = false): string =
     ## Remove packages.
 
     # bail early if user isn't admin
@@ -19,7 +20,7 @@ proc remove*(packages: seq[string], yes = false, root = "",
 
     if packages.len == 0:
         err("please enter a package name", false)
-
+ 
     var output: string
     var packagesFinal = packages
     
@@ -28,6 +29,12 @@ proc remove*(packages: seq[string], yes = false, root = "",
         if not packageExists(package, root):
           err("package "&package&" is not installed", false)
         packagesFinal = bloatDepends(package, root)&packagesFinal
+
+    if not ignoreBasePackages:
+        for package in packagesFinal:
+            let basePackage = getPackage(package, root).basePackage
+            if basePackage:
+                err("\""&package&"\" is a part of base system, cannot remove", false)
 
     if not yes:
         echo "Removing: "&packagesFinal.join(" ")

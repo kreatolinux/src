@@ -23,6 +23,16 @@ proc getOverrideValue*(package: string, section: string, key: string, defaultVal
   
   return override.getSectionValue(section, key, defaultVal)
 
+proc setOverrideValue*(package: string, section: string, key: string, value: string) =
+  ## Sets the value of a key in the override file.
+  if fileExists(overridesPath&"/"&package&".conf"):
+    override = loadConfig(overridesPath&"/"&package&".conf")
+  else:
+    err "override file not found. Create new file by running `kpkg init override`."
+  
+  override.setSectionKey(section, key, value)
+  override.writeConfig(overridesPath&"/"&package&".conf")
+
 proc getOverrideSection*(package: string, section: string, defaultVal = ""): string =
   ## Reads the override file and returns value of section.
   if fileExists(overridesPath&"/"&package&".conf"):

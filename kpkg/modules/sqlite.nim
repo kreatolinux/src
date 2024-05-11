@@ -17,6 +17,7 @@ type
         backup*: string
         replaces*: string
         desc*: string
+        basePackage*: bool
 
     File* = ref object of Model
         path*: string
@@ -28,9 +29,9 @@ var kpkgDb: DbConn
 var connOn = false
 
 
-func newPackageInternal(name = "", version = "", deps = "", bdeps = "", backup = "", replaces = "", desc = "", release = "", epoch = "", manualInstall = false, isGroup = false): Package =
+func newPackageInternal(name = "", version = "", deps = "", bdeps = "", backup = "", replaces = "", desc = "", release = "", epoch = "", manualInstall = false, isGroup = false, basePackage = false): Package =
     # Initializes a new Package.
-    Package(name: name, version: version, release: release, epoch: epoch, deps: deps, bdeps: bdeps, manualInstall: manualInstall, isGroup: isGroup, backup: backup, replaces: replaces, desc: desc)
+    Package(name: name, version: version, release: release, epoch: epoch, deps: deps, bdeps: bdeps, manualInstall: manualInstall, isGroup: isGroup, backup: backup, replaces: replaces, desc: desc, basePackage: basePackage)
 
 func newFileInternal(path = "", checksum = "", package = newPackageInternal()): File =
     # Initializes a new Package.
@@ -93,7 +94,7 @@ proc getFileByValueAll*(root: string, field = "") =
     for f in files:
         echo getFileByValue(f, field)&"\n"
     
-proc newPackage*(name, version, release, epoch, deps, bdeps, backup, replaces, desc: string, manualInstall, isGroup: bool, root: string): Package =
+proc newPackage*(name, version, release, epoch, deps, bdeps, backup, replaces, desc: string, manualInstall, isGroup, basePackage: bool, root: string): Package =
     # Initialize a new Package (wrapper)
     rootCheck(root)
     debug "newPackage ran"

@@ -21,7 +21,7 @@ import ../modules/removeInternal
 setControlCHook(ctrlc)
 
 proc installPkg*(repo: string, package: string, root: string, runf = runFile(
-        isParsed: false), manualInstallList: seq[string], isUpgrade = false, kTarget = kpkgTarget(root), ignorePostInstall = false, umount = true, disablePkgInfo = false, ignorePreInstall = false) =
+        isParsed: false), manualInstallList: seq[string], isUpgrade = false, kTarget = kpkgTarget(root), ignorePostInstall = false, umount = true, disablePkgInfo = false, ignorePreInstall = false, basePackage = false) =
     ## Installs a package.
 
     var pkg: runFile
@@ -181,7 +181,7 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
             info "Setting as manually installed"
             mI = true
 
-        var pkgType = newPackage(package, pkg.versionString, pkg.release, pkg.epoch, pkg.deps.join("!!k!!"), pkg.bdeps.join("!!k!!"), pkg.backup.join("!!k!!"), pkg.replaces.join("!!k!!"), pkg.desc, mI, pkg.isGroup, root) 
+        var pkgType = newPackage(package, pkg.versionString, pkg.release, pkg.epoch, pkg.deps.join("!!k!!"), pkg.bdeps.join("!!k!!"), pkg.backup.join("!!k!!"), pkg.replaces.join("!!k!!"), pkg.desc, mI, pkg.isGroup, basePackage, root) 
             
         # Installation loop 
         for file in extractTarball:
@@ -343,7 +343,7 @@ proc install_bin(packages: seq[string], binrepos: seq[string], root: string,
     removeLockfile()
 
 proc install*(promptPackages: seq[string], root = "/", yes: bool = false,
-        no: bool = false, forceDownload = false, offline = false, downloadOnly = false, ignoreDownloadErrors = false, isUpgrade = false, target = "default"): int =
+        no: bool = false, forceDownload = false, offline = false, downloadOnly = false, ignoreDownloadErrors = false, isUpgrade = false, target = "default", basePackage = false): int =
     ## Install a package from a binary, from a repository or locally.
     if promptPackages.len == 0:
         err("please enter a package name", false)
