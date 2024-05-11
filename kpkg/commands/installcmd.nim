@@ -344,7 +344,7 @@ proc install_bin(packages: seq[string], binrepos: seq[string], root: string,
 
 proc install*(promptPackages: seq[string], root = "/", yes: bool = false,
         no: bool = false, forceDownload = false, offline = false, downloadOnly = false, ignoreDownloadErrors = false, isUpgrade = false, target = "default"): int =
-    ## Download and install a package through a binary repository.
+    ## Install a package from a binary, from a repository or locally.
     if promptPackages.len == 0:
         err("please enter a package name", false)
 
