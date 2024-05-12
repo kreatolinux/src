@@ -27,7 +27,8 @@ case $1 in
                 nim c --deepcopy:on -d:release -d:useDist --passL:-larchive --threads:on -d:ver="$VERSION" -d:ssl -o="out/kpkg" "kpkg/kpkg.nim"
                 cp  out/kpkg /bin/kpkg
                 # temp end
-
+                
+                export KPKG_ENABLE_DEBUG=yes
   	            kpkg # Initializes configs
 		        kpkg update
                 #kpkg build kpkg -y
@@ -47,8 +48,8 @@ case $1 in
                 
   	            kpkg clean -e
                 ./build.sh -i
-                nim c --deepcopy:on scripts/sqlite.nim
-                scripts/sqlite || true
+                #nim c --deepcopy:on scripts/sqlite.nim
+                #scripts/sqlite || true
 
 		            nim c -d:branch=master --deepcopy:on --passL:-larchive --passC:-no-pie --threads:on -d:ssl -o=kreastrap/kreastrap kreastrap/kreastrap.nim
                     
