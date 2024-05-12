@@ -203,6 +203,11 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
                 # TODO: add pkgInfo class to modules/sqlite
                 continue
 
+            if symlinkExists(root&"/"&file) and dirExists(kpkgInstallTemp&"/"&file):
+                debug "\""&file&"\" is a symlink at \""&root&"\", not installing"
+                dict.delSectionKey("", relativePath(file, kpkgInstallTemp))
+                continue
+
             let doesFileExist = (fileExists(kpkgInstallTemp&"/"&file) or symlinkExists(kpkgInstallTemp&"/"&file))
             if doesFileExist:
                 if not dirExists(root&"/"&file.parentDir()):
