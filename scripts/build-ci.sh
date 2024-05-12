@@ -33,11 +33,11 @@ case $1 in
 		        kpkg update
                 #kpkg build kpkg -y
 
-                kpkg build bzip2 -y || exit 1
+                #kpkg build bzip2 -y || exit 1
     
-                kpkg build python -y || exit 1
+                #kpkg build python -y || exit 1
 
-		        kpkg build ninja -y
+		        #kpkg build ninja -y
                 kpkg build llvm -y # Required by futhark
 
                 #rm -r /var/cache/kpkg/archives/x86_64-linux-gnu-systemd-openssl
