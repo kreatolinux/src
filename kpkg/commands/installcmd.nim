@@ -202,13 +202,16 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
             if "pkgInfo.ini" == lastPathPart(file):
                 # TODO: add pkgInfo class to modules/sqlite
                 continue
+        
+            
+
 
             let doesFileExist = (fileExists(kpkgInstallTemp&"/"&file) or symlinkExists(kpkgInstallTemp&"/"&file))
             if doesFileExist:
                 if not dirExists(root&"/"&file.parentDir()):
                     createDirWithPermissionsAndOwnership(kpkgInstallTemp&"/"&file.parentDir(), root&"/"&file.parentDir())
                 copyFileWithPermissionsAndOwnership(kpkgInstallTemp&"/"&file, root&"/"&file)
-            elif dirExists(kpkgInstallTemp&"/"&file) and (not dirExists(root&"/"&file)):
+            elif dirExists(kpkgInstallTemp&"/"&file) and (not dirExists(root&"/"&file) or symlinkExists(root&"/"&file)):
                 createDirWithPermissionsAndOwnership(kpkgInstallTemp&"/"&file, root&"/"&file)
 
     # Run ldconfig afterwards for any new libraries
