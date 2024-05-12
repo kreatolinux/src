@@ -26,6 +26,7 @@ case $1 in
                 nimble install cligen fuzzy nimcrypto norm -y
                 nim c --deepcopy:on -d:release -d:useDist --passL:-larchive --threads:on -d:ver="$VERSION" -d:ssl -o="out/kpkg" "kpkg/kpkg.nim"
                 cp  out/kpkg /bin/kpkg
+                cd ..
                 # temp end
                 
                 export KPKG_ENABLE_DEBUG=yes
