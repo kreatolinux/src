@@ -98,7 +98,7 @@ proc newPackage*(name, version, release, epoch, deps, bdeps, backup, replaces, d
     # Initialize a new Package (wrapper)
     rootCheck(root)
     debug "newPackage ran"
-    var res = newPackageInternal(name, version, deps, bdeps, backup, replaces, desc, release, epoch, manualInstall, isGroup)
+    var res = newPackageInternal(name, version, deps, bdeps, backup, replaces, desc, release, epoch, manualInstall, isGroup, basePackage)
     kpkgDb.insert(res)
     return res
 
