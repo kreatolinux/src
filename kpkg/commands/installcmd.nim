@@ -211,7 +211,7 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
                 if not dirExists(root&"/"&file.parentDir()):
                     createDirWithPermissionsAndOwnership(kpkgInstallTemp&"/"&file.parentDir(), root&"/"&file.parentDir())
                 copyFileWithPermissionsAndOwnership(kpkgInstallTemp&"/"&file, root&"/"&file)
-            elif dirExists(kpkgInstallTemp&"/"&file) and (not dirExists(root&"/"&file) or symlinkExists(root&"/"&file)):
+            elif dirExists(kpkgInstallTemp&"/"&file) and not (dirExists(root&"/"&file) or symlinkExists(root&"/"&file)):
                 createDirWithPermissionsAndOwnership(kpkgInstallTemp&"/"&file, root&"/"&file)
 
     # Run ldconfig afterwards for any new libraries
