@@ -14,21 +14,22 @@ case $1 in
                         ln -s "$GITHUB_WORKSPACE" /work
                         git config --global --add safe.directory $GITHUB_WORKSPACE
                 fi
-                
+               
 		            mkdir /out
                 ln -s /out /work/out
                 cd /work || exit 1
-                
+               
+                mv kpkg-amd64-linux-debug/kpkg /bin/kpkg
+
   	            kpkg # Initializes configs
-		            sed -i s/stable/master/g /etc/kpkg/kpkg.conf # Switch to master repos
-		            kpkg update
+		        kpkg update
                 #kpkg build kpkg -y
 
                 kpkg build bzip2 -y || exit 1
     
                 kpkg build python -y || exit 1
 
-		            kpkg build ninja -y
+		        kpkg build ninja -y
                 kpkg build llvm -y # Required by futhark
 
                 #rm -r /var/cache/kpkg/archives/x86_64-linux-gnu-systemd-openssl

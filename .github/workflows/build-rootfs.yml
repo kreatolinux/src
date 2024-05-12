@@ -24,7 +24,13 @@ jobs:
           key: binary-cache-${{ github.run_id }}
           restore-keys: |
             binary-cache
-      
+     
+      - name: Download artifacts from CI job
+        uses: actions/download-artifact@v4
+        with:
+          name: kpkg-amd64-linux-debug
+          path: ${{ github.workspace }}/kpkg-amd64-linux-debug
+
       - name: Build nocc rootfs tarball
         run: |
           IS_ACTIONS=y sh $GITHUB_WORKSPACE/scripts/build-ci.sh init
