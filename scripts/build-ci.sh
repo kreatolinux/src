@@ -19,7 +19,14 @@ case $1 in
                 ln -s /out /work/out
                 cd /work || exit 1
                
-                mv kpkg-amd64-linux-debug/kpkg /bin/kpkg
+                # TEMP
+                wget https://github.com/kreatolinux/src/releases/download/v7.1.0/src-v7.1.0-dist.tar.gz
+                tar -xvf src-v7.1.0-dist.tar.gz
+                cd src-v7.1.0 || exit 1
+                nimble install cligen fuzzy nimcrypto norm -y
+                nim c --deepcopy:on -d:release -d:useDist --passL:-larchive --threads:on -d:ver="$VERSION" -d:ssl -o="out/kpkg" "kpkg/kpkg.nim"
+                cp  out/kpkg /bin/kpkg
+                # temp end
 
   	            kpkg # Initializes configs
 		        kpkg update

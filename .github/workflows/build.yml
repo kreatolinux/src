@@ -15,7 +15,7 @@ jobs:
     # The type of runner that the job will run on
     runs-on: ubuntu-latest
     container: 
-      image: ghcr.io/kreatolinux/builder@sha256:dfdbf71535be96b19d3c5d382b9876a788c246b7ba7b2e2f0290ac42687fdb49
+      image: ghcr.io/kreatolinux/builder:latest
       options: --privileged
       
     steps:
