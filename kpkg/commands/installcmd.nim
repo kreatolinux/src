@@ -322,7 +322,7 @@ proc down_bin(package: string, binrepos: seq[string], root: string,
         err("couldn't download the binary")
 
 proc install_bin(packages: seq[string], binrepos: seq[string], root: string,
-        offline: bool, downloadOnly = false, manualInstallList: seq[string], kTarget = kpkgTarget(root), forceDownload = false, ignoreDownloadErrors = false, forceDownloadPackages = @[""]) =
+        offline: bool, downloadOnly = false, manualInstallList: seq[string], kTarget = kpkgTarget(root), forceDownload = false, ignoreDownloadErrors = false, forceDownloadPackages = @[""], basePackage = false) =
     ## Downloads and installs binaries.
 
     var repo: string
@@ -340,7 +340,7 @@ proc install_bin(packages: seq[string], binrepos: seq[string], root: string,
     if not downloadOnly:
         for i in packages:
             repo = findPkgRepo(i)
-            installPkg(repo, i, root, manualInstallList = manualInstallList, kTarget = kTarget)
+            installPkg(repo, i, root, manualInstallList = manualInstallList, kTarget = kTarget, basePackage = basePackage)
             info "Installation for "&i&" complete"
 
     removeLockfile()
@@ -392,7 +392,7 @@ proc install*(promptPackages: seq[string], root = "/", yes: bool = false,
 
     if not (deps.len == 0 and deps == @[""]):
         install_bin(deps, binrepos, fullRootPath, offline,
-                downloadOnly = downloadOnly, manualInstallList = promptPackages, kTarget = kTarget, forceDownload = forceDownload, ignoreDownloadErrors = ignoreDownloadErrors)
+                downloadOnly = downloadOnly, manualInstallList = promptPackages, kTarget = kTarget, forceDownload = forceDownload, ignoreDownloadErrors = ignoreDownloadErrors, basePackage = basePackage)
 
     info("done")
     return 0
