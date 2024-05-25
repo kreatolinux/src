@@ -104,22 +104,21 @@ proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false,
         
         var pkg = p
 
-        let pkgSplit = p.split("/")
         var repo: string
-        
+        var version = ""
+
         if isInstallDir:
             repo = absolutePath(pkg).parentDir()
             pkg = lastPathPart(pkg)
         else:
-            if pkgSplit.len > 1:
-                repo = "/etc/kpkg/repos/"&pkgSplit[0]
-                pkg = pkgSplit[1]
-            elif not chkInstalledDirInstead:
-                debug "findPkgRepo ran"
-                repo = findPkgRepo(pkg)
-                debug "repo: '"&repo&"'"
-            else:
+            if chkInstalledDirInstead:
                 repo = "local"
+            else:
+                let pkgSplit = parsePkgInfo(pkg)
+                pkg = pkgSplit.name
+                repo = pkgSplit.repo
+                version = pkgSplit.version
+
 
         if repo == "":
             err("Package '"&pkg&"' doesn't exist", false)

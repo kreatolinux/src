@@ -146,9 +146,15 @@ dispatchMulti(
   init, doc = "Initialize multiple types of files", usage = "$doc\n", stopWords = @["sandbox", "package", "override", "hook"]
   ],
   [
-  get
+  get, help = {
+    "invocations": "The invocation(s) to read"
+    }
   ],
   [
-  getsetcmd.set
+  getsetcmd.set, help = {
+    "invocation": "The invocation to write",
+    "file": "URL/Path to the file with invocations",
+    "append": "Append to the value instead of replacing it"
+    }
   ]
 )

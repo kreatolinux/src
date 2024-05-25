@@ -24,6 +24,7 @@ proc onProgressChanged(total, progress, speed: BiggestInt) =
 
 proc download*(url: string, file: string, instantErrorIfFail = false,
     raiseWhenFail = false) =
+  debug "downloader ran, attempting to download file from '"&url&"' to '"&file&"'"
   try:
     var client = newHttpClient()
     client.onProgressChanged = onProgressChanged 

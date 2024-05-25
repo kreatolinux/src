@@ -142,6 +142,49 @@ proc appendInternal(f: string, t: string): string =
   else:
     return t&" "&f
 
+proc parsePkgInfo*(pkg: string): tuple[name: string, repo: string, version: string, nameWithRepo: string] =
+  # Returns the package name, repo and version. Version is empty when not specified.
+  # nameWithRepo outputs something like main/kpkg if the pkg includes the repo. It outputs the name if it doesn't.
+  var name: string
+  var repo: string
+  var version: string
+  var nameWithRepo: string
+
+  let pkgSplitVer = pkg.split("#")
+  let pkgSplit = pkg.split("/")
+  
+  if pkgSplitVer.len > 1:
+    
+    if pkgSplit.len > 1:
+        name = pkgSplitVer[0].split("/")[1]
+        repo = "/etc/kpkg/repos/"&pkgSplitVer[0].split("/")[0]
+        nameWithRepo = pkgSplitVer[0]
+    else:
+        name = pkgSplitVer[0]
+        repo = findPkgRepo(pkgSplitVer[0])
+
+    version = pkgSplitVer[1]
+  
+  else:
+    version = ""
+
+  
+  if pkgSplit.len > 1 and version == "":
+    repo = "/etc/kpkg/repos/"&pkgSplit[0]
+    name = pkgSplit[1]
+    nameWithRepo = pkgSplitVer[0]
+  
+  if name == "":
+    name = pkg
+    repo = findPkgRepo(pkg)
+
+  if nameWithRepo == "":
+    nameWithRepo = name
+
+  debug "parsePkgInfo ran, name: '"&name&"', repo: '"&repo&"', version: '"&version&"', nameWithRepo: '"&nameWithRepo&"'"
+  return (name: name, repo: repo, version: version, nameWithRepo: nameWithRepo)
+
+
 proc appenderInternal(r: string, a: string, b: string, c = "", removeInt = 0): string =
   # Appends spaces so it looks nicer.
   var final = r
@@ -163,29 +206,34 @@ proc printPackagesPrompt*(packages: string, yes: bool, no: bool, isInstallDir = 
       for i in packages.split(" "):
         var pkgRepo: string
         var pkg = i
+        var pkgFancy: string
+        var pkgVer: string
         
         if i in isInstallDir:
           pkgRepo = absolutePath(pkg).parentDir()
           pkg = lastPathPart(pkg)
         else:        
-          let pkgSplit = i.split("/")
-          if pkgSplit.len > 1:
-            pkgRepo = "/etc/kpkg/repos/"&pkgSplit[0]
-            pkg = pkgSplit[1]
-          else:
-            pkgRepo = findPkgRepo(i)
+          let pkgSplit = parsePkgInfo(i)
+          pkgRepo = pkgSplit.repo
+          pkg = pkgSplit.name
+          pkgFancy = pkgSplit.nameWithRepo
+          pkgVer = pkgSplit.version
 
         let upstreamRunf = parseRunfile(pkgRepo&"/"&pkg)
+        
+        if isEmptyOrWhitespace(pkgVer):
+            pkgVer = upstreamRunf.versionString
+
         var r = lastPathPart(pkgRepo)&"/"&pkg
         if packageExists(pkg, "/"):
           let localPkg = getPackage(pkg, "/")
-          if localPkg.version != upstreamRunf.versionString:
+          if localPkg.version != pkgVer:
             r = r&"-"&localPkg.version
-            r = appenderInternal(r, pkg, lastPathPart(pkgRepo), localPkg.version)
-            r = r&upstreamRunf.versionString
+            r = appenderInternal(r, pkgFancy, lastPathPart(pkgRepo), localPkg.version)
+            r = r&pkgVer
           else:
             r = r&"-"&localPkg.version
-            r = appenderInternal(r, pkg, lastPathPart(pkgRepo), localPkg.version)
+            r = appenderInternal(r, pkgFancy, lastPathPart(pkgRepo), localPkg.version)
             if i in dependents:
                 if binary:
                     r = r&"reinstall"
@@ -194,7 +242,7 @@ proc printPackagesPrompt*(packages: string, yes: bool, no: bool, isInstallDir = 
             else:
                 r = r&"up-to-date"
         else:
-            r = appenderInternal(r, pkg, "", lastPathPart(pkgRepo), 1)
+            r = appenderInternal(r, pkgFancy, "", lastPathPart(pkgRepo), 1)
             r = r&upstreamRunf.versionString
 
         echo r
@@ -205,35 +253,39 @@ proc printPackagesPrompt*(packages: string, yes: bool, no: bool, isInstallDir = 
       var upstreamRunf: runFile
       
       var pkgRepo: string
+      var pkgVer: string
+      var pkgFancy: string
       var pkg = i
-      let pkgSplit = i.split("/")
-      
+
       if i in isInstallDir:
         pkgRepo = absolutePath(pkg).parentDir()
         pkg = lastPathPart(pkg)
       else:
-        if pkgSplit.len > 1:
-          pkgRepo = "/etc/kpkg/repos/"&pkgSplit[0]
-          pkg = pkgSplit[1]
-        else:
-          pkgRepo = findPkgRepo(i)
+        var pkgSplit = parsePkgInfo(i)
+        pkgRepo = pkgSplit.repo
+        pkg = pkgSplit.name
+        pkgFancy = pkgSplit.nameWithRepo
+        pkgVer = pkgSplit.version
 
       if packageExists(pkg, "/") and pkgRepo != "":
         upstreamRunf = parseRunfile(pkgRepo&"/"&pkg)
         
-        if getPackage(pkg, "/").version != upstreamRunf.versionString:
-          finalPkgs = appendInternal(i&" -> ".green&upstreamRunf.versionString, finalPkgs)
+        if isEmptyOrWhitespace(pkgVer):
+            pkgVer = upstreamRunf.versionString
+
+        if getPackage(pkg, "/").version != pkgVer:
+          finalPkgs = appendInternal(pkgFancy&" -> ".green&pkgVer, finalPkgs)
           continue
         elif pkg in dependents: 
           if binary:
-            finalPkgs = appendInternal(i&" -> ".blue&"reinstall", finalPkgs)
+            finalPkgs = appendInternal(pkgFancy&" -> ".blue&"reinstall", finalPkgs)
           else:
-            finalPkgs = appendInternal(i&" -> ".blue&"rebuild", finalPkgs)
+            finalPkgs = appendInternal(pkgFancy&" -> ".blue&"rebuild", finalPkgs)
 
           continue
             
 
-      finalPkgs = appendInternal(i, finalPkgs)
+      finalPkgs = appendInternal(pkgFancy, finalPkgs)
   
     echo "Packages ("&($pkgLen)&"): "&finalPkgs
 
@@ -262,18 +314,15 @@ proc printReplacesPrompt*(pkgs: seq[string], root: string, isDeps = false, isIns
   ## Prints a replacesPrompt.
   for i in pkgs:
     var pkg = i
-    let pkgSplit = i.split("/")
     var pkgRepo: string
 
     if isInstallDir:
       pkgRepo = absolutePath(pkg).parentDir()
       pkg = lastPathPart(pkg)
     else:
-      if pkgSplit.len > 1:
-        pkgRepo = "/etc/kpkg/repos/"&pkgSplit[0]
-        pkg = pkgSplit[1]
-      else:
-        pkgRepo = findPkgRepo(i)
+      let pkgSplit = parsePkgInfo(i)
+      pkg = pkgSplit.name
+      pkgRepo = pkgSplit.repo
 
     for p in parseRunfile(pkgRepo&"/"&pkg).replaces:
       if isDeps and packageExists(p, root):

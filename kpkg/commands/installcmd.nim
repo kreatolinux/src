@@ -21,7 +21,7 @@ import ../modules/removeInternal
 setControlCHook(ctrlc)
 
 proc installPkg*(repo: string, package: string, root: string, runf = runFile(
-        isParsed: false), manualInstallList: seq[string], isUpgrade = false, kTarget = kpkgTarget(root), ignorePostInstall = false, umount = true, disablePkgInfo = false, ignorePreInstall = false, basePackage = false) =
+        isParsed: false), manualInstallList: seq[string], isUpgrade = false, kTarget = kpkgTarget(root), ignorePostInstall = false, umount = true, disablePkgInfo = false, ignorePreInstall = false, basePackage = false, version = "") =
     ## Installs a package.
 
     var pkg: runFile
@@ -89,8 +89,13 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
 
     var tarball: string
 
+    var pkgVersion = pkg.versionString
+
+    if not isEmptyOrWhitespace(version):
+        pkgVersion = version
+
     if not isGroup:
-        tarball = kpkgArchivesDir&"/system/"&kTarget&"/"&package&"-"&pkg.versionString&".kpkg"
+        tarball = kpkgArchivesDir&"/system/"&kTarget&"/"&package&"-"&pkgVersion&".kpkg"
         
     setCurrentDir(kpkgArchivesDir)
     
@@ -181,7 +186,7 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
             info "Setting as manually installed"
             mI = true
 
-        var pkgType = newPackage(package, pkg.versionString, pkg.release, pkg.epoch, pkg.deps.join("!!k!!"), pkg.bdeps.join("!!k!!"), pkg.backup.join("!!k!!"), pkg.replaces.join("!!k!!"), pkg.desc, mI, pkg.isGroup, basePackage, root) 
+        var pkgType = newPackage(package, pkgVersion, pkg.release, pkg.epoch, pkg.deps.join("!!k!!"), pkg.bdeps.join("!!k!!"), pkg.backup.join("!!k!!"), pkg.replaces.join("!!k!!"), pkg.desc, mI, pkg.isGroup, basePackage, root)
             
         # Installation loop 
         for file in extractTarball:
@@ -261,7 +266,7 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
         info(i)
 
 proc down_bin(package: string, binrepos: seq[string], root: string,
-        offline: bool, forceDownload = false, ignoreDownloadErrors = false, kTarget = kpkgTarget(root)) =
+        offline: bool, forceDownload = false, ignoreDownloadErrors = false, kTarget = kpkgTarget(root), version = "") =
     ## Downloads binaries.
     
     discard existsOrCreateDir("/var/")
@@ -302,8 +307,13 @@ proc down_bin(package: string, binrepos: seq[string], root: string,
 
         if pkg.isGroup:
             return
+        
+        var pkgVersion = pkg.versionString
+        
+        if not isEmptyOrWhitespace(version):
+            pkgVersion = version
 
-        let tarball = package&"-"&pkg.versionString&".kpkg"
+        let tarball = package&"-"&pkgVersion&".kpkg"
 
         if fileExists(kpkgArchivesDir&"/system/"&kTarget&"/"&tarball) and (not forceDownload):
             info "Tarball already exists for '"&package&"', not gonna download again"
@@ -325,22 +335,21 @@ proc install_bin(packages: seq[string], binrepos: seq[string], root: string,
         offline: bool, downloadOnly = false, manualInstallList: seq[string], kTarget = kpkgTarget(root), forceDownload = false, ignoreDownloadErrors = false, forceDownloadPackages = @[""], basePackage = false) =
     ## Downloads and installs binaries.
 
-    var repo: string
-    
     isKpkgRunning()
     checkLockfile()
     createLockfile()
 
     for i in packages:
+        let pkgParsed = parsePkgInfo(i)
         var fdownload = false
         if i in forceDownloadPackages or forceDownload:
             fdownload = true
-        down_bin(i, binrepos, root, offline, fdownload, ignoreDownloadErrors = ignoreDownloadErrors, kTarget = kTarget)
+        down_bin(pkgParsed.name, binrepos, root, offline, fdownload, ignoreDownloadErrors = ignoreDownloadErrors, kTarget = kTarget, version = pkgParsed.version)
 
     if not downloadOnly:
         for i in packages:
-            repo = findPkgRepo(i)
-            installPkg(repo, i, root, manualInstallList = manualInstallList, kTarget = kTarget, basePackage = basePackage)
+            let pkgParsed = parsePkgInfo(i)
+            installPkg(pkgParsed.repo, pkgParsed.name, root, manualInstallList = manualInstallList, kTarget = kTarget, basePackage = basePackage, version = pkgParsed.version)
             info "Installation for "&i&" complete"
 
     removeLockfile()
@@ -364,8 +373,8 @@ proc install*(promptPackages: seq[string], root = "/", yes: bool = false,
     for i in promptPackages:
         let currentPackage = lastPathPart(i)
         packages = packages&currentPackage
-        if findPkgRepo(currentPackage&"-"&init) != "":
-            packages = packages&(currentPackage&"-"&init) 
+        if findPkgRepo(parsePkgInfo(i).name&"-"&init) != "":
+            packages = packages&(parsePkgInfo(i).name&"-"&init) 
 
     try:
         deps = dephandler(packages, root = root)

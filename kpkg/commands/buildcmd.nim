@@ -560,11 +560,11 @@ proc build*(no = false, yes = false, root = "/",
 
     if not isInstallDir:
         for i in pBackup:
-            let packageSplit = i.split("/")
-            if packageSplit.len > 1:
-                p = p&packageSplit[1]
+            let packageSplit = parsePkgInfo(i)
+            if "/" in packageSplit.nameWithRepo:
+                p = p&packageSplit.name
             else:
-                p = p&packageSplit[0]
+                p = p&packageSplit.name
     
     var depsToClean: seq[string]
 
@@ -578,9 +578,11 @@ proc build*(no = false, yes = false, root = "/",
                 createEnv(root)
                 
             discard mountOverlay(error = "mounting overlay")
+
+            let pkgTmp = parsePkgInfo(i)
             # We set isBuild to false here as we don't want build dependencies of other packages on the sandbox.
             debug "parseRunfile ran from buildcmd, depsToClean"
-            let runfTmp = parseRunfile(findPkgRepo(i)&"/"&i)
+            let runfTmp = parseRunfile(pkgTmp.repo&"/"&pkgTmp.name)
             
             depsToClean = deduplicate(runfTmp.bdeps&dephandler(@[i], isBuild = false, root = fullRootPath, forceInstallAll = true, isInstallDir = isInstallDir, ignoreInit = ignoreInit))
 
@@ -600,7 +602,7 @@ proc build*(no = false, yes = false, root = "/",
                 for d in depsToClean:
                     installFromRoot(d, root, kpkgOverlayPath&"/upperDir")
 
-            let packageSplit = i.split("/")
+            let packageSplit = parsePkgInfo(i)
             
             var customRepo = ""
             var isInstallDirFinal: bool 
@@ -610,11 +612,11 @@ proc build*(no = false, yes = false, root = "/",
                 pkgName = absolutePath(i)
                 isInstallDirFinal = true
             else:
-                if packageSplit.len > 1:
-                    customRepo = packageSplit[0]
-                    pkgName = packageSplit[1]
+                if "/" in packageSplit.nameWithRepo:
+                    customRepo = lastPathPart(packageSplit.repo)
+                    pkgName = packageSplit.name
                 else:
-                    pkgName = packageSplit[0]
+                    pkgName = packageSplit.name
 
             discard builder(pkgName, fullRootPath, offline = false,
                     dontInstall = dontInstall, useCacheIfAvailable = useCacheIfAvailable, tests = tests, manualInstallList = p, customRepo = customRepo, isInstallDir = isInstallDirFinal, isUpgrade = isUpgrade, target = target, actualRoot = root, ignorePostInstall = ignorePostInstall, ignoreUseCacheIfAvailable = gD)
