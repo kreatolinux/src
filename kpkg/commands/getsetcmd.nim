@@ -1,8 +1,10 @@
+import os
 import strutils
 import ../modules/logger
 import ../modules/config
 import ../modules/sqlite
 import ../modules/overrides
+import ../modules/downloader
 
 # base functions
 #
@@ -80,8 +82,47 @@ proc get*(invocations: seq[string]) =
             err("'"&invoc&"': invalid invocation. Available invocations: db, config, overrides. See kpkg_get(5) for more information.", false)
             continue
 
-proc set*(append = false, invocation: seq[string]) =
+proc set*(file = "", append = false, invocation: seq[string]) =
     ## Sets a kpkg value. See kpkg_set(5) for more information.
+
+    if not isEmptyOrWhitespace(file):
+        var fileToRead = file
+        if file.startsWith("https://") or file.startsWith("http://"):
+            createDir("/tmp/kpkg")
+            download(file, "/tmp/kpkg/"&lastPathPart(file))
+            fileToRead = lastPathPart(file)
+        else:
+            if not fileExists(file):
+                err("'"&file&"': file does not exist.", false)
+       
+        for line in lines fileToRead:
+
+            # Check for comments and whitespace
+            if line.startsWith("#") or isEmptyOrWhitespace(line):
+                continue
+
+            let lineSplit = line.split(" ")
+            
+            debug "lineSplit: '"&($lineSplit)&"'"
+
+            try:
+                case lineSplit[1]:
+                    of "=", "==":
+                        set(append = false, invocation = @[lineSplit[0], lineSplit[2]])
+                    of "+=":
+                        set(append = true, invocation = @[lineSplit[0], lineSplit[2]])
+                    else:
+                        err("'"&line&"': invalid invocation.", false)
+                        continue
+            except:
+                when not defined(release):
+                    raise getCurrentException()
+                else:
+                    err("'"&line&"': invalid invocation.", false)
+                    continue
+
+        return
+
     if invocation.len < 2:
         err("No invocation provided. See kpkg_set(5) for more information.", false)
         return
@@ -90,7 +131,7 @@ proc set*(append = false, invocation: seq[string]) =
 
     case invocSplit[0]:
         of "config":
-            if invocSplit.len < 4:
+            if invocSplit.len < 3:
                 err("'"&invocation[0]&"': invalid invocation.", false)
 
             if append:
