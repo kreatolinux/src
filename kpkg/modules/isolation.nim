@@ -26,6 +26,11 @@ proc execEnv*(command: string, error = "none", passthrough = false, silentMode =
             err("internal: you have to use mountOverlay() before running execEnv")
         if remount:
             discard execCmdKpkg("mount -o remount "&path, silentMode = silentMode)
+
+        # Create dirs so that bwrap doesn't complain
+        createDir(kpkgTempDir1)
+        createDir(kpkgTempDir2)
+
         return execCmdKpkg("bwrap --bind "&path&" / --bind "&kpkgTempDir1&" "&kpkgTempDir1&" --bind /etc/kpkg/repos /etc/kpkg/repos --bind "&kpkgTempDir2&" "&kpkgTempDir2&" --bind "&kpkgSourcesDir&" "&kpkgSourcesDir&" --dev /dev --proc /proc --perms 1777 --tmpfs /dev/shm --ro-bind /etc/resolv.conf /etc/resolv.conf /bin/sh -c \""&command&"\"", error, silentMode = silentMode)
 
 proc installFromRootInternal(package, root, destdir: string, removeDestdirOnError = false, ignorePostInstall = true) = 
@@ -60,9 +65,6 @@ proc installFromRootInternal(package, root, destdir: string, removeDestdirOnErro
             copyFileWithPermissionsAndOwnership(root&"/"&listFilesSplitted, destdir&"/"&relativePath(listFilesSplitted, root))
     newPackageFromRoot(root, package, destdir)
     
-    # Sync the filesystem to not get any errors
-    discard execCmdKpkg("sync", silentMode = true)
-
     let repo = findPkgRepo(package)
 
     if isEmptyOrWhitespace(repo):
@@ -70,19 +72,19 @@ proc installFromRootInternal(package, root, destdir: string, removeDestdirOnErro
 
     var existsPkgPostinstall = execEnv(
             ". "&repo&"/"&package&"/run"&" && command -v postinstall_"&replace(
-                    package, '-', '_'), remount = true)
+                    package, '-', '_'), remount = true, silentMode = true)
     var existsPostinstall = execEnv(
-            ". "&repo&"/"&package&"/run"&" && command -v postinstall", remount = true)
+            ". "&repo&"/"&package&"/run"&" && command -v postinstall", remount = true, silentMode = true)
 
     if existsPkgPostinstall == 0:
         if execEnv(". "&repo&"/"&package&"/run"&" && postinstall_"&replace(
-                package, '-', '_'), remount = true) != 0:
+                package, '-', '_'), remount = true, silentMode = true) != 0:
             if ignorePostInstall:
                 debug "postinstall failed on sandbox"
             else:
                 err("postinstall failed on sandbox")
     elif existsPostinstall == 0:
-        if execEnv(". "&repo&"/"&package&"/run"&" && postinstall", remount = true) != 0:
+        if execEnv(". "&repo&"/"&package&"/run"&" && postinstall", remount = true, silentMode = true) != 0:
             if ignorePostInstall:
                 debug "postinstall failed on sandbox"
             else:
