@@ -24,6 +24,7 @@ proc execEnv*(command: string, error = "none", passthrough = false, silentMode =
         debug "passthrough false, \""&command&"\""
         if not dirExists(path):
             err("internal: you have to use mountOverlay() before running execEnv")
+        
         if remount:
             discard execCmdKpkg("mount -o remount "&path, silentMode = silentMode)
 
@@ -33,7 +34,10 @@ proc execEnv*(command: string, error = "none", passthrough = false, silentMode =
 
         return execCmdKpkg("bwrap --bind "&path&" / --bind "&kpkgTempDir1&" "&kpkgTempDir1&" --bind /etc/kpkg/repos /etc/kpkg/repos --bind "&kpkgTempDir2&" "&kpkgTempDir2&" --bind "&kpkgSourcesDir&" "&kpkgSourcesDir&" --dev /dev --proc /proc --perms 1777 --tmpfs /dev/shm --ro-bind /etc/resolv.conf /etc/resolv.conf /bin/sh -c \""&command&"\"", error, silentMode = silentMode)
 
-proc installFromRootInternal(package, root, destdir: string, removeDestdirOnError = false, ignorePostInstall = true) = 
+proc installFromRootInternal(package, root, destdir: string, removeDestdirOnError = false, ignorePostInstall = false) = 
+    
+    debug "installFromRootInternal: package: \""&package&"\", root: \""&root&"\", destdir: \""&destdir&"\", removeDestdirOnError: \""&($removeDestdirOnError)&"\", ignorePostInstall: \""&($ignorePostInstall)&"\""
+
     # Check if package exists and has the right checksum
     check(package, root, true)
     
@@ -67,8 +71,8 @@ proc installFromRootInternal(package, root, destdir: string, removeDestdirOnErro
     
     let repo = findPkgRepo(package)
 
-    if isEmptyOrWhitespace(repo):
-        return # bail early if no repo is found
+    if isEmptyOrWhitespace(repo) or ignorePostInstall:
+        return # bail early if no repo is found or if we're ignoring postinstall
 
     var existsPkgPostinstall = execEnv(
             ". "&repo&"/"&package&"/run"&" && command -v postinstall_"&replace(
@@ -79,15 +83,9 @@ proc installFromRootInternal(package, root, destdir: string, removeDestdirOnErro
     if existsPkgPostinstall == 0:
         if execEnv(". "&repo&"/"&package&"/run"&" && postinstall_"&replace(
                 package, '-', '_'), remount = true, silentMode = true) != 0:
-            if ignorePostInstall:
-                debug "postinstall failed on sandbox"
-            else:
                 err("postinstall failed on sandbox")
     elif existsPostinstall == 0:
         if execEnv(". "&repo&"/"&package&"/run"&" && postinstall", remount = true, silentMode = true) != 0:
-            if ignorePostInstall:
-                debug "postinstall failed on sandbox"
-            else:
                 err("postinstall failed on sandbox")
 
 
@@ -147,7 +145,7 @@ proc createEnv*(root: string) =
         of "busybox":
             installFromRoot("busybox", root, kpkgEnvPath, ignorePostInstall = true)
 
-    installFromRoot(dict.getSectionValue("Core", "tlsLibrary"), root, kpkgEnvPath)
+    installFromRoot(dict.getSectionValue("Core", "tlsLibrary"), root, kpkgEnvPath, ignorePostInstall = true)
     
     case dict.getSectionValue("Core", "init"):
         of "systemd":
@@ -156,17 +154,11 @@ proc createEnv*(root: string) =
         else:
             installFromRoot(dict.getSectionValue("Core", "init"), root, kpkgEnvPath, ignorePostInstall = true)
             
-
     installFromRoot(dict.getSectionValue("Core", "init"), root, kpkgEnvPath, ignorePostInstall = true)
     
-    installFromRoot("kreato-fs-essentials", root, kpkgEnvPath, ignorePostInstall = true)
-    installFromRoot("git", root, kpkgEnvPath, ignorePostInstall = true)
-    installFromRoot("kpkg", root, kpkgEnvPath, ignorePostInstall = true)
-    installFromRoot("ca-certificates", root, kpkgEnvPath, ignorePostInstall = true)
-    installFromRoot("python", root, kpkgEnvPath, ignorePostInstall = true)
-    installFromRoot("python-pip", root, kpkgEnvPath, ignorePostInstall = true)
-    installFromRoot("gmake", root, kpkgEnvPath, ignorePostInstall = true)
-    
+    for i in "kreato-fs-essentials git kpkg ca-certificates python python-pip gmake".split(" "):
+        installFromRoot(i, root, kpkgEnvPath, ignorePostInstall = true)
+
     #let extras = dict.getSectionValue("Extras", "extraPackages").split(" ")
 
     #if not isEmptyOrWhitespace(extras.join("")):
