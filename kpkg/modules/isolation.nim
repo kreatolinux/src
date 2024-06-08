@@ -10,10 +10,25 @@ import commonTasks
 import std/sequtils
 import std/strutils
 import std/parsecfg
+import ../modules/config
 import ../commands/checkcmd
 import ../../kreastrap/commonProcs
 
-proc installFromRootInternal(package, root, destdir: string, removeDestdirOnError = false) = 
+proc execEnv*(command: string, error = "none", passthrough = false, silentMode = false, path = kpkgMergedPath, remount = false): int =
+    ## Wrapper of execCmdKpkg and Bubblewrap that runs a command in the sandbox.
+    # We can use bwrap to chroot.
+    if passthrough:
+        debug "passthrough true, \""&command&"\""
+        return execCmdKpkg("/bin/sh -c \""&command&"\"", error, silentMode = silentMode)
+    else:
+        debug "passthrough false, \""&command&"\""
+        if not dirExists(path):
+            err("internal: you have to use mountOverlay() before running execEnv")
+        if remount:
+            discard execCmdKpkg("mount -o remount "&path, silentMode = silentMode)
+        return execCmdKpkg("bwrap --bind "&path&" / --bind "&kpkgTempDir1&" "&kpkgTempDir1&" --bind /etc/kpkg/repos /etc/kpkg/repos --bind "&kpkgTempDir2&" "&kpkgTempDir2&" --bind "&kpkgSourcesDir&" "&kpkgSourcesDir&" --dev /dev --proc /proc --perms 1777 --tmpfs /dev/shm --ro-bind /etc/resolv.conf /etc/resolv.conf /bin/sh -c \""&command&"\"", error, silentMode = silentMode)
+
+proc installFromRootInternal(package, root, destdir: string, removeDestdirOnError = false, ignorePostInstall = true) = 
     # Check if package exists and has the right checksum
     check(package, root, true)
     
@@ -44,8 +59,37 @@ proc installFromRootInternal(package, root, destdir: string, removeDestdirOnErro
             
             copyFileWithPermissionsAndOwnership(root&"/"&listFilesSplitted, destdir&"/"&relativePath(listFilesSplitted, root))
     newPackageFromRoot(root, package, destdir)
+    
+    # Sync the filesystem to not get any errors
+    discard execCmdKpkg("sync", silentMode = true)
 
-proc installFromRoot*(package, root, destdir: string, removeDestdirOnError = false) =
+    let repo = findPkgRepo(package)
+
+    if isEmptyOrWhitespace(repo):
+        return # bail early if no repo is found
+
+    var existsPkgPostinstall = execEnv(
+            ". "&repo&"/"&package&"/run"&" && command -v postinstall_"&replace(
+                    package, '-', '_'), remount = true)
+    var existsPostinstall = execEnv(
+            ". "&repo&"/"&package&"/run"&" && command -v postinstall", remount = true)
+
+    if existsPkgPostinstall == 0:
+        if execEnv(". "&repo&"/"&package&"/run"&" && postinstall_"&replace(
+                package, '-', '_'), remount = true) != 0:
+            if ignorePostInstall:
+                debug "postinstall failed on sandbox"
+            else:
+                err("postinstall failed on sandbox")
+    elif existsPostinstall == 0:
+        if execEnv(". "&repo&"/"&package&"/run"&" && postinstall", remount = true) != 0:
+            if ignorePostInstall:
+                debug "postinstall failed on sandbox"
+            else:
+                err("postinstall failed on sandbox")
+
+
+proc installFromRoot*(package, root, destdir: string, removeDestdirOnError = false, ignorePostInstall = false) =
     # A wrapper for installFromRootInternal that also resolves dependencies.
     if isEmptyOrWhitespace(package):
         return
@@ -56,7 +100,7 @@ proc installFromRoot*(package, root, destdir: string, removeDestdirOnError = fal
             continue
 
         try:
-            installFromRootInternal(dep, root, destdir, removeDestdirOnError)
+            installFromRootInternal(dep, root, destdir, removeDestdirOnError, ignorePostInstall)
         except:
             if removeDestdirOnError:
                 info "removing unfinished environment"
@@ -82,9 +126,9 @@ proc createEnv*(root: string) =
     
     let dict = loadConfig(kpkgEnvPath&"/etc/kreato-release")
     
-    installFromRoot(dict.getSectionValue("Core", "libc"), root, kpkgEnvPath)
+    installFromRoot(dict.getSectionValue("Core", "libc"), root, kpkgEnvPath, ignorePostInstall = true)
     let compiler = dict.getSectionValue("Core", "compiler")
-    installFromRoot(compiler, root, kpkgEnvPath)
+    installFromRoot(compiler, root, kpkgEnvPath, ignorePostInstall = true)
     
     try:
         setDefaultCC(kpkgEnvPath, compiler)
@@ -97,29 +141,29 @@ proc createEnv*(root: string) =
 
     case dict.getSectionValue("Core", "coreutils"):
         of "gnu":
-            installFromRoot("gnu-core", root, kpkgEnvPath)
+            installFromRoot("gnu-core", root, kpkgEnvPath, ignorePostInstall = true)
         of "busybox":
-            installFromRoot("busybox", root, kpkgEnvPath)
+            installFromRoot("busybox", root, kpkgEnvPath, ignorePostInstall = true)
 
     installFromRoot(dict.getSectionValue("Core", "tlsLibrary"), root, kpkgEnvPath)
     
     case dict.getSectionValue("Core", "init"):
         of "systemd":
-            installFromRoot("systemd", root, kpkgEnvPath)
-            installFromRoot("dbus", root, kpkgEnvPath)
+            installFromRoot("systemd", root, kpkgEnvPath, ignorePostInstall = true)
+            installFromRoot("dbus", root, kpkgEnvPath, ignorePostInstall = true)
         else:
-            installFromRoot(dict.getSectionValue("Core", "init"), root, kpkgEnvPath)
+            installFromRoot(dict.getSectionValue("Core", "init"), root, kpkgEnvPath, ignorePostInstall = true)
             
 
-    installFromRoot(dict.getSectionValue("Core", "init"), root, kpkgEnvPath)
+    installFromRoot(dict.getSectionValue("Core", "init"), root, kpkgEnvPath, ignorePostInstall = true)
     
-    installFromRoot("kreato-fs-essentials", root, kpkgEnvPath)
-    installFromRoot("git", root, kpkgEnvPath)
-    installFromRoot("kpkg", root, kpkgEnvPath)
-    installFromRoot("ca-certificates", root, kpkgEnvPath)
-    installFromRoot("python", root, kpkgEnvPath)
-    installFromRoot("python-pip", root, kpkgEnvPath)
-    installFromRoot("gmake", root, kpkgEnvPath)
+    installFromRoot("kreato-fs-essentials", root, kpkgEnvPath, ignorePostInstall = true)
+    installFromRoot("git", root, kpkgEnvPath, ignorePostInstall = true)
+    installFromRoot("kpkg", root, kpkgEnvPath, ignorePostInstall = true)
+    installFromRoot("ca-certificates", root, kpkgEnvPath, ignorePostInstall = true)
+    installFromRoot("python", root, kpkgEnvPath, ignorePostInstall = true)
+    installFromRoot("python-pip", root, kpkgEnvPath, ignorePostInstall = true)
+    installFromRoot("gmake", root, kpkgEnvPath, ignorePostInstall = true)
     
     #let extras = dict.getSectionValue("Extras", "extraPackages").split(" ")
 
@@ -168,14 +212,3 @@ proc mountOverlay*(upperDir = kpkgOverlayPath&"/upperDir", workDir = kpkgOverlay
     debug cmd
     return execCmdKpkg(cmd, error, silentMode = silentMode) 
 
-proc execEnv*(command: string, error = "none", passthrough = false, silentMode = false, path = kpkgMergedPath): int =
-    ## Wrapper of execCmdKpkg and Bubblewrap that runs a command in the sandbox.
-    # We can use bwrap to chroot.
-    if passthrough:
-        debug "passthrough true, \""&command&"\""
-        return execCmdKpkg("/bin/sh -c \""&command&"\"", error, silentMode = silentMode)
-    else:
-        debug "passthrough false, \""&command&"\""
-        if not dirExists(path):
-            err("internal: you have to use mountOverlay() before running execEnv")
-        return execCmdKpkg("bwrap --bind "&path&" / --bind "&kpkgTempDir1&" "&kpkgTempDir1&" --bind /etc/kpkg/repos /etc/kpkg/repos --bind "&kpkgTempDir2&" "&kpkgTempDir2&" --bind "&kpkgSourcesDir&" "&kpkgSourcesDir&" --dev /dev --proc /proc --perms 1777 --tmpfs /dev/shm --ro-bind /etc/resolv.conf /etc/resolv.conf /bin/sh -c \""&command&"\"", error, silentMode = silentMode)
