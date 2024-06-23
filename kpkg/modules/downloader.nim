@@ -27,6 +27,7 @@ proc download*(url: string, file: string, instantErrorIfFail = false,
   debug "downloader ran, attempting to download file from '"&url&"' to '"&file&"'"
   try:
     var client = newHttpClient()
+    client.headers = newHttpHeaders({ "Accept": "*/*" })
     client.onProgressChanged = onProgressChanged 
     client.downloadFile(url, file&".partial")
     moveFile(file&".partial", file)
