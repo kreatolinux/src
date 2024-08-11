@@ -9,7 +9,7 @@ proc repologyCheck*(package: string, repo: string, autoUpdate = false,
                 skipIfDownloadFails = true) =
         ## Check against Repology database.
         let pkgName = lastPathPart(package)
-        var client = newHttpClient(userAgent="Klinux chkupd/"&ver)
+        var client = newHttpClient(userAgent="Klinux chkupd/"&ver&" (issuetracker: https://github.com/kreatolinux/src/issues)")
         var request = parseJson(client.getContent(
                         "https://repology.org/api/v1/project/"&pkgName))
         var counter = 0
