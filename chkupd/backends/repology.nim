@@ -10,7 +10,7 @@ proc repologyCheck*(package: string, repo: string, autoUpdate = false,
         let pkgName = lastPathPart(package)
         var client = newHttpClient()
         var request = parseJson(client.getContent(
-                        "https://repology.org/api/v1/project/"&pkgName&"?repos_newest=1&newest=1"))
+                        "https://repology.org/api/v1/project/"&pkgName))
         var counter = 0
         var version: string
         let packageDir = repo&"/"&pkgName
