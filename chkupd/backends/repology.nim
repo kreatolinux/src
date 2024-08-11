@@ -2,13 +2,14 @@
 import json, strutils, os
 import ../../kpkg/modules/runparser
 import ../autoupdater
+import ../../common/version
 import httpclient
 
 proc repologyCheck*(package: string, repo: string, autoUpdate = false,
                 skipIfDownloadFails = true) =
         ## Check against Repology database.
         let pkgName = lastPathPart(package)
-        var client = newHttpClient()
+        var client = newHttpClient(userAgent="Klinux chkupd/"&ver)
         var request = parseJson(client.getContent(
                         "https://repology.org/api/v1/project/"&pkgName))
         var counter = 0
