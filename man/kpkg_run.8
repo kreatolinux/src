@@ -23,6 +23,7 @@ An example runfile structure;
 NAME=\[dq]test-v3\[dq]
 VERSION=\[dq]0.0.1\[dq]
 RELEASE=\[dq]1\[dq]
+EXTRACT=true
 SOURCES=\[dq]https://test.file/source/testfile.tar.gz;git::https://github.com/kreatolinux/src::543ee30eda806029fa9ea16a1f9767eda7cab4d1\[dq]
 DEPENDS=\[dq]testpackage1 testpackage3 testpackage4\[dq]
 DEPENDS_TEST2+=\[dq]testpackage5 testpackage6\[dq]
@@ -191,6 +192,11 @@ Don\[cq]t put / in the path name (eg.
 \f[C]etc/bluetooth/main.conf\f[R] instead of
 \f[C]/etc/bluetooth/main.conf\f[R]).
 Seperate by space.
+.IP \[bu] 2
+EXTRACT: Boolean.
+Extracts the tarball.
+\f[C]true\f[R] by default.
+Only disable this if you know what you are doing.
 .IP \[bu] 2
 preinstall() Pre-install function.
 Will run when the package is installed for the first time, not when it
