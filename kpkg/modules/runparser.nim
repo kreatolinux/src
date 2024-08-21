@@ -82,8 +82,6 @@ proc parseRunfile*(path: string, removeLockfileWhenErr = true): runFile =
                     ).strip()))
                 of "epoch":
                     ret.epoch = override.getSectionValue("runFile", "epoch", vars[1].multiReplace(
-                of "epoch":
-                    ret.epoch = override.getSectionValue("runFile", "epoch", vars[1].multiReplace(
                     ("\"", ""),
                     ("'", "")
                     ).strip())
