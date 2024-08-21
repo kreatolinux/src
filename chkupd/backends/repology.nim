@@ -34,8 +34,20 @@ proc repologyCheck*(package: string, repo: string, autoUpdate = false,
                         let pkg = parse_runfile(packageDir)
                         echo "local version: "&pkg.version
                         echo "remote version: "&version
+                        
+                        var isOutdated = false
 
-                        if version > pkg.versionString:
+                        try:
+                            let versionInt = replace(version, ".", "")
+                            let pkgVersionInt = replace(pkg.version, ".", "")
+
+                            if versionInt > pkgVersionInt:
+                                isOutdated = true
+                        except Exception:
+                            if version > pkg.version:
+                                isOutdated = true
+
+                        if isOutdated:
                                 echo "Package is not uptodate."
 
                                 if autoUpdate:
