@@ -31,21 +31,35 @@ proc repologyCheck*(package: string, repo: string, autoUpdate = false,
 
                 if newestOrNot == "newest":
                         version = getStr(request[counter]["version"])
-                        let pkg = parse_runfile(packageDir)
-                        echo "local version: "&pkg.version
-                        echo "remote version: "&version
-                        
                         var isOutdated = false
+                        let pkg = parse_runfile(packageDir)
+                        
+                        if pkg.isSemver:
+                            let pkgVerSplit = split(pkg.version, ".")
+                            let versionSplit = split(version, ".")
 
-                        try:
-                            let versionInt = parseInt(replace(version, ".", ""))
-                            let pkgVersionInt = parseInt(replace(pkg.version, ".", ""))
+                            # MAJOR
+                            if versionSplit[0] > pkgVerSplit[0]:
+                                isOutdated = true
+                            elif versionSplit[0] == pkgVerSplit[0]:
+                                # MINOR
+                                if versionSplit[1] > pkgVerSplit[1]:
+                                    isOutdated = true
+                                elif versionSplit[1] == pkgVerSplit[1]:
+                                    # PATCH
+                                    if versionSplit[2] > pkgVerSplit[2]:
+                                        isOutdated = true
+                        else:
+                            try:
+                                let versionInt = parseInt(replace(version, ".", ""))
+                                let pkgVersionInt = parseInt(replace(pkg.version, ".", ""))
 
-                            if versionInt > pkgVersionInt:
-                                isOutdated = true
-                        except Exception:
-                            if version > pkg.version:
-                                isOutdated = true
+                                if versionInt > pkgVersionInt:
+                                    isOutdated = true
+                            except Exception:
+                                if version > pkg.version:
+                                    isOutdated = true
+                        
 
                         if isOutdated:
                                 echo "Package is not uptodate."

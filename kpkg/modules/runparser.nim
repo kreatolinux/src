@@ -24,6 +24,7 @@ type runFile* = object
     noChkupd*: bool
     isGroup*: bool
     isParsed*: bool
+    isSemver*: bool = false
 
 proc parseRunfile*(path: string, removeLockfileWhenErr = true): runFile =
     ## Parse a runfile.
@@ -74,6 +75,13 @@ proc parseRunfile*(path: string, removeLockfileWhenErr = true): runFile =
                     ("\"", ""),
                     ("'", "")
                     ).strip()))
+                of "is_semver", "issemver", "is-semver":
+                    ret.noChkupd = parseBool(override.getSectionValue("runFile", "isSemver", vars[1].multiReplace(
+                    ("\"", ""),
+                    ("'", "")
+                    ).strip()))
+                of "epoch":
+                    ret.epoch = override.getSectionValue("runFile", "epoch", vars[1].multiReplace(
                 of "epoch":
                     ret.epoch = override.getSectionValue("runFile", "epoch", vars[1].multiReplace(
                     ("\"", ""),
