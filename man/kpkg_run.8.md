@@ -16,6 +16,7 @@ An example runfile structure;
 NAME="test-v3"
 VERSION="0.0.1"
 RELEASE="1"
+EXTRACT=true
 SOURCES="https://test.file/source/testfile.tar.gz;git::https://github.com/kreatolinux/src::543ee30eda806029fa9ea16a1f9767eda7cab4d1"
 DEPENDS="testpackage1 testpackage3 testpackage4"
 DEPENDS_TEST2+="testpackage5 testpackage6"
@@ -106,6 +107,7 @@ Now lets break it down.
 * IS_GROUP: Specify if the package is a group package or not. False by default. Will be enabled if it is one of these values; "y, yes, true, 1, on"
 * DEPENDS_PACKAGENAME: Change PACKAGENAME with the package name. You can add/remove dependencies, depending on the usecase like `DEPENDS_PACKAGENAME+="packagename"`, `DEPENDS_PACKAGENAME-="packagename"`, and you can set the dependencies completely with `DEPENDS_PACKAGENAME="packagename"` 
 * BACKUP: preserves stuff such as configuration files. Don't put / in the path name (eg. `etc/bluetooth/main.conf` instead of `/etc/bluetooth/main.conf`). Seperate by space.
+* EXTRACT: Boolean. Extracts the tarball. `true` by default. Only disable this if you know what you are doing.
 * preinstall() Pre-install function. Will run when the package is installed for the first time, not when it is upgraded.
 
 ## VARIABLE NAMING
