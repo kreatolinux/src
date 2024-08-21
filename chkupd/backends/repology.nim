@@ -38,8 +38,8 @@ proc repologyCheck*(package: string, repo: string, autoUpdate = false,
                         var isOutdated = false
 
                         try:
-                            let versionInt = replace(version, ".", "")
-                            let pkgVersionInt = replace(pkg.version, ".", "")
+                            let versionInt = parseInt(replace(version, ".", ""))
+                            let pkgVersionInt = parseInt(replace(pkg.version, ".", ""))
 
                             if versionInt > pkgVersionInt:
                                 isOutdated = true
