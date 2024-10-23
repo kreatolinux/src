@@ -25,7 +25,8 @@ case $1 in
   	            kpkg # Initializes configs
                 
                 sed -i s/stable/master/g /etc/kpkg/kpkg.conf
-		        
+		        sed -i s/mirror.kreato.dev/bin.kreato.dev/g /etc/kpkg/kpkg.conf
+
                 kpkg update
                 #kpkg build kpkg -y
 
