@@ -17,7 +17,7 @@ proc info*(info: string, exitAfterwards = false) =
         debug "infoProc: exiting"
         quit(0)
 
-proc err*(error: string, removeLockFile = true, raiseExceptionInstead = parseBool(getEnv("KPKG_ENABLE_EXCEPTIONS"), $(not defined(release)))) =
+proc err*(error: string, removeLockFile = true, raiseExceptionInstead = parseBool(getEnv("KPKG_ENABLE_EXCEPTIONS", $(not defined(release))))) =
     ## Handles errors.
     styledEcho("kpkg: ", fgRed, "error: ", fgDefault, error)
     echo "kpkg: if you think this is a bug, please open an issue at https://github.com/kreatolinux/src"
@@ -26,7 +26,7 @@ proc err*(error: string, removeLockFile = true, raiseExceptionInstead = parseBoo
         removeFile("/tmp/kpkg.lock")
 
     if raiseExceptionInstead:
-        raise newException(error)
+        raise newException(OsError, message=error)
     else:
         quit(1)
 
