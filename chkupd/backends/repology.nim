@@ -33,6 +33,10 @@ proc repologyCheck*(package: string, repo: string, autoUpdate = false,
                         version = getStr(request[counter]["version"])
                         var isOutdated = false
                         let pkg = parse_runfile(packageDir)
+						var pkgRelease = pkg.release
+
+						if "python" in pkg.deps:
+							pkgRelease = pkg.release + "-" + parseRunfile(repo & "/python").version	
                         
                         if pkg.isSemver:
                             let pkgVerSplit = split(pkg.version, ".")
@@ -65,7 +69,7 @@ proc repologyCheck*(package: string, repo: string, autoUpdate = false,
                                 echo "Package is not uptodate."
 
                                 if autoUpdate:
-                                        autoUpdater(pkg, packageDir, version, skipIfDownloadFails)
+                                        autoUpdater(pkg, packageDir, version, skipIfDownloadFails, pkgRelease)
 
                         return
                 else:
