@@ -65,11 +65,16 @@ proc repologyCheck*(package: string, repo: string, autoUpdate = false,
                                     isOutdated = true
                         
 
-                        if isOutdated:
-                                echo "Package is not uptodate."
-
-                                if autoUpdate:
-                                        autoUpdater(pkg, packageDir, version, skipIfDownloadFails, pkgRelease)
+                        if autoUpdate:
+                                if pkg.release == pkgRelease or not isOutdated:
+                                    echo "Package is already up-to-date."
+                                    return
+                                else:
+                                    echo "Package is outdated. Updating..."
+                                    if not isOutdated:
+                                         version = pkg.version
+                                
+                                autoUpdater(pkg, packageDir, version, skipIfDownloadFails, pkgRelease)
 
                         return
                 else:
