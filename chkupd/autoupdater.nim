@@ -47,8 +47,8 @@ proc autoUpdater*(pkg: runFile, packageDir: string, newVersion: string,
                 writeFile(packageDir&"/run", readFile(
                                 packageDir&"/run").replace(pkg.version, newVersion))
 
-				# Replace the release (if it exists)
-				if not isEmptyOrWhitespace(release):
-						writeFile(packageDir&"/run", readFile(
-								packageDir&"/run").replace(pkg.release, release))
+                # Replace the release (if it exists)
+                if not isEmptyOrWhitespace(release):
+                        writeFile(packageDir&"/run", readFile(
+                               packageDir&"/run").replace(pkg.release, release))
                 echo "Autoupdate complete. As always, you should check if the package does build or not."
