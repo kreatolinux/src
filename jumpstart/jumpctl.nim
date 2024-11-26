@@ -86,9 +86,9 @@ proc status(service: seq[string]) =
 
     try:
         if srvName.isMount:
-            status = readFile("/run/serviceHandler/mounts/"&srvName.name&"/status")
+            status = readFile(serviceHandlerPath&"/mounts/"&srvName.name&"/status")
         else:
-            status = readFile("/run/serviceHandler/"&srvName.name&"/status")
+            status = readFile(serviceHandlerPath&"/"&srvName.name&"/status")
     except CatchableError:
         status = "stopped"
 

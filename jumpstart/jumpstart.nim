@@ -2,13 +2,27 @@ import std/net
 import json
 include serviceHandler/main
 
-if getCurrentProcessId() != 1:
+var userMode = false
+
+if paramCount() > 1:
+    error "too many arguments"
+elif paramCount() == 1:
+    if paramStr(1) == "--user":
+        userMode = true
+    else:
+        error "unknown argument"
+
+if getCurrentProcessId() != 1 and not userMode:
     error "jumpstart needs to be ran as PID 1 (init) to function correctly"
 
-## Initialize the entire system, such as mounting /proc etc.
-initSystem()
+if userMode:
+    info_msg "running in user mode"
+else:
+    info_msg "running in PID1 mode"
+    ## Initialize the entire system, such as mounting /proc etc.
+    initSystem()
 
-let socket = newSocket(AF_UNIX, SOCK_STREAM, IPPROTO_IP)
+let socket = newSocket(domain = AF_UNIX, sockType = SOCK_STREAM, protocol = IPPROTO_IP)
 
 try:
     socket.bindUnix(sockPath)
@@ -23,7 +37,7 @@ info_msg "Initializing "&jumpstartVersion
 proc ctrlc() {.noconv.} =
     info_msg "removing socket"
     removeFile(sockPath)
-    removeDir("/run/serviceHandler")
+    removeDir(serviceHandlerPath)
     info_msg "exiting"
     quit(0)
 

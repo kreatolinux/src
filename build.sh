@@ -96,7 +96,7 @@ do
 		buildNimMain "$v"
 	;;
 	jumpstart)
-		buildNimOther "jumpstart" "on" "$prefix/jumpstart" "jumpstart.nim"
+		buildNimOther "jumpstart" "on" "$prefix/jumpstart" "jumpstart.nim" "--mm:refc"
 		buildNimOther "jumpstart" "off" "$prefix/jumpctl" "jumpctl.nim"
 	;;
 	genpkglist)	

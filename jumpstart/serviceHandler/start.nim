@@ -12,11 +12,11 @@ proc startService*(serviceName: string) =
 
     # Load the configuration
     try:
-        if dirExists("/run/serviceHandler/"&serviceName):
+        if dirExists(serviceHandlerPath&"/"&serviceName):
             warn "Service "&serviceName&" is already running, not starting it again"
             return
 
-        createDir("/run/serviceHandler/"&serviceName)
+        createDir(serviceHandlerPath&"/"&serviceName)
         service = loadConfig(servicePath&"/"&serviceName)
     except CatchableError:
         warn "Service "&serviceName&" couldn't be started, possibly broken configuration?"
@@ -28,7 +28,7 @@ proc startService*(serviceName: string) =
     #except CatchableError:
     #    workDir = "/"
 
-    createDir("/run/serviceHandler/"&serviceName)
+    createDir(serviceHandlerPath&"/"&serviceName)
     let processPre = startProcess(command = service.getSectionValue("Service",
         "execPre"), options = {poEvalCommand, poUsePath})
 
