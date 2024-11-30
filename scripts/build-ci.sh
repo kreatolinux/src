@@ -28,6 +28,8 @@ case $1 in
 		        sed -i s/mirror.kreato.dev/bin.kreato.dev/g /etc/kpkg/kpkg.conf
 
                 kpkg update
+                kpkg upgrade -y
+                kpkg build meson -y
                 #kpkg build kpkg -y
 
                 #kpkg build bzip2 -y || exit 1
