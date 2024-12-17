@@ -1,5 +1,6 @@
-include json
 import os
+include json
+import strutils
 import ../kpkg/modules/runparser
 
 type
@@ -9,10 +10,16 @@ type
 proc generateJson*(repo: string, limit = 256, splitIfLimit = true, output = "out.json", ignorePackages = @[Update(packages: "")], instance = 1) =
     ## Generates a build jsonfile
 
+    # Glibc and musl should be built/upgraded seperately from the rest
+    # Especially glibc as upgrading it can create a lot of issues (GNU moment)
+    # Musl shouldn't cause problems, but it's better to be safe than sorry
+    const specialPackages = @["glibc", "musl"] 
+
     var updateList: seq[Update]
 
     let repoFullPath = absolutePath(repo)
     var count: int
+    var packageList: seq[string] = specialPackages
 
     for i in walkFiles(repoFullPath&"/*/run"):
         
@@ -44,11 +51,18 @@ proc generateJson*(repo: string, limit = 256, splitIfLimit = true, output = "out
             deps = deps&" "&pkg
         else:
             deps = pkg
-        
+
+        for package in packageList:
+            deps = deps.replace(package, "")
+
         updateList = updateList&Update(packages: deps)
+        packageList.add(deps.split(" "))
         count = count + 1
     
     echo "Generated '"&($count)&"' json parts at '"&output&"'"
+    
+    for package in specialPackages:
+        updateList = updateList&Update(packages: package)
 
     let res = %*
         {
