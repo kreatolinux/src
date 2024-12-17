@@ -1,6 +1,5 @@
 import os
 include json
-import strutils
 import ../kpkg/modules/runparser
 
 type
@@ -40,6 +39,10 @@ proc generateJson*(repo: string, limit = 256, splitIfLimit = true, output = "out
                 if pkg in i.packages.split(" "):
                     willContinue = true
         
+        
+        if isEmptyOrWhitespace(pkg):
+            continue
+
         if willContinue:
             continue
 
