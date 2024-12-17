@@ -19,8 +19,6 @@ proc generateJson*(repo: string, limit = 256, splitIfLimit = true, output = "out
 
     let repoFullPath = absolutePath(repo)
     var count: int
-    var packageList: seq[string] = specialPackages
-
     for i in walkFiles(repoFullPath&"/*/run"):
         
         let pkg = lastPathPart(i.parentDir)
@@ -39,9 +37,6 @@ proc generateJson*(repo: string, limit = 256, splitIfLimit = true, output = "out
             break
         
         for i in updateList:
-                if pkg in packageList:
-                    willContinue = true
-
                 if pkg in i.packages.split(" "):
                     willContinue = true
         
@@ -55,11 +50,7 @@ proc generateJson*(repo: string, limit = 256, splitIfLimit = true, output = "out
         else:
             deps = pkg
 
-        for package in packageList:
-            deps = deps.replace(package, "")
-
         updateList = updateList&Update(packages: deps)
-        packageList.add(deps.split(" "))
         count = count + 1
     
     echo "Generated '"&($count)&"' json parts at '"&output&"'"
