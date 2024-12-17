@@ -39,6 +39,9 @@ proc generateJson*(repo: string, limit = 256, splitIfLimit = true, output = "out
             break
         
         for i in updateList:
+                if pkg in packageList:
+                    willContinue = true
+
                 if pkg in i.packages.split(" "):
                     willContinue = true
         
