@@ -177,6 +177,15 @@ proc getFile*(path: string, root: string): File =
 
     return file
 
+proc getFilesPackage*(package: Package, root: string): seq[File] =
+    # Gets all File types from a package.
+    # Recommended way to get the list of files from a package.
+    rootCheck(root)
+
+    var files = @[newFileInternal()]
+    kpkgDb.select(files, "package = ?", package)
+    
+    return files
 
 
 proc rmPackage*(name: string, root: string) =
