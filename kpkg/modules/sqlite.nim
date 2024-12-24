@@ -219,7 +219,7 @@ proc getListPackages*(root = "/"): seq[string] =
     
     return packageList
 
-proc getListPackagesType(root = "/"): seq[Package] =
+proc getListPackagesType*(root = "/"): seq[Package] =
     # Returns a list of packages.
     # Similar to getListPackages, but returns a seq[Package] instead.
     
