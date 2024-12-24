@@ -484,17 +484,23 @@ proc builder*(package: string, destdir: string,
     #writeFile(tarball&".sum.b2", getSum(tarball, "b2"))
 
     if checkReproducibility:
-        downBin(package = actualPackage, binrepos = getConfigValue("Repositories", "binRepos").split(" "), root = "/", forceDownload = true, customPath = tarball&".orig", offline = false)
-        let sum1 = getSum(tarball, "b2")
-        let sum2 = getSum(tarball&".orig", "b2")
-        removeFile(tarball&".orig")
-        if sum1 != sum2:
+        downBin(package = actualPackage, binrepos = getConfigValue("Repositories", "binRepos").split(" "), root = "/", forceDownload = true, customPath = tarball&".orig", offline = false, ignoreDownloadErrors = true)
+        if not fileExists(tarball&".orig"):
             if isDebugMode():
-                debug "Binary package is not reproducible, checksums don't match"
+                debug "Binary package is not reproducible, original binary package doesn't exist"
             else:
-                err "Binary package is not reproducible, checksums don't match"
-        else:
-            info "Binary package is reproducible, checksums match"
+                err "Binary package is not reproducible, original binary package doesn't exist"
+        else: 
+            let sum1 = getSum(tarball, "b2")
+            let sum2 = getSum(tarball&".orig", "b2")
+            removeFile(tarball&".orig")
+            if sum1 != sum2:
+                if isDebugMode():
+                    debug "Binary package is not reproducible, checksums don't match"
+                else:
+                    err "Binary package is not reproducible, checksums don't match"
+            else:
+                info "Binary package is reproducible, checksums match"
 
     # Install package to root aswell so dependency errors doesnt happen
     # because the dep is installed to destdir but not root.

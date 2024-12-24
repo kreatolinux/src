@@ -266,7 +266,7 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
         info(i)
 
 proc down_bin*(package: string, binrepos: seq[string], root: string,
-        offline: bool, forceDownload = false, ignoreDownloadErrors = false, kTarget = kpkgTarget(root), version = "", customPath = "") =
+        offline: bool, forceDownload = false, ignoreDownloadErrors = false, kTarget = kpkgTarget(root), version = "", customPath = "", ignoreErrors = false) =
     ## Downloads binaries.
     
     discard existsOrCreateDir("/var/")
@@ -303,7 +303,12 @@ proc down_bin*(package: string, binrepos: seq[string], root: string,
             debug "parseRunfile ran, down_bin"
             pkg = parseRunfile(repo&"/"&package)
         except CatchableError:
-            err("Unknown error while trying to parse package on repository, possibly broken repo?")
+            const msg = "Unknown error while trying to parse package on repository, possibly broken repo?"
+            if ignoreErrors:
+                debug msg
+                return
+            else:
+                err(msg)
 
         if pkg.isGroup:
             return
@@ -326,12 +331,22 @@ proc down_bin*(package: string, binrepos: seq[string], root: string,
                 download("https://"&binrepo&"/archives/system/"&kTarget&"/"&tarball, path)
                 downSuccess = true
             except:
-                err "an error occured while downloading package binary"
+                const msg = "an error occured while downloading package binary"
+                if ignoreErrors:
+                    debug msg
+                    return
+                else:
+                    err(msg)
         else:
+            const msg = "attempted to download tarball from binary repository in offline mode"
             debug path
-            err("attempted to download tarball from binary repository in offline mode")
+            if ignoreErrors:
+                debug msg
+                return
+            else:
+                err(msg)
 
-    if not downSuccess:
+    if not downSuccess and not ignoreDownloadErrors:
         err("couldn't download the binary")
 
 proc install_bin(packages: seq[string], binrepos: seq[string], root: string,
