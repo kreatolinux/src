@@ -16,6 +16,13 @@ proc checkInternal(package: Package, root: string, lines = getFilesPackage(packa
         if actPath.parentDir().lastPathPart == "etc" and (not checkEtc):
             continue
 
+        if not fileExists(fullPath):
+            let errorOutput = "'"&fullPath.relativePath(root)&"' doesn't exist, please reinstall '"&package.name&"'"
+            debug errorOutput
+            if not isDebugMode():
+                err errorOutput
+            continue
+
         if line.blake2Checksum == "":
             #debug "'"&line&"' doesn't have checksum, skipping"
             continue
