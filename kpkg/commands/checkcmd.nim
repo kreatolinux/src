@@ -45,15 +45,15 @@ proc check*(package = "", root = "/", silent = false, checkEtc = false) =
     setCurrentDir(root)
 
     if isEmptyOrWhitespace(package):
-        for pkg in getListPackages(root):
-            let p = getPackage(package, root)
-            checkInternal(p, root, getFilesPackage(p, root), checkEtc)
+        for pkg in getListPackagesType(root):
+            debug "checking package '"&pkg.name&"'"
+            checkInternal(pkg, root, getFilesPackage(pkg, root), checkEtc)
     else:
         if not packageExists(package, root):
             err("package '"&package&"' doesn't exist", false)
         else:
-            let p = getPackage(package, root)
-            checkInternal(p, root, getFilesPackage(p, root), checkEtc)
+            let pkg = getPackage(package, root)
+            checkInternal(pkg, root, getFilesPackage(pkg, root), checkEtc)
     
     if not silent:
         success("done")
