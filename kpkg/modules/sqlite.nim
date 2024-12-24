@@ -219,6 +219,16 @@ proc getListPackages*(root = "/"): seq[string] =
     
     return packageList
 
+proc getListPackagesType(root = "/"): seq[Package] =
+    # Returns a list of packages.
+    # Similar to getListPackages, but returns a seq[Package] instead.
+    
+    rootCheck(root)
+    
+    var packages = @[newPackageInternal()]
+    kpkgDb.selectAll(packages)
+    
+    return packages
 
 proc newPackageFromRoot*(root, package, destdir: string) =
     # Gets package from root, and adds it to destdir.
