@@ -30,7 +30,7 @@ proc checkInternal(package: Package, root: string, lines = getFilesPackage(packa
         let sum = line.blake2Checksum
         let actualSum = getSum(fullPath, "b2")
 
-        debug "checking '"&fullPath.relativePath(root)&"' with checksum '"&sum&"' and actual checksum '"&actualSum&"'"
+        #debug "checking '"&fullPath.relativePath(root)&"' with checksum '"&sum&"' and actual checksum '"&actualSum&"'"
 
         if actualSum != sum:
             let errorOutput = "'"&fullPath.relativePath(root)&"' has an invalid checksum, please reinstall '"&package.name&"'"
