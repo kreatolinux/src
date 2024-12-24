@@ -43,7 +43,7 @@ proc fakerootWrap(srcdir: string, path: string, root: string, input: string,
 proc builder*(package: string, destdir: string,
     root = kpkgTempDir1&"/build", srcdir = kpkgTempDir1&"/srcdir", offline = false,
             dontInstall = false, useCacheIfAvailable = false,
-                    tests = false, manualInstallList: seq[string], customRepo = "", isInstallDir = false, isUpgrade = false, target = "default", actualRoot = "default", ignorePostInstall = false, noSandbox = false, ignoreTarget = false, ignoreUseCacheIfAvailable = @[""]): bool =
+                    tests = false, manualInstallList: seq[string], customRepo = "", isInstallDir = false, isUpgrade = false, target = "default", actualRoot = "default", ignorePostInstall = false, noSandbox = false, ignoreTarget = false, ignoreUseCacheIfAvailable = @[""], checkReproducibility = false): bool =
     ## Builds the packages.
     
     debug "builder ran, package: '"&package&"', destdir: '"&destdir&"' root: '"&root&"', useCacheIfAvailable: '"&($useCacheIfAvailable)&"'"
@@ -483,6 +483,18 @@ proc builder*(package: string, destdir: string,
     
     #writeFile(tarball&".sum.b2", getSum(tarball, "b2"))
 
+    if checkReproducibility:
+        downBin(package = actualPackage, binrepos = getConfigValue("Repositories", "binRepos").split(" "), root = "/", forceDownload = true, customPath = tarball&".orig", offline = false)
+        let sum1 = getSum(tarball, "b2")
+        let sum2 = getSum(tarball&".orig", "b2")
+        removeFile(tarball&".orig")
+        if sum1 != sum2:
+            if isDebugMode():
+                debug "Binary package is not reproducible, checksums don't match"
+            else:
+                err "Binary package is not reproducible, checksums don't match"
+        else:
+            info "Binary package is reproducible, checksums match"
 
     # Install package to root aswell so dependency errors doesnt happen
     # because the dep is installed to destdir but not root.
@@ -505,7 +517,7 @@ proc builder*(package: string, destdir: string,
 proc build*(no = false, yes = false, root = "/",
     packages: seq[string],
             useCacheIfAvailable = true, forceInstallAll = false,
-                    dontInstall = false, tests = true, ignorePostInstall = false, isInstallDir = false, isUpgrade = false, target = "default"): int =
+                    dontInstall = false, tests = true, ignorePostInstall = false, isInstallDir = false, isUpgrade = false, target = "default", checkReproducibility = false): int =
     ## Build and install packages.
     let init = getInit(root)
     var deps: seq[string]
@@ -619,7 +631,7 @@ proc build*(no = false, yes = false, root = "/",
                     pkgName = packageSplit.name
 
             discard builder(pkgName, fullRootPath, offline = false,
-                    dontInstall = dontInstall, useCacheIfAvailable = useCacheIfAvailable, tests = tests, manualInstallList = p, customRepo = customRepo, isInstallDir = isInstallDirFinal, isUpgrade = isUpgrade, target = target, actualRoot = root, ignorePostInstall = ignorePostInstall, ignoreUseCacheIfAvailable = gD)
+                    dontInstall = dontInstall, useCacheIfAvailable = useCacheIfAvailable, tests = tests, manualInstallList = p, customRepo = customRepo, isInstallDir = isInstallDirFinal, isUpgrade = isUpgrade, target = target, actualRoot = root, ignorePostInstall = ignorePostInstall, ignoreUseCacheIfAvailable = gD, checkReproducibility = checkReproducibility)
             
             success("built "&i&" successfully")
         except CatchableError:

@@ -265,8 +265,8 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
     for i in pkg.optdeps:
         info(i)
 
-proc down_bin(package: string, binrepos: seq[string], root: string,
-        offline: bool, forceDownload = false, ignoreDownloadErrors = false, kTarget = kpkgTarget(root), version = "") =
+proc down_bin*(package: string, binrepos: seq[string], root: string,
+        offline: bool, forceDownload = false, ignoreDownloadErrors = false, kTarget = kpkgTarget(root), version = "", customPath = "") =
     ## Downloads binaries.
     
     discard existsOrCreateDir("/var/")
@@ -314,18 +314,21 @@ proc down_bin(package: string, binrepos: seq[string], root: string,
             pkgVersion = version
 
         let tarball = package&"-"&pkgVersion&".kpkg"
+        var path = kpkgArchivesDir&"/system/"&kTarget&"/"&tarball
+        if not isEmptyOrWhitespace(customPath):
+            path = customPath
 
-        if fileExists(kpkgArchivesDir&"/system/"&kTarget&"/"&tarball) and (not forceDownload):
+        if fileExists(path) and (not forceDownload):
             info "Tarball already exists for '"&package&"', not gonna download again"
             downSuccess = true
         elif not offline:
             try:
-                download("https://"&binrepo&"/archives/system/"&kTarget&"/"&tarball, kpkgArchivesDir&"/system/"&kTarget&"/"&tarball)
+                download("https://"&binrepo&"/archives/system/"&kTarget&"/"&tarball, path)
                 downSuccess = true
             except:
                 err "an error occured while downloading package binary"
         else:
-            debug kpkgArchivesDir&"/system/"&kTarget&"/"&tarball
+            debug path
             err("attempted to download tarball from binary repository in offline mode")
 
     if not downSuccess:
