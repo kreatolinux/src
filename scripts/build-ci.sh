@@ -28,6 +28,12 @@ case $1 in
 		        sed -i s/mirror.kreato.dev/bin.kreato.dev/g /etc/kpkg/kpkg.conf
 
                 kpkg update
+
+                # TEMP
+                kpkg install python -y
+                kpkg install python-pip -y
+                # TEMP END
+                
                 kpkg upgrade -y
                 kpkg build meson -y
                 #kpkg build kpkg -y
