@@ -38,6 +38,7 @@ proc generateInternal(pkgPath = "", output = "out.md") =
   var finalText = "---"
   
   finalText = appendData(finalText, "title: "&pkg.pkg)
+  finalText = appendData(finalText, "type: docs")
   finalText = appendData(finalText, "draft: false")
   finalText = appendData(finalText, "---\n")
   
