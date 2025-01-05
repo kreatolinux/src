@@ -7,7 +7,8 @@ import ../autoupdater
 
 proc archCheck*(package: string, repo: string, autoUpdate = false,
                 skipIfDownloadFails = true) =
-        ## Check against Arch repositories.
+        ## DEPRECATED, use 'check' subcommand instead.
+        # Check against Arch repositories.
         let pkgName = lastPathPart(package)
         var client = newHttpClient()
         var version: string

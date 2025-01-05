@@ -7,7 +7,8 @@ import httpclient
 
 proc repologyCheck*(package: string, repo: string, autoUpdate = false,
                 skipIfDownloadFails = true) =
-        ## Check against Repology database.
+        ## DEPRECATED, use the new 'check' subcommand instead.
+        # Check against Repology database.
         let pkgName = lastPathPart(package)
         var client = newHttpClient(userAgent="Klinux chkupd/"&ver&" (issuetracker: https://github.com/kreatolinux/src/issues)")
         var request = parseJson(client.getContent(

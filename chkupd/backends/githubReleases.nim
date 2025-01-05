@@ -6,7 +6,7 @@ import ../../common/version
 import httpclient
 
 proc githubReleasesCheck*(package: string, repo: string, githubReleasesRepo: string, autoUpdate = false, skipIfDownloadFails = true, trimString = "") =
-        ## Check against Repology database.
+        # Check against GitHub Releases.
         let pkgName = lastPathPart(package)
         var client = newHttpClient(userAgent="Klinux chkupd/"&ver&" (issuetracker: https://github.com/kreatolinux/src/issues)")
         var version = $(parseJson(client.getContent("https://api.github.com/repos/"&githubReleasesRepo&"/releases/latest"))["tag_name"])
