@@ -3,7 +3,6 @@ import backends/repology
 import backends/arch
 import checkcmd
 import cleanupcmd
-import jsontomdcmd
 import generatejsoncmd
 
 clCfg.version = "chkupd v3.2"
@@ -39,9 +38,6 @@ dispatchMulti(
           "verbose": "Enable verbose output.",
           "dir": "Set directory of archives (eg. /var/cache/kpkg/archives/arch/amd64)."
         }
-        ],
-        [
-         jsonToMd
         ],
         [
          generateJson, suppress = @["ignorePackages", "instance"]
