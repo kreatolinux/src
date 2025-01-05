@@ -14,31 +14,45 @@
 . ftr VB CB
 . ftr VBI CBI
 .\}
-.TH "kpkg-target" "5" "" "" ""
+.TH "chkupd.cfg" "5" "" "" ""
 .hy
 .SH NAME
 .PP
-kpkg-target - kpkg target format
+chkupd.cfg - Per package configuration file for chkupd.
 .SH DESCRIPTION
 .PP
-kpkg-target is a target format based on the popular target format.
-It adds additional info that are a part of the base system.
-kpkg-target is used at various parts of kpkg.
+PACKAGEPATH/chkupd.cfg is a per package configuration file for chkupd.
+It is used to configure the behavior of chkupd for a specific package.
+If a configuration file is not found, chkupd will use the arguments
+passed to it.
 .SH SYNTAX
 .PP
-kpkg-target is very similar to the target format.
-It is a line that has 5 parts, seperated by \f[V]-\f[R].
-An example kpkg target look like this;
-.PP
-\f[V]x86_64-linux-gnu-systemd-openssl\f[R]
-.PP
-First part is for the architecture, second part is for the OS, third
-part is for the toolchain, fourth part is for the init system, last part
-is for the TLS library.
-.SH WHY
-.PP
-kpkg-target is created to easily identify and store system information,
-and rebuild packages with additional support when necessary.
+chkupd.cfg uses a INI format.
+There is no default configuration file, but you can create one in the
+package directory.
+An example configuration file is below.
+.IP
+.nf
+\f[C]
+[autoUpdater]
+mechanism=\[dq]githubReleases\[dq]
+trimString=\[dq]v\[dq]
+
+[githubReleases]
+repo=\[dq]kreatolinux/kpkg\[dq]
+\f[R]
+.fi
+.SS AUTOUPDATER
+.IP \[bu] 2
+mechanism: The mechanism to use for checking for updates.
+Defaults to whatever is used while running \f[V]chkupd\f[R].
+.IP \[bu] 2
+trimString: String to trim from the version string.
+Defaults to nothing.
+.SS GITHUBRELEASES
+.IP \[bu] 2
+repo: The repository to check for updates.
+Must be in the format of \f[V]username/repo\f[R].
 .SH AUTHOR
 .PP
 Written by Kreato.
