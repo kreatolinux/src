@@ -205,6 +205,7 @@ proc builder*(package: string, destdir: string,
     var isLocal = false
 
     for i in pkg.sources.split(" "):
+        debug "source: '"&i&"'"
         if i == "":
             continue
 
@@ -221,15 +222,21 @@ proc builder*(package: string, destdir: string,
 
                 folder = lastPathPart(i.split("::")[1])
             else:
+                debug "fileCopyStep: '"&path&"/"&i&"'"
+                debug "fileCopyStep: '"&filename&"'"
+
                 if fileExists(path&"/"&i):
+                    debug "fileCopyStep: file exists"
                     copyFile(path&"/"&i, extractFilename(i))
                     filename = path&"/"&i
                     isLocal = true
                 elif dirExists(path&"/"&i):
+                    debug "fileCopyStep: directory exists"
                     copyDir(path&"/"&i, lastPathPart(i))
                     filename = path&"/"&i
                     isLocal = true
                 elif fileExists(filename):
+                    debug "fileCopyStep: filename exists"
                     discard
                 else:
 
