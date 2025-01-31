@@ -84,6 +84,7 @@ jobs:
       
       - name: Build builder-systemd rootfs tarball
         run: |
+          sed -i s/jumpstart/systemd/g /etc/kreato-release # Temp
           IS_ACTIONS=y sh $GITHUB_WORKSPACE/scripts/build-ci.sh build builder-systemd
 
       - name: Upload builder-systemd Rootfs
