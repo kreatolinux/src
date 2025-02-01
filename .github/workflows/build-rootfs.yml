@@ -85,7 +85,7 @@ jobs:
       - name: Build builder-systemd rootfs tarball
         run: |
           sed -i s/jumpstart/systemd/g /etc/kreato-release # Temp
-          cp -r /var/cache/kpkg/archives/system/x86_64-linux-gnu-jumpstart-openssl /var/cache/kpkg/archives/system/x86_64-linux-gnu-systemd-openssl
+          ln -s /var/cache/kpkg/archives/system/x86_64-linux-gnu-jumpstart-openssl /var/cache/kpkg/archives/system/x86_64-linux-gnu-systemd-openssl
           IS_ACTIONS=y sh $GITHUB_WORKSPACE/scripts/build-ci.sh build builder-systemd
 
       - name: Upload builder-systemd Rootfs
