@@ -48,8 +48,10 @@ case $1 in
                 # TEMP
                 curl -L https://github.com/kreatolinux/src/releases/download/v7.3.1/src-v7.3.1-dist.tar.gz -o src.tar.gz
                 tar -xvf src.tar.gz
-                cd src-v7.3.1 || exit 1
+                cd src-7.3.1 || exit 1
 		        nim c -d:dist -d:branch=master --deepcopy:on --passL:-larchive --passC:-no-pie --threads:on -d:ssl -o=kreastrap/kreastrap kreastrap/kreastrap.nim
+                cp kreastrap/kreastrap ../kreastrap/kreastrap
+                cd ..
                 # TEMP END 
 
                 #export PATH=$PATH:$HOME/.nimble/bin # Add nimble path so opir can run
