@@ -29,6 +29,11 @@ case $1 in
 
                 kpkg update
 
+                # TEMP
+                kpkg build gnu-core -y || true
+                kpkg build gnu-core -y || true
+                # TEMP END
+
                 kpkg upgrade -y
                 kpkg build meson -y
                 #kpkg build kpkg -y
@@ -46,8 +51,6 @@ case $1 in
                 #cp -r /var/cache/kpkg/archives/system/x86_64-linux-gnu-jumpstart-openssl /var/cache/kpkg/archives/system/x86_64-linux-gnu-systemd-openssl # temp, see #100
 
                 # TEMP
-                kpkg build gnu-core -y || true
-                kpkg build gnu-core -y || true
                 kpkg clean -e
                 curl -L https://github.com/kreatolinux/src/releases/download/v7.3.1/src-v7.3.1-dist.tar.gz -o src.tar.gz
                 tar -xvf src.tar.gz
