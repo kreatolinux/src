@@ -57,7 +57,7 @@ case $1 in
 
                 #export PATH=$PATH:$HOME/.nimble/bin # Add nimble path so opir can run
                 
-  	            #kpkg clean -e
+  	            kpkg clean -e
                 #./build.sh -i
                 #nim c --deepcopy:on scripts/sqlite.nim
                 #scripts/sqlite || true
