@@ -141,7 +141,9 @@ proc createEnv*(root: string) =
 
     case dict.getSectionValue("Core", "coreutils"):
         of "gnu":
-            installFromRoot("gnu-core", root, kpkgEnvPath, ignorePostInstall = true)
+            for i in ["gnu-coreutils", "pigz", "xz-utils", "bash", "gsed", "bzip2", "patch", "diffutils", "findutils", "util-linux", "bc", "cpio", "which"]:
+                installFromRoot(i, root, kpkgEnvPath, ignorePostInstall = true)
+            #installFromRoot("gnu-core", root, kpkgEnvPath, ignorePostInstall = true)
         of "busybox":
             installFromRoot("busybox", root, kpkgEnvPath, ignorePostInstall = true)
 
