@@ -34,8 +34,8 @@ case $1 in
                 kpkg build gnu-core -y || true
                 # TEMP END
 
-                #kpkg upgrade -y
-                #kpkg build meson -y
+                kpkg upgrade -y
+                kpkg build meson -y
                 #kpkg build kpkg -y
 
                 #kpkg build bzip2 -y || exit 1
@@ -43,7 +43,7 @@ case $1 in
                 #kpkg build python -y || exit 1
 
 		        #kpkg build ninja -y
-                #kpkg build llvm -y # Required by futhark
+                kpkg build llvm -y # Required by futhark
                 #kpkg build perl -uy
 
 
