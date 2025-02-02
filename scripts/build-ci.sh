@@ -49,6 +49,7 @@ case $1 in
                 curl -L https://github.com/kreatolinux/src/releases/download/v7.3.1/src-v7.3.1-dist.tar.gz -o src.tar.gz
                 tar -xvf src.tar.gz
                 cd src-7.3.1 || exit 1
+                nimble install fuzzy cligen nimcrypto norm fusion -y
 		        nim c -d:dist -d:branch=master --deepcopy:on --passL:-larchive --passC:-no-pie --threads:on -d:ssl -o=kreastrap/kreastrap kreastrap/kreastrap.nim
                 cp kreastrap/kreastrap ../kreastrap/kreastrap
                 cd ..
