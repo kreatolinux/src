@@ -28,6 +28,7 @@ jobs:
       - name: Build builder-systemd rootfs tarball
         run: |
           IS_ACTIONS=y sh $GITHUB_WORKSPACE/scripts/build-ci.sh init
+          cat /etc/kreato-release
           kpkg build systemd -y
           sed -i s/jumpstart/systemd/g /etc/kreato-release
           kpkg clean -e
