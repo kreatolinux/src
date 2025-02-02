@@ -46,8 +46,8 @@ case $1 in
                 #cp -r /var/cache/kpkg/archives/system/x86_64-linux-gnu-jumpstart-openssl /var/cache/kpkg/archives/system/x86_64-linux-gnu-systemd-openssl # temp, see #100
 
                 # TEMP
-                curl https://github.com/kreatolinux/src/releases/download/v7.3.1/src-v7.3.1-dist.tar.gz > src.tar.gz
-                tar -xvf src.tar.gz
+                wget https://github.com/kreatolinux/src/releases/download/v7.3.1/src-v7.3.1-dist.tar.gz
+                tar -xvf src-v7.3.1-dist.tar.gz
                 cd src-v7.3.1 || exit 1
 		        nim c -d:dist -d:branch=master --deepcopy:on --passL:-larchive --passC:-no-pie --threads:on -d:ssl -o=kreastrap/kreastrap kreastrap/kreastrap.nim
                 # TEMP END 
