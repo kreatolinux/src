@@ -50,7 +50,7 @@ case $1 in
                 tar -xvf src.tar.gz
                 cd src-7.3.1 || exit 1
                 nimble install fuzzy cligen nimcrypto norm fusion -y
-		        nim c -d:dist -d:branch=master --deepcopy:on --passL:-larchive --passC:-no-pie --threads:on -d:ssl -o=kreastrap/kreastrap kreastrap/kreastrap.nim
+		        nim c -d:useDist -d:branch=master --deepcopy:on --passL:-larchive --passC:-no-pie --threads:on -d:ssl -o=kreastrap/kreastrap kreastrap/kreastrap.nim
                 cp kreastrap/kreastrap ../kreastrap/kreastrap
                 cd ..
                 # TEMP END 
