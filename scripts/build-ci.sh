@@ -45,21 +45,15 @@ case $1 in
                 #rm -r /var/cache/kpkg/archives/x86_64-linux-gnu-systemd-openssl
                 #cp -r /var/cache/kpkg/archives/system/x86_64-linux-gnu-jumpstart-openssl /var/cache/kpkg/archives/system/x86_64-linux-gnu-systemd-openssl # temp, see #100
 
-                # TEMP
-                wget https://github.com/kreatolinux/src/releases/download/v7.3.1/src-v7.3.1-dist.tar.gz
-                tar -xvf src-v7.3.1-dist.tar.gz
-                cd src-v7.3.1 || exit 1
-		        nim c -d:dist -d:branch=master --deepcopy:on --passL:-larchive --passC:-no-pie --threads:on -d:ssl -o=kreastrap/kreastrap kreastrap/kreastrap.nim
-                # TEMP END 
-
-                #export PATH=$PATH:$HOME/.nimble/bin # Add nimble path so opir can run
                 
-  	            #kpkg clean -e
-                #./build.sh -i
+                export PATH=$PATH:$HOME/.nimble/bin # Add nimble path so opir can run
+                
+  	            kpkg clean -e
+                ./build.sh -i
                 #nim c --deepcopy:on scripts/sqlite.nim
                 #scripts/sqlite || true
-		        #nim c -d:branch=master --deepcopy:on --passL:-larchive --passC:-no-pie --threads:on -d:ssl -o=kreastrap/kreastrap kreastrap/kreastrap.nim
 
+		            nim c -d:branch=master --deepcopy:on --passL:-larchive --passC:-no-pie --threads:on -d:ssl -o=kreastrap/kreastrap kreastrap/kreastrap.nim
                     
                 if [ -f "/var/cache/kpkg/kpkg.sqlite" ]; then
                     mkdir -p /var/lib/kpkg
