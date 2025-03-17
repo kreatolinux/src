@@ -53,8 +53,7 @@ dispatchMulti(
     "tests": "Enable/Disable Tests on packages",
     "forceInstallAll": "Force reinstall every dependency",
     "isInstallDir": "Build package from specified path",
-    "ignorePostInstall": "Ignore if postInstall fails",
-    "checkReproducibility": "Download the same package from binRepos and compares the checksums"
+    "ignorePostInstall": "Ignore if postInstall fails"
   },
     suppress = @["isUpgrade"] # Internal variable for commands/upgradecmd
   ],

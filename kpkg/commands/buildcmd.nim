@@ -20,46 +20,32 @@ import ../modules/libarchive
 import ../modules/downloader
 import ../modules/commonTasks
 import ../modules/commonPaths
+import ../modules/builder/main
+import ../modules/builder/sources
+import ../modules/builder/packager
 #import ../modules/crossCompilation
 
-proc cleanUp() {.noconv.} =
-    ## Cleans up.
-    removeLockfile()
-    quit(0)
-
-
-proc fakerootWrap(srcdir: string, path: string, root: string, input: string,
-        autocd = "", tests = false, isTest = false, existsTest = 1, target = "default", typ: string, passthrough = false): int =
+proc fakerootWrap(path: string, input: string,
+        autocd = "", tests = false, isTest = false, existsTest = false, target = "default", typ: string, passthrough = false): int =
     ## Wraps command with fakeroot and executes it.
     
-    if (isTest and not tests) or (tests and existsTest != 0):
+    if (isTest and not tests) or (tests and not existsTest):
         return 0
 
     if not isEmptyOrWhitespace(autocd):
-        return execEnv(". "&path&"/run && export DESTDIR="&root&" && export ROOT="&root&" && cd "&autocd&" && "&input, typ, passthrough = passthrough)
+        return execEnv(". "&path&"/run && export DESTDIR="&kpkgBuildRoot&" && export ROOT="&kpkgBuildRoot&" && cd "&autocd&" && "&input, typ, passthrough = passthrough)
 
-    return execEnv(". "&path&"/run && export DESTDIR="&root&" && export ROOT="&root&" && cd '"&srcdir&"' && "&input, typ, passthrough = passthrough)
+    return execEnv(". "&path&"/run && export DESTDIR="&kpkgBuildRoot&" && export ROOT="&kpkgBuildRoot&" && cd '"&kpkgSrcDir&"' && "&input, typ, passthrough = passthrough)
 
-proc builder*(package: string, destdir: string,
-    root = kpkgTempDir1&"/build", srcdir = kpkgTempDir1&"/srcdir", offline = false,
+proc builder*(package: string, destdir: string, offline = false,
             dontInstall = false, useCacheIfAvailable = false,
-                    tests = false, manualInstallList: seq[string], customRepo = "", isInstallDir = false, isUpgrade = false, target = "default", actualRoot = "default", ignorePostInstall = false, noSandbox = false, ignoreTarget = false, ignoreUseCacheIfAvailable = @[""], checkReproducibility = false): bool =
+                    tests = false, manualInstallList: seq[string], customRepo = "", isInstallDir = false, isUpgrade = false, target = "default", actualRoot = "default", ignorePostInstall = false, noSandbox = false, ignoreTarget = false, ignoreUseCacheIfAvailable = @[""]): bool =
     ## Builds the packages.
-    
-    debug "builder ran, package: '"&package&"', destdir: '"&destdir&"' root: '"&root&"', useCacheIfAvailable: '"&($useCacheIfAvailable)&"'"
 
-    if not isAdmin():
-        err("you have to be root for this action.", false)
-    
-    if target != "default" and actualRoot == "default":
-        err("internal error: actualRoot needs to be set when target is used (please open a bug report)")
-    
-    isKpkgRunning()
-    checkLockfile()
+    debug "builder ran, package: '"&package&"', destdir: '"&destdir&"' root: '"&kpkgSrcDir&"', useCacheIfAvailable: '"&($useCacheIfAvailable)&"'"
 
-    info "starting build for "&package
 
-    setControlCHook(cleanUp)
+    preliminaryChecks(target, actualRoot)
 
     # Actual building start here
 
@@ -95,51 +81,16 @@ proc builder*(package: string, destdir: string,
         actualPackage = package
 
     # Remove directories if they exist
-    removeDir(root)
-    removeDir(srcdir)
+    removeDir(kpkgBuildRoot)
+    removeDir(kpkgSrcDir)
 
-    var arch: string
-    if target != "default":
-        arch = target.split("-")[0]
-    else:
-        arch = uname().machine
-    
-    var kTarget: string
-    if target != "default":
-        
-        if target.split("-").len != 3 and target.split("-").len != 5:
-            err("target '"&target&"' invalid", false)
-        
-        if target.split("-").len == 5:
-            kTarget = target
-        else:
-            kTarget = kpkgTarget(destDir, target)
-    else:
-        kTarget = kpkgTarget(destDir)
+    let arch = getArch(target)
+    let kTarget = getKtarget(target, destdir)
 
-    debug "arch: '"&arch&"'"
-    debug "kpkgTarget: '"&kTarget&"'"
-
-
-    # Create tarball directory if it doesn't exist
-    discard existsOrCreateDir("/var/cache")
-    discard existsOrCreateDir(kpkgCacheDir)
-    discard existsOrCreateDir(kpkgArchivesDir)
-    discard existsOrCreateDir(kpkgSourcesDir)
-    discard existsOrCreateDir(kpkgSourcesDir&"/"&actualPackage)
-    discard existsOrCreateDir(kpkgArchivesDir&"/system")
-    discard existsOrCreateDir(kpkgArchivesDir&"/system/"&kTarget)
-
-    # Create required directories
-    createDir(root)
-    createDir(srcdir)
-
-    setFilePermissions(root, {fpUserExec, fpUserRead, fpGroupExec, fpGroupRead,
-            fpOthersExec, fpOthersRead})
-    setFilePermissions(srcdir, {fpOthersWrite, fpOthersRead, fpOthersExec})
+    initEnv(actualPackage, kTarget)
 
     # Enter into the source directory
-    setCurrentDir(srcdir)
+    setCurrentDir(kpkgSrcDir)
 
     var pkg: runFile
     try:
@@ -165,8 +116,8 @@ proc builder*(package: string, destdir: string,
             installPkg(repo, actualPackage, destdir, pkg, manualInstallList, ignorePostInstall = ignorePostInstall)
         else:
             info "the package target doesn't match the one on '"&destDir&"', skipping installation"
-        removeDir(root)
-        removeDir(srcdir)
+        removeDir(kpkgBuildRoot)
+        removeDir(kpkgSrcDir)
         return true
     
     debug "Tarball (and the sum) doesn't exist, going to continue"
@@ -174,135 +125,47 @@ proc builder*(package: string, destdir: string,
     if pkg.isGroup:
         debug "Package is a group package"
         installPkg(repo, actualPackage, destdir, pkg, manualInstallList, ignorePostInstall = ignorePostInstall)
-        removeDir(root)
-        removeDir(srcdir)
+        removeDir(kpkgBuildRoot)
+        removeDir(kpkgSrcDir)
         return true
 
-    createLockfile()
-
-    var filename: string
-
-    when defined(release):
-        const silentMode = true
-    else:
-        const silentMode = false
-            
     createDir(kpkgTempDir2)
 
-    let existsPrepare = execEnv(". "&path&"/run"&" && command -v prepare", passthrough = noSandbox, silentMode = silentMode)
-    let existsInstall = execEnv(". "&path&"/run"&" && command -v package", passthrough = noSandbox, silentMode = silentMode)
-    let existsTest = execEnv(". "&path&"/run"&" && command -v check", passthrough = noSandbox, silentMode = silentMode)
-    let existsPackageInstall = execEnv(
-            ". "&path&"/run"&" && command -v package_"&replace(actualPackage, '-', '_'), passthrough = noSandbox, silentMode = silentMode)
-    let existsPackageBuild = execEnv(
-            ". "&path&"/run"&" && command -v build_"&replace(actualPackage, '-', '_'), passthrough = noSandbox, silentMode = silentMode)
-    let existsBuild = execEnv(
-            ". "&path&"/run"&" && command -v build", passthrough = noSandbox, silentMode = silentMode)
+    var exists = (
+            prepare: false, 
+            package: false, 
+            check: false, 
+            packageInstall: false, 
+            packageBuild: false, 
+            build: false
+        )
+    
+    for i in pkg.functions:
+        debug "now checking out '"&i.name&"'"
+        case i.name
+        of "prepare":
+            exists.prepare = true
+        of "package":
+            exists.package = true
+        of "check":
+            exists.check = true
+        of "build":
+            exists.build = true
+    
+        if "package_"&replace(actualPackage, '-', '_') == i.name:
+            exists.packageInstall = true
+        
+        if "build_"&replace(actualPackage, '-', '_') == i.name:
+            exists.packageBuild = true
 
-    var int = 0
+
     var usesGit: bool
     var folder: string
-    var isLocal = false
 
-    for i in pkg.sources.split(" "):
-        debug "source: '"&i&"'"
-        if i == "":
-            continue
+    sourceDownloader(pkg, actualPackage, kpkgSrcDir)
 
-        filename = "/var/cache/kpkg/sources/"&actualPackage&"/"&extractFilename(
-                i).strip()
-
-        try:
-            if i.startsWith("git::"):
-                usesGit = true
-                if execEnv("git clone "&i.split("::")[
-                        1]&" && cd "&lastPathPart(i.split("::")[
-                        1])&" && git branch -C "&i.split("::")[2], passthrough = noSandbox) != 0:
-                    err("Cloning repository failed!")
-
-                folder = lastPathPart(i.split("::")[1])
-            else:
-                debug "fileCopyStep: '"&path&"/"&i&"'"
-                debug "fileCopyStep: '"&filename&"'"
-
-                if fileExists(path&"/"&i):
-                    debug "fileCopyStep: file exists"
-                    copyFile(path&"/"&i, extractFilename(i))
-                    filename = path&"/"&i
-                    isLocal = true
-                elif dirExists(path&"/"&i):
-                    debug "fileCopyStep: directory exists"
-                    copyDir(path&"/"&i, lastPathPart(i))
-                    filename = path&"/"&i
-                    isLocal = true
-                elif fileExists(filename):
-                    debug "fileCopyStep: filename exists"
-                    discard
-                else:
-
-                    let mirror = override.getSectionValue("Mirror", "sourceMirror", getConfigValue("Options", "sourceMirror", "mirror.kreato.dev/sources"))
-                    var raiseWhenFail = true
-
-                    try:
-                        if not parseBool(mirror):
-                            raiseWhenFail = false
-                    except Exception:
-                        discard
-
-                    try:
-                        download(i, filename, raiseWhenFail = raiseWhenFail)
-                    except Exception:
-                        info "download failed through sources listed on the runFile, contacting the source mirror"
-                        download("https://"&mirror&"/"&actualPackage&"/"&extractFilename(i).strip(), filename, raiseWhenFail = false)
-
-                # git cloning doesn't support sum checking
-                var actualDigest: string
-                var expectedDigest: string
-                var sumType: string
-
-                try:
-                    expectedDigest = pkg.b2sum.split(" ")[int]
-                    if isEmptyOrWhitespace(expectedDigest): raise
-                    sumType = "b2"
-                except Exception:
-                    discard
-                
-                if sumType != "b2":
-                    try:
-                        expectedDigest = pkg.sha512sum.split(" ")[int]
-                        if isEmptyOrWhitespace(expectedDigest): raise
-                        sumType = "sha512"
-                    except Exception:
-                        discard
-
-                if sumType != "sha512" and sumType != "b2":
-                    try:
-                        expectedDigest = pkg.sha256sum.split(" ")[int]
-                        if isEmptyOrWhitespace(expectedDigest): raise
-                        sumType = "sha256"
-                    except Exception:
-                        err "runFile doesn't have proper checksums"
-                
-                if not isLocal:
-                    actualDigest = getSum(filename, sumType)
-
-                    if expectedDigest != actualDigest:
-                        removeFile(filename)
-                        err sumType&"sum doesn't match for "&i&"\nExpected: '"&expectedDigest&"'\nActual: '"&actualDigest&"'"
-
-                # Add symlink for compatibility purposes
-                if not fileExists(path&"/"&i) and (not isLocal):
-                    createSymlink(filename, extractFilename(i).strip())
-
-                int = int+1
-        except CatchableError:
-            when defined(release):
-                err "Unknown error occured while trying to download the sources"
-            debug "Unknown error while trying to download sources"
-            raise getCurrentException()
-
-    setFilePermissions(srcdir, {fpUserExec, fpUserWrite, fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
-    discard posix.chown(cstring(srcdir), 999, 999)
+    setFilePermissions(kpkgSrcDir, {fpUserExec, fpUserWrite, fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
+    discard posix.chown(cstring(kpkgSrcDir), 999, 999)
     
     var amountOfFolders: int
 
@@ -336,7 +199,7 @@ proc builder*(package: string, destdir: string,
             debug $folder
             raise getCurrentException()
 
-    if existsPrepare == 0:
+    if exists.prepare:
         if execEnv(". "&path&"/run"&" && prepare", passthrough = noSandbox) != 0:
             err("prepare failed", true)
 
@@ -351,10 +214,7 @@ proc builder*(package: string, destdir: string,
     var cmd3Str: string
 
     const extraCommands = readFile("./kpkg/modules/runFileExtraCommands.sh")
-    writeFile(srcdir&"/runfCommands", extraCommands)
-
-    if arch == "amd64":
-        arch = "x86_64" # For compatibility
+    writeFile(kpkgSrcDir&"/runfCommands", extraCommands)
     
     var actTarget: string
 
@@ -365,12 +225,18 @@ proc builder*(package: string, destdir: string,
     else:
         actTarget = target
 
+    let cmdTemplate = """. """&kpkgSrcDir&"""/runfCommands 
+                && export KPKG_ARCH="""&arch&"""
+                && export KPKG_TARGET="""&actTarget&""" 
+                && export KPKG_HOST_TARGET="""&systemTarget(actualRoot)&""" 
+                && """
+
     if actTarget != "default" and actTarget != systemTarget("/"):
-        cmdStr = ". "&srcdir&"/runfCommands && export KPKG_ARCH="&arch&" && export KPKG_TARGET="&actTarget&" && export KPKG_HOST_TARGET="&systemTarget(actualRoot)&" && "&cmdStr
-        cmd3Str = ". "&srcdir&"/runfCommands && export KPKG_ARCH="&arch&" && export KPKG_TARGET="&actTarget&" && export KPKG_HOST_TARGET="&systemTarget(actualRoot)&" && "&cmd3Str
+        cmdStr = cmdTemplate&cmdStr
+        cmd3Str = cmdTemplate&cmd3Str        
     else:
-        cmdStr = ". "&srcdir&"/runfCommands && export KPKG_ARCH="&arch&" && export KPKG_TARGET="&systemTarget(destdir)&" && "&cmdStr
-        cmd3Str = ". "&srcdir&"/runfCommands && export KPKG_ARCH="&arch&" && export KPKG_TARGET="&systemTarget(destdir)&" && "&cmd3Str
+        cmdStr = cmdTemplate.replace(actTarget, systemTarget(destdir))&cmdStr&" && unset KPKG_HOST_TARGET"
+        cmd3Str = cmdTemplate.replace(actTarget, systemTarget(destdir))&cmd3Str&" && unset KPKG_HOST_TARGET"
 
     if parseBool(override.getSectionValue("Other", "ccache", getConfigValue("Options", "ccache", "false"))) and packageExists("ccache"):
       
@@ -389,7 +255,7 @@ proc builder*(package: string, destdir: string,
     if not isEmptyOrWhitespace(override.getSectionValue("Flags", "extraArguments")):
         cmdStr = cmdStr&" export KPKG_EXTRA_ARGUMENTS=\""&override.getSectionValue("Flags", "extraArguments")&"\" && "
 
-    cmdStr = cmdStr&ccacheCmds&" export SRCDIR="&srcdir&" && export PACKAGENAME=\""&actualPackage&"\" &&"
+    cmdStr = cmdStr&ccacheCmds&" export SRCDIR="&kpkgSrcDir&" && export PACKAGENAME=\""&actualPackage&"\" &&"
     
     let cxxflags = override.getSectionValue("Flags", "cxxflags", getConfigValue("Options", "cxxflags"))
     if not isEmptyOrWhitespace(cxxflags):
@@ -400,16 +266,16 @@ proc builder*(package: string, destdir: string,
     if not isEmptyOrWhitespace(cflags):
         cmdStr = cmdStr&" export CFLAGS=\""&cflags&"\" &&"
 
-    if existsPackageInstall == 0:
+    if exists.packageInstall:
         cmd3Str = cmd3Str&"package_"&replace(actualPackage, '-', '_')
-    elif existsInstall == 0:
+    elif exists.package:
         cmd3Str = cmd3Str&"package"
     else:
         err "install stage of package doesn't exist, invalid runfile"
 
-    if existsPackageBuild == 0:
+    if exists.packageBuild:
         cmdStr = cmdStr&" build_"&replace(actualPackage, '-', '_')
-    elif existsBuild == 0:
+    elif exists.build:
         cmdStr = cmdStr&" build"
     else:
         cmdStr = "true"
@@ -417,97 +283,17 @@ proc builder*(package: string, destdir: string,
     if amountOfFolders != 1:
         debug "amountOfFolder != 1, autocd will not run"
         discard execEnv(cmdStr, "build", passthrough = noSandbox)
-        discard fakerootWrap(srcdir, path, root, "check", tests = tests,
-                isTest = true, existsTest = existsTest, typ = "Tests", passthrough = noSandbox)
-        discard fakerootWrap(srcdir, path, root, cmd3Str, typ = "Installation", passthrough = noSandbox)
+        discard fakerootWrap(path, "check", tests = tests,
+                isTest = true, existsTest = exists.check, typ = "Tests", passthrough = noSandbox)
+        discard fakerootWrap(path, cmd3Str, typ = "Installation", passthrough = noSandbox)
     else:
         debug "amountOfFolders == 1, autocd will run"
         discard execEnv("cd "&folder&" && "&cmdStr, "build", passthrough = noSandbox)
-        discard fakerootWrap(srcdir, path, root, "check", folder,
-                tests = tests, isTest = true, existsTest = existsTest, typ = "Tests", passthrough = noSandbox)
-        discard fakerootWrap(srcdir, path, root, cmd3Str, folder, typ = "Installation", passthrough = noSandbox)
+        discard fakerootWrap(path, "check", folder,
+                tests = tests, isTest = true, existsTest = exists.check, typ = "Tests", passthrough = noSandbox)
+        discard fakerootWrap(path, cmd3Str, folder, typ = "Installation", passthrough = noSandbox)
 
-    var tarball = kpkgArchivesDir&"/system/"&kTarget
-    
-    createDir(tarball)
-    
-    tarball = tarball&"/"&actualPackage&"-"&pkg.versionString&".kpkg"
-    
-    # pkgInfo.ini
-    var pkgInfo = newConfig()
-
-    pkgInfo.setSectionKey("", "pkgVer", pkg.versionString)
-    pkgInfo.setSectionKey("", "apiVer", ver)
-
-    var depsInfo: string
-    
-
-    for dep in pkg.deps:
-        
-        if isEmptyOrWhitespace(dep):
-            continue 
-
-        var pkg: Package
-        
-        try:
-            if packageExists(dep, kpkgEnvPath):
-                pkg = getPackage(dep, kpkgEnvPath)
-            elif packageExists(dep, kpkgOverlayPath&"/upperDir"):
-                pkg = getPackage(dep, kpkgOverlayPath&"/upperDir/")
-            else:
-                when defined(release):
-                    err "Unknown error occured while generating binary package"
-                else:
-                    debug "Unknown error occured while generating binary package"
-                    raise getCurrentException()
-
-        except CatchableError:
-            raise 
-        if isEmptyOrWhitespace(depsInfo):
-            depsInfo = (dep&"#"&pkg.version)
-        else:
-            depsInfo = depsInfo&" "&(dep&"#"&pkg.version)
-
-    pkgInfo.setSectionKey("", "depends", depsInfo)
-        
-    pkgInfo.writeConfig(root&"/pkgInfo.ini")
-
-    # pkgsums.ini
-    var dict = newConfig()
-    
-    for file in toSeq(walkDirRec(root, {pcFile, pcLinkToFile, pcDir, pcLinkToDir})):
-        if "pkgInfo.ini" == relativePath(file, root): continue
-        if dirExists(file) or symlinkExists(file):
-            dict.setSectionKey("", "\""&relativePath(file, root)&"\"", "")
-        else:
-            dict.setSectionKey("", "\""&relativePath(file, root)&"\"", getSum(file, "b2"))
-        
-    dict.writeConfig(root&"/pkgsums.ini")
-    
-    if execCmdKpkg("bsdtar -czf "&tarball&" -C "&root&" .") != 0:
-        err "creating binary tarball failed"
-    #createArchive(tarball, root)
-    
-    #writeFile(tarball&".sum.b2", getSum(tarball, "b2"))
-
-    if checkReproducibility:
-        downBin(package = actualPackage, binrepos = getConfigValue("Repositories", "binRepos").split(" "), root = "/", forceDownload = true, customPath = tarball&".orig", offline = false, ignoreDownloadErrors = true)
-        if not fileExists(tarball&".orig"):
-            if isDebugMode():
-                debug "Binary package is not reproducible, original binary package doesn't exist"
-            else:
-                err "Binary package is not reproducible, original binary package doesn't exist"
-        else: 
-            let sum1 = getSum(tarball, "b2")
-            let sum2 = getSum(tarball&".orig", "b2")
-            removeFile(tarball&".orig")
-            if sum1 != sum2:
-                if isDebugMode():
-                    debug "Binary package is not reproducible, checksums don't match"
-                else:
-                    err "Binary package is not reproducible, checksums don't match"
-            else:
-                info "Binary package is reproducible, checksums match"
+    discard createPackage(actualPackage, pkg, kTarget)
 
     # Install package to root aswell so dependency errors doesnt happen
     # because the dep is installed to destdir but not root.
@@ -522,7 +308,7 @@ proc builder*(package: string, destdir: string,
     removeLockfile()
     
     when defined(release):
-        removeDir(srcdir)
+        removeDir(kpkgSrcDir)
         removeDir(kpkgTempDir2)
 
     return false
@@ -530,7 +316,7 @@ proc builder*(package: string, destdir: string,
 proc build*(no = false, yes = false, root = "/",
     packages: seq[string],
             useCacheIfAvailable = true, forceInstallAll = false,
-                    dontInstall = false, tests = true, ignorePostInstall = false, isInstallDir = false, isUpgrade = false, target = "default", checkReproducibility = false): int =
+                    dontInstall = false, tests = true, ignorePostInstall = false, isInstallDir = false, isUpgrade = false, target = "default"): int =
     ## Build and install packages.
     let init = getInit(root)
     var deps: seq[string]
@@ -644,7 +430,7 @@ proc build*(no = false, yes = false, root = "/",
                     pkgName = packageSplit.name
 
             discard builder(pkgName, fullRootPath, offline = false,
-                    dontInstall = dontInstall, useCacheIfAvailable = useCacheIfAvailable, tests = tests, manualInstallList = p, customRepo = customRepo, isInstallDir = isInstallDirFinal, isUpgrade = isUpgrade, target = target, actualRoot = root, ignorePostInstall = ignorePostInstall, ignoreUseCacheIfAvailable = gD, checkReproducibility = checkReproducibility)
+                    dontInstall = dontInstall, useCacheIfAvailable = useCacheIfAvailable, tests = tests, manualInstallList = p, customRepo = customRepo, isInstallDir = isInstallDirFinal, isUpgrade = isUpgrade, target = target, actualRoot = root, ignorePostInstall = ignorePostInstall, ignoreUseCacheIfAvailable = gD)
             
             success("built "&i&" successfully")
         except CatchableError:
