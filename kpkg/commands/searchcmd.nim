@@ -28,7 +28,7 @@ proc printResult(repo: string, package: string, colors = true): string =
         desc = pkg.desc
 
     if isGroup:
-        
+
         if colors:
             r = cyanColor&"g"&resetColor&r
         else:
@@ -40,8 +40,8 @@ proc printResult(repo: string, package: string, colors = true): string =
         r = r&cyanColor&repo&resetColor&"/"&package&"-"&version
     else:
         r = r&repo&"/"&package&"-"&version
-        
-    
+
+
     for i in 1 .. 40 - (package.len + 1 + repo.len + version.len):
         r = r&" "
 
@@ -67,7 +67,9 @@ proc search*(keyword: seq[string], colors = true) =
     for r in getConfigValue("Repositories", "repoDirs").split(" "):
         setCurrentDir(r)
         for i in walkDirs("*"):
-            if (fuzzyMatchSmart(i, keyword[0]) >= 0.6 or fuzzyMatchSmart(
-                    parseRunfile(r&"/"&i).desc, keyword.join(" ")) >= 0.8) and
+            if (fuzzyMatchSmart(i, keyword[0]) >= 0.6 or
+                    (parseRunfile(r&"/"&i).desc != "" and
+                    fuzzyMatchSmart(parseRunfile(r&"/"&i).desc, keyword.join(
+                            " ")) >= 0.8)) and
                     i != keyword[0]:
                 echo printResult(lastPathPart(r), i, colors)
