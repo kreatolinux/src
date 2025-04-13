@@ -74,7 +74,7 @@ case $1 in
 			arch="$3"
 		fi
   
-                ./kreastrap/kreastrap --buildType="$2" --arch="$arch" --checkReproducibility=true || e
+                ./kreastrap/kreastrap --buildType="$2" --arch="$arch" || e
                 cd /out || exit 1
                 tar -czvf /work/kreato-linux-"$2"-glibc-"$(date +%d-%m-%Y)"-amd64.tar.gz *
         ;;
