@@ -235,8 +235,8 @@ proc builder*(package: string, destdir: string, offline = false,
         cmdStr = cmdTemplate&cmdStr
         cmd3Str = cmdTemplate&cmd3Str        
     else:
-        cmdStr = cmdTemplate.replace(actTarget, systemTarget(destdir))&cmdStr&" && unset KPKG_HOST_TARGET"
-        cmd3Str = cmdTemplate.replace(actTarget, systemTarget(destdir))&cmd3Str&" && unset KPKG_HOST_TARGET"
+        cmdStr = cmdTemplate.replace(actTarget, systemTarget(destdir))&cmdStr&" unset KPKG_HOST_TARGET"
+        cmd3Str = cmdTemplate.replace(actTarget, systemTarget(destdir))&cmd3Str&" unset KPKG_HOST_TARGET"
 
     if parseBool(override.getSectionValue("Other", "ccache", getConfigValue("Options", "ccache", "false"))) and packageExists("ccache"):
       
