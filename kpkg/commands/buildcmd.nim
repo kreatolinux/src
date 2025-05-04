@@ -225,11 +225,7 @@ proc builder*(package: string, destdir: string, offline = false,
     else:
         actTarget = target
 
-    let cmdTemplate = """. """&kpkgSrcDir&"""/runfCommands 
-                && export KPKG_ARCH="""&arch&"""
-                && export KPKG_TARGET="""&actTarget&""" 
-                && export KPKG_HOST_TARGET="""&systemTarget(actualRoot)&""" 
-                && """
+    let cmdTemplate = """. """&kpkgSrcDir&"""/runfCommands && export KPKG_ARCH="""&arch&""" && export KPKG_TARGET="""&actTarget&""" && export KPKG_HOST_TARGET="""&systemTarget(actualRoot)&""" && """
 
     if actTarget != "default" and actTarget != systemTarget("/"):
         cmdStr = cmdTemplate&cmdStr
@@ -253,9 +249,9 @@ proc builder*(package: string, destdir: string, offline = false,
         cmdStr = cmdStr&" && export CC=\""&cc&"\" && export CXX=\""&cxx&"\" && "
    
     if not isEmptyOrWhitespace(override.getSectionValue("Flags", "extraArguments")):
-        cmdStr = cmdStr&" export KPKG_EXTRA_ARGUMENTS=\""&override.getSectionValue("Flags", "extraArguments")&"\" && "
+        cmdStr = cmdStr&" && export KPKG_EXTRA_ARGUMENTS=\""&override.getSectionValue("Flags", "extraArguments")&"\" && "
 
-    cmdStr = cmdStr&ccacheCmds&" export SRCDIR="&kpkgSrcDir&" && export PACKAGENAME=\""&actualPackage&"\" &&"
+    cmdStr = cmdStr&ccacheCmds&"export SRCDIR="&kpkgSrcDir&" && export PACKAGENAME=\""&actualPackage&"\" &&"
     
     let cxxflags = override.getSectionValue("Flags", "cxxflags", getConfigValue("Options", "cxxflags"))
     if not isEmptyOrWhitespace(cxxflags):
