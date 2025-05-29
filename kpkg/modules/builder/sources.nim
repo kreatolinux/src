@@ -137,7 +137,7 @@ proc sourceDownloader*(runf: runFile, pkgName: string, sourceDir: string) =
     ## Wrapper function for downloading and extracting sources
     var i = 0
 
-    for source in runf.sources.split(";"):
+    for source in runf.sources.split(" "):
         let url = source.split(" ")[0]
         let filename = if url.startsWith("git::"): lastPathPart(url.split("::")[1]) else: extractFilename(source)
         let sourcePath = kpkgSourcesDir & "/" & pkgName & "/" & filename
