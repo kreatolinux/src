@@ -133,7 +133,7 @@ proc setSourcePermissions*() =
                 debug "Failed to set owner for " & path.path
 
 
-proc sourceDownloader*(runf: runFile, pkgName: string, sourceDir: string) =
+proc sourceDownloader*(runf: runFile, pkgName: string, sourceDir: string, runFilePath: string) =
     ## Wrapper function for downloading and extracting sources
     var i = 0
 
@@ -141,15 +141,22 @@ proc sourceDownloader*(runf: runFile, pkgName: string, sourceDir: string) =
         let url = source.split(" ")[0]
         let filename = if url.startsWith("git::"): lastPathPart(url.split("::")[1]) else: extractFilename(source)
         let sourcePath = kpkgSourcesDir & "/" & pkgName & "/" & filename
+        let localPath = parentDir(runFilePath) & "/" & filename
         debug "sourcePath: "&sourcePath
+        debug "localPath: "&localPath
+       
         
-        if not fileExists(sourcePath):
+        if not fileExists(localPath):
             downloadSource(url, sourcePath, pkgName)
-        
+        else:
+            debug "File already exists locally: " & localPath
+            createSymlink(localPath, sourcePath)
+
         verifyChecksum(sourcePath, url, runf, i, sourceDir)
         
         # Skip extraction for Git repositories as they're already in the correct format
-        if not url.startsWith("git::"):
+        # And also skip localfiles
+        if not (url.startsWith("git::") or fileExists(localPath)):
             extractSources(sourcePath, sourceDir)
 
         i += 1
