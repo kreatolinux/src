@@ -162,7 +162,7 @@ proc builder*(package: string, destdir: string, offline = false,
     var usesGit: bool
     var folder: string
 
-    sourceDownloader(pkg, actualPackage, kpkgSrcDir)
+    sourceDownloader(pkg, actualPackage, kpkgSrcDir, path)
 
     setFilePermissions(kpkgSrcDir, {fpUserExec, fpUserWrite, fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
     discard posix.chown(cstring(kpkgSrcDir), 999, 999)
