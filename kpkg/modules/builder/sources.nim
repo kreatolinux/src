@@ -140,8 +140,8 @@ proc sourceDownloader*(runf: runFile, pkgName: string, sourceDir: string, runFil
     for source in runf.sources.split(" "):
         let url = source.split(" ")[0]
         let filename = if url.startsWith("git::"): lastPathPart(url.split("::")[1]) else: extractFilename(source)
-        let sourcePath = kpkgSourcesDir & "/" & pkgName & "/" & filename
-        let localPath = parentDir(runFilePath) & "/" & pkgName &  "/" & filename
+        let sourcePath = kpkgSourcesDir & "/" & pkgName & "/" & source
+        let localPath = runFilePath "/" & filename
         debug "sourcePath: "&sourcePath
         debug "localPath: "&localPath
        
