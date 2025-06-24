@@ -150,13 +150,13 @@ proc sourceDownloader*(runf: runFile, pkgName: string, sourceDir: string, runFil
        
         
         if not fileExists(localPath):
-            downloadSource(url, sourcePath, pkgName)
+            downloadSource(source, sourcePath, pkgName)
 
         verifyChecksum(sourcePath, url, runf, i, sourceDir)
         
         # Skip extraction for Git repositories as they're already in the correct format
         # And also skip localfiles
-        if not (url.startsWith("git::") or fileExists(localPath)):
+        if not (source.startsWith("git::") or fileExists(localPath)):
             extractSources(sourcePath, sourceDir)
 
         i += 1
