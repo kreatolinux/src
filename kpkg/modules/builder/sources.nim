@@ -152,7 +152,7 @@ proc sourceDownloader*(runf: runFile, pkgName: string, sourceDir: string, runFil
         if not fileExists(localPath):
             downloadSource(source, sourcePath, pkgName)
 
-        verifyChecksum(sourcePath, url, runf, i, sourceDir)
+        verifyChecksum(sourcePath, source, runf, i, sourceDir)
         
         # Skip extraction for Git repositories as they're already in the correct format
         # And also skip localfiles
