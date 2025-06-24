@@ -138,19 +138,19 @@ proc sourceDownloader*(runf: runFile, pkgName: string, sourceDir: string, runFil
     var i = 0
 
     for source in runf.sources.split(" "):
-        let url = source.split(" ")[0]
-        let filename = if url.startsWith("git::"): lastPathPart(url.split("::")[1]) else: extractFilename(source)
+        var filename: string
+        if source.startsWith("git::"): 
+            filename = lastPathPart(source.split("::")[1]) 
+        else: 
+            filename = extractFilename(source)
         let sourcePath = kpkgSourcesDir & "/" & pkgName & "/" & filename
-        let localPath = runFilePath & "/" & source
+        let localPath = kpkgSrcDir & "/" & filename
         debug "sourcePath: "&sourcePath
         debug "localPath: "&localPath
        
         
         if not fileExists(localPath):
             downloadSource(url, sourcePath, pkgName)
-        else:
-            debug "File already exists locally: " & localPath
-            createSymlink(localPath, sourcePath)
 
         verifyChecksum(sourcePath, url, runf, i, sourceDir)
         
