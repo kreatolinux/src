@@ -143,7 +143,7 @@ proc sourceDownloader*(runf: runFile, pkgName: string, sourceDir: string, runFil
             filename = lastPathPart(source.split("::")[1]) 
         else: 
             filename = extractFilename(source)
-        let sourcePath = kpkgSourcesDir & "/" & pkgName & "/" & filename
+        var sourcePath = kpkgSourcesDir & "/" & pkgName & "/" & filename
         let localPath = runFilePath & "/" & filename
         debug "sourcePath: "&sourcePath
         debug "localPath: "&localPath
@@ -151,6 +151,8 @@ proc sourceDownloader*(runf: runFile, pkgName: string, sourceDir: string, runFil
         
         if not fileExists(localPath):
             downloadSource(source, sourcePath, pkgName)
+        else:
+            sourcePath = localPath
 
         verifyChecksum(sourcePath, source, runf, i, sourceDir)
         
