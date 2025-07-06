@@ -1,6 +1,7 @@
 #!/bin/sh
 # CI build script
 #
+set -ex
 
 e() {
     sqlite3 /var/cache/kpkg/kpkg.sqlite .dump
