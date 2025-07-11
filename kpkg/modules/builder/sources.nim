@@ -144,7 +144,7 @@ proc sourceDownloader*(runf: runFile, pkgName: string, sourceDir: string, runFil
         else: 
             filename = extractFilename(source)
         var sourcePath = kpkgSourcesDir & "/" & pkgName & "/" & filename
-        let localPath = runFilePath & "/" & filename
+        let localPath = runFilePath & "/" & source
         debug "sourcePath: "&sourcePath
         debug "localPath: "&localPath
 
