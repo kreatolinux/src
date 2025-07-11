@@ -169,16 +169,6 @@ proc builder*(package: string, destdir: string, offline = false,
     
     var amountOfFolders: int
 
-    if pkg.extract and (not usesGit):
-        
-        for i in pkg.sources.split(" "):
-            debug "trying to extract \""&extractFilename(i)&"\""
-            try:
-                discard extract(extractFilename(i))
-            except Exception:
-                debug "extraction failed, continuing"
-    
-
     for i in toSeq(walkDir(".")):
         debug i.path
         if dirExists(i.path):
@@ -203,9 +193,6 @@ proc builder*(package: string, destdir: string, offline = false,
         if execEnv(". "&path&"/run"&" && prepare", passthrough = noSandbox) != 0:
             err("prepare failed", true)
 
-    # Run ldconfig beforehand for any errors
-    #discard execEnv("ldconfig")
-     
     # create cache directory if it doesn't exist
     var ccacheCmds: string
     var cc = getConfigValue("Options", "cc", "cc")
