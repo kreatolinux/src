@@ -158,7 +158,7 @@ proc sourceDownloader*(runf: runFile, pkgName: string, sourceDir: string, runFil
         
         # Skip extraction for Git repositories as they're already in the correct format
         # And also skip localfiles
-        if runf.extract and not (source.startsWith("git::") or fileExists(localPath)):
+        if runf.extract and not (source.startsWith("git::") or (fileExists(localPath) or dirExists(localPath))):
             extractSources(sourcePath, sourceDir)
 
         i += 1
