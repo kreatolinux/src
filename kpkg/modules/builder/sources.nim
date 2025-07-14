@@ -69,7 +69,7 @@ proc downloadSource*(url, filename, pkgName: string) =
             download("https://" & mirror & "/" & pkgName & "/" & extractFilename(url).strip(), 
                     filename, raiseWhenFail = false)
 
-proc verifyChecksum*(filename, sourceUrl: string, runf: runFile, sourceIndex: int, sourceDir: string) =
+proc verifyChecksum*(filename, sourceUrl: string, runf: runFile, sourceIndex: int, sourceDir: string, localFile: bool) =
     ## Verifies the checksum of a downloaded file
     if sourceUrl.startsWith("git::"):
         # Skip checksum verification for Git sources
@@ -108,6 +108,8 @@ proc verifyChecksum*(filename, sourceUrl: string, runf: runFile, sourceIndex: in
     # Verify checksum
     actualDigest = getSum(filename, sumType)
     if expectedDigest != actualDigest:
+        if localFile and expectedDigest == "SKIP":
+            return
         removeFile(filename)
         err(sumType & "sum doesn't match for " & sourceUrl & 
             "\nExpected: '" & expectedDigest & "'\nActual: '" & actualDigest & "'", false)
@@ -145,20 +147,28 @@ proc sourceDownloader*(runf: runFile, pkgName: string, sourceDir: string, runFil
             filename = extractFilename(source)
         var sourcePath = kpkgSourcesDir & "/" & pkgName & "/" & filename
         let localPath = runFilePath & "/" & source
+        var isLocalFile = false
         debug "sourcePath: "&sourcePath
         debug "localPath: "&localPath
 
-        
-        if not fileExists(localPath):
-            downloadSource(source, sourcePath, pkgName)
-        else:
+        # Check if the source is a local file or directory
+        if fileExists(localPath) or dirExists(localPath):
+            isLocalFile = true
+            debug "source is a local file or directory: " & localPath
             sourcePath = localPath
+        else:
+            debug "source is not a local file or directory, using sourcePath: " & sourcePath
 
-        verifyChecksum(sourcePath, source, runf, i, sourceDir)
+
+        
+        if not isLocalFile:
+            downloadSource(source, sourcePath, pkgName)
+
+        verifyChecksum(sourcePath, source, runf, i, sourceDir, isLocalFile)
         
         # Skip extraction for Git repositories as they're already in the correct format
         # And also skip localfiles
-        if runf.extract and not (source.startsWith("git::") or (fileExists(localPath) or dirExists(localPath))):
+        if runf.extract and not (source.startsWith("git::") or isLocalFile):
             extractSources(sourcePath, sourceDir)
 
         i += 1
