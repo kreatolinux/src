@@ -71,8 +71,8 @@ proc downloadSource*(url, filename, pkgName: string) =
 
 proc verifyChecksum*(filename, sourceUrl: string, runf: runFile, sourceIndex: int, sourceDir: string, localFile: bool) =
     ## Verifies the checksum of a downloaded file
-    if sourceUrl.startsWith("git::"):
-        # Skip checksum verification for Git sources
+    if sourceUrl.startsWith("git::") or (localFile and dirExists(filename)):
+        # Skip checksum verification for Git sources and folders
         return
 
     var actualDigest: string
