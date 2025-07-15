@@ -106,13 +106,14 @@ proc verifyChecksum*(filename, sourceUrl: string, runf: runFile, sourceIndex: in
             err("runFile doesn't have proper checksums", false)
     
     # Verify checksum
-    actualDigest = getSum(filename, sumType)
-    if expectedDigest != actualDigest and not (localFile or dirExists(filename)):
-        if localFile and expectedDigest == "SKIP":
-            return
-        removeFile(filename)
-        err(sumType & "sum doesn't match for " & sourceUrl & 
-            "\nExpected: '" & expectedDigest & "'\nActual: '" & actualDigest & "'", false)
+    if not (localFile and dirExists(filename)):
+        actualDigest = getSum(filename, sumType)
+        if expectedDigest != actualDigest:
+            if localFile and expectedDigest == "SKIP":
+                return
+            removeFile(filename)
+            err(sumType & "sum doesn't match for " & sourceUrl & 
+                "\nExpected: '" & expectedDigest & "'\nActual: '" & actualDigest & "'", false)
 
     # Add symlink to buildRoot/filename
     createSymlink(filename, sourceDir&"/"&extractFilename(filename))
