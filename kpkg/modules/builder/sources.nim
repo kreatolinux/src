@@ -116,7 +116,7 @@ proc verifyChecksum*(filename, sourceUrl: string, runf: runFile, sourceIndex: in
                 "\nExpected: '" & expectedDigest & "'\nActual: '" & actualDigest & "'", false)
 
     # Add symlink to buildRoot/filename
-    createSymlink(filename, sourceDir&"/"&extractFilename(filename))
+    createSymlink(filename, sourceDir&"/"&lastPathPart(filename))
 
 proc setSourcePermissions*() =
     ## Sets proper permissions for all source directories and their contents
