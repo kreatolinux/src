@@ -69,7 +69,7 @@ proc downloadSource*(url, filename, pkgName: string) =
             download("https://" & mirror & "/" & pkgName & "/" & extractFilename(url).strip(), 
                     filename, raiseWhenFail = false)
 
-proc verifyChecksum*(filename, sourceUrl: string, runf: runFile, sourceIndex: int, sourceDir: string, localFile: bool) =
+proc verifyChecksum*(relativeFilename: string, filename, sourceUrl: string, runf: runFile, sourceIndex: int, sourceDir: string, localFile: bool) =
     ## Verifies the checksum of a downloaded file
     if sourceUrl.startsWith("git::"):
         # Skip checksum verification for Git sources 
@@ -105,17 +105,16 @@ proc verifyChecksum*(filename, sourceUrl: string, runf: runFile, sourceIndex: in
         except Exception:
             err("runFile doesn't have proper checksums", false)
     
-    # Verify checksum
+    # Verify checksum (skip verification for local files explicitly marked as SKIP)
     if not (localFile and dirExists(filename)):
         actualDigest = getSum(filename, sumType)
         if expectedDigest != actualDigest:
-            if localFile and expectedDigest == "SKIP":
-                return
-            removeFile(filename)
-            err(sumType & "sum doesn't match for " & sourceUrl & 
-                "\nExpected: '" & expectedDigest & "'\nActual: '" & actualDigest & "'", false)
+            if not (localFile and expectedDigest == "SKIP"):
+                removeFile(filename)
+                err(sumType & "sum doesn't match for " & sourceUrl &
+                    "\nExpected: '" & expectedDigest & "'\nActual: '" & actualDigest & "'", false)
 
-    # Add symlink to buildRoot/filename
+    # Always add symlink to buildRoot/filename so local files are available
     createSymlink(filename, sourceDir&"/"&lastPathPart(filename))
 
 proc setSourcePermissions*() =
@@ -165,7 +164,7 @@ proc sourceDownloader*(runf: runFile, pkgName: string, sourceDir: string, runFil
         if not isLocalFile:
             downloadSource(source, sourcePath, pkgName)
 
-        verifyChecksum(sourcePath, source, runf, i, sourceDir, isLocalFile)
+        verifyChecksum(filename, sourcePath, source, runf, i, sourceDir, isLocalFile)
         
         # Skip extraction for Git repositories as they're already in the correct format
         # And also skip localfiles
