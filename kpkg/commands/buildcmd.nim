@@ -118,6 +118,7 @@ proc builder*(package: string, destdir: string, offline = false,
             info "the package target doesn't match the one on '"&destDir&"', skipping installation"
         removeDir(kpkgBuildRoot)
         removeDir(kpkgSrcDir)
+        removeLockfile()
         return true
     
     debug "Tarball (and the sum) doesn't exist, going to continue"
@@ -127,6 +128,7 @@ proc builder*(package: string, destdir: string, offline = false,
         installPkg(repo, actualPackage, destdir, pkg, manualInstallList, ignorePostInstall = ignorePostInstall)
         removeDir(kpkgBuildRoot)
         removeDir(kpkgSrcDir)
+        removeLockfile()
         return true
 
     createDir(kpkgTempDir2)
