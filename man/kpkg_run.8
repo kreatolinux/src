@@ -41,6 +41,8 @@ EXTRACT=true
 SOURCES=\[dq]https://test.file/source/testfile.tar.gz;git::https://github.com/kreatolinux/src::543ee30eda806029fa9ea16a1f9767eda7cab4d1\[dq]
 DEPENDS=\[dq]testpackage1 testpackage3 testpackage4\[dq]
 DEPENDS_TEST2+=\[dq]testpackage5 testpackage6\[dq]
+BOOTSTRAP_DEPENDS=\[dq]testpackage3 testpackage4\[dq]
+BOOTSTRAP_DEPENDS-=\[dq]testpackage1\[dq]
 NO_CHKUPD=\[dq]n\[dq]
 REPLACES=\[dq]test-v2\[dq]
 BACKUP=\[dq]etc/test-v3/main.conf etc/test/settings.conf\[dq]
@@ -57,7 +59,13 @@ prepare() {
 
 build() {
     cd testfile
-    echo \[dq]Insert build instructions here\[dq]
+    # Check if this is a bootstrap build
+    if [ \[dq]$KPKG_BOOTSTRAP\[dq] = \[dq]1\[dq] ]; then
+        echo \[dq]Performing bootstrap build with minimal features\[dq]
+        # Configure with minimal dependencies
+    else
+        echo \[dq]Performing regular build with all features\[dq]
+    fi
 }
 
 check() {
@@ -200,6 +208,21 @@ You can add/remove dependencies, depending on the usecase like
 \f[V]DEPENDS_PACKAGENAME-=\[dq]packagename\[dq]\f[R], and you can set
 the dependencies completely with
 \f[V]DEPENDS_PACKAGENAME=\[dq]packagename\[dq]\f[R]
+.IP \[bu] 2
+BOOTSTRAP_DEPENDS: Bootstrap dependencies for your package.
+This is used to resolve circular dependencies by specifying a minimal
+set of dependencies needed for a bootstrap build.
+When you manually trigger a bootstrap build using
+\f[V]kpkg build <package> --bootstrap\f[R], kpkg will build and install
+the package with KPKG_BOOTSTRAP=1 environment variable set and using
+bootstrap dependencies instead of regular dependencies.
+Once the bootstrap version is installed and the circular dependency is
+resolved, you can manually rebuild with full dependencies by running
+\f[V]kpkg build <package>\f[R] again without the \[en]bootstrap flag.
+Separate dependencies by space.
+You can also add/remove dependencies like \f[V]DEPENDS_PACKAGENAME\f[R]
+(e.g., \f[V]BOOTSTRAP_DEPENDS+=\[dq]packagename\[dq]\f[R],
+\f[V]BOOTSTRAP_DEPENDS-=\[dq]packagename\[dq]\f[R]).
 .IP \[bu] 2
 BACKUP: preserves stuff such as configuration files.
 Don\[cq]t put / in the path name (eg.
