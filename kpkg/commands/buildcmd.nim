@@ -384,7 +384,12 @@ proc build*(no = false, yes = false, root = "/",
             debug "parseRunfile ran from buildcmd, depsToClean"
             let runfTmp = parseRunfile(pkgTmp.repo&"/"&pkgTmp.name)
             
-            depsToClean = deduplicate(runfTmp.bdeps&dephandler(@[i], isBuild = false, root = fullRootPath, forceInstallAll = true, isInstallDir = isInstallDir, ignoreInit = ignoreInit))
+            # Determine if this is a bootstrap build for dependency calculation
+            let isBootstrapBuild = bootstrap and runfTmp.bsdeps.len > 0
+            
+            # Use bootstrap deps if this is a bootstrap build
+            let baseDeps = if isBootstrapBuild: runfTmp.bsdeps else: runfTmp.bdeps
+            depsToClean = deduplicate(baseDeps&dephandler(@[i], isBuild = false, root = fullRootPath, forceInstallAll = true, isInstallDir = isInstallDir, ignoreInit = ignoreInit, useBootstrap = bootstrap))
 
             for optDep in runfTmp.optdeps:
                 if packageExists(optDep.split(":")[0]):
@@ -417,9 +422,6 @@ proc build*(no = false, yes = false, root = "/",
                     pkgName = packageSplit.name
                 else:
                     pkgName = packageSplit.name
-
-            # Determine if this is a bootstrap build
-            let isBootstrapBuild = bootstrap and runfTmp.bsdeps.len > 0
             
             if isBootstrapBuild:
                 info("Performing bootstrap build for "&i)
