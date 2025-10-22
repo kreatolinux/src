@@ -39,7 +39,7 @@ proc fakerootWrap(path: string, input: string,
 
 proc builder*(package: string, destdir: string, offline = false,
             dontInstall = false, useCacheIfAvailable = false,
-                    tests = false, manualInstallList: seq[string], customRepo = "", isInstallDir = false, isUpgrade = false, target = "default", actualRoot = "default", ignorePostInstall = false, noSandbox = false, ignoreTarget = false, ignoreUseCacheIfAvailable = @[""]): bool =
+                    tests = false, manualInstallList: seq[string], customRepo = "", isInstallDir = false, isUpgrade = false, target = "default", actualRoot = "default", ignorePostInstall = false, noSandbox = false, ignoreTarget = false, ignoreUseCacheIfAvailable = @[""], isBootstrap = false): bool =
     ## Builds the packages.
 
     debug "builder ran, package: '"&package&"', destdir: '"&destdir&"' root: '"&kpkgSrcDir&"', useCacheIfAvailable: '"&($useCacheIfAvailable)&"'"
@@ -214,7 +214,11 @@ proc builder*(package: string, destdir: string, offline = false,
     else:
         actTarget = target
 
-    let cmdTemplate = """. """&kpkgSrcDir&"""/runfCommands && export KPKG_ARCH="""&arch&""" && export KPKG_TARGET="""&actTarget&""" && export KPKG_HOST_TARGET="""&systemTarget(actualRoot)&""" && """
+    var bootstrapEnv = ""
+    if isBootstrap:
+        bootstrapEnv = "export KPKG_BOOTSTRAP=1 && "
+
+    let cmdTemplate = """. """&kpkgSrcDir&"""/runfCommands && """&bootstrapEnv&"""export KPKG_ARCH="""&arch&""" && export KPKG_TARGET="""&actTarget&""" && export KPKG_HOST_TARGET="""&systemTarget(actualRoot)&""" && """
 
     if actTarget != "default" and actTarget != systemTarget("/"):
         cmdStr = cmdTemplate&cmdStr
@@ -301,7 +305,7 @@ proc builder*(package: string, destdir: string, offline = false,
 proc build*(no = false, yes = false, root = "/",
     packages: seq[string],
             useCacheIfAvailable = true, forceInstallAll = false,
-                    dontInstall = false, tests = true, ignorePostInstall = false, isInstallDir = false, isUpgrade = false, target = "default"): int =
+                    dontInstall = false, tests = true, ignorePostInstall = false, isInstallDir = false, isUpgrade = false, target = "default", bootstrap = false): int =
     ## Build and install packages.
     let init = getInit(root)
     var deps: seq[string]
@@ -321,9 +325,9 @@ proc build*(no = false, yes = false, root = "/",
 
     try:
         deps = deduplicate(dephandler(packages, bdeps = true, isBuild = true,
-                root = fullRootPath, forceInstallAll = forceInstallAll, isInstallDir = isInstallDir, ignoreInit = ignoreInit)&dephandler(
+                root = fullRootPath, forceInstallAll = forceInstallAll, isInstallDir = isInstallDir, ignoreInit = ignoreInit, useBootstrap = bootstrap)&dephandler(
                         packages, isBuild = true, root = fullRootPath,
-                        forceInstallAll = forceInstallAll, isInstallDir = isInstallDir, ignoreInit = ignoreInit))
+                        forceInstallAll = forceInstallAll, isInstallDir = isInstallDir, ignoreInit = ignoreInit, useBootstrap = bootstrap))
     except CatchableError:
         raise getCurrentException()
 
@@ -414,8 +418,14 @@ proc build*(no = false, yes = false, root = "/",
                 else:
                     pkgName = packageSplit.name
 
+            # Determine if this is a bootstrap build
+            let isBootstrapBuild = bootstrap and runfTmp.bsdeps.len > 0
+            
+            if isBootstrapBuild:
+                info("Performing bootstrap build for "&i)
+            
             discard builder(pkgName, fullRootPath, offline = false,
-                    dontInstall = dontInstall, useCacheIfAvailable = useCacheIfAvailable, tests = tests, manualInstallList = p, customRepo = customRepo, isInstallDir = isInstallDirFinal, isUpgrade = isUpgrade, target = target, actualRoot = root, ignorePostInstall = ignorePostInstall, ignoreUseCacheIfAvailable = gD)
+                    dontInstall = dontInstall, useCacheIfAvailable = useCacheIfAvailable, tests = tests, manualInstallList = p, customRepo = customRepo, isInstallDir = isInstallDirFinal, isUpgrade = isUpgrade, target = target, actualRoot = root, ignorePostInstall = ignorePostInstall, ignoreUseCacheIfAvailable = gD, isBootstrap = isBootstrapBuild)
             
             success("built "&i&" successfully")
         except CatchableError:

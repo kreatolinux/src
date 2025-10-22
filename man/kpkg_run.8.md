@@ -20,6 +20,8 @@ EXTRACT=true
 SOURCES="https://test.file/source/testfile.tar.gz;git::https://github.com/kreatolinux/src::543ee30eda806029fa9ea16a1f9767eda7cab4d1"
 DEPENDS="testpackage1 testpackage3 testpackage4"
 DEPENDS_TEST2+="testpackage5 testpackage6"
+BOOTSTRAP_DEPENDS="testpackage3 testpackage4"
+BOOTSTRAP_DEPENDS-="testpackage1"
 NO_CHKUPD="n"
 REPLACES="test-v2"
 BACKUP="etc/test-v3/main.conf etc/test/settings.conf"
@@ -36,7 +38,13 @@ prepare() {
 
 build() {
     cd testfile
-    echo "Insert build instructions here"
+    # Check if this is a bootstrap build
+    if [ "$KPKG_BOOTSTRAP" = "1" ]; then
+        echo "Performing bootstrap build with minimal features"
+        # Configure with minimal dependencies
+    else
+        echo "Performing regular build with all features"
+    fi
 }
 
 check() {
@@ -106,6 +114,7 @@ Now lets break it down.
 * CONFLICTS: Specify conflicts to the package. Seperated by a space like DEPENDS. 
 * IS_GROUP: Specify if the package is a group package or not. False by default. Will be enabled if it is one of these values; "y, yes, true, 1, on"
 * DEPENDS_PACKAGENAME: Change PACKAGENAME with the package name. You can add/remove dependencies, depending on the usecase like `DEPENDS_PACKAGENAME+="packagename"`, `DEPENDS_PACKAGENAME-="packagename"`, and you can set the dependencies completely with `DEPENDS_PACKAGENAME="packagename"` 
+* BOOTSTRAP_DEPENDS: Bootstrap dependencies for your package. This is used to resolve circular dependencies by specifying a minimal set of dependencies needed for a bootstrap build. When you manually trigger a bootstrap build using `kpkg build <package> --bootstrap`, kpkg will build and install the package with KPKG_BOOTSTRAP=1 environment variable set and using bootstrap dependencies instead of regular dependencies. Once the bootstrap version is installed and the circular dependency is resolved, you can manually rebuild with full dependencies by running `kpkg build <package>` again without the --bootstrap flag. Separate dependencies by space. You can also add/remove dependencies like `DEPENDS_PACKAGENAME` (e.g., `BOOTSTRAP_DEPENDS+="packagename"`, `BOOTSTRAP_DEPENDS-="packagename"`).
 * BACKUP: preserves stuff such as configuration files. Don't put / in the path name (eg. `etc/bluetooth/main.conf` instead of `/etc/bluetooth/main.conf`). Seperate by space.
 * EXTRACT: Boolean. Extracts the tarball. `true` by default. Only disable this if you know what you are doing.
 * preinstall() Pre-install function. Will run when the package is installed for the first time, not when it is upgraded.

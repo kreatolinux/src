@@ -16,7 +16,7 @@ proc isIn(one, two: seq[string]): bool =
 
 proc packageToRunFile(package: Package): runFile =
     # Converts package to runFile. Not all variables are available.
-    return runFile(pkg: package.name, version: package.version, versionString: package.version, release: package.release, epoch: package.epoch, deps: package.deps.split("!!k!!"), bdeps: package.bdeps.split("!!k!!"))
+    return runFile(pkg: package.name, version: package.version, versionString: package.version, release: package.release, epoch: package.epoch, deps: package.deps.split("!!k!!"), bdeps: package.bdeps.split("!!k!!"), bsdeps: @[])
 
 proc checkVersions(root: string, dependency: string, repo: string, split = @[
         "<=", ">=", "<", ">", "="]): seq[string] =
@@ -90,7 +90,7 @@ proc checkVersions(root: string, dependency: string, repo: string, split = @[
 
 proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false,
         isBuild = false, root: string, prevPkgName = "",
-                forceInstallAll = false, chkInstalledDirInstead = false, isInstallDir = false, ignoreInit = false): seq[string] =
+                forceInstallAll = false, chkInstalledDirInstead = false, isInstallDir = false, ignoreInit = false, useBootstrap = false): seq[string] =
     ## takes in a seq of packages and returns what to install.
     
 
@@ -139,7 +139,10 @@ proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false,
 
         var pkgdeps: seq[string]
 
-        if bdeps:
+        if useBootstrap and pkgrf.bsdeps.len > 0:
+            # Use bootstrap dependencies if available and requested
+            pkgdeps = pkgrf.bsdeps
+        elif bdeps:
             pkgdeps = pkgrf.bdeps
         else:
             pkgdeps = pkgrf.deps
@@ -152,7 +155,11 @@ proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false,
 
                 if prevPkgName == dep:
                     if isBuild and not packageExists(dep, "/"):
-                        err("circular dependency detected for '"&dep&"'", false)
+                        if useBootstrap:
+                            # Using bootstrap deps, continue normally
+                            return deps.filterit(it.len != 0)
+                        else:
+                            err("circular dependency detected for '"&dep&"'", false)
                     else:
                         return deps.filterit(it.len != 0)
 
@@ -188,11 +195,11 @@ proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false,
                 
                 if not isEmptyOrWhitespace(deprf.bdeps.join()) and isBuild:
                     deps.add(dephandler(@[d], deprf.replaces&deps&ignoreDeps, bdeps = true,
-                            isBuild = true, root = root, prevPkgName = pkg, chkInstalledDirInstead = chkInstalledDirInstead, forceInstallAll = forceInstallAll, ignoreInit = ignoreInit))
+                            isBuild = true, root = root, prevPkgName = pkg, chkInstalledDirInstead = chkInstalledDirInstead, forceInstallAll = forceInstallAll, ignoreInit = ignoreInit, useBootstrap = useBootstrap))
 
                 deps.add(dephandler(@[d], deprf.replaces&deps&ignoreDeps, bdeps = false,
                         isBuild = isBuild, root = root, prevPkgName = pkg, chkInstalledDirInstead = chkInstalledDirInstead,
-                                forceInstallAll = forceInstallAll, ignoreInit = ignoreInit))
+                                forceInstallAll = forceInstallAll, ignoreInit = ignoreInit, useBootstrap = useBootstrap))
 
                 deps.add(d)
 

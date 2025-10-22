@@ -29,6 +29,7 @@ type runFile* = object
     conflicts*: seq[string]
     deps*: seq[string]
     bdeps*: seq[string]
+    bsdeps*: seq[string]
     backup*: seq[string]
     optdeps*: seq[string]
     replaces*: seq[string]
@@ -129,6 +130,11 @@ proc parseRunfile*(path: string, removeLockfileWhenErr = true): runFile =
                     ("\"", ""),
                     ("'", "")
                     ).strip()).split(" ")
+                of "bootstrap_depends", "bootstrapdepends", "bootstrap-depends":
+                    ret.bsdeps = override.getSectionValue("runFile", "bootstrapDepends", vars[1].multiReplace(
+                    ("\"", ""),
+                    ("'", "")
+                    ).strip()).split(" ")
                 of "optdepends", "opt-depends", "opt_depends":
                     ret.optdeps = override.getSectionValue("runFile", "optDepends", vars[1].multiReplace(
                     ("\"", ""),
@@ -223,6 +229,27 @@ proc parseRunfile*(path: string, removeLockfileWhenErr = true): runFile =
             elif vars[0].toLower == "depends_"&p or vars[0].toLower ==
                     "depends-"&p or vars[0].toLower == "depends"&p:
                 ret.deps = vars[1].multiReplace(
+                ("\"", ""),
+                ("'", "")
+                ).split(" ")
+            
+            if vars[0].toLower == "bootstrap_depends_"&p&"+" or vars[0].toLower ==
+                    "bootstrap-depends-"&p&"+" or vars[0].toLower == "bootstrapdepends"&p&"+":
+                ret.bsdeps = ret.bsdeps&vars[1].multiReplace(
+                ("\"", ""),
+                ("'", "")
+                ).split(" ")
+            elif vars[0].toLower == "bootstrap_depends_"&p&"-" or vars[0].toLower ==
+                    "bootstrap-depends-"&p&"-" or vars[0].toLower == "bootstrapdepends"&p&"-":
+                for i in vars[1].multiReplace(
+                ("\"", ""),
+                ("'", "")
+                ).split(" "):
+                    if ret.bsdeps.find(i) != -1:
+                        ret.bsdeps.delete(ret.bsdeps.find(i))
+            elif vars[0].toLower == "bootstrap_depends_"&p or vars[0].toLower ==
+                    "bootstrap-depends-"&p or vars[0].toLower == "bootstrapdepends"&p:
+                ret.bsdeps = vars[1].multiReplace(
                 ("\"", ""),
                 ("'", "")
                 ).split(" ")
