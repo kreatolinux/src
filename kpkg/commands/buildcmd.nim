@@ -347,6 +347,18 @@ proc build*(no = false, yes = false, root = "/",
     
     
     deps = deduplicate(deps&p)
+    
+    # If building a package that has bootstrap deps but we're not in bootstrap mode,
+    # ensure it's rebuilt AFTER its full BUILD_DEPENDS by moving it to the end
+    if not bootstrap:
+        for pkg in p:
+            let pkgInfo = parsePkgInfo(pkg)
+            let runf = parseRunfile(pkgInfo.repo&"/"&pkgInfo.name)
+            if runf.bsdeps.len > 0:
+                # This package has bootstrap deps - move it to the end to ensure
+                # it's rebuilt after all its full BUILD_DEPENDS are available
+                deps = deps.filterIt(it != pkg)&pkg
+    
     printReplacesPrompt(p, fullRootPath, isInstallDir = isInstallDir)
     
     if isInstallDir:
