@@ -195,11 +195,11 @@ proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false,
                 
                 if not isEmptyOrWhitespace(deprf.bdeps.join()) and isBuild:
                     deps.add(dephandler(@[d], deprf.replaces&deps&ignoreDeps, bdeps = true,
-                            isBuild = true, root = root, prevPkgName = pkg, chkInstalledDirInstead = chkInstalledDirInstead, forceInstallAll = forceInstallAll, ignoreInit = ignoreInit, useBootstrap = useBootstrap))
+                            isBuild = true, root = root, prevPkgName = pkg, chkInstalledDirInstead = chkInstalledDirInstead, forceInstallAll = forceInstallAll, ignoreInit = ignoreInit, useBootstrap = false))
 
                 deps.add(dephandler(@[d], deprf.replaces&deps&ignoreDeps, bdeps = false,
                         isBuild = isBuild, root = root, prevPkgName = pkg, chkInstalledDirInstead = chkInstalledDirInstead,
-                                forceInstallAll = forceInstallAll, ignoreInit = ignoreInit, useBootstrap = useBootstrap))
+                                forceInstallAll = forceInstallAll, ignoreInit = ignoreInit, useBootstrap = false))
 
                 deps.add(d)
 
