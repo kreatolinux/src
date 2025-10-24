@@ -34,6 +34,8 @@ kpkg get [OPTION]\&...
 \f[V]config\f[R]: Get values from the config.
 .IP \[bu] 2
 \f[V]overrides\f[R]: Get value from a package override.
+.IP \[bu] 2
+\f[V]depends\f[R]: Get dependency list for a package.
 .SS EXAMPLES
 .IP
 .nf
@@ -52,6 +54,12 @@ kpkg get config.Repositories
 
 # Get override of kpkg
 kpkg get overrides.kpkg
+
+# Get build dependencies for bash (includes both build and runtime dependencies)
+kpkg get depends.bash.build
+
+# Get install/runtime dependencies for bash
+kpkg get depends.bash.install
 \f[R]
 .fi
 .SH AUTHOR
