@@ -5,6 +5,7 @@ import ../modules/config
 import ../modules/sqlite
 import ../modules/overrides
 import ../modules/downloader
+import ../modules/dephandler
 
 # base functions
 #
@@ -12,6 +13,8 @@ import ../modules/downloader
 # config.variable # eg. config.Repositories.repoLinks
 # vars.variable # eg. internal.vars.envDir
 # overrides.packageName.variable # eg. overrides.bash.cflags
+# depends.packageName.build # eg. depends.bash.build (build dependencies)
+# depends.packageName.install # eg. depends.bash.install (install dependencies)
 #
 # Can also get all variables
 # `kpkg get config` # prints all config variables
@@ -78,8 +81,48 @@ proc get*(invocations: seq[string]) =
                 else:
                     err("'"&invoc&"': invalid invocation", false)
                     continue
+          of "depends":
+            case invocSplit.len:
+                of 3:
+                    let packageName = invocSplit[1]
+                    let depType = invocSplit[2]
+                    
+                    # Check if package exists in repos
+                    let repo = findPkgRepo(packageName)
+                    if repo == "":
+                        err("'"&packageName&"': package not found", false)
+                        continue
+                    
+                    var deps: seq[string]
+                    try:
+                        case depType:
+                            of "build":
+                                # Get build dependencies (both bdeps and deps)
+                                # Set ignoreCircularDeps=true to silently handle circular dependencies
+                                deps = dephandler(@[packageName], bdeps = true, isBuild = true, root = "/", prevPkgName = packageName, ignoreCircularDeps = true)
+                                let installDeps = dephandler(@[packageName], isBuild = true, root = "/", prevPkgName = packageName, ignoreCircularDeps = true)
+                                for dep in installDeps:
+                                    if dep notin deps:
+                                        deps.add(dep)
+                            of "install":
+                                # Get install dependencies only
+                                # Set ignoreCircularDeps=true to silently handle circular dependencies
+                                deps = dephandler(@[packageName], root = "/", prevPkgName = packageName, ignoreCircularDeps = true)
+                            else:
+                                err("'"&depType&"': invalid dependency type. Use 'build' or 'install'", false)
+                                continue
+                        
+                        # Output the dependencies
+                        for dep in deps:
+                            echo dep
+                    except CatchableError:
+                        err("failed to resolve dependencies for '"&packageName&"'", false)
+                        continue
+                else:
+                    err("'"&invoc&"': invalid invocation. Usage: depends.packageName.build or depends.packageName.install", false)
+                    continue
           else:
-            err("'"&invoc&"': invalid invocation. Available invocations: db, config, overrides. See kpkg_get(5) for more information.", false)
+            err("'"&invoc&"': invalid invocation. Available invocations: db, config, overrides, depends. See kpkg_get(5) for more information.", false)
             continue
 
 proc set*(file = "", append = false, invocation: seq[string]) =

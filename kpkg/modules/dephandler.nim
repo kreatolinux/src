@@ -90,7 +90,7 @@ proc checkVersions(root: string, dependency: string, repo: string, split = @[
 
 proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false,
         isBuild = false, root: string, prevPkgName = "",
-                forceInstallAll = false, chkInstalledDirInstead = false, isInstallDir = false, ignoreInit = false, useBootstrap = false): seq[string] =
+                forceInstallAll = false, chkInstalledDirInstead = false, isInstallDir = false, ignoreInit = false, useBootstrap = false, ignoreCircularDeps = false): seq[string] =
     ## takes in a seq of packages and returns what to install.
     
 
@@ -154,7 +154,10 @@ proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false,
             for dep in pkgdeps:
 
                 if prevPkgName == dep:
-                    if isBuild and not packageExists(dep, "/"):
+                    if ignoreCircularDeps:
+                        # Silently ignore circular dependencies when just querying
+                        return deps.filterit(it.len != 0)
+                    elif isBuild and not packageExists(dep, "/"):
                         if useBootstrap:
                             # Using bootstrap deps, continue normally
                             return deps.filterit(it.len != 0)
@@ -195,11 +198,11 @@ proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false,
                 
                 if not isEmptyOrWhitespace(deprf.bdeps.join()) and isBuild:
                     deps.add(dephandler(@[d], deprf.replaces&deps&ignoreDeps&(@[d]), bdeps = true,
-                            isBuild = true, root = root, prevPkgName = pkg, chkInstalledDirInstead = chkInstalledDirInstead, forceInstallAll = forceInstallAll, ignoreInit = ignoreInit, useBootstrap = false))
+                            isBuild = true, root = root, prevPkgName = pkg, chkInstalledDirInstead = chkInstalledDirInstead, forceInstallAll = forceInstallAll, ignoreInit = ignoreInit, useBootstrap = false, ignoreCircularDeps = ignoreCircularDeps))
 
                 deps.add(dephandler(@[d], deprf.replaces&deps&ignoreDeps&(@[d]), bdeps = false,
                         isBuild = isBuild, root = root, prevPkgName = pkg, chkInstalledDirInstead = chkInstalledDirInstead,
-                                forceInstallAll = forceInstallAll, ignoreInit = ignoreInit, useBootstrap = false))
+                                forceInstallAll = forceInstallAll, ignoreInit = ignoreInit, useBootstrap = false, ignoreCircularDeps = ignoreCircularDeps))
 
                 deps.add(d)
 
