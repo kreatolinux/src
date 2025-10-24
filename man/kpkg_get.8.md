@@ -13,6 +13,7 @@ kpkg get [OPTION]... [KEY]...
 * `db`: Get values from the database.
 * `config`: Get values from the config.
 * `overrides`: Get value from a package override.
+* `depends`: Get dependency list for a package.
 
 ## EXAMPLES
 ```sh
@@ -30,6 +31,12 @@ kpkg get config.Repositories
 
 # Get override of kpkg
 kpkg get overrides.kpkg
+
+# Get build dependencies for bash (includes both build and runtime dependencies)
+kpkg get depends.bash.build
+
+# Get install/runtime dependencies for bash
+kpkg get depends.bash.install
 ```
 
 # AUTHOR
