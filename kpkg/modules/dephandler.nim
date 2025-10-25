@@ -9,6 +9,7 @@ import sequtils
 import strutils
 import runparser
 import commonTasks
+import deques
 
 type
     repoInfo = tuple[repo: string, name: string, version: string]
@@ -224,7 +225,7 @@ proc buildDependencyGraph*(pkgs: seq[string], ctx: dependencyContext,
             if findPkgRepo(initPkg) != "":
                 if initPkg notin processed and initPkg notin toProcess:
                     toProcess.add(initPkg)
-                    addEdge(graph, pkg, initPkg)
+                    addEdge(graph, initPkg, pkg)  # Edge from dependency to dependent
         
         # Process build dependencies first if this is a build
         if ctx.isBuild and not isEmptyOrWhitespace(pkgrf.bdeps.join()):
@@ -263,8 +264,8 @@ proc buildDependencyGraph*(pkgs: seq[string], ctx: dependencyContext,
                     if depRepo != "":
                         repo = depRepo
                 
-                # Add edge and schedule for processing
-                addEdge(graph, pkg, depName)
+                # Add edge and schedule for processing (edge from dependency to dependent)
+                addEdge(graph, depName, pkg)
                 if depName notin processed and depName notin toProcess:
                     toProcess.add(depName)
         
@@ -307,8 +308,8 @@ proc buildDependencyGraph*(pkgs: seq[string], ctx: dependencyContext,
                     if depRepo != "":
                         repo = depRepo
                 
-                # Add edge and schedule for processing
-                addEdge(graph, pkg, depName)
+                # Add edge and schedule for processing (edge from dependency to dependent)
+                addEdge(graph, depName, pkg)
                 if depName notin processed and depName notin toProcess:
                     toProcess.add(depName)
     
@@ -318,7 +319,7 @@ proc topologicalSort(graph: dependencyGraph): seq[string] =
     ## Perform topological sort to determine installation order
     
     var inDegree = initTable[string, int]()
-    var queue: seq[string] = @[]
+    var queue = initDeque[string]()
     var sortResult: seq[string] = @[]
     
     # Calculate in-degrees
@@ -335,18 +336,18 @@ proc topologicalSort(graph: dependencyGraph): seq[string] =
     # Find all nodes with in-degree 0
     for node, degree in inDegree.pairs:
         if degree == 0:
-            queue.add(node)
+            queue.addLast(node)
     
-    # Process queue
+    # Process queue in FIFO order (proper topological sort)
     while queue.len > 0:
-        let current = queue.pop()
+        let current = queue.popFirst()
         sortResult.add(current)
         
         if graph.edges.hasKey(current):
             for dep in graph.edges[current]:
                 inDegree[dep] -= 1
                 if inDegree[dep] == 0:
-                    queue.add(dep)
+                    queue.addLast(dep)
     
     # Check for cycles (if not all nodes processed)
     if sortResult.len != graph.nodes.len:
@@ -363,12 +364,9 @@ proc flattenDependencyOrder*(graph: dependencyGraph): seq[string] =
     
     let sorted = topologicalSort(graph)
     
-    # Reverse to get dependencies first
-    var flatResult: seq[string] = @[]
-    for i in countdown(sorted.len - 1, 0):
-        flatResult.add(sorted[i])
-    
-    return flatResult
+    # Topological sort now gives us the correct order directly
+    # (dependencies before dependents) since edges go from dependency to dependent
+    return sorted
 
 proc generateMermaidChart*(graph: dependencyGraph, rootPackages: seq[string]): string =
     ## Generate Mermaid flowchart from dependency graph
