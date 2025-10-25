@@ -118,8 +118,53 @@ proc get*(invocations: seq[string]) =
                     except CatchableError:
                         err("failed to resolve dependencies for '"&packageName&"'", false)
                         continue
+                of 4:
+                    let packageName = invocSplit[1]
+                    let depType = invocSplit[2]
+                    let outputFormat = invocSplit[3]
+                    
+                    # Only support .graph output format
+                    if outputFormat != "graph":
+                        err("'"&outputFormat&"': invalid output format. Use 'graph'", false)
+                        continue
+                    
+                    # Check if package exists in repos
+                    let repo = findPkgRepo(packageName)
+                    if repo == "":
+                        err("'"&packageName&"': package not found", false)
+                        continue
+                    
+                    try:
+                        # Build the dependency graph
+                        let ctx = dependencyContext(
+                            root: "/",
+                            isBuild: (depType == "build"),
+                            useBootstrap: false,
+                            ignoreInit: false,
+                            ignoreCircularDeps: true,
+                            forceInstallAll: false,
+                            init: ""
+                        )
+                        
+                        var graph: dependencyGraph
+                        case depType:
+                            of "build":
+                                # Build graph with build dependencies
+                                graph = buildDependencyGraph(@[packageName], ctx, @["  "], false, false, packageName)
+                            of "install":
+                                # Build graph with install dependencies only
+                                graph = buildDependencyGraph(@[packageName], ctx, @["  "], false, false, packageName)
+                            else:
+                                err("'"&depType&"': invalid dependency type. Use 'build' or 'install'", false)
+                                continue
+                        
+                        # Generate and output Mermaid chart
+                        echo generateMermaidChart(graph, @[packageName])
+                    except CatchableError:
+                        err("failed to generate dependency graph for '"&packageName&"'", false)
+                        continue
                 else:
-                    err("'"&invoc&"': invalid invocation. Usage: depends.packageName.build or depends.packageName.install", false)
+                    err("'"&invoc&"': invalid invocation. Usage: depends.packageName.build[.graph] or depends.packageName.install[.graph]", false)
                     continue
           else:
             err("'"&invoc&"': invalid invocation. Available invocations: db, config, overrides, depends. See kpkg_get(5) for more information.", false)

@@ -1,5 +1,8 @@
+# dephandler v3
 import os
+import sets
 import config
+import tables
 import sqlite
 import logger
 import sequtils
@@ -7,20 +10,93 @@ import strutils
 import runparser
 import commonTasks
 
-
-proc isIn(one, two: seq[string]): bool =
-    for i in one:
-        if i in two:
-            return true
-    return false
+type
+    repoInfo = tuple[repo: string, name: string, version: string]
+    
+    dependencyContext* = object
+        root*: string
+        isBuild*: bool
+        useBootstrap*: bool
+        ignoreInit*: bool
+        ignoreCircularDeps*: bool
+        forceInstallAll*: bool
+        init*: string
+    
+    resolvedPackage* = object
+        name*: string
+        repo*: string
+        metadata*: runFile
+    
+    dependencyGraph* = object
+        nodes*: Table[string, resolvedPackage]
+        edges*: Table[string, seq[string]]
 
 proc packageToRunFile(package: Package): runFile =
-    # Converts package to runFile. Not all variables are available.
+    ## Converts package to runFile. Not all variables are available.
     return runFile(pkg: package.name, version: package.version, versionString: package.version, release: package.release, epoch: package.epoch, deps: package.deps.split("!!k!!"), bdeps: package.bdeps.split("!!k!!"), bsdeps: @[])
+
+
+### Helper functions for package resolution
+
+proc resolvePackageRepo(pkg: string, chkInstalledDirInstead: bool, isInstallDir: bool): repoInfo =
+    ## Resolve package name and repository from specifier
+    
+    var name = pkg
+    var repo: string
+    var version = ""
+    
+    if isInstallDir:
+        repo = absolutePath(pkg).parentDir()
+        name = lastPathPart(pkg)
+    elif chkInstalledDirInstead:
+        repo = "local"
+        name = pkg
+    else:
+        let pkgSplit = parsePkgInfo(pkg)
+        name = pkgSplit.name
+        repo = pkgSplit.repo
+        version = pkgSplit.version
+    
+    return (repo: repo, name: name, version: version)
+
+proc loadPackageMetadata(name: string, repo: string, root: string): runFile =
+    ## Load package metadata from repository or installed database
+    
+    if repo == "local":
+        debug "packageToRunFile ran, loadPackageMetadata, pkg: '"&name&"' root: '"&root&"'"
+        return packageToRunFile(getPackage(name, root))
+    else:
+        debug "parseRunfile ran, loadPackageMetadata, repo: '"&repo&"', pkg: '"&name&"'"
+        return parseRunfile(repo&"/"&name)
+
+proc selectDependencyList(pkgrf: runFile, bdeps: bool, useBootstrap: bool): seq[string] =
+    ## Select appropriate dependency list based on flags
+    
+    if useBootstrap and pkgrf.bsdeps.len > 0:
+        return pkgrf.bsdeps
+    elif bdeps:
+        return pkgrf.bdeps
+    else:
+        return pkgrf.deps
+
+proc validatePackage(pkg: string, repo: string): bool =
+    ## Validate package exists in repository
+    
+    if repo == "":
+        err("Package '"&pkg&"' doesn't exist in any configured repository", false)
+        return false
+    elif not dirExists(repo) and repo != "local":
+        err("The repository '"&repo&"' doesn't exist at path: "&repo, false)
+        return false
+    elif not fileExists(repo&"/"&pkg&"/run") and repo != "local":
+        err("The package '"&pkg&"' doesn't exist in repository "&repo&" (expected: "&repo&"/"&pkg&"/run)", false)
+        return false
+    
+    return true
 
 proc checkVersions(root: string, dependency: string, repo: string, split = @[
         "<=", ">=", "<", ">", "="]): seq[string] =
-    ## Internal proc for checking versions on dependencies (if it exists)
+    ## Check version requirements on dependency
 
     for i in split:
         if i in dependency:
@@ -39,10 +115,8 @@ proc checkVersions(root: string, dependency: string, repo: string, split = @[
                 debug "parseRunfile ran, checkVersions"
                 deprf = parseRunfile(r&"/"&dSplit[0]).versionString
 
-            let warnName = "Required dependency version for "&dSplit[
-                    0]&" not found, upgrading"
-            let errName = "Required dependency version for "&dSplit[
-                    0]&" not found on repositories, cannot continue"
+            let warnName = "Required dependency version for "&dSplit[0]&" not found, upgrading"
+            let errName = "Required dependency version for "&dSplit[0]&" not found on repositories, cannot continue"
 
 
             case i:
@@ -87,123 +161,280 @@ proc checkVersions(root: string, dependency: string, repo: string, split = @[
     return @["noupgrade", dependency]
 
 
+proc initDependencyGraph*(): dependencyGraph =
+    ## Initialize an empty dependency graph
+    result.nodes = initTable[string, resolvedPackage]()
+    result.edges = initTable[string, seq[string]]()
+
+proc addNode(graph: var dependencyGraph, pkg: resolvedPackage) =
+    ## Add a package node to the graph
+    graph.nodes[pkg.name] = pkg
+    if not graph.edges.hasKey(pkg.name):
+        graph.edges[pkg.name] = @[]
+
+proc addEdge(graph: var dependencyGraph, fromPkg: string, toPkg: string) =
+    ## Add a dependency edge from one package to another
+    if not graph.edges.hasKey(fromPkg):
+        graph.edges[fromPkg] = @[]
+    if toPkg notin graph.edges[fromPkg]:
+        graph.edges[fromPkg].add(toPkg)
+
+proc buildDependencyGraph*(pkgs: seq[string], ctx: dependencyContext, 
+                          ignoreDeps: seq[string] = @["  "],
+                          chkInstalledDirInstead = false,
+                          isInstallDir = false,
+                          prevPkgName = ""): dependencyGraph =
+    ## Build dependency graph by traversing all dependencies
+    
+    var graph = initDependencyGraph()
+    var toProcess = pkgs
+    var processed: HashSet[string]
+    
+    while toProcess.len > 0:
+        let p = toProcess.pop()
+        
+        if p in processed or p in ignoreDeps or isEmptyOrWhitespace(p):
+            continue
+        processed.incl(p)
+        
+        # Resolve package info
+        let pkgInfo = resolvePackageRepo(p, chkInstalledDirInstead, isInstallDir)
+        let pkg = pkgInfo.name
+        var repo = pkgInfo.repo
+        
+        # Validate package exists
+        if not validatePackage(pkg, repo):
+            continue
+        
+        let pkgrf = loadPackageMetadata(pkg, repo, ctx.root)
+        
+        # Create resolved package node
+        let resolvedPkg = resolvedPackage(
+            name: pkg,
+            repo: repo,
+            metadata: pkgrf
+        )
+        
+        # Add to graph
+        addNode(graph, resolvedPkg)
+        
+        # Handle init-specific packages
+        if not ctx.ignoreInit and not isEmptyOrWhitespace(ctx.init):
+            let initPkg = pkg&"-"&ctx.init
+            if findPkgRepo(initPkg) != "":
+                if initPkg notin processed and initPkg notin toProcess:
+                    toProcess.add(initPkg)
+                    addEdge(graph, pkg, initPkg)
+        
+        # Process build dependencies first if this is a build
+        if ctx.isBuild and not isEmptyOrWhitespace(pkgrf.bdeps.join()):
+            for bdep in pkgrf.bdeps:
+                if isEmptyOrWhitespace(bdep) or bdep in ignoreDeps:
+                    continue
+                
+                # Check for circular dependencies
+                if prevPkgName == bdep:
+                    if ctx.ignoreCircularDeps:
+                        debug "Ignoring circular dependency: "&prevPkgName&" -> "&bdep
+                        continue
+                    elif not packageExists(bdep, "/"):
+                        if ctx.useBootstrap:
+                            debug "Bootstrap mode: allowing circular dependency"
+                            continue
+                        else:
+                            err("circular dependency detected for '"&bdep&"'", false)
+                            continue
+                    else:
+                        debug "Circular dependency found but continuing: "&prevPkgName&" -> "&bdep
+                        continue
+                
+                # Check version requirements
+                let chkVer = checkVersions(ctx.root, bdep, repo)
+                let depName = chkVer[1]
+                
+                # Skip if already installed and not forcing
+                if packageExists(depName, ctx.root) and chkVer[0] != "upgrade" and not ctx.forceInstallAll:
+                    debug "Package '"&depName&"' already installed, skipping"
+                    continue
+                
+                # Update repo for dependency
+                if not chkInstalledDirInstead:
+                    let depRepo = findPkgRepo(depName)
+                    if depRepo != "":
+                        repo = depRepo
+                
+                # Add edge and schedule for processing
+                addEdge(graph, pkg, depName)
+                if depName notin processed and depName notin toProcess:
+                    toProcess.add(depName)
+        
+        # Process runtime dependencies (use bootstrap if requested)
+        let runtimeDeps = selectDependencyList(pkgrf, false, ctx.useBootstrap)
+        
+        if not isEmptyOrWhitespace(runtimeDeps.join()):
+            for dep in runtimeDeps:
+                if isEmptyOrWhitespace(dep) or dep in ignoreDeps:
+                    continue
+                
+                # Check for circular dependencies
+                if prevPkgName == dep:
+                    if ctx.ignoreCircularDeps:
+                        debug "Ignoring circular dependency: "&prevPkgName&" -> "&dep
+                        continue
+                    elif ctx.isBuild and not packageExists(dep, "/"):
+                        if ctx.useBootstrap:
+                            debug "Bootstrap mode: allowing circular dependency"
+                            continue
+                        else:
+                            err("circular dependency detected for '"&dep&"'", false)
+                            continue
+                    else:
+                        debug "Circular dependency found but continuing: "&prevPkgName&" -> "&dep
+                        continue
+                
+                # Check version requirements
+                let chkVer = checkVersions(ctx.root, dep, repo)
+                let depName = chkVer[1]
+                
+                # Skip if already installed and not forcing
+                if packageExists(depName, ctx.root) and chkVer[0] != "upgrade" and not ctx.forceInstallAll:
+                    debug "Package '"&depName&"' already installed, skipping"
+                    continue
+                
+                # Update repo for dependency
+                if not chkInstalledDirInstead:
+                    let depRepo = findPkgRepo(depName)
+                    if depRepo != "":
+                        repo = depRepo
+                
+                # Add edge and schedule for processing
+                addEdge(graph, pkg, depName)
+                if depName notin processed and depName notin toProcess:
+                    toProcess.add(depName)
+    
+    return graph
+
+proc topologicalSort(graph: dependencyGraph): seq[string] =
+    ## Perform topological sort to determine installation order
+    
+    var inDegree = initTable[string, int]()
+    var queue: seq[string] = @[]
+    var sortResult: seq[string] = @[]
+    
+    # Calculate in-degrees
+    for node in graph.nodes.keys:
+        if not inDegree.hasKey(node):
+            inDegree[node] = 0
+        
+        if graph.edges.hasKey(node):
+            for dep in graph.edges[node]:
+                if not inDegree.hasKey(dep):
+                    inDegree[dep] = 0
+                inDegree[dep] += 1
+    
+    # Find all nodes with in-degree 0
+    for node, degree in inDegree.pairs:
+        if degree == 0:
+            queue.add(node)
+    
+    # Process queue
+    while queue.len > 0:
+        let current = queue.pop()
+        sortResult.add(current)
+        
+        if graph.edges.hasKey(current):
+            for dep in graph.edges[current]:
+                inDegree[dep] -= 1
+                if inDegree[dep] == 0:
+                    queue.add(dep)
+    
+    # Check for cycles (if not all nodes processed)
+    if sortResult.len != graph.nodes.len:
+        debug "Warning: Cycle detected in dependency graph, some packages may be missing"
+        # Add remaining nodes anyway
+        for node in graph.nodes.keys:
+            if node notin sortResult:
+                sortResult.add(node)
+    
+    return sortResult
+
+proc flattenDependencyOrder*(graph: dependencyGraph): seq[string] =
+    ## Convert graph to installation order (dependencies first)
+    
+    let sorted = topologicalSort(graph)
+    
+    # Reverse to get dependencies first
+    var flatResult: seq[string] = @[]
+    for i in countdown(sorted.len - 1, 0):
+        flatResult.add(sorted[i])
+    
+    return flatResult
+
+proc generateMermaidChart*(graph: dependencyGraph, rootPackages: seq[string]): string =
+    ## Generate Mermaid flowchart from dependency graph
+    
+    var output = "graph TD\n"
+    var nodeIds = initTable[string, string]()
+    var nodeCounter = 0
+    
+    # Generate unique IDs for each package node
+    for node in graph.nodes.keys:
+        let nodeId = "N" & $nodeCounter
+        nodeIds[node] = nodeId
+        nodeCounter += 1
+    
+    # Create nodes with labels
+    for node, pkg in graph.nodes.pairs:
+        let nodeId = nodeIds[node]
+        let label = node
+        
+        # Highlight root packages differently
+        if node in rootPackages:
+            output &= "    " & nodeId & "[\"" & label & "\"]\n"
+            output &= "    style " & nodeId & " fill:#ff9,stroke:#333,stroke-width:3px\n"
+        else:
+            output &= "    " & nodeId & "[\"" & label & "\"]\n"
+    
+    # Create edges (dependency relationships)
+    for fromNode, toNodes in graph.edges.pairs:
+        if nodeIds.hasKey(fromNode):
+            let fromId = nodeIds[fromNode]
+            for toNode in toNodes:
+                if nodeIds.hasKey(toNode):
+                    let toId = nodeIds[toNode]
+                    output &= "    " & fromId & " --> " & toId & "\n"
+    
+    return output
+
 
 proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false,
         isBuild = false, root: string, prevPkgName = "",
                 forceInstallAll = false, chkInstalledDirInstead = false, isInstallDir = false, ignoreInit = false, useBootstrap = false, ignoreCircularDeps = false): seq[string] =
-    ## takes in a seq of packages and returns what to install.
+    ## Takes packages and returns what to install in correct dependency order
     
-
-    var deps: seq[string]
-    var init: string
-    
+    # Build dependency context
+    var init = ""
     if not ignoreInit:
         init = getInit(root)
 
-    for p in pkgs:
-        
-        var pkg = p
-
-        var repo: string
-        var version = ""
-
-        if isInstallDir:
-            repo = absolutePath(pkg).parentDir()
-            pkg = lastPathPart(pkg)
-        else:
-            if chkInstalledDirInstead:
-                repo = "local"
-            else:
-                let pkgSplit = parsePkgInfo(pkg)
-                pkg = pkgSplit.name
-                repo = pkgSplit.repo
-                version = pkgSplit.version
-
-
-        if repo == "":
-            err("Package '"&pkg&"' doesn't exist", false)
-        elif not dirExists(repo) and repo != "local":
-            err("The repository '"&repo&"' doesn't exist", false)
-        elif not fileExists(repo&"/"&pkg&"/run") and repo != "local":
-            err("The package '"&pkg&"' doesn't exist on the repository "&repo, false)
-        
-        
-        var pkgrf: runFile
-
-        if repo != "local":
-            debug "parseRunfile ran, dephandler, repo: '"&repo&"', pkg: '"&pkg&"'"
-            pkgrf = parseRunfile(repo&"/"&pkg)
-        else:
-            debug "packageToRunfile ran, dephandler, pkg: '"&pkg&"' root: '"&root&"'"
-            pkgrf = packageToRunfile(getPackage(pkg, root))
-
-        var pkgdeps: seq[string]
-
-        if useBootstrap and pkgrf.bsdeps.len > 0:
-            # Use bootstrap dependencies if available and requested
-            pkgdeps = pkgrf.bsdeps
-        elif bdeps:
-            pkgdeps = pkgrf.bdeps
-        else:
-            pkgdeps = pkgrf.deps
-
-        if pkgdeps.len == 0:
-            continue
-
-        if not isEmptyOrWhitespace(pkgdeps.join()):
-            for dep in pkgdeps:
-
-                if prevPkgName == dep:
-                    if ignoreCircularDeps:
-                        # Silently ignore circular dependencies when just querying
-                        return deps.filterit(it.len != 0)
-                    elif isBuild and not packageExists(dep, "/"):
-                        if useBootstrap:
-                            # Using bootstrap deps, continue normally
-                            return deps.filterit(it.len != 0)
-                        else:
-                            err("circular dependency detected for '"&dep&"'", false)
-                    else:
-                        return deps.filterit(it.len != 0)
-
-
-                let chkVer = checkVersions(root, dep, repo)
-                let d = chkVer[1]
-
-                if packageExists(d, root) and chkVer[
-                        0] != "upgrade" and not forceInstallAll:
-                    debug "dephandler: package '"&d&"' exist in the db, continuing"
-                    continue
-                
-                if not chkInstalledDirInstead:
-                    repo = findPkgRepo(d)
-
-                if repo == "":
-                    err("Package "&d&" doesn't exist", false)
-
-                var deprf: runFile
-
-                if repo == "local":
-                    deprf = pkgrf
-                else:
-                    debug "parseRunfile ran, dephandler 2"
-                    deprf = parseRunfile(repo&"/"&d)                
-                
-                if d in deps or d in ignoreDeps or isIn(deprf.replaces, deps):
-                    continue
-
-                if not ignoreInit:
-                    if findPkgRepo(dep&"-"&init) != "":
-                        deps.add(dep&"-"&init)
-                
-                if not isEmptyOrWhitespace(deprf.bdeps.join()) and isBuild:
-                    deps.add(dephandler(@[d], deprf.replaces&deps&ignoreDeps&(@[d]), bdeps = true,
-                            isBuild = true, root = root, prevPkgName = pkg, chkInstalledDirInstead = chkInstalledDirInstead, forceInstallAll = forceInstallAll, ignoreInit = ignoreInit, useBootstrap = false, ignoreCircularDeps = ignoreCircularDeps))
-
-                deps.add(dephandler(@[d], deprf.replaces&deps&ignoreDeps&(@[d]), bdeps = false,
-                        isBuild = isBuild, root = root, prevPkgName = pkg, chkInstalledDirInstead = chkInstalledDirInstead,
-                                forceInstallAll = forceInstallAll, ignoreInit = ignoreInit, useBootstrap = false, ignoreCircularDeps = ignoreCircularDeps))
-
-                deps.add(d)
-
-    return deduplicate(deps.filterit(it.len != 0))
+    let ctx = dependencyContext(
+        root: root,
+        isBuild: isBuild,
+        useBootstrap: useBootstrap,
+        ignoreInit: ignoreInit,
+        ignoreCircularDeps: ignoreCircularDeps,
+        forceInstallAll: forceInstallAll,
+        init: init
+    )
+    
+    # Build the dependency graph
+    let graph = buildDependencyGraph(
+        pkgs, ctx, ignoreDeps, 
+        chkInstalledDirInstead, isInstallDir, prevPkgName
+    )
+    
+    # Flatten to installation order
+    let ordered = flattenDependencyOrder(graph)
+    
+    # Filter empty strings and deduplicate
+    return deduplicate(ordered.filterIt(it.len != 0))
