@@ -362,11 +362,9 @@ proc topologicalSort(graph: dependencyGraph): seq[string] =
 proc flattenDependencyOrder*(graph: dependencyGraph): seq[string] =
     ## Convert graph to installation order (dependencies first)
     
-    let sorted = topologicalSort(graph)
-    
     # Topological sort now gives us the correct order directly
     # (dependencies before dependents) since edges go from dependency to dependent
-    return sorted
+    return topologicalSort(graph)
 
 proc generateMermaidChart*(graph: dependencyGraph, rootPackages: seq[string]): string =
     ## Generate Mermaid flowchart from dependency graph
@@ -434,5 +432,10 @@ proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false,
     # Flatten to installation order
     let ordered = flattenDependencyOrder(graph)
     
-    # Filter empty strings and deduplicate
-    return deduplicate(ordered.filterIt(it.len != 0))
+    # Filter out root packages (the packages being built/installed) and empty strings
+    # We only want the dependencies, not the target packages themselves
+    let rootPkgSet = pkgs.toHashSet()
+    let filtered = ordered.filterIt(it.len != 0 and it notin rootPkgSet)
+    
+    # Deduplicate and return
+    return deduplicate(filtered)
