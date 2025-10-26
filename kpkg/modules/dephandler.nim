@@ -266,7 +266,10 @@ proc buildDependencyGraph*(pkgs: seq[string], ctx: dependencyContext,
                 
                 # Add edge and schedule for processing (edge from dependency to dependent)
                 addEdge(graph, depName, pkg)
-                if depName notin processed and depName notin toProcess:
+
+                if ctx.forceInstallAll and depName notin toProcess:
+                    toProcess.add(depName)
+                elif depName notin processed and depName notin toProcess:
                     toProcess.add(depName)
         
         # Process runtime dependencies (use bootstrap if requested)
@@ -310,7 +313,10 @@ proc buildDependencyGraph*(pkgs: seq[string], ctx: dependencyContext,
                 
                 # Add edge and schedule for processing (edge from dependency to dependent)
                 addEdge(graph, depName, pkg)
-                if depName notin processed and depName notin toProcess:
+                # When forceInstallAll, we need to reprocess even if already processed
+                if ctx.forceInstallAll and depName notin toProcess:
+                    toProcess.add(depName)
+                elif depName notin processed and depName notin toProcess:
                     toProcess.add(depName)
     
     return graph
