@@ -266,11 +266,11 @@ proc buildDependencyGraph*(pkgs: seq[string], ctx: dependencyContext,
                 
                 # Add edge and schedule for processing (edge from dependency to dependent)
                 addEdge(graph, depName, pkg)
-
-                if ctx.forceInstallAll and depName notin toProcess:
-                    toProcess.add(depName)
-                elif depName notin processed and depName notin toProcess:
-                    toProcess.add(depName)
+                # Add to processing queue if not already there
+                # When forceInstallAll=true, we may re-add packages that were processed but skipped due to being installed
+                if depName notin toProcess:
+                    if ctx.forceInstallAll or depName notin processed:
+                        toProcess.add(depName)
         
         # Process runtime dependencies (use bootstrap if requested)
         let runtimeDeps = selectDependencyList(pkgrf, false, ctx.useBootstrap)
@@ -313,11 +313,11 @@ proc buildDependencyGraph*(pkgs: seq[string], ctx: dependencyContext,
                 
                 # Add edge and schedule for processing (edge from dependency to dependent)
                 addEdge(graph, depName, pkg)
-                # When forceInstallAll, we need to reprocess even if already processed
-                if ctx.forceInstallAll and depName notin toProcess:
-                    toProcess.add(depName)
-                elif depName notin processed and depName notin toProcess:
-                    toProcess.add(depName)
+                # Add to processing queue if not already there
+                # When forceInstallAll=true, we may re-add packages that were processed but skipped due to being installed
+                if depName notin toProcess:
+                    if ctx.forceInstallAll or depName notin processed:
+                        toProcess.add(depName)
     
     return graph
 
