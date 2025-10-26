@@ -324,10 +324,8 @@ proc build*(no = false, yes = false, root = "/",
     #    ignoreInit = true
 
     try:
-        deps = deduplicate(dephandler(packages, bdeps = true, isBuild = true,
-                root = fullRootPath, forceInstallAll = forceInstallAll, isInstallDir = isInstallDir, ignoreInit = ignoreInit, useBootstrap = bootstrap)&dephandler(
-                        packages, isBuild = true, root = fullRootPath,
-                        forceInstallAll = forceInstallAll, isInstallDir = isInstallDir, ignoreInit = ignoreInit, useBootstrap = bootstrap))
+        deps = dephandler(packages, isBuild = true,
+                root = fullRootPath, forceInstallAll = forceInstallAll, isInstallDir = isInstallDir, ignoreInit = ignoreInit, useBootstrap = bootstrap)
     except CatchableError:
         raise getCurrentException()
 
@@ -342,9 +340,12 @@ proc build*(no = false, yes = false, root = "/",
 
     let gD = getDependents(deps)
     
+    # Recalculate full dependency graph including dependents
+    # This ensures correct topological ordering across all packages
     if not isEmptyOrWhitespace(gD.join("")):
-        deps = deps&deduplicate(dephandler(gD, bdeps = true, isBuild = true, root = fullRootPath, forceInstallAll = forceInstallAll, isInstallDir = isInstallDir, ignoreInit = ignoreInit)&gD)
-    
+        let allPackages = deduplicate(packages&gD)
+        deps = dephandler(allPackages, isBuild = true,
+                root = fullRootPath, forceInstallAll = forceInstallAll, isInstallDir = isInstallDir, ignoreInit = ignoreInit, useBootstrap = bootstrap)
     
     deps = deduplicate(deps&p)
     

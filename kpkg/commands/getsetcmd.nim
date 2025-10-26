@@ -99,11 +99,7 @@ proc get*(invocations: seq[string]) =
                             of "build":
                                 # Get build dependencies (both bdeps and deps)
                                 # Set ignoreCircularDeps=true to silently handle circular dependencies
-                                deps = dephandler(@[packageName], bdeps = true, isBuild = true, root = "/", prevPkgName = packageName, ignoreCircularDeps = true)
-                                let installDeps = dephandler(@[packageName], isBuild = true, root = "/", prevPkgName = packageName, ignoreCircularDeps = true)
-                                for dep in installDeps:
-                                    if dep notin deps:
-                                        deps.add(dep)
+                                deps = dephandler(@[packageName], isBuild = true, root = "/", prevPkgName = packageName, ignoreCircularDeps = true)
                             of "install":
                                 # Get install dependencies only
                                 # Set ignoreCircularDeps=true to silently handle circular dependencies

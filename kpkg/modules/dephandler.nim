@@ -9,7 +9,7 @@ import sequtils
 import strutils
 import runparser
 import commonTasks
-import deques
+import algorithm
 
 type
     repoInfo = tuple[repo: string, name: string, version: string]
@@ -316,46 +316,51 @@ proc buildDependencyGraph*(pkgs: seq[string], ctx: dependencyContext,
     return graph
 
 proc topologicalSort(graph: dependencyGraph): seq[string] =
-    ## Perform topological sort to determine installation order
+    ## Perform topological sort using DFS to determine installation order
+    ## Returns packages in order where dependencies come before dependents
+    ## 
+    ## Graph structure: edges go FROM dependency TO dependent
+    ## Example: graph.edges["openssl"] = ["python"] means python depends on openssl
     
-    var inDegree = initTable[string, int]()
-    var queue = initDeque[string]()
+    var visited = initTable[string, bool]()
+    var visiting = initTable[string, bool]()
     var sortResult: seq[string] = @[]
     
-    # Calculate in-degrees
-    for node in graph.nodes.keys:
-        if not inDegree.hasKey(node):
-            inDegree[node] = 0
+    proc visit(node: string) =
+        # Check for cycles
+        if visiting.getOrDefault(node, false):
+            debug "Warning: Cycle detected involving package: " & node
+            return
         
+        # Skip if already processed
+        if visited.getOrDefault(node, false):
+            return
+        
+        # Mark as currently being visited (for cycle detection)
+        visiting[node] = true
+        
+        # Recursively visit all nodes this node points to (dependents)
+        # We visit dependents first so they get added to result first
         if graph.edges.hasKey(node):
-            for dep in graph.edges[node]:
-                if not inDegree.hasKey(dep):
-                    inDegree[dep] = 0
-                inDegree[dep] += 1
-    
-    # Find all nodes with in-degree 0
-    for node, degree in inDegree.pairs:
-        if degree == 0:
-            queue.addLast(node)
-    
-    # Process queue in FIFO order (proper topological sort)
-    while queue.len > 0:
-        let current = queue.popFirst()
-        sortResult.add(current)
+            for dependent in graph.edges[node]:
+                visit(dependent)
         
-        if graph.edges.hasKey(current):
-            for dep in graph.edges[current]:
-                inDegree[dep] -= 1
-                if inDegree[dep] == 0:
-                    queue.addLast(dep)
+        # Mark as fully visited
+        visiting[node] = false
+        visited[node] = true
+        
+        # Add to result AFTER visiting all dependents (post-order DFS)
+        # This means dependents are earlier in the list
+        sortResult.add(node)
     
-    # Check for cycles (if not all nodes processed)
-    if sortResult.len != graph.nodes.len:
-        debug "Warning: Cycle detected in dependency graph, some packages may be missing"
-        # Add remaining nodes anyway
-        for node in graph.nodes.keys:
-            if node notin sortResult:
-                sortResult.add(node)
+    # Visit all nodes (handles disconnected components)
+    for node in graph.nodes.keys:
+        if not visited.getOrDefault(node, false):
+            visit(node)
+    
+    # Reverse: since we added dependents before dependencies in post-order,
+    # reversing gives us dependencies before dependents
+    reverse(sortResult)
     
     return sortResult
 
@@ -403,10 +408,11 @@ proc generateMermaidChart*(graph: dependencyGraph, rootPackages: seq[string]): s
     return output
 
 
-proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "], bdeps = false,
+proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "],
         isBuild = false, root: string, prevPkgName = "",
                 forceInstallAll = false, chkInstalledDirInstead = false, isInstallDir = false, ignoreInit = false, useBootstrap = false, ignoreCircularDeps = false): seq[string] =
     ## Takes packages and returns what to install in correct dependency order
+    ## When isBuild = true, returns both build dependencies and runtime dependencies in correct order
     
     # Build dependency context
     var init = ""
