@@ -174,10 +174,10 @@ proc parseRunfile*(path: string, removeLockfileWhenErr = true): runFile =
                         currentFunction = funcName
                         braceCount = 1
                         functionBody = @[i]
-                        debug("FUNCPARSE: Found function " & currentFunction & " at line: " & i)
+                        #debug("FUNCPARSE: Found function " & currentFunction & " at line: " & i)
                         continue
                     else:
-                        debug("FUNCPARSE: Invalid function name: " & funcName)
+                        #debug("FUNCPARSE: Invalid function name: " & funcName)
                         continue
 
             if currentFunction != "":
@@ -191,20 +191,20 @@ proc parseRunfile*(path: string, removeLockfileWhenErr = true): runFile =
                 if i.count('}') > 0:
                     braceEvents.add("-}" & $i.count('}') & "}")
                 
-                debug("FUNCPARSE: " & currentFunction &
-                      " | Braces: " & $initialBraces & " → " & $braceCount &
-                      " | Changes: " & braceEvents.join(", ") &
-                      " | Line: " & i)
+                #debug("FUNCPARSE: " & currentFunction &
+                #      " | Braces: " & $initialBraces & " → " & $braceCount &
+                #      " | Changes: " & braceEvents.join(", ") &
+                #      " | Line: " & i)
                 
                 functionBody.add(i)
                 
                 if braceCount == 0:
                     if functionBody.len > 0:
                         ret.functions.add((name: currentFunction, body: functionBody.join("\n")))
-                        debug("FUNCPARSE: Completed function " & currentFunction &
-                              " | Body lines: " & $functionBody.len)
-                    else:
-                        debug("FUNCPARSE: Empty function body for " & currentFunction)
+                        #debug("FUNCPARSE: Completed function " & currentFunction &
+                        #      " | Body lines: " & $functionBody.len)
+                    #else:
+                        #debug("FUNCPARSE: Empty function body for " & currentFunction)
                     currentFunction = ""
                     functionBody = @[]
                 continue
@@ -323,9 +323,9 @@ proc parseRunfile*(path: string, removeLockfileWhenErr = true): runFile =
             validFuncs += 1
             totalChars += fn.body.len
     
-    debug("FUNCPARSE: Final stats - Valid functions: " & $validFuncs &
-          " | Total characters: " & $totalChars &
-          " | Average chars per function: " & 
-          (if validFuncs > 0: $(totalChars div validFuncs) else: "0"))
+    #debug("FUNCPARSE: Final stats - Valid functions: " & $validFuncs &
+    #      " | Total characters: " & $totalChars &
+    #     " | Average chars per function: " & 
+    #      (if validFuncs > 0: $(totalChars div validFuncs) else: "0"))
 
     return ret
