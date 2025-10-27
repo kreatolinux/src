@@ -218,6 +218,14 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
                 copyFileWithPermissionsAndOwnership(kpkgInstallTemp&"/"&file, root&"/"&file)
             elif dirExists(kpkgInstallTemp&"/"&file) and not (dirExists(root&"/"&file) or symlinkExists(root&"/"&file)):
                 createDirWithPermissionsAndOwnership(kpkgInstallTemp&"/"&file, root&"/"&file)
+    else:
+        # Register group packages in the database
+        var mI = false
+        if package in manualInstallList:
+            info "Setting as manually installed"
+            mI = true
+        
+        discard newPackage(package, pkgVersion, pkg.release, pkg.epoch, pkg.deps.join("!!k!!"), pkg.bdeps.join("!!k!!"), pkg.backup.join("!!k!!"), pkg.replaces.join("!!k!!"), pkg.desc, mI, pkg.isGroup, basePackage, root)
 
     # Run ldconfig afterwards for any new libraries
     discard execProcess("ldconfig")
