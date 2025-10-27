@@ -24,7 +24,12 @@ case $1 in
                 
                 export KPKG_ENABLE_DEBUG=yes
   	            kpkg # Initializes configs
-                
+
+                curl https://nightly.link/kreatolinux/src/actions/runs/18830690101/kpkg-amd64-linux-debug.zip -LO
+                bsdtar -xvf kpkg-amd64-linux-debug.zip
+                mv kpkg /bin/
+                chmod +x /bin/kpkg
+
                 #sed -i s/stable/master/g /etc/kpkg/kpkg.conf
 		        sed -i s/mirror.kreato.dev/mirror.krea.to/g /etc/kpkg/kpkg.conf
 
