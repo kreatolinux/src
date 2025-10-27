@@ -26,7 +26,7 @@ case $1 in
   	            kpkg # Initializes configs
                 
                 #sed -i s/stable/master/g /etc/kpkg/kpkg.conf
-		        sed -i s/mirror.kreato.dev/bin.krea.to/g /etc/kpkg/kpkg.conf
+		        sed -i s/mirror.kreato.dev/mirror.krea.to/g /etc/kpkg/kpkg.conf
 
                 kpkg update
 
@@ -39,7 +39,7 @@ case $1 in
                 #kpkg build python -y || exit 1
 
 		        #kpkg build ninja -y
-                if $(cat /etc/kreato-release | grep -q coreutils=gnu); then
+                if ! cat /etc/kreato-release | grep -q coreutils=gnu; then
                     kpkg install gnu-core -y
                 fi
                 kpkg install llvm -y # Required by futhark
