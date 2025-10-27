@@ -29,6 +29,10 @@ case $1 in
 		        sed -i s/mirror.kreato.dev/mirror.krea.to/g /etc/kpkg/kpkg.conf
 
                 kpkg update
+                
+                if ! cat /etc/kreato-release | grep -q coreutils=gnu; then
+                    kpkg install gnu-core -y
+                fi
 
                 kpkg upgrade -y
                 kpkg install meson -y
@@ -39,9 +43,6 @@ case $1 in
                 #kpkg build python -y || exit 1
 
 		        #kpkg build ninja -y
-                if ! cat /etc/kreato-release | grep -q coreutils=gnu; then
-                    kpkg install gnu-core -y
-                fi
                 kpkg install llvm -y # Required by futhark
                 #kpkg build perl -uy
 
