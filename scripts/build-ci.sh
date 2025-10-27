@@ -30,7 +30,7 @@ case $1 in
 
                 kpkg update
                 
-                if ! cat /etc/kreato-release | grep -q coreutils=gnu; then
+                if cat /etc/kreato-release | grep -q coreutils=gnu; then
                     kpkg install gnu-core -y
                 fi
 
