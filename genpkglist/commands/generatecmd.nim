@@ -1,6 +1,7 @@
 import os
 import strutils
 import ../../kpkg/modules/runparser
+import ../../kpkg/modules/dephandler
 
 
 proc appendData(orig: string, str: string): string =
@@ -30,9 +31,15 @@ proc dependencyGenerator(deps: seq[string], pkgPath: string, text: string, isBui
   
   return finalText
 
-proc generateInternal(pkgPath = "", output = "out.md") =
-  ## Generate a package markdown entry. 
+proc generateInternal(pkgPath = "", output = "out.md"): bool =
+  ## Generate a package markdown entry.
+  ## Returns true if successful, false if skipped due to missing runfile.
  
+  # Check if runfile exists before attempting to parse
+  if not fileExists(pkgPath & "/run"):
+    echo "WARNING: Skipping '" & pkgPath & "' - no runfile found"
+    return false
+  
   let pkg = parseRunfile(pkgPath, false)
   
   var finalText = "---"
@@ -74,7 +81,28 @@ proc generateInternal(pkgPath = "", output = "out.md") =
   finalText = appendData(finalText, "```\nkpkg build "&lastPathPart(pkgPath)&"\n```")
   finalText = finalText&"\nTo see the difference, see [The handbook](https://linux.kreato.dev/docs/handbook/installation/#binary-vs-source)"
 
+  # Generate dependency graph visualization
+  finalText = appendData(finalText, "\n# Dependency Graph\n")
+  
+  let ctx = dependencyContext(
+    root: "/",
+    isBuild: false,
+    useBootstrap: false,
+    ignoreInit: true,
+    ignoreCircularDeps: true,
+    forceInstallAll: false,
+    init: ""
+  )
+  
+  let graph = buildDependencyGraph(@[lastPathPart(pkgPath)], ctx, isInstallDir = true)
+  let mermaidChart = generateMermaidChart(graph, @[lastPathPart(pkgPath)])
+  
+  finalText = appendData(finalText, "```mermaid")
+  finalText = finalText&"\n"&mermaidChart
+  finalText = finalText&"```"
+
   writeFile(output, finalText)
+  return true
 
 
 proc generate*(pkgPath = "", output = "", all = false, verbose = false) =
@@ -88,6 +116,6 @@ proc generate*(pkgPath = "", output = "", all = false, verbose = false) =
       if not isHidden(i.path) and dirExists(i.path):
         if verbose:
           echo "DEBUG: Now generating '"&absolutePath(output)&"/"&lastPathPart(i.path)&".md"&"' with '"&i.path&"'"
-        generateInternal(i.path, absolutePath(output)&"/"&lastPathPart(i.path)&".md")
+        discard generateInternal(i.path, absolutePath(output)&"/"&lastPathPart(i.path)&".md")
   else:
-    generateInternal(absolutePath(pkgPath), output)
+    discard generateInternal(absolutePath(pkgPath), output)
