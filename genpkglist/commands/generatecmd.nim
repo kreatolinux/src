@@ -94,7 +94,7 @@ proc generateInternal(pkgPath = "", output = "out.md"): bool =
     init: ""
   )
   
-  let graph = buildDependencyGraph(@[lastPathPart(pkgPath)], ctx, isInstallDir = true)
+  let graph = buildDependencyGraph(@[pkgPath], ctx, isInstallDir = true)
   let mermaidChart = generateMermaidChart(graph, @[lastPathPart(pkgPath)])
   
   finalText = appendData(finalText, "```mermaid")
