@@ -222,9 +222,11 @@ proc buildDependencyGraph*(pkgs: seq[string], ctx: dependencyContext,
         # Handle init-specific packages
         if not ctx.ignoreInit and not isEmptyOrWhitespace(ctx.init):
             let initPkg = pkg&"-"&ctx.init
-            if findPkgRepo(initPkg) != "":
-                if initPkg notin processed and initPkg notin toProcess:
-                    toProcess.add(initPkg)
+            let initPkgExists = if isInstallDir: dirExists(repo&"/"&initPkg) else: findPkgRepo(initPkg) != ""
+            if initPkgExists:
+                let initPkgToAdd = if isInstallDir: repo&"/"&initPkg else: initPkg
+                if initPkgToAdd notin processed and initPkgToAdd notin toProcess:
+                    toProcess.add(initPkgToAdd)
                     addEdge(graph, initPkg, pkg)  # Edge from dependency to dependent
         
         # Process build dependencies first if this is a build
@@ -268,9 +270,11 @@ proc buildDependencyGraph*(pkgs: seq[string], ctx: dependencyContext,
                 addEdge(graph, depName, pkg)
                 # Add to processing queue if not already there
                 # When forceInstallAll=true, we may re-add packages that were processed but skipped due to being installed
-                if depName notin toProcess:
-                    if ctx.forceInstallAll or depName notin processed:
-                        toProcess.add(depName)
+                # When isInstallDir=true, add full path so dependency resolution works correctly
+                let depToAdd = if isInstallDir: repo&"/"&depName else: depName
+                if depToAdd notin toProcess:
+                    if ctx.forceInstallAll or depToAdd notin processed:
+                        toProcess.add(depToAdd)
         
         # Process runtime dependencies (use bootstrap if requested)
         let runtimeDeps = selectDependencyList(pkgrf, false, ctx.useBootstrap)
@@ -315,9 +319,11 @@ proc buildDependencyGraph*(pkgs: seq[string], ctx: dependencyContext,
                 addEdge(graph, depName, pkg)
                 # Add to processing queue if not already there
                 # When forceInstallAll=true, we may re-add packages that were processed but skipped due to being installed
-                if depName notin toProcess:
-                    if ctx.forceInstallAll or depName notin processed:
-                        toProcess.add(depName)
+                # When isInstallDir=true, add full path so dependency resolution works correctly
+                let depToAdd = if isInstallDir: repo&"/"&depName else: depName
+                if depToAdd notin toProcess:
+                    if ctx.forceInstallAll or depToAdd notin processed:
+                        toProcess.add(depToAdd)
     
     return graph
 
