@@ -24,7 +24,7 @@ buildNimMain() {
 
 buildNimOther() {
   cd "$srcdir"
-	nim c -d:$buildType $args $target --threads:$2 -o="$3" $5 "$srcdir/$1/$4" || err "building $1 failed"
+	nim c -d:$buildType $args $target --deepcopy:on --threads:$2 -o="$3" $5 "$srcdir/$1/$4" || err "building $1 failed"
   cd - > /dev/null
 }
 
