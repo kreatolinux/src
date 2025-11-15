@@ -205,9 +205,10 @@ proc umountOverlay*(error = "none", silentMode = false, merged = kpkgMergedPath,
     removeDir(workDir)
     return returnCode
 
-proc mountOverlay*(upperDir = kpkgOverlayPath&"/upperDir", workDir = kpkgOverlayPath&"/workDir", lowerDir = kpkgEnvPath, merged = kpkgMergedPath, error = "none", silentMode = false): int =
-    ## Mounts the overlay.
-    ## Directories must have been unmounted.
+proc prepareOverlayDirs*(upperDir = kpkgOverlayPath&"/upperDir", workDir = kpkgOverlayPath&"/workDir", merged = kpkgMergedPath, error = "none", silentMode = false): int =
+    ## Prepares the overlay directories by mounting tmpfs and creating directory structure
+    ## without mounting the overlayfs itself. This allows installing build dependencies
+    ## before the overlay is mounted.
     try:
         removeDir(kpkgOverlayPath)
     except:
@@ -224,9 +225,20 @@ proc mountOverlay*(upperDir = kpkgOverlayPath&"/upperDir", workDir = kpkgOverlay
     createDir(merged)
     createDir(workDir)
     
-    initDirectories(upperDir, hostCPU, true) 
+    initDirectories(upperDir, hostCPU, true)
+    return 0
 
-    let cmd = "mount -t overlay overlay -o lowerdir="&lowerDir&",upperdir="&upperDir&",workdir="&workDir&" "&kpkgMergedPath
+proc mountOverlayFilesystem*(upperDir = kpkgOverlayPath&"/upperDir", workDir = kpkgOverlayPath&"/workDir", lowerDir = kpkgEnvPath, merged = kpkgMergedPath, error = "none", silentMode = false): int =
+    ## Mounts the overlayfs. Should be called after prepareOverlayDirs() and after
+    ## installing build dependencies to upperDir.
+    let cmd = "mount -t overlay overlay -o lowerdir="&lowerDir&",upperdir="&upperDir&",workdir="&workDir&" "&merged
     debug cmd
-    return execCmdKpkg(cmd, error, silentMode = silentMode) 
+    return execCmdKpkg(cmd, error, silentMode = silentMode)
+
+proc mountOverlay*(upperDir = kpkgOverlayPath&"/upperDir", workDir = kpkgOverlayPath&"/workDir", lowerDir = kpkgEnvPath, merged = kpkgMergedPath, error = "none", silentMode = false): int =
+    ## Mounts the overlay in one step (prepare directories and mount overlayfs).
+    ## For build processes that need to install dependencies before mounting,
+    ## use prepareOverlayDirs() and mountOverlayFilesystem() separately.
+    discard prepareOverlayDirs(upperDir, workDir, merged, error, silentMode)
+    return mountOverlayFilesystem(upperDir, workDir, lowerDir, merged, error, silentMode) 
 

@@ -411,6 +411,9 @@ proc build*(no = false, yes = false, root = "/",
             debug "depsToClean = \""&depsToClean.join(" ")&"\""
             var allInstalledDeps: seq[string]
             
+            # Prepare overlay directories first (mount tmpfs and create directory structure)
+            discard prepareOverlayDirs(error = "preparing overlay directories")
+            
             if target != "default" and target != kpkgTarget("/"):
                 for d in depsToClean:
                     if isEmptyOrWhitespace(d):
@@ -422,11 +425,12 @@ proc build*(no = false, yes = false, root = "/",
                 # Resolve all dependencies once (including transitive) to know what needs postinstall
                 allInstalledDeps = deduplicate(dephandler(depsToClean, root = root, chkInstalledDirInstead = true, forceInstallAll = true)&depsToClean)
                 
-                # Install build dependencies without running postinstall (overlay not mounted yet)
+                # Install build dependencies to upperDir (now on tmpfs, before overlay mount)
                 for d in depsToClean:
                     installFromRoot(d, root, kpkgOverlayPath&"/upperDir", ignorePostInstall = true)
 
-            discard mountOverlay(error = "mounting overlay")
+            # Now mount the overlayfs after build dependencies are installed
+            discard mountOverlayFilesystem(error = "mounting overlay filesystem")
             
             # Now run postinstall scripts for all build dependencies (including transitive) in the merged overlay
             # Only for native builds (cross-compilation uses different mechanism)
