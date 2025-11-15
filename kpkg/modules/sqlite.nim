@@ -27,6 +27,7 @@ type
 
 var kpkgDb: DbConn
 var connOn = false
+var currentRoot: string = ""
 
 
 func newPackageInternal(name = "", version = "", deps = "", bdeps = "", backup = "", replaces = "", desc = "", release = "", epoch = "", manualInstall = false, isGroup = false, basePackage = false): Package =
@@ -42,10 +43,18 @@ proc closeDb*() =
     if connOn:
         close kpkgDb
         connOn = false
+        currentRoot = ""
 
 proc rootCheck(root: string) =
     # Root checks (internal)
-    closeDb()
+    # Only close/reopen if the root path actually changed
+    if connOn and currentRoot == root:
+        return
+    
+    # Close existing connection if root changed
+    if connOn:
+        closeDb()
+    
     var firstTime = false
     
     if not fileExists(root&"/"&kpkgDbPath):
@@ -54,6 +63,7 @@ proc rootCheck(root: string) =
     
     kpkgDb = open(root&"/"&kpkgDbPath, "", "", "")
     connOn = true
+    currentRoot = root
 
     if firstTime:
         kpkgDb.createTables(newFileInternal())
