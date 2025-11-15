@@ -417,10 +417,21 @@ proc build*(no = false, yes = false, root = "/",
                     debug "build: installPkg ran for '"&d&"'"
                     installPkg(findPkgRepo(d), d, kpkgOverlayPath&"/upperDir", isUpgrade = false, kTarget = target, manualInstallList = @[], umount = false, disablePkgInfo = true)
             else:
+                # Install build dependencies without running postinstall (overlay not mounted yet)
+                var allInstalledDeps: seq[string]
                 for d in depsToClean:
-                    installFromRoot(d, root, kpkgOverlayPath&"/upperDir")
+                    # Resolve all dependencies (including transitive ones)
+                    let resolved = deduplicate(dephandler(@[d], root = root, chkInstalledDirInstead = true, forceInstallAll = true)&d)
+                    allInstalledDeps = allInstalledDeps & resolved
+                    installFromRoot(d, root, kpkgOverlayPath&"/upperDir", ignorePostInstall = true)
 
             discard mountOverlay(error = "mounting overlay")
+            
+            # Now run postinstall scripts for all build dependencies (including transitive) in the merged overlay
+            if not cross:
+                for d in deduplicate(allInstalledDeps):
+                    if not isEmptyOrWhitespace(d):
+                        runPostInstall(d)
 
             let packageSplit = parsePkgInfo(i)
             

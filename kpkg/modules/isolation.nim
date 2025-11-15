@@ -89,6 +89,28 @@ proc installFromRootInternal(package, root, destdir: string, removeDestdirOnErro
                 err("postinstall failed on sandbox")
 
 
+proc runPostInstall*(package: string) =
+    ## Runs postinstall scripts for a package in the merged overlay environment.
+    ## Should only be called after mountOverlay().
+    let repo = findPkgRepo(package)
+
+    if isEmptyOrWhitespace(repo):
+        return # bail early if no repo is found
+    
+    var existsPkgPostinstall = execEnv(
+            ". "&repo&"/"&package&"/run"&" && command -v postinstall_"&replace(
+                    package, '-', '_'), remount = true, silentMode = true)
+    var existsPostinstall = execEnv(
+            ". "&repo&"/"&package&"/run"&" && command -v postinstall", remount = true, silentMode = true)
+
+    if existsPkgPostinstall == 0:
+        if execEnv(". "&repo&"/"&package&"/run"&" && postinstall_"&replace(
+                package, '-', '_'), remount = true, silentMode = true) != 0:
+                err("postinstall failed on sandbox")
+    elif existsPostinstall == 0:
+        if execEnv(". "&repo&"/"&package&"/run"&" && postinstall", remount = true, silentMode = true) != 0:
+                err("postinstall failed on sandbox")
+
 proc installFromRoot*(package, root, destdir: string, removeDestdirOnError = false, ignorePostInstall = false) =
     # A wrapper for installFromRootInternal that also resolves dependencies.
     if isEmptyOrWhitespace(package):
