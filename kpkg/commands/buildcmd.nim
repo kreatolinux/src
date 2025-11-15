@@ -409,6 +409,8 @@ proc build*(no = false, yes = false, root = "/",
                     depsToClean = depsToClean&optDep.split(":")[0]
 
             debug "depsToClean = \""&depsToClean.join(" ")&"\""
+            var allInstalledDeps: seq[string]
+            
             if target != "default" and target != kpkgTarget("/"):
                 for d in depsToClean:
                     if isEmptyOrWhitespace(d):
@@ -418,7 +420,7 @@ proc build*(no = false, yes = false, root = "/",
                     installPkg(findPkgRepo(d), d, kpkgOverlayPath&"/upperDir", isUpgrade = false, kTarget = target, manualInstallList = @[], umount = false, disablePkgInfo = true)
             else:
                 # Resolve all dependencies once (including transitive) to know what needs postinstall
-                var allInstalledDeps = deduplicate(dephandler(depsToClean, root = root, chkInstalledDirInstead = true, forceInstallAll = true)&depsToClean)
+                allInstalledDeps = deduplicate(dephandler(depsToClean, root = root, chkInstalledDirInstead = true, forceInstallAll = true)&depsToClean)
                 
                 # Install build dependencies without running postinstall (overlay not mounted yet)
                 for d in depsToClean:
@@ -427,7 +429,8 @@ proc build*(no = false, yes = false, root = "/",
             discard mountOverlay(error = "mounting overlay")
             
             # Now run postinstall scripts for all build dependencies (including transitive) in the merged overlay
-            if not cross:
+            # Only for native builds (cross-compilation uses different mechanism)
+            if target == "default" or target == kpkgTarget("/"):
                 for d in deduplicate(allInstalledDeps):
                     if not isEmptyOrWhitespace(d):
                         runPostInstall(d)
