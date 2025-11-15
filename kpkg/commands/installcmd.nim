@@ -166,16 +166,44 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
                 if isEmptyOrWhitespace(dep):
                     continue
 
-                let depSplit = dep.split("#")
+                let depClean = dep.strip()
+                if isEmptyOrWhitespace(depClean):
+                    continue
+
+                let hashPos = depClean.find('#')
+
+                if hashPos < 0 or hashPos == depClean.high:
+                    warn "pkgInfo lists dependency '"&depClean&"', but it is missing a version; skipping check"
+                    continue
+
+                let depName = depClean[0 ..< hashPos].strip()
+                let depVersion = depClean[(hashPos + 1) .. depClean.high].strip()
+
+                if isEmptyOrWhitespace(depName) or isEmptyOrWhitespace(depVersion):
+                    warn "pkgInfo lists dependency '"&depClean&"', but it is missing a name or version; skipping check"
+                    continue
+
+                if not packageExists(depName, root):
+                    warn "pkgInfo lists dependency '"&depName&"', but it is not installed at '"&root&"'; skipping version check"
+                    continue
                  
                 var db: Package
                 try:
-                    db = getPackage(depSplit[0], root)
+                    db = getPackage(depName, root)
                 except:
+                    if isDebugMode():
+                        debug "getPackage failed for '"&depName&"' at root '"&root&"'"
+                        debug "pkgInfo.ini content:"
+                        try:
+                            let pkgInfoContent = readFile(kpkgInstallTemp&"/pkgInfo.ini")
+                            for line in pkgInfoContent.splitLines():
+                                debug "  "&line
+                        except:
+                            debug "  (could not read pkgInfo.ini file)"
                     raise
 
-                if db.version != depSplit[1]:
-                    warn "this package is built with '"&dep&"', while the system has '"&depSplit[0]&"#"&db.version&"'"
+                if db.version != depVersion:
+                    warn "this package is built with '"&depName&"#"&depVersion&"', while the system has '"&depName&"#"&db.version&"'"
                     warn "installing anyway, but issues may occur"
                     warn "this may be an error in the future"
     
