@@ -404,7 +404,7 @@ proc generateMermaidChart*(graph: dependencyGraph, rootPackages: seq[string]): s
         # Highlight root packages differently
         if node in rootPackages:
             output &= "    " & nodeId & "[\"" & label & "\"]\n"
-            output &= "    style " & nodeId & " fill:#ff9,stroke:#333,stroke-width:3px\n"
+            output &= "    style " & nodeId & " fill:#4a9eff,stroke:#2d7dd2,stroke-width:3px,color:#fff\n"
         else:
             output &= "    " & nodeId & "[\"" & label & "\"]\n"
     
