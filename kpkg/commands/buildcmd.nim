@@ -390,8 +390,6 @@ proc build*(no = false, yes = false, root = "/",
                 removeDir(kpkgEnvPath)
                 createEnv(root)
                 
-            discard mountOverlay(error = "mounting overlay")
-
             let pkgTmp = parsePkgInfo(i)
             # We set isBuild to false here as we don't want build dependencies of other packages on the sandbox.
             debug "parseRunfile ran from buildcmd, depsToClean"
@@ -421,6 +419,8 @@ proc build*(no = false, yes = false, root = "/",
             else:
                 for d in depsToClean:
                     installFromRoot(d, root, kpkgOverlayPath&"/upperDir")
+
+            discard mountOverlay(error = "mounting overlay")
 
             let packageSplit = parsePkgInfo(i)
             
