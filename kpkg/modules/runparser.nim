@@ -48,6 +48,7 @@ proc parseRunfile*(path: string, removeLockfileWhenErr = true): runFile =
     let package = lastPathPart(path)
     var extractisRead = false
     var override: Config
+    var bootstrapDependsExplicitlySet = false  # Track if BOOTSTRAP_DEPENDS was set with =
     
     # Function parsing state
     var currentFunction = ""
@@ -125,16 +126,61 @@ proc parseRunfile*(path: string, removeLockfileWhenErr = true): runFile =
                     ("\"", ""),
                     ("'", "")
                     ).strip()).split(" ")
+                of "depends+":
+                    ret.deps = ret.deps&vars[1].multiReplace(
+                    ("\"", ""),
+                    ("'", "")
+                    ).strip().split(" ")
+                of "depends-":
+                    for i in vars[1].multiReplace(
+                    ("\"", ""),
+                    ("'", "")
+                    ).strip().split(" "):
+                        if ret.deps.find(i) != -1:
+                            ret.deps.delete(ret.deps.find(i))
                 of "build_depends", "builddepends", "build-depends":
                     ret.bdeps = override.getSectionValue("runFile", "buildDepends", vars[1].multiReplace(
                     ("\"", ""),
                     ("'", "")
                     ).strip()).split(" ")
+                of "build_depends+", "builddepends+", "build-depends+":
+                    ret.bdeps = ret.bdeps&vars[1].multiReplace(
+                    ("\"", ""),
+                    ("'", "")
+                    ).strip().split(" ")
+                of "build_depends-", "builddepends-", "build-depends-":
+                    for i in vars[1].multiReplace(
+                    ("\"", ""),
+                    ("'", "")
+                    ).strip().split(" "):
+                        if ret.bdeps.find(i) != -1:
+                            ret.bdeps.delete(ret.bdeps.find(i))
                 of "bootstrap_depends", "bootstrapdepends", "bootstrap-depends":
+                    bootstrapDependsExplicitlySet = true
                     ret.bsdeps = override.getSectionValue("runFile", "bootstrapDepends", vars[1].multiReplace(
                     ("\"", ""),
                     ("'", "")
                     ).strip()).split(" ")
+                of "bootstrap_depends+", "bootstrapdepends+", "bootstrap-depends+":
+                    # If BOOTSTRAP_DEPENDS was never explicitly set, initialize with BUILD_DEPENDS
+                    if not bootstrapDependsExplicitlySet and ret.bsdeps.len == 0:
+                        ret.bsdeps = ret.bdeps
+                        bootstrapDependsExplicitlySet = true
+                    ret.bsdeps = ret.bsdeps&vars[1].multiReplace(
+                    ("\"", ""),
+                    ("'", "")
+                    ).strip().split(" ")
+                of "bootstrap_depends-", "bootstrapdepends-", "bootstrap-depends-":
+                    # If BOOTSTRAP_DEPENDS was never explicitly set, initialize with BUILD_DEPENDS
+                    if not bootstrapDependsExplicitlySet and ret.bsdeps.len == 0:
+                        ret.bsdeps = ret.bdeps
+                        bootstrapDependsExplicitlySet = true
+                    for i in vars[1].multiReplace(
+                    ("\"", ""),
+                    ("'", "")
+                    ).strip().split(" "):
+                        if ret.bsdeps.find(i) != -1:
+                            ret.bsdeps.delete(ret.bsdeps.find(i))
                 of "optdepends", "opt-depends", "opt_depends":
                     ret.optdeps = override.getSectionValue("runFile", "optDepends", vars[1].multiReplace(
                     ("\"", ""),
@@ -192,7 +238,7 @@ proc parseRunfile*(path: string, removeLockfileWhenErr = true): runFile =
                     braceEvents.add("-}" & $i.count('}') & "}")
                 
                 #debug("FUNCPARSE: " & currentFunction &
-                #      " | Braces: " & $initialBraces & " → " & $braceCount &
+                #      " | Braces: " & $initialBraces & " ? " & $braceCount &
                 #      " | Changes: " & braceEvents.join(", ") &
                 #      " | Line: " & i)
                 
@@ -235,12 +281,20 @@ proc parseRunfile*(path: string, removeLockfileWhenErr = true): runFile =
             
             if vars[0].toLower == "bootstrap_depends_"&p&"+" or vars[0].toLower ==
                     "bootstrap-depends-"&p&"+" or vars[0].toLower == "bootstrapdepends"&p&"+":
+                # If BOOTSTRAP_DEPENDS was never explicitly set, initialize with BUILD_DEPENDS
+                if not bootstrapDependsExplicitlySet and ret.bsdeps.len == 0:
+                    ret.bsdeps = ret.bdeps
+                    bootstrapDependsExplicitlySet = true
                 ret.bsdeps = ret.bsdeps&vars[1].multiReplace(
                 ("\"", ""),
                 ("'", "")
                 ).split(" ")
             elif vars[0].toLower == "bootstrap_depends_"&p&"-" or vars[0].toLower ==
                     "bootstrap-depends-"&p&"-" or vars[0].toLower == "bootstrapdepends"&p&"-":
+                # If BOOTSTRAP_DEPENDS was never explicitly set, initialize with BUILD_DEPENDS
+                if not bootstrapDependsExplicitlySet and ret.bsdeps.len == 0:
+                    ret.bsdeps = ret.bdeps
+                    bootstrapDependsExplicitlySet = true
                 for i in vars[1].multiReplace(
                 ("\"", ""),
                 ("'", "")
@@ -249,6 +303,7 @@ proc parseRunfile*(path: string, removeLockfileWhenErr = true): runFile =
                         ret.bsdeps.delete(ret.bsdeps.find(i))
             elif vars[0].toLower == "bootstrap_depends_"&p or vars[0].toLower ==
                     "bootstrap-depends-"&p or vars[0].toLower == "bootstrapdepends"&p:
+                bootstrapDependsExplicitlySet = true
                 ret.bsdeps = vars[1].multiReplace(
                 ("\"", ""),
                 ("'", "")

@@ -230,8 +230,10 @@ proc buildDependencyGraph*(pkgs: seq[string], ctx: dependencyContext,
                     addEdge(graph, initPkg, pkg)  # Edge from dependency to dependent
         
         # Process build dependencies first if this is a build
-        if ctx.isBuild and not isEmptyOrWhitespace(pkgrf.bdeps.join()):
-            for bdep in pkgrf.bdeps:
+        # Use bootstrap deps if in bootstrap mode and they exist, otherwise use regular build deps
+        let buildDeps = selectDependencyList(pkgrf, true, ctx.useBootstrap)
+        if ctx.isBuild and not isEmptyOrWhitespace(buildDeps.join()):
+            for bdep in buildDeps:
                 if isEmptyOrWhitespace(bdep) or bdep in ignoreDeps:
                     continue
                 
