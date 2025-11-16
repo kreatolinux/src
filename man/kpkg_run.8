@@ -41,13 +41,14 @@ EXTRACT=true
 SOURCES=\[dq]https://test.file/source/testfile.tar.gz;git::https://github.com/kreatolinux/src::543ee30eda806029fa9ea16a1f9767eda7cab4d1\[dq]
 DEPENDS=\[dq]testpackage1 testpackage3 testpackage4\[dq]
 DEPENDS_TEST2+=\[dq]testpackage5 testpackage6\[dq]
-BOOTSTRAP_DEPENDS=\[dq]testpackage3 testpackage4\[dq]
-BOOTSTRAP_DEPENDS-=\[dq]testpackage1\[dq]
+BUILD_DEPENDS=\[dq]testpackage5 testpackage6 testpackage10\[dq]
+# Remove testpackage10 from bootstrap dependencies (starts from BUILD_DEPENDS)
+# Result: BOOTSTRAP_DEPENDS will be \[dq]testpackage5 testpackage6\[dq] during bootstrap builds
+BOOTSTRAP_DEPENDS-=\[dq]testpackage10\[dq]
 NO_CHKUPD=\[dq]n\[dq]
 REPLACES=\[dq]test-v2\[dq]
 BACKUP=\[dq]etc/test-v3/main.conf etc/test/settings.conf\[dq]
 OPTDEPENDS=\[dq]optional-dependency: This is a test optional dependency ;; optional-dependency-2: This is a second optional dependency.\[dq]
-BUILD_DEPENDS=\[dq]testpackage5 testpackage6 testpackage10\[dq]
 SHA256SUM=\[dq]e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\[dq]
 SHA512SUM=\[dq]cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce47d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e\[dq]
 B2SUM=\[dq]786a02f742015903c6c6fd852552d272912f4740e15847618a86e217f71f5419d25e1031afee585313896444934eb04b903a685b1448b755d56f701afe9be2ce\[dq]
@@ -128,9 +129,15 @@ Seperated by space.
 You can also specify versions for your dependencies such as
 \f[V]test<=1.8.1\f[R], \f[V]test=1.8.1\f[R], \f[V]test>=1.8.1\f[R],
 \f[V]test<1.8.1\f[R], \f[V]test>1.8.1\f[R].
+Supports operators: \f[V]DEPENDS=\[dq]package\[dq]\f[R] to set,
+\f[V]DEPENDS+=\[dq]package\[dq]\f[R] to add,
+\f[V]DEPENDS-=\[dq]package\[dq]\f[R] to remove.
 .IP \[bu] 2
 BUILD_DEPENDS: Build dependencies of your package.
 Seperated by space.
+Supports operators: \f[V]BUILD_DEPENDS=\[dq]package\[dq]\f[R] to set,
+\f[V]BUILD_DEPENDS+=\[dq]package\[dq]\f[R] to add,
+\f[V]BUILD_DEPENDS-=\[dq]package\[dq]\f[R] to remove.
 .IP \[bu] 2
 SHA256SUM: sha256sum output of the sources.
 Should align with sources.
@@ -207,7 +214,9 @@ You can add/remove dependencies, depending on the usecase like
 \f[V]DEPENDS_PACKAGENAME+=\[dq]packagename\[dq]\f[R],
 \f[V]DEPENDS_PACKAGENAME-=\[dq]packagename\[dq]\f[R], and you can set
 the dependencies completely with
-\f[V]DEPENDS_PACKAGENAME=\[dq]packagename\[dq]\f[R]
+\f[V]DEPENDS_PACKAGENAME=\[dq]packagename\[dq]\f[R].
+The same applies to BUILD_DEPENDS_PACKAGENAME and
+BOOTSTRAP_DEPENDS_PACKAGENAME.
 .IP \[bu] 2
 BOOTSTRAP_DEPENDS: Bootstrap dependencies for your package.
 This is used to resolve circular dependencies by specifying a minimal
@@ -215,14 +224,20 @@ set of dependencies needed for a bootstrap build.
 When you manually trigger a bootstrap build using
 \f[V]kpkg build <package> --bootstrap\f[R], kpkg will build and install
 the package with KPKG_BOOTSTRAP=1 environment variable set and using
-bootstrap dependencies instead of regular dependencies.
+bootstrap dependencies instead of regular build dependencies.
 Once the bootstrap version is installed and the circular dependency is
 resolved, you can manually rebuild with full dependencies by running
 \f[V]kpkg build <package>\f[R] again without the \[en]bootstrap flag.
 Separate dependencies by space.
-You can also add/remove dependencies like \f[V]DEPENDS_PACKAGENAME\f[R]
-(e.g., \f[V]BOOTSTRAP_DEPENDS+=\[dq]packagename\[dq]\f[R],
-\f[V]BOOTSTRAP_DEPENDS-=\[dq]packagename\[dq]\f[R]).
+Supports operators: \f[V]BOOTSTRAP_DEPENDS=\[dq]package\[dq]\f[R] to set
+explicitly, \f[V]BOOTSTRAP_DEPENDS+=\[dq]package\[dq]\f[R] to add,
+\f[V]BOOTSTRAP_DEPENDS-=\[dq]package\[dq]\f[R] to remove.
+When using \f[V]+=\f[R] or \f[V]-=\f[R] without first setting
+BOOTSTRAP_DEPENDS with \f[V]=\f[R], it will start from BUILD_DEPENDS and
+then apply the modification.
+This allows you to easily exclude problematic dependencies during
+bootstrap like
+\f[V]BOOTSTRAP_DEPENDS-=\[dq]gobject-introspection\[dq]\f[R].
 .IP \[bu] 2
 BACKUP: preserves stuff such as configuration files.
 Don\[cq]t put / in the path name (eg.
