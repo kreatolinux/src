@@ -1,5 +1,7 @@
 import os
 import posix
+import sets
+import tables
 import times
 import strutils
 import sequtils
@@ -309,6 +311,8 @@ proc build*(no = false, yes = false, root = "/",
     ## Build and install packages.
     let init = getInit(root)
     var deps: seq[string]
+    var depGraph: dependencyGraph
+    var gD: seq[string]
 
     if packages.len == 0:
         err("please enter a package name", false)
@@ -322,14 +326,24 @@ proc build*(no = false, yes = false, root = "/",
         
     #    fullRootPath = root&"/usr/"&target
     #    ignoreInit = true
-
+    
     try:
-        deps = dephandler(packages, isBuild = true,
+        # Build the dependency graph once
+        (deps, depGraph) = dephandlerWithGraph(packages, isBuild = true,
                 root = fullRootPath, forceInstallAll = forceInstallAll, isInstallDir = isInstallDir, ignoreInit = ignoreInit, useBootstrap = bootstrap)
+        
+        printReplacesPrompt(deps, fullRootPath, true)
+        
+        # Check for packages that depend on what we're building
+        gD = getDependents(deps)
+        
+        # If we have dependents, rebuild the graph with them included
+        if not isEmptyOrWhitespace(gD.join("")):
+            let allPackages = deduplicate(packages&gD)
+            (deps, depGraph) = dephandlerWithGraph(allPackages, isBuild = true,
+                    root = fullRootPath, forceInstallAll = forceInstallAll, isInstallDir = isInstallDir, ignoreInit = ignoreInit, useBootstrap = bootstrap)
     except CatchableError:
         raise getCurrentException()
-
-    printReplacesPrompt(deps, fullRootPath, true)
 
     var p: seq[string]
 
@@ -337,15 +351,6 @@ proc build*(no = false, yes = false, root = "/",
        p = p&currentPackage 
        if findPkgRepo(currentPackage&"-"&init) != "":
             p = p&(currentPackage&"-"&init)
-
-    let gD = getDependents(deps)
-    
-    # Recalculate full dependency graph including dependents
-    # This ensures correct topological ordering across all packages
-    if not isEmptyOrWhitespace(gD.join("")):
-        let allPackages = deduplicate(packages&gD)
-        deps = dephandler(allPackages, isBuild = true,
-                root = fullRootPath, forceInstallAll = forceInstallAll, isInstallDir = isInstallDir, ignoreInit = ignoreInit, useBootstrap = bootstrap)
     
     deps = deduplicate(deps&p)
     
@@ -354,8 +359,8 @@ proc build*(no = false, yes = false, root = "/",
     if not bootstrap:
         for pkg in p:
             let pkgInfo = parsePkgInfo(pkg)
-            let runf = parseRunfile(pkgInfo.repo&"/"&pkgInfo.name)
-            if runf.bsdeps.len > 0:
+            # Check if package has bootstrap deps by looking at the graph
+            if depGraph.nodes.hasKey(pkgInfo.name) and depGraph.nodes[pkgInfo.name].metadata.bsdeps.len > 0:
                 # This package has bootstrap deps - move it to the end to ensure
                 # it's rebuilt after all its full BUILD_DEPENDS are available
                 deps = deps.filterIt(it != pkg)&pkg
@@ -379,8 +384,6 @@ proc build*(no = false, yes = false, root = "/",
             else:
                 p = p&packageSplit.name
     
-    var depsToClean: seq[string]
-
     for i in deps:
         try:
             # Rebuild the environment every two weeks so it stays up-to-date.
@@ -391,49 +394,31 @@ proc build*(no = false, yes = false, root = "/",
                 createEnv(root)
                 
             let pkgTmp = parsePkgInfo(i)
-            # We set isBuild to false here as we don't want build dependencies of other packages on the sandbox.
-            debug "parseRunfile ran from buildcmd, depsToClean"
-            let runfTmp = parseRunfile(pkgTmp.repo&"/"&pkgTmp.name)
             
-            # Determine if this is a bootstrap build for dependency calculation
-            let isBootstrapBuild = bootstrap and runfTmp.bsdeps.len > 0
+            # Extract sandbox dependencies from the graph we already built
+            # This avoids re-parsing runfiles and recalculating dependencies
+            let sandboxDeps = getSandboxDepsFromGraph(pkgTmp.name, depGraph, bootstrap, fullRootPath, forceInstallAll, isInstallDir, ignoreInit)
             
-            # Use bootstrap deps if this is a bootstrap build
-            let baseDeps = if isBootstrapBuild: runfTmp.bsdeps else: runfTmp.bdeps
-            
-            # For bootstrap builds, only use the bootstrap deps and their transitive dependencies
-            # Do NOT traverse the runtime dependencies of the package being built
-            # For regular builds, include runtime deps of the package being built
-            if isBootstrapBuild:
-                # Bootstrap: only resolve transitive deps of the bootstrap deps themselves
-                depsToClean = deduplicate(dephandler(baseDeps, isBuild = false, root = fullRootPath, forceInstallAll = true, isInstallDir = isInstallDir, ignoreInit = ignoreInit, useBootstrap = false))
-            else:
-                # Regular build: include build deps + runtime deps of the package
-                depsToClean = deduplicate(baseDeps&dephandler(@[i], isBuild = false, root = fullRootPath, forceInstallAll = true, isInstallDir = isInstallDir, ignoreInit = ignoreInit, useBootstrap = false))
-
-            for optDep in runfTmp.optdeps:
-                if packageExists(optDep.split(":")[0]):
-                    depsToClean = depsToClean&optDep.split(":")[0]
-
-            debug "depsToClean = \""&depsToClean.join(" ")&"\""
+            debug "sandboxDeps for "&pkgTmp.name&" = \""&sandboxDeps.join(" ")&"\""
             var allInstalledDeps: seq[string]
             
             # Prepare overlay directories first (mount tmpfs and create directory structure)
             discard prepareOverlayDirs(error = "preparing overlay directories")
             
             if target != "default" and target != kpkgTarget("/"):
-                for d in depsToClean:
+                for d in sandboxDeps:
                     if isEmptyOrWhitespace(d):
                         continue
                     
                     debug "build: installPkg ran for '"&d&"'"
                     installPkg(findPkgRepo(d), d, kpkgOverlayPath&"/upperDir", isUpgrade = false, kTarget = target, manualInstallList = @[], umount = false, disablePkgInfo = true)
             else:
-                # Resolve all dependencies once (including transitive) to know what needs postinstall
-                allInstalledDeps = deduplicate(dephandler(depsToClean, root = root, chkInstalledDirInstead = true, forceInstallAll = true)&depsToClean)
+                # Collect all transitive runtime dependencies from the graph for postinstall
+                var visited = initHashSet[string]()
+                allInstalledDeps = deduplicate(collectRuntimeDepsFromGraph(sandboxDeps, depGraph, visited))
                 
                 # Install build dependencies to upperDir (now on tmpfs, before overlay mount)
-                for d in depsToClean:
+                for d in sandboxDeps:
                     installFromRoot(d, root, kpkgOverlayPath&"/upperDir", ignorePostInstall = true)
 
             # Now mount the overlayfs after build dependencies are installed
@@ -447,6 +432,9 @@ proc build*(no = false, yes = false, root = "/",
                         runPostInstall(d)
 
             let packageSplit = parsePkgInfo(i)
+            
+            # Determine if this is a bootstrap build from the graph
+            let isBootstrapBuild = bootstrap and depGraph.nodes.hasKey(pkgTmp.name) and depGraph.nodes[pkgTmp.name].metadata.bsdeps.len > 0
             
             var customRepo = ""
             var isInstallDirFinal: bool 

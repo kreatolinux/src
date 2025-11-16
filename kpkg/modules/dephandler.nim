@@ -459,3 +459,92 @@ proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "],
     
     # Deduplicate and return
     return deduplicate(filtered)
+
+proc dephandlerWithGraph*(pkgs: seq[string], ignoreDeps = @["  "],
+        isBuild = false, root: string, prevPkgName = "",
+                forceInstallAll = false, chkInstalledDirInstead = false, isInstallDir = false, ignoreInit = false, useBootstrap = false, ignoreCircularDeps = false): (seq[string], dependencyGraph) =
+    ## Takes packages and returns what to install in correct dependency order PLUS the dependency graph
+    ## This allows reusing the graph structure instead of recalculating dependencies
+    
+    # Build dependency context
+    var init = ""
+    if not ignoreInit:
+        init = getInit(root)
+
+    let ctx = dependencyContext(
+        root: root,
+        isBuild: isBuild,
+        useBootstrap: useBootstrap,
+        ignoreInit: ignoreInit,
+        ignoreCircularDeps: ignoreCircularDeps,
+        forceInstallAll: forceInstallAll,
+        init: init
+    )
+    
+    # Build the dependency graph
+    let graph = buildDependencyGraph(
+        pkgs, ctx, ignoreDeps, 
+        chkInstalledDirInstead, isInstallDir, prevPkgName
+    )
+    
+    # Flatten to installation order
+    let ordered = flattenDependencyOrder(graph)
+    
+    # Filter out root packages (the packages being built/installed) and empty strings
+    let rootPkgSet = pkgs.toHashSet()
+    let filtered = ordered.filterIt(it.len != 0 and it notin rootPkgSet)
+    
+    # Return both the dependency list and the graph
+    return (deduplicate(filtered), graph)
+
+proc collectRuntimeDepsFromGraph*(pkgs: seq[string], graph: dependencyGraph, visited: var HashSet[string]): seq[string] =
+    ## Recursively collect all runtime dependencies from the graph (exported for reuse)
+    var result: seq[string] = @[]
+    
+    for pkg in pkgs:
+        if pkg in visited or pkg notin graph.nodes:
+            continue
+        visited.incl(pkg)
+        result.add(pkg)
+        
+        # Recursively get runtime deps
+        let runtimeDeps = graph.nodes[pkg].metadata.deps
+        let transitiveDeps = collectRuntimeDepsFromGraph(runtimeDeps, graph, visited)
+        result = result & transitiveDeps
+    
+    return result
+
+proc getSandboxDepsFromGraph*(pkg: string, graph: dependencyGraph, bootstrap: bool, root: string, forceInstallAll: bool, isInstallDir: bool, ignoreInit: bool): seq[string] =
+    ## Extract sandbox dependencies for a package from the dependency graph
+    ## This avoids recalculating dependencies that were already resolved
+    
+    if pkg notin graph.nodes:
+        debug "Package '"&pkg&"' not found in dependency graph"
+        return @[]
+    
+    let node = graph.nodes[pkg]
+    let isBootstrapBuild = bootstrap and node.metadata.bsdeps.len > 0
+    let baseDeps = if isBootstrapBuild: node.metadata.bsdeps else: node.metadata.bdeps
+    
+    var sandboxDeps: seq[string] = baseDeps
+    var visited = initHashSet[string]()
+    
+    # For bootstrap builds: only the bootstrap deps and their transitive runtime deps
+    # For regular builds: build deps + package's transitive runtime deps
+    if isBootstrapBuild:
+        # Bootstrap: get all transitive runtime deps of the bootstrap deps themselves
+        let transitiveDeps = collectRuntimeDepsFromGraph(baseDeps, graph, visited)
+        sandboxDeps = sandboxDeps & transitiveDeps
+    else:
+        # Regular build: include all transitive runtime deps of the package being built
+        let transitiveDeps = collectRuntimeDepsFromGraph(@[pkg], graph, visited)
+        # Filter out the package itself from its transitive deps
+        sandboxDeps = sandboxDeps & transitiveDeps.filterIt(it != pkg)
+    
+    # Add optional dependencies if they're installed
+    for optDep in node.metadata.optdeps:
+        let optDepName = optDep.split(":")[0]
+        if packageExists(optDepName, root):
+            sandboxDeps.add(optDepName)
+    
+    return deduplicate(sandboxDeps)
