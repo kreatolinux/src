@@ -399,10 +399,17 @@ proc build*(no = false, yes = false, root = "/",
             let isBootstrapBuild = bootstrap and runfTmp.bsdeps.len > 0
             
             # Use bootstrap deps if this is a bootstrap build
-            # Note: we use useBootstrap=false in dephandler because we only want bootstrap deps for THIS package,
-            # not for its dependencies (which should use their regular dependencies)
             let baseDeps = if isBootstrapBuild: runfTmp.bsdeps else: runfTmp.bdeps
-            depsToClean = deduplicate(baseDeps&dephandler(@[i], isBuild = false, root = fullRootPath, forceInstallAll = true, isInstallDir = isInstallDir, ignoreInit = ignoreInit, useBootstrap = false))
+            
+            # For bootstrap builds, only use the bootstrap deps and their transitive dependencies
+            # Do NOT traverse the runtime dependencies of the package being built
+            # For regular builds, include runtime deps of the package being built
+            if isBootstrapBuild:
+                # Bootstrap: only resolve transitive deps of the bootstrap deps themselves
+                depsToClean = deduplicate(dephandler(baseDeps, isBuild = false, root = fullRootPath, forceInstallAll = true, isInstallDir = isInstallDir, ignoreInit = ignoreInit, useBootstrap = false))
+            else:
+                # Regular build: include build deps + runtime deps of the package
+                depsToClean = deduplicate(baseDeps&dephandler(@[i], isBuild = false, root = fullRootPath, forceInstallAll = true, isInstallDir = isInstallDir, ignoreInit = ignoreInit, useBootstrap = false))
 
             for optDep in runfTmp.optdeps:
                 if packageExists(optDep.split(":")[0]):
