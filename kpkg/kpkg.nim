@@ -114,6 +114,7 @@ dispatchMulti(
 
   [
   clean, help = {
+    "packages": "Package name(s) to clean cache for (if not specified, cleans all)",
     "sources": "Remove source tarballs from cache",
     "binaries": "Remove binary tarballs from cache",
     "cache": "Remove ccache directory",
