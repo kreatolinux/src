@@ -101,6 +101,13 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
     
     for i in pkg.replaces:
         if packageExists(i, root):
+            # Check if the package is actually installed or just replaced by another package
+            let replacedInfo = isReplaced(i, root)
+            if replacedInfo.replaced:
+                # Package is already replaced by another package, skip removal
+                debug "Package '"&i&"' is already replaced by '"&replacedInfo.package.name&"', skipping removal"
+                continue
+            
             if kTarget != kpkgTarget(root):
                 removeInternal(i, root, initCheck = false)
             else:

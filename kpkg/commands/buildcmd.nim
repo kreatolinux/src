@@ -330,7 +330,7 @@ proc build*(no = false, yes = false, root = "/",
     try:
         # Build the dependency graph once
         (deps, depGraph) = dephandlerWithGraph(packages, isBuild = true,
-                root = fullRootPath, forceInstallAll = forceInstallAll, isInstallDir = isInstallDir, ignoreInit = ignoreInit, useBootstrap = bootstrap)
+                root = fullRootPath, forceInstallAll = forceInstallAll, isInstallDir = isInstallDir, ignoreInit = ignoreInit, useBootstrap = bootstrap, useCacheIfAvailable = useCacheIfAvailable)
         
         printReplacesPrompt(deps, fullRootPath, true)
         
@@ -341,7 +341,7 @@ proc build*(no = false, yes = false, root = "/",
         if not isEmptyOrWhitespace(gD.join("")):
             let allPackages = deduplicate(packages&gD)
             (deps, depGraph) = dephandlerWithGraph(allPackages, isBuild = true,
-                    root = fullRootPath, forceInstallAll = forceInstallAll, isInstallDir = isInstallDir, ignoreInit = ignoreInit, useBootstrap = bootstrap)
+                    root = fullRootPath, forceInstallAll = forceInstallAll, isInstallDir = isInstallDir, ignoreInit = ignoreInit, useBootstrap = bootstrap, useCacheIfAvailable = useCacheIfAvailable)
     except CatchableError:
         raise getCurrentException()
 

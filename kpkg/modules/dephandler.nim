@@ -9,6 +9,7 @@ import sequtils
 import strutils
 import runparser
 import commonTasks
+import commonPaths
 import algorithm
 
 type
@@ -21,6 +22,7 @@ type
         ignoreInit*: bool
         ignoreCircularDeps*: bool
         forceInstallAll*: bool
+        useCacheIfAvailable*: bool
         init*: string
     
     resolvedPackage* = object
@@ -35,6 +37,19 @@ type
 proc packageToRunFile(package: Package): runFile =
     ## Converts package to runFile. Not all variables are available.
     return runFile(pkg: package.name, version: package.version, versionString: package.version, release: package.release, epoch: package.epoch, deps: package.deps.split("!!k!!"), bdeps: package.bdeps.split("!!k!!"), bsdeps: @[])
+
+proc hasCachedBuild(pkg: string, repo: string, root: string): bool =
+    ## Check if a package has a cached build tarball available
+    try:
+        let target = kpkgTarget(root)
+        let pkgrf = parseRunfile(repo&"/"&pkg)
+        let cachePath = kpkgArchivesDir&"/system/"&target&"/"&pkg&"-"&pkgrf.versionString&".kpkg"
+        let exists = fileExists(cachePath)
+        debug "hasCachedBuild for '"&pkg&"': target="&target&", version="&pkgrf.versionString&", path="&cachePath&", exists="&($exists)
+        return exists
+    except:
+        debug "hasCachedBuild for '"&pkg&"' failed with exception"
+        return false
 
 
 ### Helper functions for package resolution
@@ -231,8 +246,13 @@ proc buildDependencyGraph*(pkgs: seq[string], ctx: dependencyContext,
         
         # Process build dependencies first if this is a build
         # Use bootstrap deps if in bootstrap mode and they exist, otherwise use regular build deps
+        # Skip build deps if useCacheIfAvailable is true and cached build exists
         let buildDeps = selectDependencyList(pkgrf, true, ctx.useBootstrap)
-        if ctx.isBuild and not isEmptyOrWhitespace(buildDeps.join()):
+        let skipBuildDeps = ctx.useCacheIfAvailable and repo != "local" and hasCachedBuild(pkg, repo, ctx.root)
+        if skipBuildDeps:
+            debug "Package '"&pkg&"' has cached build, skipping build dependencies"
+        
+        if ctx.isBuild and not isEmptyOrWhitespace(buildDeps.join()) and not skipBuildDeps:
             for bdep in buildDeps:
                 if isEmptyOrWhitespace(bdep) or bdep in ignoreDeps:
                     continue
@@ -424,7 +444,7 @@ proc generateMermaidChart*(graph: dependencyGraph, rootPackages: seq[string]): s
 
 proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "],
         isBuild = false, root: string, prevPkgName = "",
-                forceInstallAll = false, chkInstalledDirInstead = false, isInstallDir = false, ignoreInit = false, useBootstrap = false, ignoreCircularDeps = false): seq[string] =
+                forceInstallAll = false, chkInstalledDirInstead = false, isInstallDir = false, ignoreInit = false, useBootstrap = false, ignoreCircularDeps = false, useCacheIfAvailable = false): seq[string] =
     ## Takes packages and returns what to install in correct dependency order
     ## When isBuild = true, returns both build dependencies and runtime dependencies in correct order
     
@@ -440,6 +460,7 @@ proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "],
         ignoreInit: ignoreInit,
         ignoreCircularDeps: ignoreCircularDeps,
         forceInstallAll: forceInstallAll,
+        useCacheIfAvailable: useCacheIfAvailable,
         init: init
     )
     
@@ -462,7 +483,7 @@ proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "],
 
 proc dephandlerWithGraph*(pkgs: seq[string], ignoreDeps = @["  "],
         isBuild = false, root: string, prevPkgName = "",
-                forceInstallAll = false, chkInstalledDirInstead = false, isInstallDir = false, ignoreInit = false, useBootstrap = false, ignoreCircularDeps = false): (seq[string], dependencyGraph) =
+                forceInstallAll = false, chkInstalledDirInstead = false, isInstallDir = false, ignoreInit = false, useBootstrap = false, ignoreCircularDeps = false, useCacheIfAvailable = false): (seq[string], dependencyGraph) =
     ## Takes packages and returns what to install in correct dependency order PLUS the dependency graph
     ## This allows reusing the graph structure instead of recalculating dependencies
     
@@ -478,6 +499,7 @@ proc dephandlerWithGraph*(pkgs: seq[string], ignoreDeps = @["  "],
         ignoreInit: ignoreInit,
         ignoreCircularDeps: ignoreCircularDeps,
         forceInstallAll: forceInstallAll,
+        useCacheIfAvailable: useCacheIfAvailable,
         init: init
     )
     
@@ -499,7 +521,7 @@ proc dephandlerWithGraph*(pkgs: seq[string], ignoreDeps = @["  "],
 
 proc collectRuntimeDepsFromGraph*(pkgs: seq[string], graph: dependencyGraph, visited: var HashSet[string]): seq[string] =
     ## Recursively collect all runtime dependencies from the graph (exported for reuse)
-    var result: seq[string] = @[]
+    result = @[]
     
     for pkg in pkgs:
         if pkg in visited or pkg notin graph.nodes:
@@ -511,8 +533,6 @@ proc collectRuntimeDepsFromGraph*(pkgs: seq[string], graph: dependencyGraph, vis
         let runtimeDeps = graph.nodes[pkg].metadata.deps
         let transitiveDeps = collectRuntimeDepsFromGraph(runtimeDeps, graph, visited)
         result = result & transitiveDeps
-    
-    return result
 
 proc getSandboxDepsFromGraph*(pkg: string, graph: dependencyGraph, bootstrap: bool, root: string, forceInstallAll: bool, isInstallDir: bool, ignoreInit: bool): seq[string] =
     ## Extract sandbox dependencies for a package from the dependency graph
