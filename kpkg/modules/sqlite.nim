@@ -151,7 +151,8 @@ proc packageExists*(name: string, root = "/"): bool =
         else:
             let res = kpkgDb.exists(Package, "name = ?", name)
             return res
-    except:
+    except CatchableError as e:
+        debug "packageExists exception for '"&name&"' at '"&root&"': "&e.msg
         return false
 
 proc getPackage*(name: string, root: string): Package =
