@@ -111,18 +111,14 @@ proc runPostInstall*(package: string) =
         if execEnv(". "&repo&"/"&package&"/run"&" && postinstall", remount = true, silentMode = true) != 0:
                 err("postinstall failed on sandbox")
 
-proc installFromRoot*(package, root, destdir: string, removeDestdirOnError = false, ignorePostInstall = false) =
-    # A wrapper for installFromRootInternal that also resolves dependencies.
-    if isEmptyOrWhitespace(package):
-        return
-
-    for dep in deduplicate(dephandler(@[package], root = root, chkInstalledDirInstead = true, forceInstallAll = true)&package):
-        
-        if isEmptyOrWhitespace(dep):
+proc installFromRoot*(packages: seq[string], root, destdir: string, removeDestdirOnError = false, ignorePostInstall = false) =
+    # Install packages from root to destdir (dependencies must be pre-resolved)
+    for package in packages:
+        if isEmptyOrWhitespace(package):
             continue
 
         try:
-            installFromRootInternal(dep, root, destdir, removeDestdirOnError, ignorePostInstall)
+            installFromRootInternal(package, root, destdir, removeDestdirOnError, ignorePostInstall)
         except:
             if removeDestdirOnError:
                 info "removing unfinished environment"
@@ -147,10 +143,10 @@ proc createEnv*(root: string) =
     copyFileWithPermissionsAndOwnership(root&"/etc/kreato-release", kpkgEnvPath&"/etc/kreato-release")
     
     let dict = loadConfig(kpkgEnvPath&"/etc/kreato-release")
-    
-    installFromRoot(dict.getSectionValue("Core", "libc"), root, kpkgEnvPath, ignorePostInstall = true)
+
+    installFromRoot(@[dict.getSectionValue("Core", "libc")], root, kpkgEnvPath, ignorePostInstall = true)
     let compiler = dict.getSectionValue("Core", "compiler")
-    installFromRoot(compiler, root, kpkgEnvPath, ignorePostInstall = true)
+    installFromRoot(@[compiler], root, kpkgEnvPath, ignorePostInstall = true)
     
     try:
         setDefaultCC(kpkgEnvPath, compiler)
@@ -164,24 +160,24 @@ proc createEnv*(root: string) =
     case dict.getSectionValue("Core", "coreutils"):
         of "gnu":
             for i in ["gnu-coreutils", "pigz", "xz-utils", "bash", "gsed", "bzip2", "patch", "diffutils", "findutils", "util-linux", "bc", "cpio", "which"]:
-                installFromRoot(i, root, kpkgEnvPath, ignorePostInstall = true)
+                installFromRoot(@[i], root, kpkgEnvPath, ignorePostInstall = true)
             #installFromRoot("gnu-core", root, kpkgEnvPath, ignorePostInstall = true)
         of "busybox":
-            installFromRoot("busybox", root, kpkgEnvPath, ignorePostInstall = true)
+            installFromRoot(@["busybox"], root, kpkgEnvPath, ignorePostInstall = true)
 
-    installFromRoot(dict.getSectionValue("Core", "tlsLibrary"), root, kpkgEnvPath, ignorePostInstall = true)
+    installFromRoot(@[dict.getSectionValue("Core", "tlsLibrary")], root, kpkgEnvPath, ignorePostInstall = true)
     
     case dict.getSectionValue("Core", "init"):
         of "systemd":
-            installFromRoot("systemd", root, kpkgEnvPath, ignorePostInstall = true)
-            installFromRoot("dbus", root, kpkgEnvPath, ignorePostInstall = true)
+            installFromRoot(@["systemd"], root, kpkgEnvPath, ignorePostInstall = true)
+            installFromRoot(@["dbus"], root, kpkgEnvPath, ignorePostInstall = true)
         else:
-            installFromRoot(dict.getSectionValue("Core", "init"), root, kpkgEnvPath, ignorePostInstall = true)
+            installFromRoot(@[dict.getSectionValue("Core", "init")], root, kpkgEnvPath, ignorePostInstall = true)
             
-    installFromRoot(dict.getSectionValue("Core", "init"), root, kpkgEnvPath, ignorePostInstall = true)
+    installFromRoot(@[dict.getSectionValue("Core", "init")], root, kpkgEnvPath, ignorePostInstall = true)
     
     for i in "kreato-fs-essentials git kpkg ca-certificates python python-pip gmake".split(" "):
-        installFromRoot(i, root, kpkgEnvPath, ignorePostInstall = true)
+        installFromRoot(@[i], root, kpkgEnvPath, ignorePostInstall = true)
 
     #let extras = dict.getSectionValue("Extras", "extraPackages").split(" ")
 
