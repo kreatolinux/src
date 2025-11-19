@@ -519,11 +519,19 @@ proc dephandlerWithGraph*(pkgs: seq[string], ignoreDeps = @["  "],
     # Return both the dependency list and the graph
     return (deduplicate(filtered), graph)
 
+proc getPkgName(dep: string): string =
+    for op in @["<=", ">=", "<", ">", "="]:
+        if op in dep:
+            return dep.split(op)[0]
+    return dep
+
 proc collectRuntimeDepsFromGraph*(pkgs: seq[string], graph: dependencyGraph, visited: var HashSet[string]): seq[string] =
     ## Recursively collect all runtime dependencies from the graph (exported for reuse)
     result = @[]
     
-    for pkg in pkgs:
+    for pkgRaw in pkgs:
+        let pkg = getPkgName(pkgRaw)
+        
         if pkg in visited or pkg notin graph.nodes:
             continue
         visited.incl(pkg)
@@ -544,7 +552,8 @@ proc getSandboxDepsFromGraph*(pkg: string, graph: dependencyGraph, bootstrap: bo
     
     let node = graph.nodes[pkg]
     let isBootstrapBuild = bootstrap and node.metadata.bsdeps.len > 0
-    let baseDeps = if isBootstrapBuild: node.metadata.bsdeps else: node.metadata.bdeps
+    let rawBaseDeps = if isBootstrapBuild: node.metadata.bsdeps else: node.metadata.bdeps
+    let baseDeps = rawBaseDeps.mapIt(getPkgName(it))
     
     var sandboxDeps: seq[string] = baseDeps
     var visited = initHashSet[string]()
@@ -553,7 +562,7 @@ proc getSandboxDepsFromGraph*(pkg: string, graph: dependencyGraph, bootstrap: bo
     # For regular builds: build deps + package's transitive runtime deps
     if isBootstrapBuild:
         # Bootstrap: get all transitive runtime deps of the bootstrap deps themselves
-        let transitiveDeps = collectRuntimeDepsFromGraph(baseDeps, graph, visited)
+        let transitiveDeps = collectRuntimeDepsFromGraph(rawBaseDeps, graph, visited)
         sandboxDeps = sandboxDeps & transitiveDeps
     else:
         # Regular build: include all transitive runtime deps of the package being built
@@ -563,7 +572,8 @@ proc getSandboxDepsFromGraph*(pkg: string, graph: dependencyGraph, bootstrap: bo
     
     # Add optional dependencies if they're installed
     for optDep in node.metadata.optdeps:
-        let optDepName = optDep.split(":")[0]
+        var optDepName = optDep.split(":")[0]
+        optDepName = getPkgName(optDepName)
         if packageExists(optDepName, root):
             sandboxDeps.add(optDepName)
     
