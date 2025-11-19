@@ -129,6 +129,17 @@ proc installFromRoot*(packages: seq[string], root, destdir: string, removeDestdi
             else:
                 raise getCurrentException()
 
+proc installFromRootWithDeps(packages: seq[string], root, destdir: string, removeDestdirOnError = false, ignorePostInstall = false) =
+    # A wrapper for installFromRoot that also resolves dependencies.
+    # This replicates the old behavior of installFromRoot before commit 259c49d.
+    var resolvedPackages: seq[string] = @[]
+    for package in packages:
+        if isEmptyOrWhitespace(package):
+            continue
+        resolvedPackages.add(deduplicate(dephandler(@[package], root = root, chkInstalledDirInstead = true, forceInstallAll = true)&package))
+    resolvedPackages = deduplicate(resolvedPackages)
+    installFromRoot(resolvedPackages, root, destdir, removeDestdirOnError, ignorePostInstall)
+
 proc createEnvCtrlC() {.noconv.} =
     info "removing unfinished environment"
     removeDir(kpkgEnvPath)
@@ -144,9 +155,9 @@ proc createEnv*(root: string) =
     
     let dict = loadConfig(kpkgEnvPath&"/etc/kreato-release")
 
-    installFromRoot(@[dict.getSectionValue("Core", "libc")], root, kpkgEnvPath, ignorePostInstall = true)
+    installFromRootWithDeps(@[dict.getSectionValue("Core", "libc")], root, kpkgEnvPath, ignorePostInstall = true)
     let compiler = dict.getSectionValue("Core", "compiler")
-    installFromRoot(@[compiler], root, kpkgEnvPath, ignorePostInstall = true)
+    installFromRootWithDeps(@[compiler], root, kpkgEnvPath, ignorePostInstall = true)
     
     try:
         setDefaultCC(kpkgEnvPath, compiler)
@@ -159,25 +170,23 @@ proc createEnv*(root: string) =
 
     case dict.getSectionValue("Core", "coreutils"):
         of "gnu":
-            for i in ["gnu-coreutils", "pigz", "xz-utils", "bash", "gsed", "bzip2", "patch", "diffutils", "findutils", "util-linux", "bc", "cpio", "which"]:
-                installFromRoot(@[i], root, kpkgEnvPath, ignorePostInstall = true)
-            #installFromRoot("gnu-core", root, kpkgEnvPath, ignorePostInstall = true)
+            installFromRootWithDeps(@["gnu-coreutils", "pigz", "xz-utils", "bash", "gsed", "bzip2", "patch", "diffutils", "findutils", "util-linux", "bc", "cpio", "which"],
+                                    root, kpkgEnvPath, ignorePostInstall = true)
         of "busybox":
-            installFromRoot(@["busybox"], root, kpkgEnvPath, ignorePostInstall = true)
+            installFromRootWithDeps(@["busybox"], root, kpkgEnvPath, ignorePostInstall = true)
 
-    installFromRoot(@[dict.getSectionValue("Core", "tlsLibrary")], root, kpkgEnvPath, ignorePostInstall = true)
-    
+    installFromRootWithDeps(@[dict.getSectionValue("Core", "tlsLibrary")], root, kpkgEnvPath, ignorePostInstall = true)
+
     case dict.getSectionValue("Core", "init"):
         of "systemd":
-            installFromRoot(@["systemd"], root, kpkgEnvPath, ignorePostInstall = true)
-            installFromRoot(@["dbus"], root, kpkgEnvPath, ignorePostInstall = true)
+            installFromRootWithDeps(@["systemd", "dbus"], root, kpkgEnvPath, ignorePostInstall = true)
         else:
-            installFromRoot(@[dict.getSectionValue("Core", "init")], root, kpkgEnvPath, ignorePostInstall = true)
-            
-    installFromRoot(@[dict.getSectionValue("Core", "init")], root, kpkgEnvPath, ignorePostInstall = true)
-    
-    for i in "kreato-fs-essentials git kpkg ca-certificates python python-pip gmake".split(" "):
-        installFromRoot(@[i], root, kpkgEnvPath, ignorePostInstall = true)
+            installFromRootWithDeps(@[dict.getSectionValue("Core", "init")], root, kpkgEnvPath, ignorePostInstall = true)
+
+    installFromRootWithDeps(@[dict.getSectionValue("Core", "init")], root, kpkgEnvPath, ignorePostInstall = true)
+
+    installFromRootWithDeps(@["kreato-fs-essentials", "git", "kpkg", "ca-certificates", "python", "python-pip", "gmake"],
+                            root, kpkgEnvPath, ignorePostInstall = true)
 
     #let extras = dict.getSectionValue("Extras", "extraPackages").split(" ")
 
