@@ -416,9 +416,10 @@ proc build*(no = false, yes = false, root = "/",
                 # Collect all transitive runtime dependencies from the graph for postinstall
                 var visited = initHashSet[string]()
                 allInstalledDeps = deduplicate(collectRuntimeDepsFromGraph(sandboxDeps, depGraph, visited))
-
+                
                 # Install build dependencies to upperDir (now on tmpfs, before overlay mount)
-                installFromRoot(sandboxDeps, root, kpkgOverlayPath&"/upperDir", ignorePostInstall = true)
+                for d in sandboxDeps:
+                    installFromRoot(d, root, kpkgOverlayPath&"/upperDir", ignorePostInstall = true)
 
             # Now mount the overlayfs after build dependencies are installed
             discard mountOverlayFilesystem(error = "mounting overlay filesystem")
