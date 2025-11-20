@@ -118,10 +118,12 @@ proc checkVersions(root: string, dependency: string, repo: string, split = @[
         if i in dependency:
 
             let dSplit = dependency.split(i)
+            let depName = dSplit[0].strip()
+            let depVer = dSplit[1].strip()
             var deprf: string
 
-            if packageExists(dSplit[0], root):
-                deprf = getPackage(dSplit[0], root).version
+            if packageExists(depName, root):
+                deprf = getPackage(depName, root).version
             else:
                 var r = repo
 
@@ -129,52 +131,52 @@ proc checkVersions(root: string, dependency: string, repo: string, split = @[
                     r = findPkgRepo(r)
                 
                 debug "parseRunfile ran, checkVersions"
-                deprf = parseRunfile(r&"/"&dSplit[0]).versionString
+                deprf = parseRunfile(r&"/"&depName).versionString
 
-            let warnName = "Required dependency version for "&dSplit[0]&" not found, upgrading"
-            let errName = "Required dependency version for "&dSplit[0]&" not found on repositories, cannot continue"
+            let warnName = "Required dependency version for "&depName&" not found, upgrading"
+            let errName = "Required dependency version for "&depName&" not found on repositories, cannot continue"
 
 
             case i:
                 of "<=":
-                    if not (deprf <= dSplit[1]):
-                        if packageExists(dSplit[0], root):
+                    if not (deprf <= depVer):
+                        if packageExists(depName, root):
                             warn(warnName)
-                            return @["upgrade", dSplit[0]]
+                            return @["upgrade", depName]
                         else:
                             err(errName, false)
                 of ">=":
-                    if not (deprf >= dSplit[1]):
-                        if packageExists(dSplit[0], root):
+                    if not (deprf >= depVer):
+                        if packageExists(depName, root):
                             warn(warnName)
-                            return @["upgrade", dSplit[0]]
+                            return @["upgrade", depName]
                         else:
                             err(errName, false)
                 of "<":
-                    if not (deprf < dSplit[1]):
-                        if packageExists(dSplit[0], root):
+                    if not (deprf < depVer):
+                        if packageExists(depName, root):
                             warn(warnName)
-                            return @["upgrade", dSplit[0]]
+                            return @["upgrade", depName]
                         else:
                             err(errName, false)
                 of ">":
-                    if not (deprf > dSplit[1]):
-                        if packageExists(dSplit[0], root):
+                    if not (deprf > depVer):
+                        if packageExists(depName, root):
                             warn(warnName)
-                            return @["upgrade", dSplit[0]]
+                            return @["upgrade", depName]
                         else:
                             err(errName, false)
                 of "=":
-                    if deprf != dSplit[1]:
-                        if packageExists(dSplit[0], root):
+                    if deprf != depVer:
+                        if packageExists(depName, root):
                             warn(warnName)
-                            return @["upgrade", dSplit[0]]
+                            return @["upgrade", depName]
                         else:
                             err(errName, false)
 
-            return @["noupgrade", dSplit[0]]
+            return @["noupgrade", depName]
 
-    return @["noupgrade", dependency]
+    return @["noupgrade", dependency.strip()]
 
 
 proc initDependencyGraph*(): dependencyGraph =
@@ -522,8 +524,8 @@ proc dephandlerWithGraph*(pkgs: seq[string], ignoreDeps = @["  "],
 proc getPkgName(dep: string): string =
     for op in @["<=", ">=", "<", ">", "="]:
         if op in dep:
-            return dep.split(op)[0]
-    return dep
+            return dep.split(op)[0].strip()
+    return dep.strip()
 
 proc collectRuntimeDepsFromGraph*(pkgs: seq[string], graph: dependencyGraph, visited: var HashSet[string]): seq[string] =
     ## Recursively collect all runtime dependencies from the graph (exported for reuse)
