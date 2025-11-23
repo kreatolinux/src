@@ -7,19 +7,13 @@ import strutils
 import sequtils
 import parsecfg
 import installcmd
-import posix_utils
 import ../modules/sqlite
 import ../modules/logger
 import ../modules/config
 import ../modules/lockfile
 import ../modules/isolation
 import ../modules/runparser
-import ../modules/processes
-import ../modules/checksums
-import ../../common/version 
 import ../modules/dephandler
-import ../modules/libarchive
-import ../modules/downloader
 import ../modules/commonTasks
 import ../modules/commonPaths
 import ../modules/builder/main
@@ -163,7 +157,6 @@ proc builder*(package: string, destdir: string, offline = false,
             exists.packageBuild = true
 
 
-    var usesGit: bool
     var folder: string
 
     sourceDownloader(pkg, actualPackage, kpkgSrcDir, path)
