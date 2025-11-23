@@ -234,8 +234,8 @@ proc buildDependencyGraph*(pkgs: seq[string], ctx: dependencyContext,
         
         # Validate package exists
         if not validatePackage(pkg, repo, ctx.root):
-            debug "dephandler: Package '"&pkg&"' validation failed (repo: '"&repo&"'), skipping"
-            continue
+            debug "dephandler: Package '"&pkg&"' validation failed (repo: '"&repo&"'), not skipping"
+            #continue
         
         let pkgrf = loadPackageMetadata(pkg, repo, ctx.root)
         
