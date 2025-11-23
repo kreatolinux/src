@@ -79,7 +79,7 @@ proc generateInternal(pkgPath = "", output = "out.md"): bool =
   finalText = appendData(finalText, "```\nkpkg install "&lastPathPart(pkgPath)&"\n```")
   finalText = appendData(finalText, "\nor\n")
   finalText = appendData(finalText, "```\nkpkg build "&lastPathPart(pkgPath)&"\n```")
-  finalText = finalText&"\nTo see the difference, see [The handbook](https://linux.kreato.dev/docs/handbook/installation/#binary-vs-source)"
+  finalText = finalText&"\nTo see the difference, see [The handbook](https://linux.krea.to/docs/handbook/installation/#binary-vs-source)"
 
   # Generate dependency graph visualization
   finalText = appendData(finalText, "\n# Dependency Graph\n")

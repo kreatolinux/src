@@ -16,12 +16,12 @@ cc=gcc
 cxx=g++
 ccache=false
 verticalSummary=false
-sourceMirror=mirror.kreato.dev/sources
+sourceMirror=mirror.krea.to/sources
 
 [Repositories]
 repoDirs=/etc/kpkg/repos/main /etc/kpkg/repos/lockin
 repoLinks="https://github.com/kreatolinux/kpkg-repo.git::stable https://github.com/kreatolinux/kpkg-repo-lockin.git::stable"
-binRepos="mirror.kreato.dev"
+binRepos="mirror.krea.to"
 
 [Parallelization]
 threadsUsed="1"
@@ -37,7 +37,7 @@ buildByDefault=yes
 * cxxflags: Sets the CXXFLAGS environment variable on build. Defaults to nothing.
 * cflags: Sets the CFLAGS environment variable on build. Defaults to nothing.
 * verticalSummary: Boolean to enable vertical summaries. Defaults to `false`.
-* sourceMirror: Source code mirror for build command. Will only be used if the main URL fails. Set to `false` to disable. Defaults to `mirror.kreato.dev/sources`.
+* sourceMirror: Source code mirror for build command. Will only be used if the main URL fails. Set to `false` to disable. Defaults to `mirror.krea.to/sources`.
 
 ## REPOSITORIES
 * repoDirs: Repository directories. Must line up with repoLinks. Seperate by space.

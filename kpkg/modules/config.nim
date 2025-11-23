@@ -25,7 +25,7 @@ proc initializeConfig*(): Config =
   config.setSectionKey("Options", "cxx", "g++") # GCC works the best right now
   config.setSectionKey("Options", "ccache", "false")
   config.setSectionKey("Options", "verticalSummary", "false")
-  config.setSectionKey("Options", "sourceMirror", "mirror.kreato.dev/sources")
+  config.setSectionKey("Options", "sourceMirror", "mirror.krea.to/sources")
 
   # [Repositories]
   config.setSectionKey("Repositories", "repoDirs",
@@ -34,7 +34,7 @@ proc initializeConfig*(): Config =
       "https://github.com/kreatolinux/kpkg-repo.git::"&branch&" https://github.com/kreatolinux/kpkg-repo-lockin.git::"&branch) # Seperate by space, must match RepoDirs
 
   config.setSectionKey("Repositories", "binRepos",
-      "mirror.kreato.dev") # Seperate by space
+      "mirror.krea.to") # Seperate by space
   
   # [Parallelization]
   config.setSectionKey("Parallelization", "threadsUsed", "1")

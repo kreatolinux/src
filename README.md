@@ -29,7 +29,7 @@ You can build it by running `make kreastrap`. The binary will be located on `kre
 purr is kpkg's testing utility. You can build it by running `make tests`. The binary will be located on the usual `out` folder.
 
 ## genpkglist
-genpkglist is a runfile -> markdown generator. It is used to generate the [the package list](https://linux.kreato.dev/packages) on the Kreato Linux website.
+genpkglist is a runfile -> markdown generator. It is used to generate the [the package list](https://linux.krea.to/packages) on the Kreato Linux website.
 
 Build it by running `make genpkglist`. The binary will be located on the usual `out` folder.
 
@@ -46,7 +46,7 @@ klinstaller is Kreato Linux's official installer. Unlike other utilities, it is 
 kreaiso is Kreato Linux's ISO image builder. It currently only supports rootfs' that use systemd. More support is coming soon. Build it by running `make kreaiso`. The binary will be located on `kreaiso/kreaiso`.
 
 # Contributing
-Please look at [the styling guide](https://linux.kreato.dev/docs/handbook/contributing/styling/) before contributing.
+Please look at [the styling guide](https://linux.krea.to/docs/handbook/contributing/styling/) before contributing.
 
 # License
 Licensed under GPLv3. Check LICENSE file for details

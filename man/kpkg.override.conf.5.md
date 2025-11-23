@@ -17,12 +17,12 @@ cflags="-march=native"
 cxxflags="-march=native"
 
 [runFile]
-sources="https://mirror.kreato.dev/bash.tar.gz"
+sources="https://mirror.krea.to/bash.tar.gz"
 sha256sum="e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 
 [Mirror]
-sourceMirror="mirror.kreato.dev/beta/sources"
-binaryMirrors="mirror.kreato.dev/beta"
+sourceMirror="mirror.krea.to/beta/sources"
+binaryMirrors="mirror.krea.to/beta"
 
 [Other]
 ccache=false

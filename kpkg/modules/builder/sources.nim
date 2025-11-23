@@ -40,7 +40,7 @@ proc extractSources*(sources: string, sourceDir: string) =
 
 proc downloadSource*(url, filename, pkgName: string) =
     ## Downloads a source file or git repository, falling back to a mirror if necessary
-    let mirror = getConfigValue("Options", "sourceMirror", "mirror.kreato.dev/sources")
+    let mirror = getConfigValue("Options", "sourceMirror", "mirror.krea.to/sources")
     var raiseWhenFail = true
     
     try:
