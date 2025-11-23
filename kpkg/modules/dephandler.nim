@@ -266,11 +266,11 @@ proc buildDependencyGraph*(pkgs: seq[string], ctx: dependencyContext,
         # Use bootstrap deps if in bootstrap mode and they exist, otherwise use regular build deps
         # Skip build deps if useCacheIfAvailable is true and cached build exists
         let buildDeps = selectDependencyList(pkgrf, true, ctx.useBootstrap)
-        let skipBuildDeps = ctx.useCacheIfAvailable and repo != "local" and hasCachedBuild(pkg, repo, ctx.root)
-        if skipBuildDeps:
-            debug "dephandler: Package '"&pkg&"' has cached build, skipping build dependencies"
+        #let skipBuildDeps = ctx.useCacheIfAvailable and repo != "local" and hasCachedBuild(pkg, repo, ctx.root)
+        #if skipBuildDeps:
+        #    debug "dephandler: Package '"&pkg&"' has cached build, skipping build dependencies"
         
-        if ctx.isBuild and not isEmptyOrWhitespace(buildDeps.join()) and not skipBuildDeps:
+        if ctx.isBuild and not isEmptyOrWhitespace(buildDeps.join()): #and not skipBuildDeps:
             debug "dephandler: Processing "&($buildDeps.len)&" build dependencies for '"&pkg&"': "&buildDeps.join(", ")
             for bdep in buildDeps:
                 if isEmptyOrWhitespace(bdep) or bdep in ignoreDeps:
