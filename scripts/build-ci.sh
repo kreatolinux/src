@@ -50,6 +50,7 @@ case $1 in
                 #rm -r /var/cache/kpkg/archives/x86_64-linux-gnu-systemd-openssl
                 #cp -r /var/cache/kpkg/archives/system/x86_64-linux-gnu-jumpstart-openssl /var/cache/kpkg/archives/system/x86_64-linux-gnu-systemd-openssl # temp, see #100
 
+                rm -f /var/cache/kpkg/archives/system/*/python* #temp
                 
                 export PATH=$PATH:$HOME/.nimble/bin # Add nimble path so opir can run
                 
