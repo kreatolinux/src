@@ -95,16 +95,21 @@ proc selectDependencyList(pkgrf: runFile, bdeps: bool, useBootstrap: bool): seq[
     else:
         return pkgrf.deps
 
-proc validatePackage(pkg: string, repo: string): bool =
+proc validatePackage(pkg: string, repo: string, root: string): bool =
     ## Validate package exists in repository
     
     if repo == "":
         err("Package '"&pkg&"' doesn't exist in any configured repository", false)
         return false
-    elif not dirExists(repo) and repo != "local":
+    elif repo == "local":
+        if not packageExists(pkg, root):
+             debug "Package '"&pkg&"' doesn't exist in local database at '"&root&"'"
+             return false
+        return true
+    elif not dirExists(repo):
         err("The repository '"&repo&"' doesn't exist at path: "&repo, false)
         return false
-    elif not fileExists(repo&"/"&pkg&"/run") and repo != "local":
+    elif not fileExists(repo&"/"&pkg&"/run"):
         err("The package '"&pkg&"' doesn't exist in repository "&repo&" (expected: "&repo&"/"&pkg&"/run)", false)
         return false
     
@@ -206,6 +211,13 @@ proc buildDependencyGraph*(pkgs: seq[string], ctx: dependencyContext,
     var toProcess = pkgs
     var processed: HashSet[string]
     
+    # Identify root packages by name so we don't skip them if they appear as dependencies
+    var rootPkgNames = initHashSet[string]()
+    for p in pkgs:
+        if not isEmptyOrWhitespace(p) and p notin ignoreDeps:
+            let info = resolvePackageRepo(p, chkInstalledDirInstead, isInstallDir)
+            rootPkgNames.incl(info.name)
+    
     while toProcess.len > 0:
         let p = toProcess.pop()
         
@@ -219,7 +231,7 @@ proc buildDependencyGraph*(pkgs: seq[string], ctx: dependencyContext,
         var repo = pkgInfo.repo
         
         # Validate package exists
-        if not validatePackage(pkg, repo):
+        if not validatePackage(pkg, repo, ctx.root):
             continue
         
         let pkgrf = loadPackageMetadata(pkg, repo, ctx.root)
@@ -278,7 +290,8 @@ proc buildDependencyGraph*(pkgs: seq[string], ctx: dependencyContext,
                 let depName = chkVer[1]
                 
                 # Skip if already installed and not forcing
-                if packageExists(depName, ctx.root) and chkVer[0] != "upgrade" and not ctx.forceInstallAll:
+                # Don't skip if the dependency is one of the root packages we are explicitly processing
+                if packageExists(depName, ctx.root) and chkVer[0] != "upgrade" and not ctx.forceInstallAll and depName notin rootPkgNames:
                     debug "Package '"&depName&"' already installed, skipping"
                     continue
                 
@@ -327,7 +340,8 @@ proc buildDependencyGraph*(pkgs: seq[string], ctx: dependencyContext,
                 let depName = chkVer[1]
                 
                 # Skip if already installed and not forcing
-                if packageExists(depName, ctx.root) and chkVer[0] != "upgrade" and not ctx.forceInstallAll:
+                # Don't skip if the dependency is one of the root packages we are explicitly processing
+                if packageExists(depName, ctx.root) and chkVer[0] != "upgrade" and not ctx.forceInstallAll and depName notin rootPkgNames:
                     debug "Package '"&depName&"' already installed, skipping"
                     continue
                 
