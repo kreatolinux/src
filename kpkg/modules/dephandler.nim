@@ -45,10 +45,10 @@ proc hasCachedBuild(pkg: string, repo: string, root: string): bool =
         let pkgrf = parseRunfile(repo&"/"&pkg)
         let cachePath = kpkgArchivesDir&"/system/"&target&"/"&pkg&"-"&pkgrf.versionString&".kpkg"
         let exists = fileExists(cachePath)
-        debug "hasCachedBuild for '"&pkg&"': target="&target&", version="&pkgrf.versionString&", path="&cachePath&", exists="&($exists)
+        debug "dephandler: hasCachedBuild for '"&pkg&"': target="&target&", version="&pkgrf.versionString&", path="&cachePath&", exists="&($exists)
         return exists
     except:
-        debug "hasCachedBuild for '"&pkg&"' failed with exception"
+        debug "dephandler: hasCachedBuild for '"&pkg&"' failed with exception"
         return false
 
 
@@ -79,10 +79,10 @@ proc loadPackageMetadata(name: string, repo: string, root: string): runFile =
     ## Load package metadata from repository or installed database
     
     if repo == "local":
-        debug "packageToRunFile ran, loadPackageMetadata, pkg: '"&name&"' root: '"&root&"'"
+        debug "dephandler: packageToRunFile ran, loadPackageMetadata, pkg: '"&name&"' root: '"&root&"'"
         return packageToRunFile(getPackage(name, root))
     else:
-        debug "parseRunfile ran, loadPackageMetadata, repo: '"&repo&"', pkg: '"&name&"'"
+        debug "dephandler: parseRunfile ran, loadPackageMetadata, repo: '"&repo&"', pkg: '"&name&"'"
         return parseRunfile(repo&"/"&name)
 
 proc selectDependencyList(pkgrf: runFile, bdeps: bool, useBootstrap: bool): seq[string] =
@@ -103,7 +103,7 @@ proc validatePackage(pkg: string, repo: string, root: string): bool =
         return false
     elif repo == "local":
         if not packageExists(pkg, root):
-             debug "Package '"&pkg&"' doesn't exist in local database at '"&root&"'"
+             debug "dephandler: Package '"&pkg&"' doesn't exist in local database at '"&root&"'"
              return false
         return true
     elif not dirExists(repo):
@@ -133,7 +133,7 @@ proc checkVersions(root: string, dependency: string, repo: string, split = @[
                 if repo == "local":
                     r = findPkgRepo(r)
                 
-                debug "parseRunfile ran, checkVersions"
+                debug "dephandler: parseRunfile ran, checkVersions"
                 deprf = parseRunfile(r&"/"&dSplit[0]).versionString
 
             let warnName = "Required dependency version for "&dSplit[0]&" not found, upgrading"
@@ -222,7 +222,9 @@ proc buildDependencyGraph*(pkgs: seq[string], ctx: dependencyContext,
         let p = toProcess.pop()
         
         if p in processed or p in ignoreDeps or isEmptyOrWhitespace(p):
+            debug "dephandler: Skipping '"&p&"' (processed="&($(p in processed))&", ignoreDeps="&($(p in ignoreDeps))&", empty="&($(isEmptyOrWhitespace(p)))&")"
             continue
+        debug "dephandler: Processing package '"&p&"'"
         processed.incl(p)
         
         # Resolve package info
@@ -232,6 +234,7 @@ proc buildDependencyGraph*(pkgs: seq[string], ctx: dependencyContext,
         
         # Validate package exists
         if not validatePackage(pkg, repo, ctx.root):
+            debug "dephandler: Package '"&pkg&"' validation failed (repo: '"&repo&"'), skipping"
             continue
         
         let pkgrf = loadPackageMetadata(pkg, repo, ctx.root)
@@ -244,15 +247,18 @@ proc buildDependencyGraph*(pkgs: seq[string], ctx: dependencyContext,
         )
         
         # Add to graph
+        debug "dephandler: Adding node '"&pkg&"' to graph (repo: '"&repo&"')"
         addNode(graph, resolvedPkg)
         
         # Handle init-specific packages
         if not ctx.ignoreInit and not isEmptyOrWhitespace(ctx.init):
             let initPkg = pkg&"-"&ctx.init
             let initPkgExists = if isInstallDir: dirExists(repo&"/"&initPkg) else: findPkgRepo(initPkg) != ""
+            debug "dephandler: Checking init package '"&initPkg&"' for '"&pkg&"' (exists: "&($initPkgExists)&")"
             if initPkgExists:
                 let initPkgToAdd = if isInstallDir: repo&"/"&initPkg else: initPkg
                 if initPkgToAdd notin processed and initPkgToAdd notin toProcess:
+                    debug "dephandler: Adding init package '"&initPkgToAdd&"' to processing queue"
                     toProcess.add(initPkgToAdd)
                     addEdge(graph, initPkg, pkg)  # Edge from dependency to dependent
         
@@ -262,27 +268,29 @@ proc buildDependencyGraph*(pkgs: seq[string], ctx: dependencyContext,
         let buildDeps = selectDependencyList(pkgrf, true, ctx.useBootstrap)
         let skipBuildDeps = ctx.useCacheIfAvailable and repo != "local" and hasCachedBuild(pkg, repo, ctx.root)
         if skipBuildDeps:
-            debug "Package '"&pkg&"' has cached build, skipping build dependencies"
+            debug "dephandler: Package '"&pkg&"' has cached build, skipping build dependencies"
         
         if ctx.isBuild and not isEmptyOrWhitespace(buildDeps.join()) and not skipBuildDeps:
+            debug "dephandler: Processing "&($buildDeps.len)&" build dependencies for '"&pkg&"': "&buildDeps.join(", ")
             for bdep in buildDeps:
                 if isEmptyOrWhitespace(bdep) or bdep in ignoreDeps:
+                    debug "dephandler: Skipping build dep '"&bdep&"' (empty or in ignoreDeps)"
                     continue
                 
                 # Check for circular dependencies
                 if prevPkgName == bdep:
                     if ctx.ignoreCircularDeps:
-                        debug "Ignoring circular dependency: "&prevPkgName&" -> "&bdep
+                        debug "dephandler: Ignoring circular dependency: "&prevPkgName&" -> "&bdep
                         continue
                     elif not packageExists(bdep, "/"):
                         if ctx.useBootstrap:
-                            debug "Bootstrap mode: allowing circular dependency"
+                            debug "dephandler: Bootstrap mode: allowing circular dependency"
                             continue
                         else:
                             err("circular dependency detected for '"&bdep&"'", false)
                             continue
                     else:
-                        debug "Circular dependency found but continuing: "&prevPkgName&" -> "&bdep
+                        debug "dephandler: Circular dependency found but continuing: "&prevPkgName&" -> "&bdep
                         continue
                 
                 # Check version requirements
@@ -292,16 +300,20 @@ proc buildDependencyGraph*(pkgs: seq[string], ctx: dependencyContext,
                 # Skip if already installed and not forcing
                 # Don't skip if the dependency is one of the root packages we are explicitly processing
                 if packageExists(depName, ctx.root) and chkVer[0] != "upgrade" and not ctx.forceInstallAll and depName notin rootPkgNames:
-                    debug "Package '"&depName&"' already installed, skipping"
+                    debug "dephandler: Package '"&depName&"' already installed, skipping"
                     continue
                 
                 # Update repo for dependency
                 if not chkInstalledDirInstead:
                     let depRepo = findPkgRepo(depName)
+                    debug "dephandler: findPkgRepo('"&depName&"') returned '"&depRepo&"' for build dep"
                     if depRepo != "":
                         repo = depRepo
+                    else:
+                        debug "dephandler: Build dep '"&depName&"' not found in any repository!"
                 
                 # Add edge and schedule for processing (edge from dependency to dependent)
+                debug "dephandler: Adding edge '"&depName&"' -> '"&pkg&"' for build dep"
                 addEdge(graph, depName, pkg)
                 # Add to processing queue if not already there
                 # When forceInstallAll=true, we may re-add packages that were processed but skipped due to being installed
@@ -315,24 +327,26 @@ proc buildDependencyGraph*(pkgs: seq[string], ctx: dependencyContext,
         let runtimeDeps = selectDependencyList(pkgrf, false, ctx.useBootstrap)
         
         if not isEmptyOrWhitespace(runtimeDeps.join()):
+            debug "dephandler: Processing "&($runtimeDeps.len)&" runtime dependencies for '"&pkg&"': "&runtimeDeps.join(", ")
             for dep in runtimeDeps:
                 if isEmptyOrWhitespace(dep) or dep in ignoreDeps:
+                    debug "dephandler: Skipping runtime dep '"&dep&"' (empty or in ignoreDeps)"
                     continue
                 
                 # Check for circular dependencies
                 if prevPkgName == dep:
                     if ctx.ignoreCircularDeps:
-                        debug "Ignoring circular dependency: "&prevPkgName&" -> "&dep
+                        debug "dephandler: Ignoring circular dependency: "&prevPkgName&" -> "&dep
                         continue
                     elif ctx.isBuild and not packageExists(dep, "/"):
                         if ctx.useBootstrap:
-                            debug "Bootstrap mode: allowing circular dependency"
+                            debug "dephandler: Bootstrap mode: allowing circular dependency"
                             continue
                         else:
                             err("circular dependency detected for '"&dep&"'", false)
                             continue
                     else:
-                        debug "Circular dependency found but continuing: "&prevPkgName&" -> "&dep
+                        debug "dephandler: Circular dependency found but continuing: "&prevPkgName&" -> "&dep
                         continue
                 
                 # Check version requirements
@@ -359,8 +373,14 @@ proc buildDependencyGraph*(pkgs: seq[string], ctx: dependencyContext,
                 let depToAdd = if isInstallDir: repo&"/"&depName else: depName
                 if depToAdd notin toProcess:
                     if ctx.forceInstallAll or depToAdd notin processed:
+                        debug "dephandler: Adding runtime dep '"&depToAdd&"' to processing queue"
                         toProcess.add(depToAdd)
+                    else:
+                        debug "dephandler: Runtime dep '"&depToAdd&"' already processed and not forcing, skipping"
+                else:
+                    debug "dephandler: Runtime dep '"&depToAdd&"' already in processing queue"
     
+    debug "dephandler: Finished building dependency graph with "&($graph.nodes.len)&" nodes"
     return graph
 
 proc topologicalSort(graph: dependencyGraph): seq[string] =
@@ -377,7 +397,7 @@ proc topologicalSort(graph: dependencyGraph): seq[string] =
     proc visit(node: string) =
         # Check for cycles
         if visiting.getOrDefault(node, false):
-            debug "Warning: Cycle detected involving package: " & node
+            debug "dephandler: Warning: Cycle detected involving package: " & node
             return
         
         # Skip if already processed
@@ -417,7 +437,9 @@ proc flattenDependencyOrder*(graph: dependencyGraph): seq[string] =
     
     # Topological sort now gives us the correct order directly
     # (dependencies before dependents) since edges go from dependency to dependent
-    return topologicalSort(graph)
+    let sorted = topologicalSort(graph)
+    debug "dephandler: Topological sort result ("&($sorted.len)&" packages): "&sorted.join(", ")
+    return sorted
 
 proc generateMermaidChart*(graph: dependencyGraph, rootPackages: seq[string]): string =
     ## Generate Mermaid flowchart from dependency graph
@@ -490,10 +512,14 @@ proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "],
     # Filter out root packages (the packages being built/installed) and empty strings
     # We only want the dependencies, not the target packages themselves
     let rootPkgSet = pkgs.toHashSet()
+    debug "dephandler: Root packages to filter out: "&pkgs.join(", ")
     let filtered = ordered.filterIt(it.len != 0 and it notin rootPkgSet)
+    debug "dephandler: After filtering root packages: "&filtered.join(", ")
     
     # Deduplicate and return
-    return deduplicate(filtered)
+    let finalResult = deduplicate(filtered)
+    debug "dephandler: Final dependency list ("&($finalResult.len)&" packages): "&finalResult.join(", ")
+    return finalResult
 
 proc dephandlerWithGraph*(pkgs: seq[string], ignoreDeps = @["  "],
         isBuild = false, root: string, prevPkgName = "",
@@ -528,10 +554,14 @@ proc dephandlerWithGraph*(pkgs: seq[string], ignoreDeps = @["  "],
     
     # Filter out root packages (the packages being built/installed) and empty strings
     let rootPkgSet = pkgs.toHashSet()
+    debug "dephandler: Root packages to filter out: "&pkgs.join(", ")
     let filtered = ordered.filterIt(it.len != 0 and it notin rootPkgSet)
+    debug "dephandler: After filtering root packages: "&filtered.join(", ")
     
     # Return both the dependency list and the graph
-    return (deduplicate(filtered), graph)
+    let finalResult = deduplicate(filtered)
+    debug "dephandler: Final dependency list ("&($finalResult.len)&" packages): "&finalResult.join(", ")
+    return (finalResult, graph)
 
 proc collectRuntimeDepsFromGraph*(pkgs: seq[string], graph: dependencyGraph, visited: var HashSet[string]): seq[string] =
     ## Recursively collect all runtime dependencies from the graph (exported for reuse)
@@ -553,7 +583,7 @@ proc getSandboxDepsFromGraph*(pkg: string, graph: dependencyGraph, bootstrap: bo
     ## This avoids recalculating dependencies that were already resolved
     
     if pkg notin graph.nodes:
-        debug "Package '"&pkg&"' not found in dependency graph"
+        debug "dephandler: Package '"&pkg&"' not found in dependency graph"
         return @[]
     
     let node = graph.nodes[pkg]
