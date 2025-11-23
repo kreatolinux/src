@@ -352,7 +352,8 @@ proc build*(no = false, yes = false, root = "/",
        if findPkgRepo(currentPackage&"-"&init) != "":
             p = p&(currentPackage&"-"&init)
     
-    deps = deduplicate(deps&p)
+    # Use the graph to get the correct build order for ALL packages (dependencies + targets)
+    deps = flattenDependencyOrder(depGraph).filterIt(it.len != 0)
     
     # If building a package that has bootstrap deps but we're not in bootstrap mode,
     # ensure it's rebuilt AFTER its full BUILD_DEPENDS by moving it to the end
@@ -384,6 +385,11 @@ proc build*(no = false, yes = false, root = "/",
             else:
                 p = p&packageSplit.name
     
+    var pkgPaths = initTable[string, string]()
+    if isInstallDir:
+        for p in packages:
+            pkgPaths[lastPathPart(p)] = absolutePath(p)
+
     for i in deps:
         try:
             # Rebuild the environment every two weeks so it stays up-to-date.
@@ -440,8 +446,14 @@ proc build*(no = false, yes = false, root = "/",
             var isInstallDirFinal: bool 
             var pkgName: string
             
-            if isInstallDir and i in packages:
-                pkgName = absolutePath(i)
+            # Try to get repo from graph first
+            if depGraph.nodes.hasKey(pkgTmp.name):
+                 let r = depGraph.nodes[pkgTmp.name].repo
+                 if r != "local" and r.startsWith("/etc/kpkg/repos/"):
+                      customRepo = lastPathPart(r)
+
+            if isInstallDir and pkgPaths.hasKey(pkgTmp.name):
+                pkgName = pkgPaths[pkgTmp.name]
                 isInstallDirFinal = true
             else:
                 if "/" in packageSplit.nameWithRepo:
