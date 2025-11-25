@@ -150,7 +150,10 @@ proc createEnv*(root: string) =
     
     installFromRoot(dict.getSectionValue("Core", "libc"), root, kpkgEnvPath, ignorePostInstall = true)
     let compiler = dict.getSectionValue("Core", "compiler")
-    installFromRoot(compiler, root, kpkgEnvPath, ignorePostInstall = true)
+    if compiler == "clang":
+        installFromRoot("llvm", root, kpkgEnvPath, ignorePostInstall = true)
+    else:
+        installFromRoot(compiler, root, kpkgEnvPath, ignorePostInstall = true)
     
     try:
         setDefaultCC(kpkgEnvPath, compiler)
