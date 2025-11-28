@@ -426,6 +426,7 @@ proc build*(no = false, yes = false, root = "/",
             # Now run postinstall scripts for all build dependencies (including transitive) in the merged overlay
             # Only for native builds (cross-compilation uses different mechanism)
             if target == "default" or target == kpkgTarget("/"):
+                debug "builder-ng: postinstall is running"
                 for d in deduplicate(allInstalledDeps):
                     if not isEmptyOrWhitespace(d):
                         runPostInstall(d)

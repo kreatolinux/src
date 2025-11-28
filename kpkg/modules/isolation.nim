@@ -92,6 +92,7 @@ proc installFromRootInternal(package, root, destdir: string, removeDestdirOnErro
 proc runPostInstall*(package: string) =
     ## Runs postinstall scripts for a package in the merged overlay environment.
     ## Should only be called after mountOverlay().
+    debug "runPostInstall ran, package: '"&package&"'"
     let repo = findPkgRepo(package)
 
     if isEmptyOrWhitespace(repo):
