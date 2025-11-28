@@ -19,19 +19,19 @@ proc execEnv*(command: string, error = "none", passthrough = false, silentMode =
     # We can use bwrap to chroot.
     const localeEnvPrefix = "LC_ALL=C.UTF-8 LC_CTYPE=C.UTF-8 LANG=C.UTF-8 "
     if passthrough:
-        debug "passthrough true, \""&command&"\""
         return execCmdKpkg(localeEnvPrefix&"/bin/sh -c \""&command&"\"", error, silentMode = silentMode)
     else:
-        debug "passthrough false, \""&command&"\""
         if not dirExists(path):
             err("internal: you have to use mountOverlay() before running execEnv")
         
-        if remount:
+        if remount and path == kpkgMergedPath:
             discard execCmdKpkg("mount -o remount "&path, silentMode = silentMode)
 
         # Create dirs so that bwrap doesn't complain
         createDir(kpkgTempDir1)
         createDir(kpkgTempDir2)
+        discard existsOrCreateDir(kpkgCacheDir)
+        discard existsOrCreateDir(kpkgSourcesDir)
 
         return execCmdKpkg(localeEnvPrefix&"bwrap --bind "&path&" / --bind "&kpkgTempDir1&" "&kpkgTempDir1&" --bind /etc/kpkg/repos /etc/kpkg/repos --bind "&kpkgTempDir2&" "&kpkgTempDir2&" --bind "&kpkgSourcesDir&" "&kpkgSourcesDir&" --dev /dev --proc /proc --perms 1777 --tmpfs /dev/shm --ro-bind /etc/resolv.conf /etc/resolv.conf /bin/sh -c \""&command&"\"", error, silentMode = silentMode)
 
@@ -45,20 +45,22 @@ proc runPostInstall*(package: string, rootPath = kpkgMergedPath) =
     if isEmptyOrWhitespace(repo):
         return # bail early if no repo is found
     
+    let remountNeeded = (rootPath == kpkgMergedPath)
+    
     var existsPkgPostinstall = execEnv(
             ". "&repo&"/"&package&"/run"&" && command -v postinstall_"&replace(
-                    package, '-', '_'), remount = true, silentMode = silent, path = rootPath)
+                    package, '-', '_'), remount = remountNeeded, silentMode = silent, path = rootPath)
     var existsPostinstall = execEnv(
-            ". "&repo&"/"&package&"/run"&" && command -v postinstall", remount = true, silentMode = silent, path = rootPath)
+            ". "&repo&"/"&package&"/run"&" && command -v postinstall", remount = remountNeeded, silentMode = silent, path = rootPath)
 
     debug "runPostInstall: "&package&": existsPkgPostInstall: "&($existsPkgPostInstall)&", existsPostInstall: "&($existsPostInstall)
 
     if existsPkgPostinstall == 0:
         if execEnv(". "&repo&"/"&package&"/run"&" && postinstall_"&replace(
-                package, '-', '_'), remount = true, silentMode = silent, path = rootPath) != 0:
+                package, '-', '_'), remount = remountNeeded, silentMode = silent, path = rootPath) != 0:
                 err("postinstall failed on sandbox")
     elif existsPostinstall == 0:
-        if execEnv(". "&repo&"/"&package&"/run"&" && postinstall", remount = true, silentMode = silent, path = rootPath) != 0:
+        if execEnv(". "&repo&"/"&package&"/run"&" && postinstall", remount = remountNeeded, silentMode = silent, path = rootPath) != 0:
                 err("postinstall failed on sandbox")
 
 
