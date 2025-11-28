@@ -5,6 +5,7 @@ import streams
 
 proc execCmdKpkg*(command: string, error = "none", silentMode = false): int =
   # Like execCmdEx, but with outputs.
+  debug "execCmdKpkg: command: "&command
   let process = startProcess(command, options = {poEvalCommand, poStdErrToStdOut})
   var line: string
   
