@@ -192,7 +192,7 @@ proc createEnv*(root: string, ignorePostInstall = false) =
     
     writeFile(kpkgEnvPath&"/envDateBuilt", now().format("yyyy-MM-dd"))
 
-    if ignorePostInstall != false:
+    if ignorePostInstall == false:
         for dep in deduplicate(depsTotal):
             if isEmptyOrWhitespace(dep):
                 continue
