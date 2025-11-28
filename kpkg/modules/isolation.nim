@@ -141,12 +141,12 @@ proc createEnv*(root: string, ignorePostInstall = false) =
 
     let dict = loadConfig(kpkgEnvPath&"/etc/kreato-release")
     
-    depsTotal = depsTotal + installFromRoot(dict.getSectionValue("Core", "libc"), root, kpkgEnvPath, ignorePostInstall = true)
+    depsTotal.add installFromRoot(dict.getSectionValue("Core", "libc"), root, kpkgEnvPath, ignorePostInstall = true)
     let compiler = dict.getSectionValue("Core", "compiler")
     if compiler == "clang":
-        depsTotal = depsTotal + installFromRoot("llvm", root, kpkgEnvPath, ignorePostInstall = true)
+        depsTotal.add installFromRoot("llvm", root, kpkgEnvPath, ignorePostInstall = true)
     else:
-        depsTotal = depsTotal + installFromRoot(compiler, root, kpkgEnvPath, ignorePostInstall = true)
+        depsTotal.add installFromRoot(compiler, root, kpkgEnvPath, ignorePostInstall = true)
     
     try:
         setDefaultCC(kpkgEnvPath, compiler)
@@ -160,24 +160,24 @@ proc createEnv*(root: string, ignorePostInstall = false) =
     case dict.getSectionValue("Core", "coreutils"):
         of "gnu":
             for i in ["gnu-coreutils", "pigz", "xz-utils", "bash", "gsed", "bzip2", "patch", "diffutils", "findutils", "util-linux", "bc", "cpio", "which"]:
-                depsTotal = depsTotal + installFromRoot(i, root, kpkgEnvPath, ignorePostInstall = true)
+                depsTotal.add installFromRoot(i, root, kpkgEnvPath, ignorePostInstall = true)
             #installFromRoot("gnu-core", root, kpkgEnvPath, ignorePostInstall = true)
         of "busybox":
-            depsTotal = depsTotal + installFromRoot("busybox", root, kpkgEnvPath, ignorePostInstall = true)
+            depsTotal.add installFromRoot("busybox", root, kpkgEnvPath, ignorePostInstall = true)
 
-    depsTotal = depsTotal + installFromRoot(dict.getSectionValue("Core", "tlsLibrary"), root, kpkgEnvPath, ignorePostInstall = true)
+    depsTotal.add installFromRoot(dict.getSectionValue("Core", "tlsLibrary"), root, kpkgEnvPath, ignorePostInstall = true)
     
     case dict.getSectionValue("Core", "init"):
         of "systemd":
-            depsTotal = depsTotal + installFromRoot("systemd", root, kpkgEnvPath, ignorePostInstall = true)
-            depsTotal = depsTotal + installFromRoot("dbus", root, kpkgEnvPath, ignorePostInstall = true)
+            depsTotal.add installFromRoot("systemd", root, kpkgEnvPath, ignorePostInstall = true)
+            depsTotal.add installFromRoot("dbus", root, kpkgEnvPath, ignorePostInstall = true)
         else:
-            depsTotal = depsTotal + installFromRoot(dict.getSectionValue("Core", "init"), root, kpkgEnvPath, ignorePostInstall = true)
+            depsTotal.add installFromRoot(dict.getSectionValue("Core", "init"), root, kpkgEnvPath, ignorePostInstall = true)
             
-    depsTotal = depsTotal + installFromRoot(dict.getSectionValue("Core", "init"), root, kpkgEnvPath, ignorePostInstall = true)
+    depsTotal.add installFromRoot(dict.getSectionValue("Core", "init"), root, kpkgEnvPath, ignorePostInstall = true)
     
     for i in "kreato-fs-essentials git kpkg ca-certificates python python-pip gmake".split(" "):
-        depsTotal = depsTotal + installFromRoot(i, root, kpkgEnvPath, ignorePostInstall = true)
+        depsTotal.add installFromRoot(i, root, kpkgEnvPath, ignorePostInstall = true)
     
 
     #let extras = dict.getSectionValue("Extras", "extraPackages").split(" ")
