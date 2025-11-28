@@ -34,6 +34,30 @@ proc execEnv*(command: string, error = "none", passthrough = false, silentMode =
 
         return execCmdKpkg("bwrap --bind "&path&" / --bind "&kpkgTempDir1&" "&kpkgTempDir1&" --bind /etc/kpkg/repos /etc/kpkg/repos --bind "&kpkgTempDir2&" "&kpkgTempDir2&" --bind "&kpkgSourcesDir&" "&kpkgSourcesDir&" --dev /dev --proc /proc --perms 1777 --tmpfs /dev/shm --ro-bind /etc/resolv.conf /etc/resolv.conf /bin/sh -c \""&command&"\"", error, silentMode = silentMode)
 
+proc runPostInstall*(package: string, rootPath = kpkgMergedPath) =
+    ## Runs postinstall scripts for a package in the provided environment root.
+    ## Defaults to the merged overlay, but can be overridden (e.g. createEnv).
+    debug "runPostInstall ran, package: '"&package&"', root: '"&rootPath&"'"
+    let repo = findPkgRepo(package)
+
+    if isEmptyOrWhitespace(repo):
+        return # bail early if no repo is found
+    
+    var existsPkgPostinstall = execEnv(
+            ". "&repo&"/"&package&"/run"&" && command -v postinstall_"&replace(
+                    package, '-', '_'), remount = true, silentMode = true, path = rootPath)
+    var existsPostinstall = execEnv(
+            ". "&repo&"/"&package&"/run"&" && command -v postinstall", remount = true, silentMode = true, path = rootPath)
+
+    if existsPkgPostinstall == 0:
+        if execEnv(". "&repo&"/"&package&"/run"&" && postinstall_"&replace(
+                package, '-', '_'), remount = true, silentMode = true, path = rootPath) != 0:
+                err("postinstall failed on sandbox")
+    elif existsPostinstall == 0:
+        if execEnv(". "&repo&"/"&package&"/run"&" && postinstall", remount = true, silentMode = true, path = rootPath) != 0:
+                err("postinstall failed on sandbox")
+
+
 proc installFromRootInternal(package, root, destdir: string, removeDestdirOnError = false, ignorePostInstall = false) = 
     
     debug "installFromRootInternal: package: \""&package&"\", root: \""&root&"\", destdir: \""&destdir&"\", removeDestdirOnError: \""&($removeDestdirOnError)&"\", ignorePostInstall: \""&($ignorePostInstall)&"\""
@@ -75,28 +99,6 @@ proc installFromRootInternal(package, root, destdir: string, removeDestdirOnErro
     runPostInstall(package, destdir)
 
 
-proc runPostInstall*(package: string, rootPath = kpkgMergedPath) =
-    ## Runs postinstall scripts for a package in the provided environment root.
-    ## Defaults to the merged overlay, but can be overridden (e.g. createEnv).
-    debug "runPostInstall ran, package: '"&package&"', root: '"&rootPath&"'"
-    let repo = findPkgRepo(package)
-
-    if isEmptyOrWhitespace(repo):
-        return # bail early if no repo is found
-    
-    var existsPkgPostinstall = execEnv(
-            ". "&repo&"/"&package&"/run"&" && command -v postinstall_"&replace(
-                    package, '-', '_'), remount = true, silentMode = true, path = rootPath)
-    var existsPostinstall = execEnv(
-            ". "&repo&"/"&package&"/run"&" && command -v postinstall", remount = true, silentMode = true, path = rootPath)
-
-    if existsPkgPostinstall == 0:
-        if execEnv(". "&repo&"/"&package&"/run"&" && postinstall_"&replace(
-                package, '-', '_'), remount = true, silentMode = true, path = rootPath) != 0:
-                err("postinstall failed on sandbox")
-    elif existsPostinstall == 0:
-        if execEnv(". "&repo&"/"&package&"/run"&" && postinstall", remount = true, silentMode = true, path = rootPath) != 0:
-                err("postinstall failed on sandbox")
 
 proc installFromRoot*(package, root, destdir: string, removeDestdirOnError = false, ignorePostInstall = false): seq[string] =
     # A wrapper for installFromRootInternal that also resolves dependencies.
