@@ -17,7 +17,7 @@ import ../../kreastrap/commonProcs
 proc execEnv*(command: string, error = "none", passthrough = false, silentMode = false, path = kpkgMergedPath, remount = false): int =
     ## Wrapper of execCmdKpkg and Bubblewrap that runs a command in the sandbox.
     # We can use bwrap to chroot.
-    const localeEnvPrefix = "LC_ALL=C.UTF-8 LC_CTYPE=C.UTF-8 LANG=C.UTF-8"
+    const localeEnvPrefix = "LC_ALL=C.UTF-8 LC_CTYPE=C.UTF-8 LANG=C.UTF-8 "
     if passthrough:
         debug "passthrough true, \""&command&"\""
         return execCmdKpkg(localeEnvPrefix&"/bin/sh -c \""&command&"\"", error, silentMode = silentMode)
