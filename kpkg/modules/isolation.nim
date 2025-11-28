@@ -17,9 +17,10 @@ import ../../kreastrap/commonProcs
 proc execEnv*(command: string, error = "none", passthrough = false, silentMode = false, path = kpkgMergedPath, remount = false): int =
     ## Wrapper of execCmdKpkg and Bubblewrap that runs a command in the sandbox.
     # We can use bwrap to chroot.
+    const localeEnvPrefix = "LC_ALL=C.UTF-8 "
     if passthrough:
         debug "passthrough true, \""&command&"\""
-        return execCmdKpkg("/bin/sh -c \""&command&"\"", error, silentMode = silentMode)
+        return execCmdKpkg(localeEnvPrefix&"/bin/sh -c \""&command&"\"", error, silentMode = silentMode)
     else:
         debug "passthrough false, \""&command&"\""
         if not dirExists(path):
@@ -32,7 +33,7 @@ proc execEnv*(command: string, error = "none", passthrough = false, silentMode =
         createDir(kpkgTempDir1)
         createDir(kpkgTempDir2)
 
-        return execCmdKpkg("bwrap --bind "&path&" / --bind "&kpkgTempDir1&" "&kpkgTempDir1&" --bind /etc/kpkg/repos /etc/kpkg/repos --bind "&kpkgTempDir2&" "&kpkgTempDir2&" --bind "&kpkgSourcesDir&" "&kpkgSourcesDir&" --dev /dev --proc /proc --perms 1777 --tmpfs /dev/shm --ro-bind /etc/resolv.conf /etc/resolv.conf /bin/sh -c \""&command&"\"", error, silentMode = silentMode)
+        return execCmdKpkg(localeEnvPrefix&"bwrap --bind "&path&" / --bind "&kpkgTempDir1&" "&kpkgTempDir1&" --bind /etc/kpkg/repos /etc/kpkg/repos --bind "&kpkgTempDir2&" "&kpkgTempDir2&" --bind "&kpkgSourcesDir&" "&kpkgSourcesDir&" --dev /dev --proc /proc --perms 1777 --tmpfs /dev/shm --ro-bind /etc/resolv.conf /etc/resolv.conf /bin/sh -c \""&command&"\"", error, silentMode = silentMode)
 
 proc runPostInstall*(package: string, rootPath = kpkgMergedPath) =
     ## Runs postinstall scripts for a package in the provided environment root.
