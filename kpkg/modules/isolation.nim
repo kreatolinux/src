@@ -39,6 +39,7 @@ proc runPostInstall*(package: string, rootPath = kpkgMergedPath) =
     ## Runs postinstall scripts for a package in the provided environment root.
     ## Defaults to the merged overlay, but can be overridden (e.g. createEnv).
     debug "runPostInstall ran, package: '"&package&"', root: '"&rootPath&"'"
+    let silent = not isDebugMode()
     let repo = findPkgRepo(package)
 
     if isEmptyOrWhitespace(repo):
@@ -46,18 +47,18 @@ proc runPostInstall*(package: string, rootPath = kpkgMergedPath) =
     
     var existsPkgPostinstall = execEnv(
             ". "&repo&"/"&package&"/run"&" && command -v postinstall_"&replace(
-                    package, '-', '_'), remount = true, silentMode = true, path = rootPath)
+                    package, '-', '_'), remount = true, silentMode = silent, path = rootPath)
     var existsPostinstall = execEnv(
-            ". "&repo&"/"&package&"/run"&" && command -v postinstall", remount = true, silentMode = true, path = rootPath)
+            ". "&repo&"/"&package&"/run"&" && command -v postinstall", remount = true, silentMode = silent, path = rootPath)
 
     debug "runPostInstall: "&package&": existsPkgPostInstall: "&($existsPkgPostInstall)&", existsPostInstall: "&($existsPostInstall)
 
     if existsPkgPostinstall == 0:
         if execEnv(". "&repo&"/"&package&"/run"&" && postinstall_"&replace(
-                package, '-', '_'), remount = true, silentMode = true, path = rootPath) != 0:
+                package, '-', '_'), remount = true, silentMode = silent, path = rootPath) != 0:
                 err("postinstall failed on sandbox")
     elif existsPostinstall == 0:
-        if execEnv(". "&repo&"/"&package&"/run"&" && postinstall", remount = true, silentMode = true, path = rootPath) != 0:
+        if execEnv(". "&repo&"/"&package&"/run"&" && postinstall", remount = true, silentMode = silent, path = rootPath) != 0:
                 err("postinstall failed on sandbox")
 
 
