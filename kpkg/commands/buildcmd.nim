@@ -418,7 +418,7 @@ proc build*(no = false, yes = false, root = "/",
                 
                 # Install build dependencies to upperDir (now on tmpfs, before overlay mount)
                 for d in sandboxDeps:
-                    installFromRoot(d, root, kpkgOverlayPath&"/upperDir", ignorePostInstall = true)
+                    discard installFromRoot(d, root, kpkgOverlayPath&"/upperDir", ignorePostInstall = true)
 
             # Now mount the overlayfs after build dependencies are installed
             discard mountOverlayFilesystem(error = "mounting overlay filesystem")

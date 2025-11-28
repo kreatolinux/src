@@ -69,30 +69,16 @@ proc installFromRootInternal(package, root, destdir: string, removeDestdirOnErro
             copyFileWithPermissionsAndOwnership(root&"/"&listFilesSplitted, destdir&"/"&relativePath(listFilesSplitted, root))
     newPackageFromRoot(root, package, destdir)
     
-    let repo = findPkgRepo(package)
+    if ignorePostInstall:
+        return
 
-    if isEmptyOrWhitespace(repo) or ignorePostInstall:
-        return # bail early if no repo is found or if we're ignoring postinstall
-
-    var existsPkgPostinstall = execEnv(
-            ". "&repo&"/"&package&"/run"&" && command -v postinstall_"&replace(
-                    package, '-', '_'), remount = true, silentMode = true)
-    var existsPostinstall = execEnv(
-            ". "&repo&"/"&package&"/run"&" && command -v postinstall", remount = true, silentMode = true)
-
-    if existsPkgPostinstall == 0:
-        if execEnv(". "&repo&"/"&package&"/run"&" && postinstall_"&replace(
-                package, '-', '_'), remount = true, silentMode = true) != 0:
-                err("postinstall failed on sandbox")
-    elif existsPostinstall == 0:
-        if execEnv(". "&repo&"/"&package&"/run"&" && postinstall", remount = true, silentMode = true) != 0:
-                err("postinstall failed on sandbox")
+    runPostInstall(package, destdir)
 
 
-proc runPostInstall*(package: string) =
-    ## Runs postinstall scripts for a package in the merged overlay environment.
-    ## Should only be called after mountOverlay().
-    debug "runPostInstall ran, package: '"&package&"'"
+proc runPostInstall*(package: string, rootPath = kpkgMergedPath) =
+    ## Runs postinstall scripts for a package in the provided environment root.
+    ## Defaults to the merged overlay, but can be overridden (e.g. createEnv).
+    debug "runPostInstall ran, package: '"&package&"', root: '"&rootPath&"'"
     let repo = findPkgRepo(package)
 
     if isEmptyOrWhitespace(repo):
@@ -100,24 +86,25 @@ proc runPostInstall*(package: string) =
     
     var existsPkgPostinstall = execEnv(
             ". "&repo&"/"&package&"/run"&" && command -v postinstall_"&replace(
-                    package, '-', '_'), remount = true, silentMode = true)
+                    package, '-', '_'), remount = true, silentMode = true, path = rootPath)
     var existsPostinstall = execEnv(
-            ". "&repo&"/"&package&"/run"&" && command -v postinstall", remount = true, silentMode = true)
+            ". "&repo&"/"&package&"/run"&" && command -v postinstall", remount = true, silentMode = true, path = rootPath)
 
     if existsPkgPostinstall == 0:
         if execEnv(". "&repo&"/"&package&"/run"&" && postinstall_"&replace(
-                package, '-', '_'), remount = true, silentMode = true) != 0:
+                package, '-', '_'), remount = true, silentMode = true, path = rootPath) != 0:
                 err("postinstall failed on sandbox")
     elif existsPostinstall == 0:
-        if execEnv(". "&repo&"/"&package&"/run"&" && postinstall", remount = true, silentMode = true) != 0:
+        if execEnv(". "&repo&"/"&package&"/run"&" && postinstall", remount = true, silentMode = true, path = rootPath) != 0:
                 err("postinstall failed on sandbox")
 
-proc installFromRoot*(package, root, destdir: string, removeDestdirOnError = false, ignorePostInstall = false) =
+proc installFromRoot*(package, root, destdir: string, removeDestdirOnError = false, ignorePostInstall = false): seq[string] =
     # A wrapper for installFromRootInternal that also resolves dependencies.
     if isEmptyOrWhitespace(package):
         return
 
-    for dep in deduplicate(dephandler(@[package], root = root, chkInstalledDirInstead = true, forceInstallAll = true)&package):
+    let depsUsed = deduplicate(dephandler(@[package], root = root, chkInstalledDirInstead = true, forceInstallAll = true)&package)
+    for dep in depsUsed:
         
         if isEmptyOrWhitespace(dep):
             continue
@@ -133,6 +120,7 @@ proc installFromRoot*(package, root, destdir: string, removeDestdirOnError = fal
                 err("undefined error, please open an issue", false)
             else:
                 raise getCurrentException()
+    return depsUsed
 
 proc createEnvCtrlC() {.noconv.} =
     info "removing unfinished environment"
@@ -147,14 +135,16 @@ proc createEnv*(root: string, ignorePostInstall = false) =
     
     copyFileWithPermissionsAndOwnership(root&"/etc/kreato-release", kpkgEnvPath&"/etc/kreato-release")
     
+    var depsTotal: seq[string]
+
     let dict = loadConfig(kpkgEnvPath&"/etc/kreato-release")
     
-    installFromRoot(dict.getSectionValue("Core", "libc"), root, kpkgEnvPath, ignorePostInstall = ignorePostInstall)
+    depsTotal = depsTotal + installFromRoot(dict.getSectionValue("Core", "libc"), root, kpkgEnvPath, ignorePostInstall = true)
     let compiler = dict.getSectionValue("Core", "compiler")
     if compiler == "clang":
-        installFromRoot("llvm", root, kpkgEnvPath, ignorePostInstall = ignorePostInstall)
+        depsTotal = depsTotal + installFromRoot("llvm", root, kpkgEnvPath, ignorePostInstall = true)
     else:
-        installFromRoot(compiler, root, kpkgEnvPath, ignorePostInstall = ignorePostInstall)
+        depsTotal = depsTotal + installFromRoot(compiler, root, kpkgEnvPath, ignorePostInstall = true)
     
     try:
         setDefaultCC(kpkgEnvPath, compiler)
@@ -168,24 +158,25 @@ proc createEnv*(root: string, ignorePostInstall = false) =
     case dict.getSectionValue("Core", "coreutils"):
         of "gnu":
             for i in ["gnu-coreutils", "pigz", "xz-utils", "bash", "gsed", "bzip2", "patch", "diffutils", "findutils", "util-linux", "bc", "cpio", "which"]:
-                installFromRoot(i, root, kpkgEnvPath, ignorePostInstall = ignorePostInstall)
+                depsTotal = depsTotal + installFromRoot(i, root, kpkgEnvPath, ignorePostInstall = true)
             #installFromRoot("gnu-core", root, kpkgEnvPath, ignorePostInstall = true)
         of "busybox":
-            installFromRoot("busybox", root, kpkgEnvPath, ignorePostInstall = ignorePostInstall)
+            depsTotal = depsTotal + installFromRoot("busybox", root, kpkgEnvPath, ignorePostInstall = true)
 
-    installFromRoot(dict.getSectionValue("Core", "tlsLibrary"), root, kpkgEnvPath, ignorePostInstall = ignorePostInstall)
+    depsTotal = depsTotal + installFromRoot(dict.getSectionValue("Core", "tlsLibrary"), root, kpkgEnvPath, ignorePostInstall = true)
     
     case dict.getSectionValue("Core", "init"):
         of "systemd":
-            installFromRoot("systemd", root, kpkgEnvPath, ignorePostInstall = ignorePostInstall)
-            installFromRoot("dbus", root, kpkgEnvPath, ignorePostInstall = ignorePostInstall)
+            depsTotal = depsTotal + installFromRoot("systemd", root, kpkgEnvPath, ignorePostInstall = true)
+            depsTotal = depsTotal + installFromRoot("dbus", root, kpkgEnvPath, ignorePostInstall = true)
         else:
-            installFromRoot(dict.getSectionValue("Core", "init"), root, kpkgEnvPath, ignorePostInstall = ignorePostInstall)
+            depsTotal = depsTotal + installFromRoot(dict.getSectionValue("Core", "init"), root, kpkgEnvPath, ignorePostInstall = true)
             
-    installFromRoot(dict.getSectionValue("Core", "init"), root, kpkgEnvPath, ignorePostInstall = ignorePostInstall)
+    depsTotal = depsTotal + installFromRoot(dict.getSectionValue("Core", "init"), root, kpkgEnvPath, ignorePostInstall = true)
     
     for i in "kreato-fs-essentials git kpkg ca-certificates python python-pip gmake".split(" "):
-        installFromRoot(i, root, kpkgEnvPath, ignorePostInstall = ignorePostInstall)
+        depsTotal = depsTotal + installFromRoot(i, root, kpkgEnvPath, ignorePostInstall = true)
+    
 
     #let extras = dict.getSectionValue("Extras", "extraPackages").split(" ")
 
@@ -198,6 +189,12 @@ proc createEnv*(root: string, ignorePostInstall = false) =
         err("creating sandbox environment failed", false)
     
     writeFile(kpkgEnvPath&"/envDateBuilt", now().format("yyyy-MM-dd"))
+
+    if ignorePostInstall != false:
+        for dep in deduplicate(depsTotal):
+            if isEmptyOrWhitespace(dep):
+                continue
+            runPostInstall(dep, kpkgEnvPath)
 
 proc umountOverlay*(error = "none", silentMode = false, merged = kpkgMergedPath, upperDir = kpkgOverlayPath&"/upperDir", workDir = kpkgOverlayPath&"/workDir"): int =
     ## Unmounts the overlay.
