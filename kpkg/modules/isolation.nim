@@ -50,6 +50,8 @@ proc runPostInstall*(package: string, rootPath = kpkgMergedPath) =
     var existsPostinstall = execEnv(
             ". "&repo&"/"&package&"/run"&" && command -v postinstall", remount = true, silentMode = true, path = rootPath)
 
+    debug "runPostInstall: "&package&": existsPkgPostInstall: "&($existsPkgPostInstall)&", existsPostInstall: "&($existsPostInstall)
+
     if existsPkgPostinstall == 0:
         if execEnv(". "&repo&"/"&package&"/run"&" && postinstall_"&replace(
                 package, '-', '_'), remount = true, silentMode = true, path = rootPath) != 0:
