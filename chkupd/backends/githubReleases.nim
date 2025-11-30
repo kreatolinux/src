@@ -5,7 +5,7 @@ import ../autoupdater
 import ../../common/version
 import httpclient
 
-proc githubReleasesCheck*(package: string, repo: string, githubReleasesRepo: string, autoUpdate = false, skipIfDownloadFails = true, trimString = "") =
+proc githubReleasesCheck*(package: string, repo: string, githubReleasesRepo: string, autoUpdate = false, skipIfDownloadFails = true, trimString = "", verbose = false) =
         # Check against GitHub Releases.
         let pkgName = lastPathPart(package)
         var client = newHttpClient(userAgent="Klinux chkupd/"&ver&" (issuetracker: https://github.com/kreatolinux/src/issues)")
@@ -22,7 +22,10 @@ proc githubReleasesCheck*(package: string, repo: string, githubReleasesRepo: str
         let packageDir = repo&"/"&pkgName
         var newestOrNot: string
 
-        echo "chkupd v3 GitHub Releases backend"
+        if verbose:
+            echo "chkupd v3 GitHub Releases backend"
+            echo "Repository: " & githubReleasesRepo
+            echo "Latest release tag: " & version
         
 
         if isEmptyOrWhitespace(version):
@@ -36,7 +39,8 @@ proc githubReleasesCheck*(package: string, repo: string, githubReleasesRepo: str
             pkgRelease = pkg.release&"-"&parseRunfile(repo & "/python").version
                         
         if pkg.isSemver:
-            echo "Package is using semver."
+            if verbose:
+                echo "Package is using semver."
             let pkgVerSplit = split(pkg.version, ".")
             let versionSplit = split(version, ".")
 
@@ -52,7 +56,8 @@ proc githubReleasesCheck*(package: string, repo: string, githubReleasesRepo: str
                     if versionSplit[2] > pkgVerSplit[2]:
                         isOutdated = true
         else:
-            echo "Package is not using semver."
+            if verbose:
+                echo "Package is not using semver."
             try:
                 let versionInt = parseInt(replace(version, ".", ""))
                 let pkgVersionInt = parseInt(replace(pkg.version, ".", ""))
@@ -77,4 +82,9 @@ proc githubReleasesCheck*(package: string, repo: string, githubReleasesRepo: str
 
                 return
         else:
-                counter = counter+1
+            if verbose or isOutdated:
+                echo "Latest version found: " & version
+            if isOutdated:
+                echo "Package is outdated (current: " & pkg.version & ", latest: " & version & ")"
+            elif verbose:
+                echo "Package is up-to-date (version: " & pkg.version & ")"

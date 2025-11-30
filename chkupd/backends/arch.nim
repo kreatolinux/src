@@ -6,7 +6,7 @@ import ../../kpkg/modules/runparser
 import ../autoupdater
 
 proc archCheck*(package: string, repo: string, autoUpdate = false,
-                skipIfDownloadFails = true) =
+                skipIfDownloadFails = true, verbose = false) =
         ## DEPRECATED, use 'check' subcommand instead.
         # Check against Arch repositories.
         let pkgName = lastPathPart(package)
@@ -22,15 +22,19 @@ proc archCheck*(package: string, repo: string, autoUpdate = false,
                 echo "Package doesn't seem to exist on Arch repositories, skipping"
                 return
 
-        echo "chkupd v3 Arch backend"
+        if verbose:
+            echo "chkupd v3 Arch backend"
 
         let pkg = parse_runfile(packageDir)
-        echo "local version: "&pkg.version
-        echo "remote version: "&version
+        if verbose:
+            echo "local version: "&pkg.version
+            echo "remote version: "&version
 
         if version > pkg.versionString:
                 echo "Package is not uptodate."
 
                 if autoUpdate:
                         autoUpdater(pkg, packageDir, version, skipIfDownloadFails)
+        elif verbose:
+            echo "Package is up-to-date."
         return
