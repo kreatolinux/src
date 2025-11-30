@@ -38,11 +38,13 @@ jobs:
           export PATH=$PATH:$HOME/.nimble/bin
           make deps
           ./build.sh -p kpkg
+          ./build.sh -p chkupd
           mv out out-release
       
       - name: build (amd64) (debug)
         run: |
           ./build.sh -d -p kpkg
+          ./build.sh -d -p chkupd
           mv out out-debug
       
       - uses: actions/upload-artifact@v4
@@ -54,4 +56,14 @@ jobs:
         with:
           name: kpkg-amd64-linux-debug
           path: ${{ github.workspace }}/out-debug/kpkg
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: chkupd-amd64-linux-debug
+          path: ${{ github.workspace }}/out-debug/chkupd
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: chkupd-amd64-linux-release
+          path: ${{ github.workspace }}/out-release/chkupd
 
