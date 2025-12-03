@@ -135,7 +135,45 @@ proc createEnvCtrlC() {.noconv.} =
     removeDir(kpkgEnvPath)
     quit()
 
-proc createEnv*(root: string, ignorePostInstall = false) =
+
+proc checkEnvPackageUpdates(name: string): bool =
+    ## Checks package updates on the environment.
+    let localPkgVer = getPackage(name, kpkgEnvPath).version
+    let repo = findPkgRepo(name)
+    let remotePkgVer = parseRunfile(repo&"/"&name).versionString
+
+    if localPkgVer != remotePkgVer:
+        return true
+    else:
+        return false
+
+proc createOrUpgradeEnv(root: string, ignorePostInstall = false) =
+    ## Creates and upgrades environment (if needed)
+
+    if fileExists(root&"/etc/kreato-release"):
+        try:
+            var needsReinit = false
+            let envPkgList = getListPackages(kpkgEnvPath)
+
+            for pkg in envPkgList:
+                if checkEnvPackageUpdates(pkg):
+                    debug "upgradeEnv: base package '"&pkg&"' is mismatching with the system, reinitializing environment"
+                    needsReinit = true
+            
+            if !needsReinit:
+                return
+        
+        except:
+            debug "upgradeEnv: something failed, reinitializing anyway"
+
+
+    removeDir(kpkgEnvPath)
+    createEnv(root, ignorePostInstall)
+
+
+
+
+proc createEnv(root: string, ignorePostInstall = false) =
     # TODO: cross-compilation support
     info "initializing sandbox, this might take a while..."
     setControlCHook(createEnvCtrlC)
@@ -203,6 +241,7 @@ proc createEnv*(root: string, ignorePostInstall = false) =
             if isEmptyOrWhitespace(dep):
                 continue
             runPostInstall(dep, kpkgEnvPath)
+
 
 proc umountOverlay*(error = "none", silentMode = false, merged = kpkgMergedPath, upperDir = kpkgOverlayPath&"/upperDir", workDir = kpkgOverlayPath&"/workDir"): int =
     ## Unmounts the overlay.

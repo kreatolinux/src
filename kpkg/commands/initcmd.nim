@@ -14,7 +14,7 @@ proc sandbox*() =
             discard umountOverlay(silentMode = true)
             removeDir(kpkgEnvPath)
 
-    createEnv("/") 
+    createOrUpgradeEnv("/") 
 
 proc package*(repo: string, package: string, release = "1", version: string, sources = "", depends = "", add = "build,package") =
     ## Initializes an empty package.
