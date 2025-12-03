@@ -161,7 +161,7 @@ proc createOrUpgradeEnv(root: string, ignorePostInstall = false) =
                     debug "upgradeEnv: base package '"&pkg&"' is mismatching with the system, reinitializing environment"
                     needsReinit = true
             
-            if !needsReinit:
+            if not needsReinit:
                 return
         
         except:
