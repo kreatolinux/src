@@ -222,7 +222,7 @@ proc createEnv(root: string, ignorePostInstall = false) =
 proc createOrUpgradeEnv*(root: string, ignorePostInstall = false) =
     ## Creates and upgrades environment (if needed)
 
-    if fileExists(root&"/etc/kreato-release"):
+    if fileExists(kpkgEnvPath&"/etc/kreato-release"):
         try:
             var needsReinit = false
             let envPkgList = getListPackages(kpkgEnvPath)
