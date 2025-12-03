@@ -5,6 +5,7 @@ import sqlite
 import std/times
 import processes
 import dephandler
+import runparser
 import commonPaths
 import commonTasks
 import std/sequtils
