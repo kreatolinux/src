@@ -41,6 +41,25 @@ proc getDependents*(packages: seq[string], root = "/", addIfOutdated = true): se
     return res
 
 
+proc getRuntimeDependents*(packages: seq[string], root: string): seq[string] =
+    ## Gets packages that have runtime dependencies on the given packages
+    ## Eg. getRuntimeDependents("perl") will return packages that depend on perl at runtime
+    var res: seq[string]
+    
+    for p in getListPackages():
+        
+        if not dirExists(p):
+            continue
+
+        let pkg = getPackage(p, root) 
+        
+        for package in packages:
+            if package in pkg.deps.split("!!k!!"):
+                res = res&p
+
+    return res
+
+
 proc copyFileWithPermissionsAndOwnership*(source, dest: string, options = {cfSymlinkAsIs}) =
     ## Copies a file with both permissions and ownership.
     

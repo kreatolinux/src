@@ -320,6 +320,8 @@ proc build*(no = false, yes = false, root = "/",
     #    fullRootPath = root&"/usr/"&target
     #    ignoreInit = true
     
+    var allDependents: seq[string]
+    
     try:
         # Build the dependency graph once
         (deps, depGraph) = dephandlerWithGraph(packages, isBuild = true,
@@ -330,9 +332,21 @@ proc build*(no = false, yes = false, root = "/",
         # Check for packages that depend on what we're building
         gD = getDependents(deps)
         
+        # Get packages that have runtime dependencies on the packages being built
+        var runtimeDependents: seq[string]
+        for pkg in packages:
+            let pkgSplit = parsePkgInfo(pkg)
+            runtimeDependents = runtimeDependents & getRuntimeDependents(@[pkgSplit.name], fullRootPath)
+        
+        # Remove duplicates and packages already in dependents
+        runtimeDependents = deduplicate(runtimeDependents).filterIt(it notin gD)
+        
+        # Combine all dependents
+        allDependents = deduplicate(gD & runtimeDependents)
+        
         # If we have dependents, rebuild the graph with them included
-        if not isEmptyOrWhitespace(gD.join("")):
-            let allPackages = deduplicate(packages&gD)
+        if not isEmptyOrWhitespace(allDependents.join("")):
+            let allPackages = deduplicate(packages&allDependents)
             (deps, depGraph) = dephandlerWithGraph(allPackages, isBuild = true,
                     root = fullRootPath, forceInstallAll = forceInstallAll, isInstallDir = isInstallDir, ignoreInit = ignoreInit, useBootstrap = bootstrap, useCacheIfAvailable = useCacheIfAvailable)
     except CatchableError:
@@ -362,9 +376,9 @@ proc build*(no = false, yes = false, root = "/",
     printReplacesPrompt(p, fullRootPath, isInstallDir = isInstallDir)
     
     if isInstallDir:
-        printPackagesPrompt(deps.join(" "), yes, no, packages, dependents = gD)
+        printPackagesPrompt(deps.join(" "), yes, no, packages, dependents = allDependents)
     else:
-        printPackagesPrompt(deps.join(" "), yes, no, @[""], dependents = gD)
+        printPackagesPrompt(deps.join(" "), yes, no, @[""], dependents = allDependents)
 
     let pBackup = p
 
