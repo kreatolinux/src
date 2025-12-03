@@ -219,7 +219,7 @@ proc createEnv(root: string, ignorePostInstall = false) =
             runPostInstall(dep, kpkgEnvPath)
 
 
-proc createOrUpgradeEnv(root: string, ignorePostInstall = false) =
+proc createOrUpgradeEnv*(root: string, ignorePostInstall = false) =
     ## Creates and upgrades environment (if needed)
 
     if fileExists(root&"/etc/kreato-release"):
