@@ -238,7 +238,7 @@ proc createOrUpgradeEnv*(root: string, ignorePostInstall = false) =
         except:
             debug "upgradeEnv: something failed, reinitializing anyway"
 
-
+    umountOverlay()
     removeDir(kpkgEnvPath)
     createEnv(root, ignorePostInstall)
 
@@ -246,6 +246,8 @@ proc createOrUpgradeEnv*(root: string, ignorePostInstall = false) =
 
 proc umountOverlay*(error = "none", silentMode = false, merged = kpkgMergedPath, upperDir = kpkgOverlayPath&"/upperDir", workDir = kpkgOverlayPath&"/workDir"): int =
     ## Unmounts the overlay.
+    if not dirExists(merged) or not dirExists(kpkgOverlayPath) or not dirExists(workDir):
+        return 0
     closeDb()
     let returnCode = execCmdKpkg("umount "&merged, error, silentMode)
     discard execCmdKpkg("umount "&kpkgOverlayPath, error, silentMode = silentMode)
