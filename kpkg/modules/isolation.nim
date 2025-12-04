@@ -251,7 +251,9 @@ proc createOrUpgradeEnv*(root: string, ignorePostInstall = false) =
         except:
             debug "upgradeEnv: something failed, reinitializing anyway"
 
-    umountOverlay()
+    let umountExit = umountOverlay()
+    if umountExit != 0:
+        debug "createOrUpgradeEnv: umountOverlay failed, exit code "&($umountOverlay)
     removeDir(kpkgEnvPath)
     createEnv(root, ignorePostInstall)
 
