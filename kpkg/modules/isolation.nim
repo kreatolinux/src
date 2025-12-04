@@ -219,6 +219,19 @@ proc createEnv(root: string, ignorePostInstall = false) =
             runPostInstall(dep, kpkgEnvPath)
 
 
+proc umountOverlay*(error = "none", silentMode = false, merged = kpkgMergedPath, upperDir = kpkgOverlayPath&"/upperDir", workDir = kpkgOverlayPath&"/workDir"): int =
+    ## Unmounts the overlay.
+    if not dirExists(merged) or not dirExists(kpkgOverlayPath) or not dirExists(workDir):
+        return 0
+    closeDb()
+    let returnCode = execCmdKpkg("umount "&merged, error, silentMode)
+    discard execCmdKpkg("umount "&kpkgOverlayPath, error, silentMode = silentMode)
+    removeDir(merged)
+    removeDir(upperDir)
+    removeDir(workDir)
+    return returnCode
+
+
 proc createOrUpgradeEnv*(root: string, ignorePostInstall = false) =
     ## Creates and upgrades environment (if needed)
 
@@ -242,19 +255,6 @@ proc createOrUpgradeEnv*(root: string, ignorePostInstall = false) =
     removeDir(kpkgEnvPath)
     createEnv(root, ignorePostInstall)
 
-
-
-proc umountOverlay*(error = "none", silentMode = false, merged = kpkgMergedPath, upperDir = kpkgOverlayPath&"/upperDir", workDir = kpkgOverlayPath&"/workDir"): int =
-    ## Unmounts the overlay.
-    if not dirExists(merged) or not dirExists(kpkgOverlayPath) or not dirExists(workDir):
-        return 0
-    closeDb()
-    let returnCode = execCmdKpkg("umount "&merged, error, silentMode)
-    discard execCmdKpkg("umount "&kpkgOverlayPath, error, silentMode = silentMode)
-    removeDir(merged)
-    removeDir(upperDir)
-    removeDir(workDir)
-    return returnCode
 
 proc prepareOverlayDirs*(upperDir = kpkgOverlayPath&"/upperDir", workDir = kpkgOverlayPath&"/workDir", merged = kpkgMergedPath, error = "none", silentMode = false): int =
     ## Prepares the overlay directories by mounting tmpfs and creating directory structure
