@@ -201,6 +201,11 @@ build {
 }   
 \f[R]
 .fi
+.PP
+You can also use any variable manipulation methods in if statements,
+including inline exec to execute commands and use their output or exit
+code in conditions.
+See \f[B]VARIABLE MANIPULATION\f[R] for details on available methods.
 .SS VARIABLE MANIPULATION
 .PP
 Variables can be manipulated directly within strings using object-style
@@ -208,8 +213,17 @@ methods.
 This is particularly useful for constructing source URLs that require
 specific version formatting (e.g., extracting \[lq]Major.Minor\[rq] from
 a full version string).
+You can also use inline exec to execute commands and use their output or
+exit code.
 .PP
-The syntax for manipulation is \f[V]${variable.method(arguments)}\f[R].
+The syntax for manipulation is \f[V]${variable.method(arguments)}\f[R]
+or \f[V]${exec(\[dq]command\[dq]).method()}\f[R].
+.PP
+\f[B]Note\f[R]: Global variables (defined at the top of the runfile)
+cannot use exec directly.
+Exec can only be used within function blocks (like \f[V]build\f[R],
+\f[V]prepare\f[R], \f[V]package\f[R], etc.)
+or inside custom functions.
 .SS AVAILABLE METHODS
 .IP \[bu] 2
 \f[B]join(delimiter)\f[R] Joins a list into a string using the given
@@ -258,6 +272,33 @@ Only works with strings.
 \f[V]${version.replace(\[aq].\[aq], \[aq]_\[aq])}\f[R] returns
 \f[V]1_0_5\f[R]
 .RE
+.IP \[bu] 2
+\f[B]exec(command).output()\f[R] Executes a shell command and returns
+its output.
+Can be used in conditionals, variable assignments, and string
+interpolation.
+Only works within function blocks, not in global variable definitions.
+.RS 2
+.IP \[bu] 2
+\f[I]Example:\f[R]
+\f[V]build { if ${exec(\[dq]test -f config.h\[dq])}.output() { print \[dq]config.h exists\[dq] } }\f[R]
+.IP \[bu] 2
+\f[V]${exec(\[dq]ls -1 | head -n 1\[dq])}.output()\f[R] returns the
+first line of directory listing
+.RE
+.IP \[bu] 2
+\f[B]exec(command).exit()\f[R] Executes a shell command and returns its
+exit code (0 for success, non-zero for failure).
+Can be used in conditionals and comparisons.
+Only works within function blocks, not in global variable definitions.
+.RS 2
+.IP \[bu] 2
+\f[I]Example:\f[R]
+\f[V]build { if ${exec(\[dq]test -f config.h\[dq])}.exit() == 0 { print \[dq]config.h exists\[dq] } }\f[R]
+.IP \[bu] 2
+\f[V]${exec(\[dq]ls nonexistent\[dq])}.exit()\f[R] returns a non-zero
+exit code if the file doesn\[cq]t exist
+.RE
 .SS EXAMPLES
 .PP
 Combining methods to construct complex URLs:
@@ -267,6 +308,21 @@ Combining methods to construct complex URLs:
 version: \[dq]2.78.1\[dq]
 sources:
     - \[dq]https://download.acme.org/sources/acme/${version.split(\[aq].\[aq])[0:2].join(\[aq].\[aq])}/acme-$version.tar.xz\[dq]
+\f[R]
+.fi
+.PP
+Using inline exec in conditionals and variable assignments:
+.IP
+.nf
+\f[C]
+build {
+    if ${exec(\[dq]test -f config.h\[dq])}.exit() == 0 {
+        print \[dq]config.h exists\[dq]
+    }
+    
+    local first_file = ${exec(\[dq]ls -1 | head -n 1\[dq])}.output()
+    print \[dq]First file: $first_file\[dq]
+}
 \f[R]
 .fi
 .SS FOR LOOPS
