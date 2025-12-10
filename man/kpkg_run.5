@@ -281,9 +281,9 @@ Only works within function blocks, not in global variable definitions.
 .RS 2
 .IP \[bu] 2
 \f[I]Example:\f[R]
-\f[V]build { if ${exec(\[dq]test -f config.h\[dq])}.output() { print \[dq]config.h exists\[dq] } }\f[R]
+\f[V]build { if ${exec(\[dq]test -f config.h\[dq]).output()} { print \[dq]config.h exists\[dq] } }\f[R]
 .IP \[bu] 2
-\f[V]${exec(\[dq]ls -1 | head -n 1\[dq])}.output()\f[R] returns the
+\f[V]${exec(\[dq]ls -1 | head -n 1\[dq]).output()}\f[R] returns the
 first line of directory listing
 .RE
 .IP \[bu] 2
@@ -294,9 +294,9 @@ Only works within function blocks, not in global variable definitions.
 .RS 2
 .IP \[bu] 2
 \f[I]Example:\f[R]
-\f[V]build { if ${exec(\[dq]test -f config.h\[dq])}.exit() == 0 { print \[dq]config.h exists\[dq] } }\f[R]
+\f[V]build { if ${exec(\[dq]test -f config.h\[dq]).exit()} == 0 { print \[dq]config.h exists\[dq] } }\f[R]
 .IP \[bu] 2
-\f[V]${exec(\[dq]ls nonexistent\[dq])}.exit()\f[R] returns a non-zero
+\f[V]${exec(\[dq]ls nonexistent\[dq]).exit()}\f[R] returns a non-zero
 exit code if the file doesn\[cq]t exist
 .RE
 .SS EXAMPLES
@@ -316,11 +316,11 @@ Using inline exec in conditionals and variable assignments:
 .nf
 \f[C]
 build {
-    if ${exec(\[dq]test -f config.h\[dq])}.exit() == 0 {
+    if ${exec(\[dq]test -f config.h\[dq]).exit()} == 0 {
         print \[dq]config.h exists\[dq]
     }
     
-    local first_file = ${exec(\[dq]ls -1 | head -n 1\[dq])}.output()
+    local first_file = ${exec(\[dq]ls -1 | head -n 1\[dq]).output()}
     print \[dq]First file: $first_file\[dq]
 }
 \f[R]
