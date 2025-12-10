@@ -194,13 +194,13 @@ The syntax for manipulation is `${variable.method(arguments)}` or `${exec("comma
 
 * **exec(command).output()**
   Executes a shell command and returns its output. Can be used in conditionals, variable assignments, and string interpolation. Only works within function blocks, not in global variable definitions.
-  * *Example:* `build { if ${exec("test -f config.h")}.output() { print "config.h exists" } }`
-  * `${exec("ls -1 | head -n 1")}.output()` returns the first line of directory listing
+  * *Example:* `build { if ${exec("test -f config.h").output()} { print "config.h exists" } }`
+  * `${exec("ls -1 | head -n 1").output()}` returns the first line of directory listing
 
 * **exec(command).exit()**
   Executes a shell command and returns its exit code (0 for success, non-zero for failure). Can be used in conditionals and comparisons. Only works within function blocks, not in global variable definitions.
-  * *Example:* `build { if ${exec("test -f config.h")}.exit() == 0 { print "config.h exists" } }`
-  * `${exec("ls nonexistent")}.exit()` returns a non-zero exit code if the file doesn't exist
+  * *Example:* `build { if ${exec("test -f config.h").exit()} == 0 { print "config.h exists" } }`
+  * `${exec("ls nonexistent").exit()}` returns a non-zero exit code if the file doesn't exist
 
 ### EXAMPLES
 Combining methods to construct complex URLs:
@@ -215,11 +215,11 @@ Using inline exec in conditionals and variable assignments:
 
 ```bash
 build {
-    if ${exec("test -f config.h")}.exit() == 0 {
+    if ${exec("test -f config.h").exit()} == 0 {
         print "config.h exists"
     }
     
-    local first_file = ${exec("ls -1 | head -n 1")}.output()
+    local first_file = ${exec("ls -1 | head -n 1").output()}
     print "First file: $first_file"
 }
 ```
