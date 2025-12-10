@@ -3,6 +3,9 @@
 # NAME
 kpkg runfile - main package format of kpkg
 
+# DEPRECATED
+see kpkg_run(5) instead for the new format. This format will be removed in the next release.
+
 # DESCRIPTION
 kpkg runfiles are the main package format of kpkg. It is a basic shell script with some variables so kpkg can build the package.
 
