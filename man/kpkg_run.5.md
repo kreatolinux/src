@@ -159,10 +159,14 @@ build {
 }   
 ```
 
-## VARIABLE MANIPULATION
-Variables can be manipulated directly within strings using object-style methods. This is particularly useful for constructing source URLs that require specific version formatting (e.g., extracting "Major.Minor" from a full version string).
+You can also use any variable manipulation methods in if statements, including inline exec to execute commands and use their output or exit code in conditions. See **VARIABLE MANIPULATION** for details on available methods.
 
-The syntax for manipulation is `${variable.method(arguments)}`.
+## VARIABLE MANIPULATION
+Variables can be manipulated directly within strings using object-style methods. This is particularly useful for constructing source URLs that require specific version formatting (e.g., extracting "Major.Minor" from a full version string). You can also use inline exec to execute commands and use their output or exit code.
+
+The syntax for manipulation is `${variable.method(arguments)}` or `${exec("command").method()}`.
+
+**Note**: Global variables (defined at the top of the runfile) cannot use exec directly. Exec can only be used within function blocks (like `build`, `prepare`, `package`, etc.) or inside custom functions.
 
 ### AVAILABLE METHODS
 
@@ -188,6 +192,16 @@ The syntax for manipulation is `${variable.method(arguments)}`.
   * *Example:* `version: "1.0.5"`
   * `${version.replace('.', '_')}` returns `1_0_5`
 
+* **exec(command).output()**
+  Executes a shell command and returns its output. Can be used in conditionals, variable assignments, and string interpolation. Only works within function blocks, not in global variable definitions.
+  * *Example:* `build { if ${exec("test -f config.h")}.output() { print "config.h exists" } }`
+  * `${exec("ls -1 | head -n 1")}.output()` returns the first line of directory listing
+
+* **exec(command).exit()**
+  Executes a shell command and returns its exit code (0 for success, non-zero for failure). Can be used in conditionals and comparisons. Only works within function blocks, not in global variable definitions.
+  * *Example:* `build { if ${exec("test -f config.h")}.exit() == 0 { print "config.h exists" } }`
+  * `${exec("ls nonexistent")}.exit()` returns a non-zero exit code if the file doesn't exist
+
 ### EXAMPLES
 Combining methods to construct complex URLs:
 
@@ -195,6 +209,19 @@ Combining methods to construct complex URLs:
 version: "2.78.1"
 sources:
     - "https://download.acme.org/sources/acme/${version.split('.')[0:2].join('.')}/acme-$version.tar.xz"
+```
+
+Using inline exec in conditionals and variable assignments:
+
+```bash
+build {
+    if ${exec("test -f config.h")}.exit() == 0 {
+        print "config.h exists"
+    }
+    
+    local first_file = ${exec("ls -1 | head -n 1")}.output()
+    print "First file: $first_file"
+}
 ```
 
 ## FOR LOOPS
