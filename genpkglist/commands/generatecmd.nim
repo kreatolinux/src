@@ -1,6 +1,6 @@
 import os
 import strutils
-import ../../kpkg/modules/runparser
+import ../../kpkg/modules/run3/run3
 import ../../kpkg/modules/dephandler
 
 
@@ -13,11 +13,12 @@ proc dependencyGenerator(deps: seq[string], pkgPath: string, text: string, isBui
   # Generates the dependency listings.
   var finalText = text
   for i in deps:
-    if fileExists(parentDir(pkgPath)&"/"&i&"/run"):
+    if fileExists(parentDir(pkgPath)&"/"&i&"/run3"):
       let runfTemp = parseRunfile(parentDir(pkgPath)&"/"&i)
-      if not isEmptyOrWhitespace(runfTemp.replaces.join("")):
+      let replaces = runfTemp.getListVariable("replaces")
+      if not isEmptyOrWhitespace(replaces.join("")):
         finalText = appendData(finalText, "- ["&i&"](../"&i&") or")
-        for i in runfTemp.replaces:
+        for i in replaces:
           finalText = finalText&" ["&i&"](../"&i&")"&" or"
         finalText = finalText[0.. ^4]
       else:
@@ -36,7 +37,7 @@ proc generateInternal(pkgPath = "", output = "out.md"): bool =
   ## Returns true if successful, false if skipped due to missing runfile.
  
   # Check if runfile exists before attempting to parse
-  if not fileExists(pkgPath & "/run"):
+  if not fileExists(pkgPath & "/run3"):
     echo "WARNING: Skipping '" & pkgPath & "' - no runfile found"
     return false
   
@@ -44,33 +45,38 @@ proc generateInternal(pkgPath = "", output = "out.md"): bool =
   
   var finalText = "---"
   
-  finalText = appendData(finalText, "title: "&pkg.pkg)
+  finalText = appendData(finalText, "title: "&pkg.getName())
   finalText = appendData(finalText, "type: docs")
   finalText = appendData(finalText, "draft: false")
   finalText = appendData(finalText, "---\n")
   
-  finalText = appendData(finalText, pkg.desc&"\n")
+  finalText = appendData(finalText, pkg.getDescription()&"\n")
 
-  finalText = appendData(finalText, "- version "&pkg.versionString)
+  finalText = appendData(finalText, "- version "&pkg.getVersionString())
   
-  if pkg.isGroup:
+  if pkg.getVariable("type") == "group":
     finalText = appendData(finalText, "- is a group package")
   else:
     finalText = appendData(finalText, "- is not a group package")
   
-  if not isEmptyOrWhitespace(pkg.replaces.join("")):
-    finalText = appendData(finalText, "- replaces "&pkg.replaces.join(" ,"))
+  let replaces = pkg.getListVariable("replaces")
+  if not isEmptyOrWhitespace(replaces.join("")):
+    finalText = appendData(finalText, "- replaces "&replaces.join(" ,"))
   
-  if not isEmptyOrWhitespace(pkg.conflicts.join("")):
-    finalText = appendData(finalText, "- conflicts "&pkg.replaces.join(" ,"))
+  let conflicts = pkg.getListVariable("conflicts")
+  if not isEmptyOrWhitespace(conflicts.join("")):
+    finalText = appendData(finalText, "- conflicts "&replaces.join(" ,"))
 
   finalText = appendData(finalText, "\n# Dependencies")
   
-  if isEmptyOrWhitespace(pkg.deps.join("")) and isEmptyOrWhitespace(pkg.bdeps.join("")):
+  let deps = pkg.getDepends()
+  let bdeps = pkg.getBuildDepends()
+
+  if isEmptyOrWhitespace(deps.join("")) and isEmptyOrWhitespace(bdeps.join("")):
     finalText = appendData(finalText, "No dependencies")
   else:
-    finalText = dependencyGenerator(pkg.deps, pkgPath, finalText, false)
-    finalText = dependencyGenerator(pkg.bdeps, pkgPath, finalText, true)
+    finalText = dependencyGenerator(deps, pkgPath, finalText, false)
+    finalText = dependencyGenerator(bdeps, pkgPath, finalText, true)
 
   #finalText = appendData(finalText, "# Required by") # todo
 
