@@ -293,13 +293,16 @@ build {
 ### SCOPE AND VARIABLES
 * Global Variables: Custom functions can access (and modify using the `global` keyword) all variables defined in the YAML header. This way you can create subpackages that have different properties to the main package.
 * Local Variables: You can define local variables inside a function using the `local` keyword to prevent exposing them to the rest of the script.
+* Environment Variables: You can define environment variables inside a function using the `env` keyword to pass that automatically.
 
 ```bash
 func test_variables {
     local awesome="yes!"
     global name="test2"
+    env EXAMPLE="test"
     print "Is this local? $awesome"
     print "The package is named: $name"
+    exec "echo you know this is a \$EXAMPLE right?"
 }
 ```
 
