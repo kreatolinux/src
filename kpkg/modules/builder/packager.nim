@@ -69,7 +69,7 @@ proc createPackage*(actualPackage: string, pkg: runFile, kTarget: string): strin
         
     dict.writeConfig(kpkgBuildRoot&"/pkgsums.ini")
     
-    if execCmdKpkg("bsdtar -czf "&tarball&" -C "&kpkgBuildRoot&" .") != 0:
+    if execCmdKpkg("bsdtar -czf "&tarball&" -C "&kpkgBuildRoot&" .").exitCode != 0:
         err "creating binary tarball failed"
     #createArchive(tarball, kpkgBuildRoot)
     

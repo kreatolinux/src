@@ -45,11 +45,11 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
 
         if existsPkgPreUpgrade == 0:
             if execCmdKpkg(". "&repo&"/"&package&"/run"&" && preupgrade_"&replace(
-                    package, '-', '_')) != 0:
+                    package, '-', '_')).exitCode != 0:
                 err("preupgrade failed")
             
         if existsPreUpgrade == 0:
-            if execCmdKpkg(". "&repo&"/"&package&"/run"&" && preupgrade") != 0:
+            if execCmdKpkg(". "&repo&"/"&package&"/run"&" && preupgrade").exitCode != 0:
                 err("preupgrade failed")
 
     if not packageExists(package, root):
@@ -62,13 +62,13 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
 
         if existsPkgPreinstall == 0:
             if execCmdKpkg(". "&repo&"/"&package&"/run"&" && preinstall_"&replace(
-                    package, '-', '_')) != 0:
+                    package, '-', '_')).exitCode != 0:
                 if ignorePreInstall:
                     warn "preinstall failed"
                 else:
                     err("preinstall failed")
         elif existsPreinstall == 0:
-            if execCmdKpkg(". "&repo&"/"&package&"/run"&" && preinstall") != 0:
+            if execCmdKpkg(". "&repo&"/"&package&"/run"&" && preinstall").exitCode != 0:
                 if ignorePreInstall:
                     warn "preinstall failed"
                 else:
@@ -280,13 +280,13 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
 
     if existsPkgPostinstall == 0:
         if execCmdKpkg(". "&repo&"/"&package&"/run"&" && postinstall_"&replace(
-                package, '-', '_')) != 0:
+                package, '-', '_')).exitCode != 0:
             if ignorePostInstall:
                 warn "postinstall failed"
             else:
                 err("postinstall failed")
     elif existsPostinstall == 0:
-        if execCmdKpkg(". "&repo&"/"&package&"/run"&" && postinstall") != 0:
+        if execCmdKpkg(". "&repo&"/"&package&"/run"&" && postinstall").exitCode != 0:
             if ignorePostInstall:
                 warn "postinstall failed"
             else:
@@ -298,11 +298,11 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
         var existsPostUpgrade = execCmdEx(". "&repo&"/"&package&"/run"&" && command -v postupgrade").exitCode
         
         if existsPkgPostUpgrade == 0:
-            if execCmdKpkg(". "&repo&"/"&package&"/run"&" && postupgrade_"&replace(package, '-', '_')) != 0:
+            if execCmdKpkg(". "&repo&"/"&package&"/run"&" && postupgrade_"&replace(package, '-', '_')).exitCode != 0:
                 err("postupgrade failed")
         
         if existsPostUpgrade == 0:
-            if execCmdKpkg(". "&repo&"/"&package&"/run"&" && postupgrade") != 0:
+            if execCmdKpkg(". "&repo&"/"&package&"/run"&" && postupgrade").exitCode != 0:
                 err("postupgrade failed")
 
     for i in pkg.optdeps:

@@ -15,9 +15,8 @@ import ../modules/config
 import ../commands/checkcmd
 import ../../kreastrap/commonProcs
 
-proc execEnv*(command: string, error = "none", passthrough = false, silentMode = false, path = kpkgMergedPath, remount = false): int =
-    ## Wrapper of execCmdKpkg and Bubblewrap that runs a command in the sandbox.
-    # We can use bwrap to chroot.
+proc execEnv*(command: string, error = "none", passthrough = false, silentMode = false, path = kpkgMergedPath, remount = false): tuple[output: string, exitCode: int] =
+    ## Wrapper of execCmdKpkg and Bubblewrap that runs a command in the sandbox and captures output.
     const localeEnvPrefix = "LC_ALL=C.UTF-8 LC_CTYPE=C.UTF-8 LANG=C.UTF-8 "
     if passthrough:
         return execCmdKpkg(localeEnvPrefix&"/bin/sh -c \""&command&"\"", error, silentMode = silentMode)
@@ -36,6 +35,7 @@ proc execEnv*(command: string, error = "none", passthrough = false, silentMode =
 
         return execCmdKpkg(localeEnvPrefix&"bwrap --bind "&path&" / --bind "&kpkgTempDir1&" "&kpkgTempDir1&" --bind /etc/kpkg/repos /etc/kpkg/repos --bind "&kpkgTempDir2&" "&kpkgTempDir2&" --bind "&kpkgSourcesDir&" "&kpkgSourcesDir&" --dev /dev --proc /proc --perms 1777 --tmpfs /dev/shm --ro-bind /etc/resolv.conf /etc/resolv.conf /bin/sh -c \""&command&"\"", error, silentMode = silentMode)
 
+
 proc runPostInstall*(package: string, rootPath = kpkgMergedPath) =
     ## Runs postinstall scripts for a package in the provided environment root.
     ## Defaults to the merged overlay, but can be overridden (e.g. createEnv).
@@ -50,18 +50,18 @@ proc runPostInstall*(package: string, rootPath = kpkgMergedPath) =
     
     var existsPkgPostinstall = execEnv(
             ". "&repo&"/"&package&"/run"&" && command -v postinstall_"&replace(
-                    package, '-', '_'), remount = remountNeeded, silentMode = silent, path = rootPath)
+                    package, '-', '_'), remount = remountNeeded, silentMode = silent, path = rootPath).exitCode
     var existsPostinstall = execEnv(
-            ". "&repo&"/"&package&"/run"&" && command -v postinstall", remount = remountNeeded, silentMode = silent, path = rootPath)
+            ". "&repo&"/"&package&"/run"&" && command -v postinstall", remount = remountNeeded, silentMode = silent, path = rootPath).exitCode
 
     debug "runPostInstall: "&package&": existsPkgPostInstall: "&($existsPkgPostInstall)&", existsPostInstall: "&($existsPostInstall)
 
     if existsPkgPostinstall == 0:
         if execEnv(". "&repo&"/"&package&"/run"&" && postinstall_"&replace(
-                package, '-', '_'), remount = remountNeeded, silentMode = silent, path = rootPath) != 0:
+                package, '-', '_'), remount = remountNeeded, silentMode = silent, path = rootPath).exitCode != 0:
                 err("postinstall failed on sandbox")
     elif existsPostinstall == 0:
-        if execEnv(". "&repo&"/"&package&"/run"&" && postinstall", remount = remountNeeded, silentMode = silent, path = rootPath) != 0:
+        if execEnv(". "&repo&"/"&package&"/run"&" && postinstall", remount = remountNeeded, silentMode = silent, path = rootPath).exitCode != 0:
                 err("postinstall failed on sandbox")
 
 
@@ -206,7 +206,7 @@ proc createEnv(root: string, ignorePostInstall = false) =
     #    for i in extras:
     #        installFromRoot(i, root, kpkgEnvPath)
     
-    if execCmdKpkg("bwrap --bind "&kpkgEnvPath&" / --bind /etc/resolv.conf /etc/resolv.conf /usr/bin/env update-ca-trust", silentMode = false) != 0:
+    if execCmdKpkg("bwrap --bind "&kpkgEnvPath&" / --bind /etc/resolv.conf /etc/resolv.conf /usr/bin/env update-ca-trust", silentMode = false).exitCode != 0:
         removeDir(root)
         err("creating sandbox environment failed", false)
     
@@ -224,7 +224,7 @@ proc umountOverlay*(error = "none", silentMode = false, merged = kpkgMergedPath,
     if not dirExists(merged) or not dirExists(kpkgOverlayPath) or not dirExists(workDir):
         return 0
     closeDb()
-    let returnCode = execCmdKpkg("umount "&merged, error, silentMode)
+    let returnCode = execCmdKpkg("umount "&merged, error, silentMode).exitCode
     discard execCmdKpkg("umount "&kpkgOverlayPath, error, silentMode = silentMode)
     removeDir(merged)
     removeDir(upperDir)
@@ -286,7 +286,7 @@ proc mountOverlayFilesystem*(upperDir = kpkgOverlayPath&"/upperDir", workDir = k
     ## installing build dependencies to upperDir.
     let cmd = "mount -t overlay overlay -o lowerdir="&lowerDir&",upperdir="&upperDir&",workdir="&workDir&" "&merged
     debug cmd
-    return execCmdKpkg(cmd, error, silentMode = silentMode)
+    return execCmdKpkg(cmd, error, silentMode = silentMode).exitCode
 
 proc mountOverlay*(upperDir = kpkgOverlayPath&"/upperDir", workDir = kpkgOverlayPath&"/workDir", lowerDir = kpkgEnvPath, merged = kpkgMergedPath, error = "none", silentMode = false): int =
     ## Mounts the overlay in one step (prepare directories and mount overlayfs).

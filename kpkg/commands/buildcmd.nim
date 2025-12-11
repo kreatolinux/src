@@ -29,9 +29,9 @@ proc fakerootWrap(path: string, input: string,
         return 0
 
     if not isEmptyOrWhitespace(autocd):
-        return execEnv(". "&path&"/run && export DESTDIR="&kpkgBuildRoot&" && export ROOT="&kpkgBuildRoot&" && cd "&autocd&" && "&input, typ, passthrough = passthrough)
+        return execEnv(". "&path&"/run && export DESTDIR="&kpkgBuildRoot&" && export ROOT="&kpkgBuildRoot&" && cd "&autocd&" && "&input, typ, passthrough = passthrough).exitCode
 
-    return execEnv(". "&path&"/run && export DESTDIR="&kpkgBuildRoot&" && export ROOT="&kpkgBuildRoot&" && cd '"&kpkgSrcDir&"' && "&input, typ, passthrough = passthrough)
+    return execEnv(". "&path&"/run && export DESTDIR="&kpkgBuildRoot&" && export ROOT="&kpkgBuildRoot&" && cd '"&kpkgSrcDir&"' && "&input, typ, passthrough = passthrough).exitCode
 
 proc builder*(package: string, destdir: string, offline = false,
             dontInstall = false, useCacheIfAvailable = false,
@@ -187,7 +187,7 @@ proc builder*(package: string, destdir: string, offline = false,
             raise getCurrentException()
 
     if exists.prepare:
-        if execEnv(". "&path&"/run"&" && prepare", passthrough = noSandbox) != 0:
+        if execEnv(". "&path&"/run"&" && prepare", passthrough = noSandbox).exitCode != 0:
             err("prepare failed", true)
 
     # create cache directory if it doesn't exist

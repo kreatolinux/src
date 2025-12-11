@@ -2,24 +2,27 @@ import os
 import logger
 import osproc
 import streams
+import strutils
 
-proc execCmdKpkg*(command: string, error = "none", silentMode = false): int =
-  # Like execCmdEx, but with outputs.
+proc execCmdKpkg*(command: string, error = "none", silentMode = false): tuple[output: string, exitCode: int] =
+  # Like execCmdKpkg, but captures output instead of printing (unless not silent).
   debug "execCmdKpkg: command: "&command
   let process = startProcess(command, options = {poEvalCommand, poStdErrToStdOut})
   var line: string
+  var output = ""
   
-  if not silentMode:
-    let outp = outputStream(process)
-    while outp.readLine(line):
-        echo line
+  let outp = outputStream(process)
+  while outp.readLine(line):
+      output.add(line & "\n")
+      if not silentMode:
+          echo line
 
   let res = waitForExit(process)
 
   if error != "none" and res != 0:
     err error&" failed"
   
-  return res
+  return (output.strip(), res)
 
 proc getPidKpkg(): string =
   # Gets current pid from /proc/self.
