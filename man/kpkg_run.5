@@ -442,14 +442,19 @@ the main package.
 Local Variables: You can define local variables inside a function using
 the \f[V]local\f[R] keyword to prevent exposing them to the rest of the
 script.
+.IP \[bu] 2
+Environment Variables: You can define environment variables inside a
+function using the \f[V]env\f[R] keyword to pass that automatically.
 .IP
 .nf
 \f[C]
 func test_variables {
     local awesome=\[dq]yes!\[dq]
     global name=\[dq]test2\[dq]
+    env EXAMPLE=\[dq]test\[dq]
     print \[dq]Is this local? $awesome\[dq]
     print \[dq]The package is named: $name\[dq]
+    exec \[dq]echo you know this is a \[rs]$EXAMPLE right?\[dq]
 }
 \f[R]
 .fi
