@@ -43,7 +43,7 @@ proc check*(package: string, repo: string, backend: string, autoUpdate = true, s
         var matchedPackages: seq[string] = @[]
         
         # Scan repository for all packages
-        for runFile in walkFiles(repoFullPath&"/*/run"):
+        for runFile in walkFiles(repoFullPath&"/*/run3"):
             let pkg = lastPathPart(runFile.parentDir)
             if matchesWildcard(pkg, package):
                 matchedPackages.add(pkg)

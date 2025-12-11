@@ -1,6 +1,6 @@
 import os
 import osproc
-import ../kpkg/modules/runparser
+import ../kpkg/modules/run3/run3
 
 proc cleanup*(verbose = false, dir = "/var/cache/kpkg/archives/arch/amd64") =
   ## Cleans up outdated packages from the archives.
@@ -17,8 +17,8 @@ proc cleanup*(verbose = false, dir = "/var/cache/kpkg/archives/arch/amd64") =
   var dontDelete: seq[string]
 
   for i in walkDirs("*"):
-    let runf = parse_runfile(i)
-    let tname = i&"-"&runf.versionString&".kpkg"
+    let runf = parseRun3(i)
+    let tname = i&"-"&runf.getVersionString()&".kpkg"
     if fileExists(dir&"/"&tname):
       dontDelete = dontDelete&tname
 

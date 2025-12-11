@@ -1,6 +1,7 @@
 import os
+import strutils
 include json
-import ../kpkg/modules/runparser
+import ../kpkg/modules/run3/run3
 
 type
     Update = object
@@ -18,7 +19,7 @@ proc generateJson*(repo: string, limit = 256, splitIfLimit = true, output = "out
 
     let repoFullPath = absolutePath(repo)
     var count: int
-    for i in walkFiles(repoFullPath&"/*/run"):
+    for i in walkFiles(repoFullPath&"/*/run3"):
         
         let pkg = lastPathPart(i.parentDir)
         
@@ -46,7 +47,7 @@ proc generateJson*(repo: string, limit = 256, splitIfLimit = true, output = "out
         if willContinue:
             continue
 
-        var deps = parseRunfile(i.parentDir).deps.join(" ") # Not full dependency list ofc, but good enough for now 
+        var deps = parseRun3(i.parentDir).getDepends().join(" ") # Not full dependency list ofc, but good enough for now 
         
         if not isEmptyOrWhitespace(deps):
             deps = deps&" "&pkg

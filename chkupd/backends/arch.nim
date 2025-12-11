@@ -2,7 +2,7 @@
 import os
 import json
 import httpclient
-import ../../kpkg/modules/runparser
+import ../../kpkg/modules/run3/run3
 import ../autoupdater
 
 proc archCheck*(package: string, repo: string, autoUpdate = false,
@@ -25,12 +25,15 @@ proc archCheck*(package: string, repo: string, autoUpdate = false,
         if verbose:
             echo "chkupd v3 Arch backend"
 
-        let pkg = parse_runfile(packageDir)
+        let pkg = parseRun3(packageDir)
+        let pkgVersion = pkg.getVersion()
+        let versionString = pkg.getVersionString()
+        
         if verbose:
-            echo "local version: "&pkg.version
+            echo "local version: "&pkgVersion
             echo "remote version: "&version
 
-        if version > pkg.versionString:
+        if version > versionString:
                 echo "Package is not uptodate."
 
                 if autoUpdate:

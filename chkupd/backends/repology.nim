@@ -1,6 +1,6 @@
 # chkupd v3 repology backend
 import json, strutils, os, sets
-import ../../kpkg/modules/runparser
+import ../../kpkg/modules/run3/run3
 import ../autoupdater
 import ../../common/version
 import httpclient
@@ -70,11 +70,12 @@ proc repologyCheck*(package: string, repo: string, autoUpdate = false,
             return
 
         # First, parse the package to determine if it uses semver
-        var pkg: runFile
+        var pkg: Run3File
         var isSemver = false
         try:
-            pkg = parse_runfile(packageDir)
-            isSemver = pkg.isSemver
+            pkg = parseRun3(packageDir)
+            let isSemverStr = pkg.getVariable("is_semver")
+            isSemver = isSemverStr.toLowerAscii() in ["true", "1", "yes", "y", "on"]
         except Exception as e:
             echo "Couldn't parse package file: " & e.msg
             return
@@ -85,6 +86,10 @@ proc repologyCheck*(package: string, repo: string, autoUpdate = false,
         var allVersions: seq[string] = @[]
         var seenVersions = initHashSet[string]()
         var counter = 0
+        
+        let pkgVersion = pkg.getVersion()
+        let pkgDeps = pkg.getDepends()
+        var pkgRelease = pkg.getRelease()
         
         while true:
             try:
@@ -123,18 +128,17 @@ proc repologyCheck*(package: string, repo: string, autoUpdate = false,
             echo "Selected maximum version: " & version
 
         var isOutdated = false
-        var pkgRelease = pkg.release
 
-        if "python" in pkg.deps:
-            pkgRelease = pkg.release&"-"&parseRunfile(repo & "/python").version
+        if "python" in pkgDeps:
+            pkgRelease = pkgRelease&"-"&parseRun3(repo & "/python").getVersion()
         
         if verbose:
-            echo "Current package version: " & pkg.version
+            echo "Current package version: " & pkgVersion
             echo "Latest version found: " & version
-            echo "Using semver comparison: " & $pkg.isSemver
+            echo "Using semver comparison: " & $isSemver
         
-        if pkg.isSemver:
-            let pkgVerSplit = split(pkg.version, ".")
+        if isSemver:
+            let pkgVerSplit = split(pkgVersion, ".")
             let versionSplit = split(version, ".")
 
             # MAJOR
@@ -153,33 +157,33 @@ proc repologyCheck*(package: string, repo: string, autoUpdate = false,
         else:
             try:
                 let versionInt = parseInt(replace(version, ".", ""))
-                let pkgVersionInt = parseInt(replace(pkg.version, ".", ""))
+                let pkgVersionInt = parseInt(replace(pkgVersion, ".", ""))
 
                 if versionInt > pkgVersionInt:
                     isOutdated = true
             except Exception:
-                if version > pkg.version:
+                if version > pkgVersion:
                     isOutdated = true
         
 
         if verbose:
             echo "Package is outdated: " & $isOutdated
-            echo "Current release: " & pkg.release & ", expected release: " & pkgRelease
+            echo "Current release: " & pkgRelease & ", expected release: " & pkgRelease
         
         if autoUpdate:
-                if pkg.release == pkgRelease and not isOutdated:
+                if pkg.getRelease() == pkgRelease and not isOutdated:
                     echo "Package is already up-to-date."
                     return
                 else:
                     echo "Package is outdated. Updating..."
                     if not isOutdated:
-                         version = pkg.version
+                         version = pkgVersion
                     
                     autoUpdater(pkg, packageDir, version, skipIfDownloadFails, pkgRelease)
         else:
             if verbose or isOutdated:
                 echo "Latest version found: " & version
             if isOutdated:
-                echo "Package is outdated (current: " & pkg.version & ", latest: " & version & ")"
+                echo "Package is outdated (current: " & pkgVersion & ", latest: " & version & ")"
             elif verbose:
-                echo "Package is up-to-date (version: " & pkg.version & ")"
+                echo "Package is up-to-date (version: " & pkgVersion & ")"

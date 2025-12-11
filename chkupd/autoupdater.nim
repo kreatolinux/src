@@ -1,10 +1,10 @@
 import os
 import strutils
 import ../kpkg/modules/checksums
-import ../kpkg/modules/runparser
+import ../kpkg/modules/run3/run3
 import ../kpkg/modules/downloader
 
-proc autoUpdater*(pkg: runFile, packageDir: string, newVersion: string,
+proc autoUpdater*(pkg: Run3File, packageDir: string, newVersion: string,
                 skipIfDownloadFails: bool, release: string = "") =
         # Autoupdates packages.
         echo "Autoupdating.."
@@ -16,39 +16,47 @@ proc autoUpdater*(pkg: runFile, packageDir: string, newVersion: string,
         
         var splitSum: seq[string]
         var sumType: string
+        
+        let b2sum = pkg.getB2sum()
+        let sha512sum = pkg.getSha512sum()
+        let sha256sum = pkg.getSha256sum()
+        let sources = pkg.getSources()
+        let version = pkg.getVersion()
+        let pkgRelease = pkg.getRelease()
+        let pkgName = pkg.getName()
 
-        if not isEmptyOrWhitespace(pkg.b2sum):
-            splitSum = pkg.b2sum.split(" ")
+        if b2sum.len > 0:
+            splitSum = b2sum
             sumType = "b2"
-        elif not isEmptyOrWhitespace(pkg.sha512sum):
-            splitSum = pkg.sha512sum.split(" ")
+        elif sha512sum.len > 0:
+            splitSum = sha512sum
             sumType = "sha512"
-        elif not isEmptyOrWhitespace(pkg.sha256sum):
-            splitSum = pkg.sha256sum.split(" ")
+        elif sha256sum.len > 0:
+            splitSum = sha256sum
             sumType = "sha256"
 
         for i in splitSum:
-                source = pkg.sources.split(" ")[c].replace(pkg.version, newVersion)
-                filename = extractFilename(source).strip().replace(pkg.version, newVersion)
+                source = sources[c].replace(version, newVersion)
+                filename = extractFilename(source).strip().replace(version, newVersion)
 
                 # Download the source
                 try:
                         download(source, filename, raiseWhenFail = true)
                 except Exception:
                         if skipIfDownloadFails:
-                                echo "WARN: '"&pkg.pkg&"' failed because of download. Skipping."
+                                echo "WARN: '"&pkgName&"' failed because of download. Skipping."
                                 return
 
                 # Replace the sum
-                writeFile(packageDir&"/run", readFile(packageDir&"/run").replace(splitSum[c], getSum(filename, sumType)))
+                writeFile(packageDir&"/run3", readFile(packageDir&"/run3").replace(splitSum[c], getSum(filename, sumType)))
                 c = c+1
 
                 # Replace the version
-                writeFile(packageDir&"/run", readFile(
-                                packageDir&"/run").replace(pkg.version, newVersion))
+                writeFile(packageDir&"/run3", readFile(
+                                packageDir&"/run3").replace(version, newVersion))
 
                 # Replace the release (if it exists)
                 if not isEmptyOrWhitespace(release):
-                        writeFile(packageDir&"/run", readFile(
-                               packageDir&"/run").replace(pkg.release, release))
+                        writeFile(packageDir&"/run3", readFile(
+                               packageDir&"/run3").replace(pkgRelease, release))
                 echo "Autoupdate complete. As always, you should check if the package does build or not."

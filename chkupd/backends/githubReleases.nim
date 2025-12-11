@@ -1,6 +1,6 @@
 # chkupd v3 githubReleases backend
 import json, strutils, os
-import ../../kpkg/modules/runparser
+import ../../kpkg/modules/run3/run3
 import ../autoupdater
 import ../../common/version
 import httpclient
@@ -32,16 +32,20 @@ proc githubReleasesCheck*(package: string, repo: string, githubReleasesRepo: str
             return
 
         var isOutdated = false
-        let pkg = parse_runfile(packageDir)
-        var pkgRelease = pkg.release
+        let pkg = parseRun3(packageDir)
+        let pkgVersion = pkg.getVersion()
+        var pkgRelease = pkg.getRelease()
+        let pkgDeps = pkg.getDepends()
+        let isSemverStr = pkg.getVariable("is_semver")
+        let isSemver = isSemverStr.toLowerAscii() in ["true", "1", "yes", "y", "on"]
 
-        if "python" in pkg.deps:
-            pkgRelease = pkg.release&"-"&parseRunfile(repo & "/python").version
+        if "python" in pkgDeps:
+            pkgRelease = pkgRelease&"-"&parseRun3(repo & "/python").getVersion()
                         
-        if pkg.isSemver:
+        if isSemver:
             if verbose:
                 echo "Package is using semver."
-            let pkgVerSplit = split(pkg.version, ".")
+            let pkgVerSplit = split(pkgVersion, ".")
             let versionSplit = split(version, ".")
 
             # MAJOR
@@ -60,23 +64,23 @@ proc githubReleasesCheck*(package: string, repo: string, githubReleasesRepo: str
                 echo "Package is not using semver."
             try:
                 let versionInt = parseInt(replace(version, ".", ""))
-                let pkgVersionInt = parseInt(replace(pkg.version, ".", ""))
+                let pkgVersionInt = parseInt(replace(pkgVersion, ".", ""))
                 
                 if versionInt > pkgVersionInt:
                     isOutdated = true
             except Exception:
-                if version > pkg.version:
+                if version > pkgVersion:
                     isOutdated = true
                         
 
         if autoUpdate:
-                if pkg.release == pkgRelease and not isOutdated:
+                if pkg.getRelease() == pkgRelease and not isOutdated:
                     echo "Package is already up-to-date."
                     return
                 else:
                     echo "Package is outdated. Updating..."
                     if not isOutdated:
-                        version = pkg.version
+                        version = pkgVersion
                                 
                 autoUpdater(pkg, absolutePath(packageDir), version, skipIfDownloadFails, pkgRelease)
 
@@ -85,6 +89,6 @@ proc githubReleasesCheck*(package: string, repo: string, githubReleasesRepo: str
             if verbose or isOutdated:
                 echo "Latest version found: " & version
             if isOutdated:
-                echo "Package is outdated (current: " & pkg.version & ", latest: " & version & ")"
+                echo "Package is outdated (current: " & pkgVersion & ", latest: " & version & ")"
             elif verbose:
-                echo "Package is up-to-date (version: " & pkg.version & ")"
+                echo "Package is up-to-date (version: " & pkgVersion & ")"
