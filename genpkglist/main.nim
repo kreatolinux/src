@@ -1,15 +1,23 @@
 import cligen
-import commands/generatecmd
+when not defined(disableGeneratecmd):
+  import commands/generatecmd
 import commands/generateManpagecmd
 import ../common/version
 
 clCfg.version = "genpkglist "&ver
 
-dispatchMulti(
-    [
-    generate
-    ],
-    [
-    generateManpage
-    ]
-)
+when not defined(disableGeneratecmd):
+  dispatchMulti(
+      [
+      generate
+      ],
+      [
+      generateManpage
+      ]
+  )
+else:
+  dispatchMulti(
+      [
+      generateManpage
+      ]
+  )
