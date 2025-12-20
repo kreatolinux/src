@@ -4,7 +4,11 @@
 import strutils
 import ast
 import lexer
-import ../logger
+
+when not defined(run3Standalone):
+  import ../logger
+else:
+  proc debug(msg: string) = discard
 
 when not declared(readFile):
   import os

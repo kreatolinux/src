@@ -209,3 +209,10 @@ proc newContinueNode*(line: int = 0): AstNode =
 proc newBreakNode*(line: int = 0): AstNode =
   ## Create a new break node
   AstNode(kind: nkBreak, line: line)
+
+proc hasFunction*(parsed: ParsedRunfile, name: string): bool =
+  ## Check if a function exists in the parsed runfile
+  for funcNode in parsed.functions:
+    if funcNode.kind == nkFunction and funcNode.funcName == name:
+      return true
+  return false

@@ -155,8 +155,8 @@ for v in $projects; do
 			buildNim "jumpstart" "jumpstart.nim" "$prefix/jumpstart" "on" "--mm:refc" "1" "" ""
 			buildNim "jumpstart" "jumpctl.nim" "$prefix/jumpctl" "off" "" "1" "" ""
 			;;
-		genpkglist)
-			buildNim "genpkglist" "main.nim" "$prefix/genpkglist" "off" "" "1" "" ""
+		run3tools)
+			buildNim "run3tools" "main.nim" "$prefix/run3tools" "off" "-d:run3Standalone" "1" "" ""
 			;;
 		kreastrap)
 			buildNim "kreastrap" "kreastrap.nim" "$srcdir/kreastrap/kreastrap" \

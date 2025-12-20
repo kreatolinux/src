@@ -7,15 +7,20 @@ import sequtils
 import strutils
 import tables
 import ast
-import builtins
-import executor
 import lexer
-import macros as run3macros
 import parser
 import variables
-import ../logger
 
-export ast, lexer, parser, executor, builtins, variables, run3macros
+when not defined(run3Standalone):
+  import builtins
+  import executor
+  import macros as run3macros
+  import ../logger
+  export executor, builtins, run3macros
+else:
+  proc debug(msg: string) = discard
+
+export ast, lexer, parser, variables
 
 type
     Run3File* = object
@@ -167,11 +172,12 @@ proc hasFunction*(rf: Run3File, name: string): bool =
     ## Check if a function exists in the runfile
     return rf.parsed.hasFunction(name)
 
-proc executeFunction*(rf: Run3File, functionName: string, destDir: string = "",
-        srcDir: string = "", buildRoot: string = ""): int =
-    ## Execute a specific function from the run3 file
-    let ctx = initFromRunfile(rf.parsed, destDir, srcDir, buildRoot)
-    return executeRun3Function(ctx, rf.parsed, functionName)
+when not defined(run3Standalone):
+  proc executeFunction*(rf: Run3File, functionName: string, destDir: string = "",
+          srcDir: string = "", buildRoot: string = ""): int =
+      ## Execute a specific function from the run3 file
+      let ctx = initFromRunfile(rf.parsed, destDir, srcDir, buildRoot)
+      return executeRun3Function(ctx, rf.parsed, functionName)
 
 proc getAllFunctions*(rf: Run3File): seq[string] =
     ## Get a list of all function names defined in the runfile
