@@ -206,6 +206,64 @@ You can also use any variable manipulation methods in if statements,
 including inline exec to execute commands and use their output or exit
 code in conditions.
 See \f[B]VARIABLE MANIPULATION\f[R] for details on available methods.
+.SS CONDITION OPERATORS
+.PP
+The following operators are supported in conditions:
+.IP \[bu] 2
+\f[B]==\f[R] (equality):
+\f[V]if \[dq]$var\[dq] == \[dq]value\[dq] { ... }\f[R]
+.IP \[bu] 2
+\f[B]!=\f[R] (inequality):
+\f[V]if \[dq]$var\[dq] != \[dq]value\[dq] { ... }\f[R]
+.IP \[bu] 2
+\f[B]=\[ti]\f[R] (regex match):
+\f[V]if \[dq]$var\[dq] =\[ti] e\[dq]pattern\[dq] { ... }\f[R]
+.IP \[bu] 2
+\f[B]||\f[R] (OR):
+\f[V]if \[dq]$var\[dq] == \[dq]a\[dq] || \[dq]$var\[dq] == \[dq]b\[dq] { ... }\f[R]
+.IP \[bu] 2
+\f[B]&&\f[R] (AND):
+\f[V]if \[dq]$var1\[dq] == \[dq]a\[dq] && \[dq]$var2\[dq] == \[dq]b\[dq] { ... }\f[R]
+.SS REGEX MATCHING
+.PP
+Use the \f[V]=\[ti]\f[R] operator with \f[V]e\[dq]pattern\[dq]\f[R]
+syntax for regex matching.
+The pattern uses standard regex syntax with \f[V]|\f[R] for
+alternatives.
+.IP
+.nf
+\f[C]
+package {
+    for APPLET in applets {
+        # Skip applets provided by other packages
+        if \[dq]$APPLET\[dq] =\[ti] e\[dq]clear|grep|egrep|fgrep|tar|bzip2\[dq] {
+            continue
+        }
+        exec \[dq]ln -s /bin/busybox $ROOT/bin/$APPLET\[dq]
+    }
+}
+\f[R]
+.fi
+.SS COMBINING CONDITIONS
+.PP
+You can combine multiple conditions using \f[V]||\f[R] (OR) and
+\f[V]&&\f[R] (AND):
+.IP
+.nf
+\f[C]
+build {
+    # OR: true if any condition is true
+    if \[dq]$ARCH\[dq] == \[dq]x86_64\[dq] || \[dq]$ARCH\[dq] == \[dq]amd64\[dq] {
+        print \[dq]Building for 64-bit x86\[dq]
+    }
+    
+    # AND: true only if all conditions are true
+    if \[dq]$DEBUG\[dq] == \[dq]true\[dq] && \[dq]$VERBOSE\[dq] == \[dq]true\[dq] {
+        print \[dq]Debug mode with verbose output\[dq]
+    }
+}
+\f[R]
+.fi
 .SS VARIABLE MANIPULATION
 .PP
 Variables can be manipulated directly within strings using object-style
@@ -339,6 +397,63 @@ build {
 }
 \f[R]
 .fi
+.PP
+You can also use inline list literals directly in for loops:
+.IP
+.nf
+\f[C]
+package {
+    for file in [\[dq]tzselect\[dq], \[dq]zdump\[dq], \[dq]zic\[dq]] {
+        exec \[dq]rm -f $ROOT/usr/bin/$file\[dq]
+    }
+}
+\f[R]
+.fi
+.SS VARIABLE EXPRESSIONS IN FOR LOOPS
+.PP
+For loops support variable expressions that resolve to lists.
+This is useful when iterating over dynamic content like command output:
+.IP
+.nf
+\f[C]
+package {
+    # Iterate over lines from command output
+    for APPLET in \[dq]${exec(\[rs]\[dq]$ROOT/bin/busybox --list\[rs]\[dq]).output()}\[dq] {
+        print \[dq]Processing applet: $APPLET\[dq]
+    }
+    
+    # Iterate over a variable that contains newline-separated values
+    local items: \[dq]${exec(\[rs]\[dq]ls -1\[rs]\[dq]).output()}\[dq]
+    for item in \[dq]$items\[dq] {
+        print \[dq]Item: $item\[dq]
+    }
+}
+\f[R]
+.fi
+.SS LOOP CONTROL: CONTINUE AND BREAK
+.PP
+Use \f[V]continue\f[R] to skip to the next iteration and \f[V]break\f[R]
+to exit the loop entirely:
+.IP
+.nf
+\f[C]
+package {
+    for APPLET in applets {
+        # Skip certain applets
+        if \[dq]$APPLET\[dq] =\[ti] e\[dq]grep|tar|bzip2\[dq] {
+            continue
+        }
+        
+        # Stop processing if we hit a specific applet
+        if \[dq]$APPLET\[dq] == \[dq]STOP\[dq] {
+            break
+        }
+        
+        exec \[dq]ln -s /bin/busybox $ROOT/bin/$APPLET\[dq]
+    }
+}
+\f[R]
+.fi
 .SS BUILTIN COMMANDS
 .PP
 These are the built-in commands available in the runfile environment:
@@ -379,6 +494,12 @@ Usage: \f[V]write [FILE] [STRING]\f[R]
 \f[B]append\f[R]: Append content to a file.
 Creates the file if it does not exist.
 Usage: \f[V]append [FILE] [STRING]\f[R]
+.IP \[bu] 2
+\f[B]continue\f[R]: Skip to the next iteration in a for loop.
+Usage: \f[V]continue\f[R]
+.IP \[bu] 2
+\f[B]break\f[R]: Exit from a for loop immediately.
+Usage: \f[V]break\f[R]
 .PP
 See \f[B]STRINGS\f[R] for information on multi-line content.
 .PP
