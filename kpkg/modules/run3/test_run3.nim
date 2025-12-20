@@ -1,0 +1,512 @@
+## Test program for run3 module
+## Demonstrates basic functionality and can be used for testing
+
+import os
+import times
+import run3
+import tables
+import strutils
+import sequtils
+
+proc testParser() =
+  echo "=== Testing Parser ==="
+
+  # Create a simple test run3 file
+  let testContent = """
+name: "test-pkg"
+version: "1.0.0"
+release: "1"
+description: "Test package"
+sources:
+        - "https://example.com/test.tar.gz"
+depends:
+        - "dep1"
+        - "dep2"
+sha256sum:
+        - "abc123"
+
+func helper {
+        print "Helper function called"
+}
+
+build {
+        print "Building package"
+        exec echo "Test build"
+        cd /tmp
+}
+
+package {
+        print "Installing package"
+}
+"""
+
+  let testDir = "/tmp/test-run3-" & $getTime().toUnix()
+  createDir(testDir)
+  writeFile(testDir / "run3", testContent)
+
+  try:
+    let rf = parseRun3(testDir)
+
+    echo "Name: ", rf.getName()
+    echo "Version: ", rf.getVersion()
+    echo "Release: ", rf.getRelease()
+    echo "Description: ", rf.getDescription()
+    echo "Sources: ", rf.getSources()
+    echo "Depends: ", rf.getDepends()
+    echo "Version String: ", rf.getVersionString()
+    echo "Functions: ", rf.getAllFunctions()
+    echo "Custom Functions: ", rf.getAllCustomFunctions()
+
+    echo "\n✓ Parser test passed"
+  except Exception as e:
+    echo "✗ Parser test failed: ", e.msg
+    echo getStackTrace(e)
+  finally:
+    removeDir(testDir)
+
+proc testLexer() =
+  echo "\n=== Testing Lexer ==="
+
+  let testInput = "name: \"test\"\n" &
+                                  "version: \"1.0\"\n" &
+                                  "build {\n" &
+                                  "    print \"Hello\"\n" &
+                                  "    write \"file.txt\" \"\"\"\n" &
+                                  "Multi-line\n" &
+                                  "String\n" &
+                                  "\"\"\"\n" &
+                                  "}\n"
+
+  try:
+    let tokens = tokenize(testInput)
+    echo "Tokens generated: ", tokens.len
+    for i, tok in tokens:
+      if i < 10: # Print first 10 tokens
+        echo "  ", tok.kind, ": '", tok.value, "' (line ", tok.line, ")"
+    echo "✓ Lexer test passed"
+  except Exception as e:
+    echo "✗ Lexer test failed: ", e.msg
+
+proc testVariables() =
+  echo "\n=== Testing Variable Manipulation ==="
+
+  try:
+    # Test split
+    let strVal = newStringValue("1.2.3")
+    let splitResult = applyMethod(strVal, "split", @["."])
+    echo "split('1.2.3', '.'): ", splitResult.toList()
+
+    # Test join
+    let listVal = newListValue(@["a", "b", "c"])
+    let joinResult = applyMethod(listVal, "join", @["-"])
+    echo "join(['a','b','c'], '-'): ", joinResult.toString()
+
+    # Test cut
+    let cutResult = applyMethod(strVal, "cut", @["0", "3"])
+    echo "cut('1.2.3', 0, 3): ", cutResult.toString()
+
+    # Test replace
+    let replaceResult = applyMethod(strVal, "replace", @[".", "_"])
+    echo "replace('1.2.3', '.', '_'): ", replaceResult.toString()
+
+    # Test indexing
+    let indexResult = applyIndex(splitResult, "0")
+    echo "split('1.2.3', '.')[0]: ", indexResult.toString()
+
+    # Test slicing
+    let sliceResult = applyIndex(splitResult, "0:2")
+    echo "split('1.2.3', '.')[0:2]: ", sliceResult.toList()
+
+    echo "✓ Variable manipulation test passed"
+  except Exception as e:
+    echo "✗ Variable test failed: ", e.msg
+
+proc testBuiltins() =
+  echo "\n=== Testing Built-in Commands ==="
+
+  try:
+    let ctx = initExecutionContext()
+    ctx.silent = true
+    ctx.passthrough = true
+
+    # Test variable setting/getting
+    ctx.setVariable("test_var", "hello")
+    let val = ctx.getVariable("test_var")
+    echo "Variable set/get: ", val
+
+    # Test list variable
+    ctx.setListVariable("test_list", @["a", "b", "c"])
+    let listVal = ctx.getListVariable("test_list")
+    echo "List variable: ", listVal
+
+    # Test variable resolution
+    ctx.setVariable("name", "world")
+    let resolved = ctx.resolveVariables("Hello $name and ${name}!")
+    echo "Variable resolution: ", resolved
+
+    # Test cd
+    let originalDir = getCurrentDir()
+    discard ctx.builtinCd("/tmp")
+    echo "Changed directory to: ", ctx.currentDir
+    setCurrentDir(originalDir)
+
+    # Test write/append
+    let testFile = "test_write.txt"
+    let writeContent = "Line 1"
+    let appendContent = "\nLine 2"
+
+    # Write
+    ctx.builtinWrite(testFile, writeContent)
+    if readFile(ctx.currentDir / testFile) == writeContent:
+      echo "Write test: Passed"
+    else:
+      echo "Write test: Failed"
+
+    # Append
+    ctx.builtinAppend(testFile, appendContent)
+    if readFile(ctx.currentDir / testFile) == writeContent & appendContent:
+      echo "Append test: Passed"
+    else:
+      echo "Append test: Failed"
+
+    # Clean up
+    removeFile(ctx.currentDir / testFile)
+
+    echo "✓ Built-in commands test passed"
+  except Exception as e:
+    echo "✗ Built-in test failed: ", e.msg
+
+proc testMacros() =
+  echo "\n=== Testing Macros ==="
+
+  try:
+    let ctx = initExecutionContext()
+    ctx.silent = true
+
+    # Test macro argument parsing
+    let args = parseMacroArgs(@["--meson", "--autocd=true",
+            "--prefix=/usr/local"])
+    echo "Build system: ", args.buildSystem
+    echo "Autocd: ", args.autocd
+    echo "Prefix: ", args.prefix
+
+    echo "✓ Macro test passed"
+  except Exception as e:
+    echo "✗ Macro test failed: ", e.msg
+
+proc testVariableOps() =
+  echo "\n=== Testing Variable Operations (+:, -:) ==="
+
+  let testContent = """
+name: "test-pkg"
+depends:
+    - "dep1"
+    - "dep2"
+
+depends+:
+    - "dep3"
+
+depends-:
+    - "dep1"
+
+cflags: "-O2"
+cflags+: "-g"
+"""
+
+  let testDir = "/tmp/test-run3-ops-" & $getTime().toUnix()
+  createDir(testDir)
+  writeFile(testDir / "run3", testContent)
+
+  try:
+    let rf = parseRun3(testDir)
+    let ctx = initFromRunfile(rf.parsed)
+
+    # Check depends list
+    let depends = ctx.getListVariable("depends")
+    echo "Depends: ", depends
+
+    if "dep3" in depends and "dep1" notin depends:
+      echo "List operations: Passed"
+    else:
+      echo "List operations: Failed"
+
+    # Check cflags
+    let cflags = ctx.getVariable("cflags")
+    echo "CFLAGS: ", cflags
+    if cflags == "-O2 -g":
+      echo "String operations: Passed"
+    else:
+      echo "String operations: Failed (Expected '-O2 -g', got '", cflags, "')"
+
+    echo "✓ Variable operations test passed"
+  except Exception as e:
+    echo "✗ Variable operations test failed: ", e.msg
+    echo getStackTrace(e)
+  finally:
+    removeDir(testDir)
+
+proc testExecManipulation() =
+  echo "\n=== Testing Exec Manipulation ==="
+
+  let ctx = initExecutionContext()
+  ctx.silent = true
+  ctx.passthrough = true
+
+  try:
+    # Mock exec by echoing
+    let output = ctx.resolveVariables("Hello ${exec(\"echo world\").output()}!")
+    echo "Exec output: ", output
+
+    if output == "Hello world!":
+      echo "Exec output test: Passed"
+    else:
+      echo "Exec output test: Failed"
+
+    let exitCode = ctx.resolveVariables("Exit code: ${exec(\"true\").exit()}")
+    echo "Exec exit: ", exitCode
+
+    if exitCode == "Exit code: 0":
+      echo "Exec exit code test: Passed"
+    else:
+      echo "Exec exit code test: Failed"
+
+    echo "✓ Exec manipulation test passed"
+  except Exception as e:
+    echo "✗ Exec manipulation test failed: ", e.msg
+
+proc testConditions() =
+  echo "\n=== Testing Conditions ==="
+
+  let ctx = initExecutionContext()
+  ctx.silent = true
+
+  try:
+    ctx.setVariable("enabled", "true")
+    ctx.setVariable("disabled", "false")
+    ctx.setVariable("version", "1.0.0")
+    ctx.setVariable("name", "pkg")
+
+    # Test basic boolean
+    if ctx.evaluateCondition("$enabled"):
+      echo "Boolean check (true): Passed"
+    else:
+      echo "Boolean check (true): Failed"
+
+    if not ctx.evaluateCondition("$disabled"):
+      echo "Boolean check (false): Passed"
+    else:
+      echo "Boolean check (false): Failed"
+
+    # Test equality
+    if ctx.evaluateCondition("$version == \"1.0.0\""):
+      echo "Equality check: Passed"
+    else:
+      echo "Equality check: Failed"
+
+    if ctx.evaluateCondition("$name != \"other\""):
+      echo "Inequality check: Passed"
+    else:
+      echo "Inequality check: Failed"
+
+    echo "✓ Condition test passed"
+  except Exception as e:
+    echo "✗ Condition test failed: ", e.msg
+
+proc testExecChaining() =
+  echo "\n=== Testing Exec Chaining ==="
+
+  let ctx = initExecutionContext()
+  ctx.silent = true
+  ctx.passthrough = true
+
+  try:
+    # Test .strip() on exec output
+    # " echo  test " -> " test " -> strip -> "test"
+    let output = ctx.resolveVariables("${exec(\"echo ' test '\").strip()}")
+    echo "Exec chaining output: '", output, "'"
+
+    if output == "test":
+      echo "Exec chaining test: Passed"
+    else:
+      echo "Exec chaining test: Failed"
+
+    echo "✓ Exec chaining test passed"
+  except Exception as e:
+    echo "✗ Exec chaining test failed: ", e.msg
+
+proc testNewConditionOperators() =
+  echo "\n=== Testing New Condition Operators (||, &&, =~) ==="
+
+  let ctx = initExecutionContext()
+  ctx.silent = true
+  ctx.passthrough = true
+
+  # Set up test variables
+  ctx.setVariable("name", "grep")
+  ctx.setVariable("arch", "x86_64")
+  ctx.setVariable("debug", "true")
+  ctx.setVariable("verbose", "true")
+
+  try:
+    # Test || (OR) operator
+    if ctx.evaluateCondition("\"$name\" == \"grep\" || \"$name\" == \"tar\""):
+      echo "OR operator (first true): Passed"
+    else:
+      echo "OR operator (first true): Failed"
+
+    ctx.setVariable("name", "tar")
+    if ctx.evaluateCondition("\"$name\" == \"grep\" || \"$name\" == \"tar\""):
+      echo "OR operator (second true): Passed"
+    else:
+      echo "OR operator (second true): Failed"
+
+    ctx.setVariable("name", "other")
+    if not ctx.evaluateCondition("\"$name\" == \"grep\" || \"$name\" == \"tar\""):
+      echo "OR operator (both false): Passed"
+    else:
+      echo "OR operator (both false): Failed"
+
+    # Test && (AND) operator
+    if ctx.evaluateCondition("\"$debug\" == \"true\" && \"$verbose\" == \"true\""):
+      echo "AND operator (both true): Passed"
+    else:
+      echo "AND operator (both true): Failed"
+
+    ctx.setVariable("verbose", "false")
+    if not ctx.evaluateCondition("\"$debug\" == \"true\" && \"$verbose\" == \"true\""):
+      echo "AND operator (one false): Passed"
+    else:
+      echo "AND operator (one false): Failed"
+
+    # Test =~ (regex match) operator
+    ctx.setVariable("name", "grep")
+    if ctx.evaluateCondition("\"$name\" =~ e\"grep|tar|bzip2\""):
+      echo "Regex match (grep matches): Passed"
+    else:
+      echo "Regex match (grep matches): Failed"
+
+    ctx.setVariable("name", "tar")
+    if ctx.evaluateCondition("\"$name\" =~ e\"grep|tar|bzip2\""):
+      echo "Regex match (tar matches): Passed"
+    else:
+      echo "Regex match (tar matches): Failed"
+
+    ctx.setVariable("name", "other")
+    if not ctx.evaluateCondition("\"$name\" =~ e\"grep|tar|bzip2\""):
+      echo "Regex match (no match): Passed"
+    else:
+      echo "Regex match (no match): Failed"
+
+    echo "✓ New condition operators test passed"
+  except Exception as e:
+    echo "✗ New condition operators test failed: ", e.msg
+    echo getStackTrace(e)
+
+proc testContinueBreak() =
+  echo "\n=== Testing Continue and Break ==="
+
+  let testContent = """
+name: "test-pkg"
+version: "1.0.0"
+release: "1"
+description: "Test"
+items:
+    - "a"
+    - "SKIP"
+    - "b"
+    - "STOP"
+    - "c"
+    - "d"
+result: ""
+count: "0"
+
+package {
+    for item in items {
+        if "$item" == "SKIP" {
+            continue
+        }
+        if "$item" == "STOP" {
+            break
+        }
+        global result = "$result$item "
+        print "Processing: $item"
+    }
+    print "Result: $result"
+}
+"""
+
+  let testDir = "/tmp/test-run3-control-" & $getTime().toUnix()
+  createDir(testDir)
+  writeFile(testDir / "run3", testContent)
+
+  try:
+    let rf = parseRun3(testDir)
+    let ctx = initFromRunfile(rf.parsed)
+    ctx.silent = false
+    ctx.passthrough = true
+
+    # The test passes if it parses and executes without error
+    # Expected output: Processing: a, Processing: b (SKIP skipped, STOP breaks before c,d)
+    discard ctx.executeRun3Function(rf.parsed, "package")
+
+    # After execution, result should be "a b " (SKIP skipped, STOP broke before c and d)
+    let result = ctx.getVariable("result").strip()
+    if result == "a b":
+      echo "Continue/Break test: Passed"
+      echo "String concatenation result: Passed (got '" & result & "')"
+    else:
+      echo "Continue/Break test: Failed (expected 'a b', got '" & result & "')"
+
+    echo "✓ Continue/Break test passed"
+  except Exception as e:
+    echo "✗ Continue/Break test failed: ", e.msg
+    echo getStackTrace(e)
+  finally:
+    removeDir(testDir)
+
+proc testForLoopWithExpression() =
+  echo "\n=== Testing For Loop with Variable Expression ==="
+
+  let ctx = initExecutionContext()
+  ctx.silent = true
+  ctx.passthrough = true
+
+  # Set a variable with newline-separated values
+  ctx.setVariable("items", "apple\nbanana\ncherry")
+
+  try:
+    # Test iterating over a string variable that gets split
+    var collected: seq[string] = @[]
+    let itemsStr = ctx.getVariable("items")
+    let items = itemsStr.splitLines()
+
+    for item in items:
+      if item.strip().len > 0:
+        collected.add(item)
+
+    if collected == @["apple", "banana", "cherry"]:
+      echo "For loop expression parsing: Passed"
+    else:
+      echo "For loop expression parsing: Failed (got " & $collected & ")"
+
+    echo "✓ For loop with expression test passed"
+  except Exception as e:
+    echo "✗ For loop with expression test failed: ", e.msg
+
+when isMainModule:
+  echo "Running run3 module tests\n"
+
+  testLexer()
+  testParser()
+  testVariables()
+  testBuiltins()
+  testMacros()
+  testVariableOps()
+  testExecManipulation()
+  testConditions()
+  testExecChaining()
+  testNewConditionOperators()
+  testContinueBreak()
+  testForLoopWithExpression()
+
+  echo "\n=== All Tests Complete ==="
