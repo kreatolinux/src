@@ -7,37 +7,37 @@ import ../autoupdater
 
 proc archCheck*(package: string, repo: string, autoUpdate = false,
                 skipIfDownloadFails = true, verbose = false) =
-        ## DEPRECATED, use 'check' subcommand instead.
-        # Check against Arch repositories.
-        let pkgName = lastPathPart(package)
-        var client = newHttpClient()
-        var version: string
-        let packageDir = repo&"/"&pkgName
+  ## DEPRECATED, use 'check' subcommand instead.
+  # Check against Arch repositories.
+  let pkgName = lastPathPart(package)
+  var client = newHttpClient()
+  var version: string
+  let packageDir = repo&"/"&pkgName
 
-        try:
-                version = getStr(parseJson(client.getContent(
-                                "https://archlinux.org/packages/search/json/?name="&pkgName))[
-                                "results"][0]["pkgver"])
-        except Exception:
-                echo "Package doesn't seem to exist on Arch repositories, skipping"
-                return
+  try:
+    version = getStr(parseJson(client.getContent(
+                    "https://archlinux.org/packages/search/json/?name="&pkgName))[
+                    "results"][0]["pkgver"])
+  except Exception:
+    echo "Package doesn't seem to exist on Arch repositories, skipping"
+    return
 
-        if verbose:
-            echo "chkupd v3 Arch backend"
+  if verbose:
+    echo "chkupd v3 Arch backend"
 
-        let pkg = parseRun3(packageDir)
-        let pkgVersion = pkg.getVersion()
-        let versionString = pkg.getVersionString()
-        
-        if verbose:
-            echo "local version: "&pkgVersion
-            echo "remote version: "&version
+  let pkg = parseRun3(packageDir)
+  let pkgVersion = pkg.getVersion()
+  let versionString = pkg.getVersionString()
 
-        if version > versionString:
-                echo "Package is not uptodate."
+  if verbose:
+    echo "local version: "&pkgVersion
+    echo "remote version: "&version
 
-                if autoUpdate:
-                        autoUpdater(pkg, packageDir, version, skipIfDownloadFails)
-        elif verbose:
-            echo "Package is up-to-date."
-        return
+  if version > versionString:
+    echo "Package is not uptodate."
+
+    if autoUpdate:
+      autoUpdater(pkg, packageDir, version, skipIfDownloadFails)
+  elif verbose:
+    echo "Package is up-to-date."
+  return
