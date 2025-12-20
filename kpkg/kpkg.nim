@@ -39,7 +39,9 @@ else:
   clCfg.version = "kpkg "&ver
 
 
-dispatchMultiGen([ "init" ], [sandbox, mergeNames = @[ "kpkg", "init" ]], [package, mergeNames = @["kpkg", "init"]], #[ insert system here ]# [override, mergeNames = @["kpkg", "init"]])
+dispatchMultiGen(["init"], [sandbox, mergeNames = @["kpkg", "init"]], [package,
+    mergeNames = @["kpkg", "init"]], #[ insert system here ]#
+[override, mergeNames = @["kpkg", "init"]])
 
 dispatchMulti(
   [
@@ -121,7 +123,7 @@ dispatchMulti(
     "environment": "Remove build environment directory"
   }
   ],
-  
+
   [
   audit, help = {
     "description": "Show descriptions of CVEs",
@@ -145,7 +147,8 @@ dispatchMulti(
   list
   ],
   [
-  init, doc = "Initialize multiple types of files", usage = "$doc\n", stopWords = @["sandbox", "package", "override", "hook"]
+  init, doc = "Initialize multiple types of files", usage = "$doc\n",
+  stopWords = @["sandbox", "package", "override", "hook"]
   ],
   [
   get, help = {

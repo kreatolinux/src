@@ -77,16 +77,16 @@ proc getConfigSection*(section: string, defaultVal = ""): string =
     if entry.kind == cfgEof: break
 
     if reachedSection:
-        if entry.kind == cfgKeyValuePair:
-            if isEmptyOrWhitespace(res):
-                res = entry.key & "=" & entry.value
-            else:
-                res.add("\n" & entry.key & "=" & entry.value)
+      if entry.kind == cfgKeyValuePair:
+        if isEmptyOrWhitespace(res):
+          res = entry.key & "=" & entry.value
         else:
-            break
+          res.add("\n" & entry.key & "=" & entry.value)
+      else:
+        break
 
     if entry.kind == cfgSectionStart and entry.section == section:
-        reachedSection = true
+      reachedSection = true
 
   return res
 
@@ -109,7 +109,7 @@ proc returnConfig*(): string =
     config = initializeConfig()
   else:
     config = loadConfig(configPath)
-  
+
   echo ($config).strip()
 
 
