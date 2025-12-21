@@ -183,16 +183,95 @@ proc testMacros() =
     let ctx = initExecutionContext()
     ctx.silent = true
 
-    # Test macro argument parsing
-    let args = parseMacroArgs(@["--meson", "--autocd=true",
+    # Test macro argument parsing - internal args only
+    let args1 = parseMacroArgs(@["--meson", "--autocd=true",
             "--prefix=/usr/local"])
-    echo "Build system: ", args.buildSystem
-    echo "Autocd: ", args.autocd
-    echo "Prefix: ", args.prefix
+    echo "Build system: ", args1.buildSystem
+    echo "Autocd: ", args1.autocd
+    echo "Prefix: ", args1.prefix
+    echo "Passthrough: '", args1.passthroughArgs, "'"
+    
+    if args1.buildSystem == bsMeson and args1.autocd == true and 
+       args1.prefix == "/usr/local" and args1.passthroughArgs == "":
+      echo "Internal args only: Passed"
+    else:
+      echo "Internal args only: Failed"
 
     echo "✓ Macro test passed"
   except Exception as e:
     echo "✗ Macro test failed: ", e.msg
+
+proc testMacroArgParsing() =
+  echo "\n=== Testing Macro Argument Parsing ==="
+
+  try:
+    # Test mixed args - internal + passthrough
+    let args = parseMacroArgs(@["--ninja", "-Dplatforms=wayland,x11", 
+        "-Dgallium-drivers=auto", "--enable-foo", "install.prefix=/usr"])
+    
+    echo "Build system: ", args.buildSystem
+    echo "Passthrough: '", args.passthroughArgs, "'"
+    
+    # Verify internal args are recognized
+    if args.buildSystem != bsNinja:
+      echo "✗ Failed: --ninja not recognized as build system"
+      return
+    echo "  --ninja recognized: Passed"
+    
+    # Verify passthrough args are collected
+    if "-Dplatforms=wayland,x11" notin args.passthroughArgs:
+      echo "✗ Failed: -Dplatforms=wayland,x11 not in passthrough"
+      return
+    echo "  -Dplatforms in passthrough: Passed"
+    
+    if "-Dgallium-drivers=auto" notin args.passthroughArgs:
+      echo "✗ Failed: -Dgallium-drivers=auto not in passthrough"
+      return
+    echo "  -Dgallium-drivers in passthrough: Passed"
+    
+    if "--enable-foo" notin args.passthroughArgs:
+      echo "✗ Failed: --enable-foo not in passthrough"
+      return
+    echo "  --enable-foo in passthrough: Passed"
+    
+    if "install.prefix=/usr" notin args.passthroughArgs:
+      echo "✗ Failed: install.prefix=/usr not in passthrough"
+      return
+    echo "  install.prefix=/usr in passthrough: Passed"
+    
+    # Test that internal args are NOT in passthrough
+    if "--ninja" in args.passthroughArgs:
+      echo "✗ Failed: --ninja should not be in passthrough"
+      return
+    echo "  --ninja not in passthrough: Passed"
+
+    # Test --set style args (flag followed by value)
+    let args2 = parseMacroArgs(@["--set", "install.prefix=/usr", "--set", 
+        "llvm.link-shared=true", "--llvm-config=/usr/bin/llvm-config"])
+    
+    echo "\nTest --set style args:"
+    echo "Passthrough: '", args2.passthroughArgs, "'"
+    
+    # --set is not a recognized internal arg, so it should pass through
+    if "--set" notin args2.passthroughArgs:
+      echo "✗ Failed: --set not in passthrough"
+      return
+    echo "  --set in passthrough: Passed"
+    
+    if "install.prefix=/usr" notin args2.passthroughArgs:
+      echo "✗ Failed: install.prefix=/usr not in passthrough"
+      return
+    echo "  install.prefix=/usr in passthrough: Passed"
+    
+    if "--llvm-config=/usr/bin/llvm-config" notin args2.passthroughArgs:
+      echo "✗ Failed: --llvm-config not in passthrough"
+      return
+    echo "  --llvm-config in passthrough: Passed"
+
+    echo "✓ Macro argument parsing test passed"
+  except Exception as e:
+    echo "✗ Macro argument parsing test failed: ", e.msg
+    echo getStackTrace(e)
 
 proc testVariableOps() =
   echo "\n=== Testing Variable Operations (+:, -:) ==="
@@ -501,6 +580,7 @@ when isMainModule:
   testVariables()
   testBuiltins()
   testMacros()
+  testMacroArgParsing()
   testVariableOps()
   testExecManipulation()
   testConditions()
