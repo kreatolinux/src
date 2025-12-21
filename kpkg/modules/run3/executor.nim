@@ -258,13 +258,6 @@ proc getFunctionByName*(parsed: ParsedRunfile, name: string): seq[AstNode] =
             return funcNode.funcBody
     return @[]
 
-proc hasFunction*(parsed: ParsedRunfile, name: string): bool =
-    ## Check if a function exists
-    for funcNode in parsed.functions:
-        if funcNode.kind == nkFunction and funcNode.funcName == name:
-            return true
-    return false
-
 proc executeRun3Function*(ctx: ExecutionContext, parsed: ParsedRunfile,
         functionName: string): int =
     ## Execute a specific function from a parsed run3 file
