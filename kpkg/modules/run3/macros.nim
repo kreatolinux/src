@@ -20,11 +20,14 @@ type
         bsAutotools
 
 proc parseMacroArgs*(args: seq[string]): tuple[buildSystem: BuildSystem,
-        autocd: bool, prefix: string] =
+        autocd: bool, prefix: string, passthroughArgs: string] =
     ## Parse macro arguments
+    ## Returns internal options and passthrough args separately
+    ## passthroughArgs is a string ready to append to build commands
     result.buildSystem = bsNone
     result.autocd = false
     result.prefix = "/usr"
+    var passthrough: seq[string] = @[]
 
     for arg in args:
         if arg.startsWith("--"):
@@ -46,6 +49,14 @@ proc parseMacroArgs*(args: seq[string]): tuple[buildSystem: BuildSystem,
                 result.autocd = argValue.toLowerAscii() in ["true", "1", "yes", "y"]
             of "prefix":
                 result.prefix = argValue
+            else:
+                # Unknown -- flag, pass through to build system
+                passthrough.add(arg)
+        else:
+            # Non -- args (like -Dfoo=bar or positional args), pass through
+            passthrough.add(arg)
+
+    result.passthroughArgs = if passthrough.len > 0: passthrough.join(" ") else: ""
 
 proc macroExtract*(ctx: ExecutionContext, args: seq[string]): int =
     ## Extract all archives in the current directory using libarchive
@@ -160,29 +171,32 @@ proc macroTest*(ctx: ExecutionContext, args: seq[string]): int =
 
 proc macroBuild*(ctx: ExecutionContext, args: seq[string]): int =
     ## Run build commands based on build system
+    ## Extra arguments are passed through to the underlying build system
     let macroArgs = parseMacroArgs(args)
+    let extraArgs = if macroArgs.passthroughArgs.len > 0: " " &
+            macroArgs.passthroughArgs else: ""
 
     case macroArgs.buildSystem
     of bsMeson:
         result = ctx.builtinExec("meson setup build --prefix=" &
-                macroArgs.prefix)
+                macroArgs.prefix & extraArgs)
         if result != 0: return result
         return ctx.builtinExec("meson compile -C build")
 
     of bsCMake:
         result = ctx.builtinExec("cmake -B build -DCMAKE_INSTALL_PREFIX=" &
-                macroArgs.prefix)
+                macroArgs.prefix & extraArgs)
         if result != 0: return result
         return ctx.builtinExec("cmake --build build")
 
     of bsNinja:
-        return ctx.builtinExec("ninja -C build")
+        return ctx.builtinExec("ninja -C build" & extraArgs)
 
     of bsMake:
-        return ctx.builtinExec("make")
+        return ctx.builtinExec("make" & extraArgs)
 
     of bsAutotools:
-        result = ctx.builtinExec("./configure --prefix=" & macroArgs.prefix)
+        result = ctx.builtinExec("./configure --prefix=" & macroArgs.prefix & extraArgs)
         if result != 0: return result
         return ctx.builtinExec("make")
 
@@ -190,20 +204,21 @@ proc macroBuild*(ctx: ExecutionContext, args: seq[string]): int =
         # Try to detect build system
         if fileExists(ctx.currentDir / "meson.build"):
             result = ctx.builtinExec("meson setup build --prefix=" &
-                    macroArgs.prefix)
+                    macroArgs.prefix & extraArgs)
             if result != 0: return result
             return ctx.builtinExec("meson compile -C build")
         elif fileExists(ctx.currentDir / "CMakeLists.txt"):
             result = ctx.builtinExec("cmake -B build -DCMAKE_INSTALL_PREFIX=" &
-                    macroArgs.prefix)
+                    macroArgs.prefix & extraArgs)
             if result != 0: return result
             return ctx.builtinExec("cmake --build build")
         elif fileExists(ctx.currentDir / "configure"):
-            result = ctx.builtinExec("./configure --prefix=" & macroArgs.prefix)
+            result = ctx.builtinExec("./configure --prefix=" &
+                    macroArgs.prefix & extraArgs)
             if result != 0: return result
             return ctx.builtinExec("make")
         elif fileExists(ctx.currentDir / "Makefile"):
-            return ctx.builtinExec("make")
+            return ctx.builtinExec("make" & extraArgs)
         else:
             echo "Error: Could not detect build system"
             return 1

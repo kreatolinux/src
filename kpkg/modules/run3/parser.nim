@@ -372,9 +372,11 @@ proc parseMacroArgValue(p: var Parser): string =
 
     let tok = p.peek()
 
-    # Stop if we hit the next --flag
-    if tok.kind == tkDash and p.peek(1).kind == tkDash:
-      break
+    # Stop if we hit the next --flag or -flag (single dash followed by identifier)
+    if tok.kind == tkDash:
+      let next = p.peek(1)
+      if next.kind == tkDash or next.kind == tkIdentifier:
+        break
 
     # Handle different token types
     case tok.kind
@@ -422,19 +424,12 @@ proc parseMacroArgValue(p: var Parser): string =
 
 proc parseMacroFlagName(p: var Parser): string =
   ## Parse a macro flag name after --
-  ## Flag names can contain dashes, e.g., enable-pc-files, with-pkg-config-libdir
-  ## Reads identifiers and dashes until = or end of flag
-  var parts: seq[string] = @[]
-
-  while p.peek().kind in {tkIdentifier, tkDash}:
-    let tok = p.peek()
-    # Stop if this dash is part of -- (next flag)
-    if tok.kind == tkDash and p.peek(1).kind == tkDash:
-      break
-    parts.add(tok.value)
-    discard p.advance()
-
-  return parts.join("")
+  ## The lexer already handles dash-containing identifiers like enable-pc-files
+  ## So we just need to read a single identifier token
+  if p.peek().kind == tkIdentifier:
+    return p.advance().value
+  else:
+    return ""
 
 proc parseSingleTokenOrVar(p: var Parser): string =
   ## Parse a single token (string/identifier) or variable reference
@@ -533,9 +528,13 @@ proc parseStatement(p: var Parser): AstNode =
         # Read the flag and any attached value (like -j4 or -O2)
         let flagArg = p.parseMacroArgValue()
         args.add("-" & flagArg)
-      # Handle variable references and other expressions
+      # Handle variable references and other expressions (including compound args like install.prefix=/usr)
       elif currentTok.kind in {tkDollar, tkString, tkIdentifier, tkNumber}:
-        args.add(p.parseSingleTokenOrVar())
+        # Use parseMacroArgValue to handle compound expressions with dots, equals, etc.
+        args.add(p.parseMacroArgValue())
+      # Handle dots at start of path (like ../foo or ./bar)
+      elif currentTok.kind == tkDot:
+        args.add(p.parseMacroArgValue())
       else:
         # Unknown token type in macro args - skip it to avoid infinite loop
         var err = newException(ParseError,

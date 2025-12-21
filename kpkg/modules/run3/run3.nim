@@ -170,7 +170,7 @@ proc getListVariable*(rf: Run3File, name: string, override: Config, section,
 
 proc hasFunction*(rf: Run3File, name: string): bool =
     ## Check if a function exists in the runfile
-    return rf.parsed.hasFunction(name)
+    return ast.hasFunction(rf.parsed, name)
 
 when not defined(run3Standalone):
   proc executeFunction*(rf: Run3File, functionName: string, destDir: string = "",
