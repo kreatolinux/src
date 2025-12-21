@@ -14,6 +14,8 @@ proc dependencyGenerator(deps: seq[string], pkgPath: string, text: string,
   # Generates the dependency listings.
   var finalText = text
   for i in deps:
+    if isEmptyOrWhitespace(i):
+      continue
     if fileExists(parentDir(pkgPath)&"/"&i&"/run3") or fileExists(parentDir(
         pkgPath)&"/"&i&"/run"):
       let runfTemp = parseRunfile(parentDir(pkgPath)&"/"&i)
@@ -124,7 +126,7 @@ proc generate*(pkgPath = "", output = "", all = false, verbose = false) =
 
   if all:
     for i in walkDir(absolutePath(pkgPath)):
-      if not isHidden(i.path) and dirExists(i.path):
+      if i.kind == pcDir and not isHidden(i.path):
         if verbose:
           echo "DEBUG: Now generating '"&absolutePath(output)&"/"&lastPathPart(
               i.path)&".md"&"' with '"&i.path&"'"
