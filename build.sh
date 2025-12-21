@@ -145,7 +145,7 @@ IFS=","
 for v in $projects; do
 	echo "building $v"
 	case $v in
-		kpkg|purr)
+		kpkg)
 			buildNim "$v" "$v.nim" "$prefix/$v" "on" "" "1" "1" "1"
 			;;
 		chkupd)
