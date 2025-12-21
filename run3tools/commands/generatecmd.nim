@@ -48,7 +48,8 @@ proc generateInternal(pkgPath = "", output = "out.md"): bool =
   var finalText = "---"
 
   finalText = appendData(finalText, "title: "&pkg.getName())
-  finalText = appendData(finalText, "type: docs")
+  finalText = appendData(finalText, "layout: list")
+  finalText = appendData(finalText, "type: \"package\"")
   finalText = appendData(finalText, "draft: false")
   finalText = appendData(finalText, "---\n")
 
