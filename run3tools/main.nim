@@ -4,6 +4,7 @@ when not defined(disableGeneratecmd):
 import commands/generateManpagecmd
 import commands/lintcmd
 import commands/fmtcmd
+import commands/convertcmd
 import ../common/version
 
 clCfg.version = "run3tools "&ver
@@ -21,6 +22,9 @@ when not defined(disableGeneratecmd):
       ],
       [
       fmt
+      ],
+      [
+      convert
       ]
   )
 else:
@@ -33,5 +37,8 @@ else:
       ],
       [
       fmt
+      ],
+      [
+      convert
       ]
   )
