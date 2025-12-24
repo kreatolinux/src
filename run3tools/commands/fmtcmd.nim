@@ -120,7 +120,8 @@ proc formatStatement(node: AstNode, indent: int): string =
 
   case node.kind
   of nkExec:
-    return indentStr & "exec " & formatValue(node.execCmd)
+    # execCmd comes from parseExpression which already includes quotes
+    return indentStr & "exec " & node.execCmd
 
   of nkMacro:
     result = indentStr & "macro " & node.macroName
@@ -128,29 +129,32 @@ proc formatStatement(node: AstNode, indent: int): string =
       result.add(" " & arg)
 
   of nkPrint:
-    return indentStr & "print " & formatValue(node.printText)
+    # printText comes from parseExpression which already includes quotes
+    return indentStr & "print " & node.printText
 
   of nkCd:
-    return indentStr & "cd " & formatValue(node.cdPath)
+    # cdPath comes from parseExpression which already includes quotes
+    return indentStr & "cd " & node.cdPath
 
   of nkEnv:
-    return indentStr & "env " & node.envVar & " = " & formatValue(node.envValue)
+    # envValue comes from parseExpression which already includes quotes
+    return indentStr & "env " & node.envVar & " = " & node.envValue
 
   of nkLocal:
-    return indentStr & "local " & node.localVar & " = " & formatValue(
-        node.localValue)
+    # localValue comes from parseExpression which already includes quotes
+    return indentStr & "local " & node.localVar & " = " & node.localValue
 
   of nkGlobal:
-    return indentStr & "global " & node.globalVar & " = " & formatValue(
-        node.globalValue)
+    # globalValue comes from parseExpression which already includes quotes
+    return indentStr & "global " & node.globalVar & " = " & node.globalValue
 
   of nkWrite:
     return indentStr & "write " & formatValue(node.writePath) & " " &
-        formatValue(node.writeContent)
+        node.writeContent
 
   of nkAppend:
     return indentStr & "append " & formatValue(node.appendPath) & " " &
-        formatValue(node.appendContent)
+        node.appendContent
 
   of nkIf:
     result = indentStr & "if " & node.condition & " {\n"
