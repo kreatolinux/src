@@ -13,6 +13,39 @@ else:
 when not declared(readFile):
   import os
 
+proc escapeStringForOutput(s: string): string =
+  ## Escape special characters in a string for output
+  ## Preserves existing escapes inside ${} expressions
+  result = ""
+  var i = 0
+  while i < s.len:
+    let c = s[i]
+    if c == '$' and i + 1 < s.len and s[i + 1] == '{':
+      # Inside ${} expression - copy everything until matching }
+      # These already have escapes preserved by the lexer
+      var braceDepth = 0
+      while i < s.len:
+        if s[i] == '{':
+          braceDepth += 1
+        elif s[i] == '}':
+          braceDepth -= 1
+          if braceDepth == 0:
+            result.add(s[i])
+            i += 1
+            break
+        result.add(s[i])
+        i += 1
+    else:
+      # Outside ${} - need to escape special chars
+      case c
+      of '\n': result.add("\\n")
+      of '\t': result.add("\\t")
+      of '\r': result.add("\\r")
+      of '\\': result.add("\\\\")
+      of '"': result.add("\\\"")
+      else: result.add(c)
+      i += 1
+
 type
   Parser* = object
     ## Parser state
@@ -227,11 +260,11 @@ proc parseExpression(p: var Parser): string =
         let varName = p.expect(tkIdentifier).value
         parts.add("$" & varName)
     of tkString:
-      parts.add("\"" & tok.value & "\"")
+      parts.add("\"" & escapeStringForOutput(tok.value) & "\"")
       discard p.advance()
     of tkRegexString:
       # Regex string e"pattern" - preserve with special marker
-      parts.add("e\"" & tok.value & "\"")
+      parts.add("e\"" & escapeStringForOutput(tok.value) & "\"")
       discard p.advance()
     of tkEquals, tkLBrace, tkRBrace:
       # Stop at these delimiters
@@ -322,11 +355,11 @@ proc parseCondition(p: var Parser): string =
         let varName = p.expect(tkIdentifier).value
         parts.add("$" & varName)
     of tkString:
-      parts.add("\"" & tok.value & "\"")
+      parts.add("\"" & escapeStringForOutput(tok.value) & "\"")
       discard p.advance()
     of tkRegexString:
       # Regex string e"pattern"
-      parts.add("e\"" & tok.value & "\"")
+      parts.add("e\"" & escapeStringForOutput(tok.value) & "\"")
       discard p.advance()
     of tkDoubleEquals:
       parts.add("==")
