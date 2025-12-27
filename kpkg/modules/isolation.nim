@@ -50,7 +50,7 @@ proc runPostInstall*(package: string, rootPath = kpkgMergedPath) =
   ctx.sandboxPath = rootPath
   ctx.remount = remountNeeded
   ctx.silent = silent
-  # Environment variables? Probably none standard needed for postinstall?
+  ctx.asRoot = true # Postinstall scripts need root to modify system directories in sandbox
 
   debug "runPostInstall: checking for postinstall function"
   var postinstallFunc = ""

@@ -31,6 +31,7 @@ type
     passthrough*: bool                         # Passthrough execution (no sandbox)
     sandboxPath*: string                       # Sandbox root path
     remount*: bool                             # Remount sandbox
+    asRoot*: bool                              # Run as root in sandbox (for postinstall)
 
 proc initExecutionContext*(destDir: string = "", srcDir: string = "",
         buildRoot: string = "", packageName: string = ""): ExecutionContext =
@@ -54,6 +55,7 @@ proc initExecutionContext*(destDir: string = "", srcDir: string = "",
   result.passthrough = false
   result.sandboxPath = kpkgMergedPath
   result.remount = false
+  result.asRoot = false
 
 proc setVariable*(ctx: ExecutionContext, name: string, value: string) =
   ## Set a global variable
@@ -150,7 +152,7 @@ proc execCapture(ctx: ExecutionContext, command: string, depth: int = 0): tuple[
   let fullCmd = cmdParts.join(" && ")
 
   return execEnv(fullCmd, "none", ctx.passthrough, ctx.silent,
-          ctx.sandboxPath, ctx.remount)
+          ctx.sandboxPath, ctx.remount, ctx.asRoot)
 
 
 proc resolveManipulation(ctx: ExecutionContext, expr: string,
@@ -368,11 +370,11 @@ proc builtinExec*(ctx: ExecutionContext, command: string): int =
   let fullCmd = cmdParts.join(" && ")
 
   debug "builtinExec: sandboxPath=" & ctx.sandboxPath & ", passthrough=" &
-      $ctx.passthrough
+      $ctx.passthrough & ", asRoot=" & $ctx.asRoot
   debug "builtinExec: fullCmd=" & fullCmd
 
   let execResult = executor(fullCmd, "none", ctx.passthrough, ctx.silent,
-          ctx.sandboxPath, ctx.remount)
+          ctx.sandboxPath, ctx.remount, ctx.asRoot)
 
   debug "builtinExec: exitCode=" & $execResult.exitCode
   result = execResult.exitCode
