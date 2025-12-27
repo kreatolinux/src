@@ -144,7 +144,7 @@ proc executeNode*(ctx: ExecutionContext, node: AstNode): int =
             # Resolve arguments in current scope
             var resolvedArgs: seq[string] = @[]
             for arg in node.callArgs:
-                resolvedArgs.add(ctx.resolveVariables(arg))
+                resolvedArgs.add(stripQuotes(ctx.resolveVariables(arg)))
 
             # Save current locals
             let parentLocals = ctx.localVars

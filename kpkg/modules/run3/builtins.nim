@@ -320,7 +320,7 @@ proc resolveVariables*(ctx: ExecutionContext, text: string,
     else:
       i += 1
 
-proc stripQuotes(s: string): string =
+proc stripQuotes*(s: string): string =
   ## Strip outer quotes if present
   if s.len >= 2 and ((s[0] == '"' and s[^1] == '"') or (s[0] == '\'' and s[
           ^1] == '\'')):
@@ -491,13 +491,13 @@ proc evaluateSingleCondition(ctx: ExecutionContext, condition: string): bool =
   if "==" in resolved:
     let parts = resolved.split("==")
     if parts.len == 2:
-      return parts[0].strip().strip(chars = {'"', '\''}) == parts[1].strip().strip(
-          chars = {'"', '\''})
+      return parts[0].strip().strip(chars = {'"', '\''}) == parts[1].strip(
+          ).strip(chars = {'"', '\''})
   elif "!=" in resolved:
     let parts = resolved.split("!=")
     if parts.len == 2:
-      return parts[0].strip().strip(chars = {'"', '\''}) != parts[1].strip().strip(
-          chars = {'"', '\''})
+      return parts[0].strip().strip(chars = {'"', '\''}) != parts[1].strip(
+          ).strip(chars = {'"', '\''})
 
   # Check for boolean-like values
   if resolved.toLowerAscii() in ["true", "1", "yes", "y", "on"]:
