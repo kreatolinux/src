@@ -62,8 +62,7 @@ proc execEnv*(command: string, error = "none", passthrough = false,
         asRoot = false): tuple[
         output: string, exitCode: int] =
   ## Wrapper of execCmdKpkg and Bubblewrap that runs a command in the sandbox and captures output.
-  ## If asRoot is true, runs as root inside sandbox (needed for postinstall scripts).
-  ## If asRoot is false (default), runs as non-root user (needed for build scripts like configure).
+  ## If asRoot is false (default), sets FORCE_UNSAFE_CONFIGURE=1 for build scripts.
   const localeEnvPrefix = "LC_ALL=C.UTF-8 LC_CTYPE=C.UTF-8 LANG=C.UTF-8 "
   debug "execEnv: entered with path=" & path & ", passthrough=" & $passthrough &
       ", asRoot=" & $asRoot
@@ -106,10 +105,9 @@ proc execEnv*(command: string, error = "none", passthrough = false,
 
     debug "execEnv: about to run bwrap with path: " & path & ", command: " & command
 
-    # Use --unshare-user for non-root builds (to satisfy configure scripts that refuse to run as root)
-    # Skip it for postinstall scripts that need root to modify system directories
-    # UID/GID 999 matches the chown in buildcmd.nim for source directories
-    let userNsOpts = if asRoot: "" else: "--unshare-user --uid 999 --gid 999 "
+    # Set FORCE_UNSAFE_CONFIGURE=1 to allow configure scripts to run as root
+    # This is needed because we run as root inside the sandbox for write access
+    let forceUnsafeConfigure = if asRoot: "" else: "FORCE_UNSAFE_CONFIGURE=1 "
 
-    return execCmdKpkg(localeEnvPrefix&"bwrap "&userNsOpts&"--bind "&path&" / --bind "&kpkgTempDir1&" "&kpkgTempDir1&" --bind /etc/kpkg/repos /etc/kpkg/repos --bind "&kpkgTempDir2&" "&kpkgTempDir2&" --bind "&kpkgSourcesDir&" "&kpkgSourcesDir&" --dev /dev --proc /proc --perms 1777 --tmpfs /dev/shm --ro-bind /etc/resolv.conf /etc/resolv.conf /bin/sh -c \""&command.replace("\"", "\\\"")&"\"",
+    return execCmdKpkg(localeEnvPrefix&forceUnsafeConfigure&"bwrap --bind "&path&" / --bind "&kpkgTempDir1&" "&kpkgTempDir1&" --bind /etc/kpkg/repos /etc/kpkg/repos --bind "&kpkgTempDir2&" "&kpkgTempDir2&" --bind "&kpkgSourcesDir&" "&kpkgSourcesDir&" --dev /dev --proc /proc --perms 1777 --tmpfs /dev/shm --ro-bind /etc/resolv.conf /etc/resolv.conf /bin/sh -c \""&command.replace("\"", "\\\"")&"\"",
             error, silentMode = silentMode)
