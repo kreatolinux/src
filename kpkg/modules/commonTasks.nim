@@ -9,109 +9,113 @@ import parsecfg
 import runparser
 import posix_utils
 
-proc isEmptyDir(dir: string): bool = 
-    # Checks if a directory is empty or not.
-    return toSeq(walkdir dir).len == 0
+proc isEmptyDir(dir: string): bool =
+  # Checks if a directory is empty or not.
+  return toSeq(walkdir dir).len == 0
 
-proc getDependents*(packages: seq[string], root = "/", addIfOutdated = true): seq[string] =
-    # Gets dependents of a package
-    # Eg. getDependents("neofetch") will return 
-    # @["bash"]
-    var res: seq[string]
-    
-    for p in getListPackages():
-        
-        if not dirExists(p):
+proc getDependents*(packages: seq[string], root = "/",
+        addIfOutdated = true): seq[string] =
+  # Gets dependents of a package
+  # Eg. getDependents("neofetch") will return
+  # @["bash"]
+  var res: seq[string]
+
+  for p in getListPackages():
+
+    if not dirExists(p):
+      continue
+
+    let pkg = getPackage(p, root)
+
+    for package in packages:
+      if package in pkg.deps.split("!!k!!"):
+        if addIfOutdated:
+          let packageLocalVer = pkg.version
+          let packageUpstreamVer = parseRunfile(findPkgRepo(
+                  package)&"/"&package).versionString
+          if packageLocalVer != packageUpstreamVer:
+            res = res&p
+          else:
             continue
+        else:
+          res = res&p
 
-        let pkg = getPackage(p, root) 
-        
-        for package in packages:
-            if package in pkg.deps.split("!!k!!"):
-                if addIfOutdated:
-                    let packageLocalVer = pkg.version
-                    let packageUpstreamVer = parseRunfile(findPkgRepo(package)&"/"&package).versionString
-                    if packageLocalVer != packageUpstreamVer:
-                        res = res&p
-                    else:
-                        continue
-                else:    
-                    res = res&p
-
-    return res
+  return res
 
 
 proc getRuntimeDependents*(packages: seq[string], root: string): seq[string] =
-    ## Gets packages that have runtime dependencies on the given packages
-    ## Eg. getRuntimeDependents("perl") will return packages that depend on perl at runtime
-    var res: seq[string]
-    
-    for p in getListPackages():
-        
-        if not dirExists(p):
-            continue
+  ## Gets packages that have runtime dependencies on the given packages
+  ## Eg. getRuntimeDependents("perl") will return packages that depend on perl at runtime
+  var res: seq[string]
 
-        let pkg = getPackage(p, root) 
-        
-        for package in packages:
-            if package in pkg.deps.split("!!k!!"):
-                res = res&p
+  for p in getListPackages():
 
-    return res
+    if not dirExists(p):
+      continue
+
+    let pkg = getPackage(p, root)
+
+    for package in packages:
+      if package in pkg.deps.split("!!k!!"):
+        res = res&p
+
+  return res
 
 
-proc copyFileWithPermissionsAndOwnership*(source, dest: string, options = {cfSymlinkAsIs}) =
-    ## Copies a file with both permissions and ownership.
-    
-    if dirExists(source) and not symlinkExists(source):
-        debug "\""&source&"\" is a dir (and not a symlink), just going to ignore"
-        debug "this shouldn't happen"
-        return
-    
-    # Return early if dest is a dir
-    if dirExists(dest):
-        #debug "\""&dest&"\" is a directory, cant use copyFileWithPermissionsAndOwnership"
-        return
-   
-    #debug "removing \""&dest&"\""
-    removeFile(dest)
-    
-    if symlinkExists(source):
-        #debug "overwriting \""&dest&"\" with the symlink at \""&source&"\""
-        copyFile(source, dest, options = {cfSymlinkAsIs})
-        return
+proc copyFileWithPermissionsAndOwnership*(source, dest: string, options = {
+        cfSymlinkAsIs}) =
+  ## Copies a file with both permissions and ownership.
 
-    var statVar: Stat
-    assert stat(source, statVar) == 0
-    
-    try:
-        copyFileWithPermissions(source, dest, options = options)
-        #debug "copyFileWithPermissions successful, setting chown"
-        assert posix.chown(dest, statVar.st_uid, statVar.st_gid) == 0
-    except Exception:
-        debug "fatal, source: \""&source&"\", dest: \""&dest&"\""
-        raise getCurrentException()    
+  if dirExists(source) and not symlinkExists(source):
+    debug "\""&source&"\" is a dir (and not a symlink), just going to ignore"
+    debug "this shouldn't happen"
+    return
 
-proc createDirWithPermissionsAndOwnership*(source, dest: string, followSymlinks = true) =
-    
-    if fileExists(dest) or symlinkExists(dest):
-        #debug "\""&dest&"\" is a file/symlink, returning early"
-        return
-    
-    if isEmptyDir(dest):
-        #debug "\""&dest&"\" is empty, just going to overwrite"
-        #debug "removing directory \""&dest&"\""
-        removeDir(dest)
-    else:
-        return
+  # Return early if dest is a dir
+  if dirExists(dest):
+    #debug "\""&dest&"\" is a directory, cant use copyFileWithPermissionsAndOwnership"
+    return
 
-    var statVar: Stat
-    assert stat(source, statVar) == 0
-    createDir(dest)
-    #debug "createDir successful, setting chown and chmod"
+  #debug "removing \""&dest&"\""
+  removeFile(dest)
+
+  if symlinkExists(source):
+    #debug "overwriting \""&dest&"\" with the symlink at \""&source&"\""
+    copyFile(source, dest, options = {cfSymlinkAsIs})
+    return
+
+  var statVar: Stat
+  assert stat(source, statVar) == 0
+
+  try:
+    copyFileWithPermissions(source, dest, options = options)
+    #debug "copyFileWithPermissions successful, setting chown"
     assert posix.chown(dest, statVar.st_uid, statVar.st_gid) == 0
-    #debug "chown successful, setting permissions"
-    setFilePermissions(dest, getFilePermissions(source), followSymlinks)
+  except Exception:
+    debug "fatal, source: \""&source&"\", dest: \""&dest&"\""
+    raise getCurrentException()
+
+proc createDirWithPermissionsAndOwnership*(source, dest: string,
+        followSymlinks = true) =
+
+  if fileExists(dest) or symlinkExists(dest):
+    #debug "\""&dest&"\" is a file/symlink, returning early"
+    return
+
+  if isEmptyDir(dest):
+    #debug "\""&dest&"\" is empty, just going to overwrite"
+    #debug "removing directory \""&dest&"\""
+    removeDir(dest)
+  else:
+    return
+
+  var statVar: Stat
+  assert stat(source, statVar) == 0
+  createDir(dest)
+  #debug "createDir successful, setting chown and chmod"
+  assert posix.chown(dest, statVar.st_uid, statVar.st_gid) == 0
+  #debug "chown successful, setting permissions"
+  setFilePermissions(dest, getFilePermissions(source), followSymlinks)
 
 proc getInit*(root: string): string =
   ## Returns the init system.
@@ -136,7 +140,7 @@ proc systemTarget*(root: string): string =
       target = target&"-gnu"
     of "musl":
       target = target&"-musl"
-  
+
   return target
 
 
@@ -149,10 +153,11 @@ proc kpkgTarget*(root: string, customTarget = ""): string =
   else:
     system = systemTarget(root)
 
-  return system&"-"&conf.getSectionValue("Core", "init")&"-"&conf.getSectionValue("Core", "tlsLibrary")
+  return system&"-"&conf.getSectionValue("Core",
+          "init")&"-"&conf.getSectionValue("Core", "tlsLibrary")
 
-proc green*(s: string): string = "\e[32m" & s & "\e[0m" 
-proc blue*(s: string): string = "\e[34m" & s & "\e[0m" 
+proc green*(s: string): string = "\e[32m" & s & "\e[0m"
+proc blue*(s: string): string = "\e[34m" & s & "\e[0m"
 
 proc appendInternal(f: string, t: string): string =
   # convenience proc to append.
@@ -161,7 +166,8 @@ proc appendInternal(f: string, t: string): string =
   else:
     return t&" "&f
 
-proc parsePkgInfo*(pkg: string): tuple[name: string, repo: string, version: string, nameWithRepo: string] =
+proc parsePkgInfo*(pkg: string): tuple[name: string, repo: string,
+        version: string, nameWithRepo: string] =
   # Returns the package name, repo and version. Version is empty when not specified.
   # nameWithRepo outputs something like main/kpkg if the pkg includes the repo. It outputs the name if it doesn't.
   var name: string
@@ -171,28 +177,28 @@ proc parsePkgInfo*(pkg: string): tuple[name: string, repo: string, version: stri
 
   let pkgSplitVer = pkg.split("#")
   let pkgSplit = pkg.split("/")
-  
+
   if pkgSplitVer.len > 1:
-    
+
     if pkgSplit.len > 1:
-        name = pkgSplitVer[0].split("/")[1]
-        repo = "/etc/kpkg/repos/"&pkgSplitVer[0].split("/")[0]
-        nameWithRepo = pkgSplitVer[0]
+      name = pkgSplitVer[0].split("/")[1]
+      repo = "/etc/kpkg/repos/"&pkgSplitVer[0].split("/")[0]
+      nameWithRepo = pkgSplitVer[0]
     else:
-        name = pkgSplitVer[0]
-        repo = findPkgRepo(pkgSplitVer[0])
+      name = pkgSplitVer[0]
+      repo = findPkgRepo(pkgSplitVer[0])
 
     version = pkgSplitVer[1]
-  
+
   else:
     version = ""
 
-  
+
   if pkgSplit.len > 1 and version == "":
     repo = "/etc/kpkg/repos/"&pkgSplit[0]
     name = pkgSplit[1]
     nameWithRepo = pkgSplitVer[0]
-  
+
   if name == "":
     name = pkg
     repo = findPkgRepo(pkg)
@@ -201,76 +207,81 @@ proc parsePkgInfo*(pkg: string): tuple[name: string, repo: string, version: stri
     nameWithRepo = name
 
   debug "parsePkgInfo ran, name: '"&name&"', repo: '"&repo&"', version: '"&version&"', nameWithRepo: '"&nameWithRepo&"'"
-  return (name: name, repo: repo, version: version, nameWithRepo: nameWithRepo)
+  return (name: name, repo: repo, version: version,
+          nameWithRepo: nameWithRepo)
 
 
-proc appenderInternal(r: string, a: string, b: string, c = "", removeInt = 0): string =
+proc appenderInternal(r: string, a: string, b: string, c = "",
+        removeInt = 0): string =
   # Appends spaces so it looks nicer.
   var final = r
-  
+
   for i in 1 .. 40 - (a.len + b.len + c.len - removeInt):
     final = final&" "
-  
+
   return final
 
 
-proc printPackagesPrompt*(packages: string, yes: bool, no: bool, isInstallDir = @[""], dependents = @[""], binary = false) =
+proc printPackagesPrompt*(packages: string, yes: bool, no: bool,
+        isInstallDir = @[""], dependents = @[""], binary = false) =
   ## Prints the packages summary prompt.
   var finalPkgs: string
   var pkgLen: int
-  
+
   if parseBool(getConfigValue("Options", "verticalSummary", "false")):
-      pkgLen = packages.split(" ").len
-      echo "Packages ("&($pkgLen)&")                             New Version\n"
-      for i in packages.split(" "):
-        var pkgRepo: string
-        var pkg = i
-        var pkgFancy: string
-        var pkgVer: string
-        
-        if i in isInstallDir:
-          pkgRepo = absolutePath(pkg).parentDir()
-          pkg = lastPathPart(pkg)
-        else:        
-          let pkgSplit = parsePkgInfo(i)
-          pkgRepo = pkgSplit.repo
-          pkg = pkgSplit.name
-          pkgFancy = pkgSplit.nameWithRepo
-          pkgVer = pkgSplit.version
+    pkgLen = packages.split(" ").len
+    echo "Packages ("&($pkgLen)&")                             New Version\n"
+    for i in packages.split(" "):
+      var pkgRepo: string
+      var pkg = i
+      var pkgFancy: string
+      var pkgVer: string
 
-        let upstreamRunf = parseRunfile(pkgRepo&"/"&pkg)
-        
-        if isEmptyOrWhitespace(pkgVer):
-            pkgVer = upstreamRunf.versionString
+      if i in isInstallDir:
+        pkgRepo = absolutePath(pkg).parentDir()
+        pkg = lastPathPart(pkg)
+      else:
+        let pkgSplit = parsePkgInfo(i)
+        pkgRepo = pkgSplit.repo
+        pkg = pkgSplit.name
+        pkgFancy = pkgSplit.nameWithRepo
+        pkgVer = pkgSplit.version
 
-        var r = lastPathPart(pkgRepo)&"/"&pkg
-        if packageExists(pkg, "/"):
-          let localPkg = getPackage(pkg, "/")
-          if localPkg.version != pkgVer:
-            r = r&"-"&localPkg.version
-            r = appenderInternal(r, pkgFancy, lastPathPart(pkgRepo), localPkg.version)
-            r = r&pkgVer
-          else:
-            r = r&"-"&localPkg.version
-            r = appenderInternal(r, pkgFancy, lastPathPart(pkgRepo), localPkg.version)
-            if i in dependents:
-                if binary:
-                    r = r&"reinstall"
-                else:
-                    r = r&"rebuild"
-            else:
-                r = r&"up-to-date"
+      let upstreamRunf = parseRunfile(pkgRepo&"/"&pkg)
+
+      if isEmptyOrWhitespace(pkgVer):
+        pkgVer = upstreamRunf.versionString
+
+      var r = lastPathPart(pkgRepo)&"/"&pkg
+      if packageExists(pkg, "/"):
+        let localPkg = getPackage(pkg, "/")
+        if localPkg.version != pkgVer:
+          r = r&"-"&localPkg.version
+          r = appenderInternal(r, pkgFancy, lastPathPart(pkgRepo),
+                  localPkg.version)
+          r = r&pkgVer
         else:
-            r = appenderInternal(r, pkgFancy, "", lastPathPart(pkgRepo), 1)
-            r = r&upstreamRunf.versionString
+          r = r&"-"&localPkg.version
+          r = appenderInternal(r, pkgFancy, lastPathPart(pkgRepo),
+                  localPkg.version)
+          if i in dependents:
+            if binary:
+              r = r&"reinstall"
+            else:
+              r = r&"rebuild"
+          else:
+            r = r&"up-to-date"
+      else:
+        r = appenderInternal(r, pkgFancy, "", lastPathPart(pkgRepo), 1)
+        r = r&upstreamRunf.versionString
 
-        echo r
-      
+      echo r
+
   else:
     for i in packages.split(" "):
       inc(pkgLen)
       var upstreamRunf: runFile
-      
+
       var pkgRepo: string
       var pkgVer: string
       var pkgFancy: string
@@ -288,24 +299,26 @@ proc printPackagesPrompt*(packages: string, yes: bool, no: bool, isInstallDir = 
 
       if packageExists(pkg, "/") and pkgRepo != "":
         upstreamRunf = parseRunfile(pkgRepo&"/"&pkg)
-        
+
         if isEmptyOrWhitespace(pkgVer):
-            pkgVer = upstreamRunf.versionString
+          pkgVer = upstreamRunf.versionString
 
         if getPackage(pkg, "/").version != pkgVer:
           finalPkgs = appendInternal(pkgFancy&" -> ".green&pkgVer, finalPkgs)
           continue
-        elif pkg in dependents: 
+        elif pkg in dependents:
           if binary:
-            finalPkgs = appendInternal(pkgFancy&" -> ".blue&"reinstall", finalPkgs)
+            finalPkgs = appendInternal(
+                    pkgFancy&" -> ".blue&"reinstall", finalPkgs)
           else:
-            finalPkgs = appendInternal(pkgFancy&" -> ".blue&"rebuild", finalPkgs)
+            finalPkgs = appendInternal(
+                    pkgFancy&" -> ".blue&"rebuild", finalPkgs)
 
           continue
-            
+
 
       finalPkgs = appendInternal(pkgFancy, finalPkgs)
-  
+
     echo "Packages ("&($pkgLen)&"): "&finalPkgs
 
   var output: string
@@ -329,7 +342,8 @@ proc ctrlc*() {.noconv.} =
   info "ctrl+c pressed, shutting down"
   quit(130)
 
-proc printReplacesPrompt*(pkgs: seq[string], root: string, isDeps = false, isInstallDir = false) =
+proc printReplacesPrompt*(pkgs: seq[string], root: string, isDeps = false,
+        isInstallDir = false) =
   ## Prints a replacesPrompt.
   for i in pkgs:
     var pkg = i

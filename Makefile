@@ -1,5 +1,5 @@
 SRCDIR=$(shell pwd)
-tasks = kpkg chkupd purr jumpstart genpkglist kreaiso kreastrap
+tasks = kpkg chkupd purr jumpstart run3tools kreaiso kreastrap
 
 all: $(tasks)
 

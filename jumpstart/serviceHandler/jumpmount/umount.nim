@@ -7,26 +7,26 @@ include ../../commonImports
 
 proc stopMount*(mountName: string) =
 
-    if not dirExists("/run/serviceHandler/mounts/"&mountName):
-        warn "Mount "&mountName&" is not running, no need to try stopping it"
-        return
+  if not dirExists("/run/serviceHandler/mounts/"&mountName):
+    warn "Mount "&mountName&" is not running, no need to try stopping it"
+    return
 
-    var mount: Config
+  var mount: Config
 
-    # Load the configuration.
-    try:
-        mount = loadConfig(mountPath&"/"&mountName)
-    except CatchableError:
-        warn "Mount "&mountName&" couldn't be loaded, possibly broken configuration?"
-        return
+  # Load the configuration.
+  try:
+    mount = loadConfig(mountPath&"/"&mountName)
+  except CatchableError:
+    warn "Mount "&mountName&" couldn't be loaded, possibly broken configuration?"
+    return
 
-    var cmd = "umount"
+  var cmd = "umount"
 
-    if parseBool(mount.getSectionValue("Mount", "lazyUmount", "no")):
-        cmd = cmd&" -l "
+  if parseBool(mount.getSectionValue("Mount", "lazyUmount", "no")):
+    cmd = cmd&" -l "
 
-    cmd = cmd&" "&mount.getSectionValue("Mount", "To")
+  cmd = cmd&" "&mount.getSectionValue("Mount", "To")
 
-    let process = startProcess(command = cmd, options = {poEvalCommand, poUsePath})
-    discard waitForExit(process)
-    close(process)
+  let process = startProcess(command = cmd, options = {poEvalCommand, poUsePath})
+  discard waitForExit(process)
+  close(process)

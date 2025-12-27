@@ -24,25 +24,24 @@ import ../libarchive
 import ../downloader
 import ../commonPaths
 
-proc extractSources*(sources: string, sourceDir: string) =
-    ## Extracts source archives
-    for source in sources.split(" "):
-        if isEmptyOrWhitespace(source):
-            continue
-            
-        let filename = extractFilename(source)
-        debug "trying to extract \"" & filename & "\""
-        try:
-            discard extract(filename)
-        except Exception:
-            debug "extraction failed, continuing"
-            debug "exception: "&getCurrentExceptionMsg()
+proc extractSources*(source: string, sourceDir: string) =
+    ## Extracts a source archive
+    if isEmptyOrWhitespace(source):
+        return
+
+    let filename = extractFilename(source)
+    debug "trying to extract \"" & filename & "\""
+    try:
+        discard extract(filename)
+    except Exception:
+        debug "extraction failed, continuing"
+        debug "exception: "&getCurrentExceptionMsg()
 
 proc downloadSource*(url, filename, pkgName: string) =
     ## Downloads a source file or git repository, falling back to a mirror if necessary
     let mirror = getConfigValue("Options", "sourceMirror", "mirror.krea.to/sources")
     var raiseWhenFail = true
-    
+
     try:
         if not parseBool(mirror):
             raiseWhenFail = false
@@ -57,7 +56,8 @@ proc downloadSource*(url, filename, pkgName: string) =
         let repoUrl = gitParts[1]
         let branch = if gitParts.len > 2: gitParts[2] else: "HEAD"
         let repoName = lastPathPart(repoUrl)
-        if execCmd("git clone " & repoUrl & " " & repoName & " && cd " & repoName & " && git checkout " & branch) != 0:
+        if execCmd("git clone " & repoUrl & " " & repoName & " && cd " &
+                repoName & " && git checkout " & branch) != 0:
             err("Git clone failed for: " & repoUrl)
         createSymlink(getCurrentDir() / repoName, filename)
     else:
@@ -66,45 +66,38 @@ proc downloadSource*(url, filename, pkgName: string) =
             download(url, filename, raiseWhenFail = raiseWhenFail)
         except Exception:
             info "download failed through sources listed on the runFile, contacting the source mirror"
-            download("https://" & mirror & "/" & pkgName & "/" & extractFilename(url).strip(), 
-                    filename, raiseWhenFail = false)
+            download("https://" & mirror & "/" & pkgName & "/" &
+                    extractFilename(url).strip(),
 
-proc verifyChecksum*(relativeFilename: string, filename, sourceUrl: string, runf: runFile, sourceIndex: int, sourceDir: string, localFile: bool) =
+filename, raiseWhenFail = false)
+
+proc verifyChecksum*(relativeFilename: string, filename, sourceUrl: string,
+        sourceEntry: SourceEntry, sourceDir: string, localFile: bool) =
     ## Verifies the checksum of a downloaded file
     if sourceUrl.startsWith("git::"):
-        # Skip checksum verification for Git sources 
+        # Skip checksum verification for Git sources
         return
 
     var actualDigest: string
     var expectedDigest: string
     var sumType: string
-    
+
     # Try BLAKE2 checksum
-    try:
-        expectedDigest = runf.b2sum.split(" ")[sourceIndex]
-        if not isEmptyOrWhitespace(expectedDigest):
-            sumType = "b2"
-    except Exception:
-        discard
-    
+    if not isEmptyOrWhitespace(sourceEntry.b2sum):
+        expectedDigest = sourceEntry.b2sum
+        sumType = "b2"
+
     # Try SHA-512 if BLAKE2 not available
-    if sumType != "b2":
-        try:
-            expectedDigest = runf.sha512sum.split(" ")[sourceIndex]
-            if not isEmptyOrWhitespace(expectedDigest):
-                sumType = "sha512"
-        except Exception:
-            discard
-    
+    if sumType != "b2" and not isEmptyOrWhitespace(sourceEntry.sha512sum):
+        expectedDigest = sourceEntry.sha512sum
+        sumType = "sha512"
+
     # Try SHA-256 if neither BLAKE2 nor SHA-512 available
-    if sumType != "sha512" and sumType != "b2":
-        try:
-            expectedDigest = runf.sha256sum.split(" ")[sourceIndex]
-            if not isEmptyOrWhitespace(expectedDigest):
-                sumType = "sha256"
-        except Exception:
-            err("runFile doesn't have proper checksums", false)
-    
+    if sumType != "sha512" and sumType != "b2" and not isEmptyOrWhitespace(
+            sourceEntry.sha256sum):
+        expectedDigest = sourceEntry.sha256sum
+        sumType = "sha256"
+
     # Verify checksum (skip verification for local files explicitly marked as SKIP)
     if not (localFile and dirExists(filename)):
         actualDigest = getSum(filename, sumType)
@@ -112,7 +105,8 @@ proc verifyChecksum*(relativeFilename: string, filename, sourceUrl: string, runf
             if not (localFile and expectedDigest == "SKIP"):
                 removeFile(filename)
                 err(sumType & "sum doesn't match for " & sourceUrl &
-                    "\nExpected: '" & expectedDigest & "'\nActual: '" & actualDigest & "'", false)
+                    "\nExpected: '" & expectedDigest & "'\nActual: '" &
+                    actualDigest & "'", false)
 
     # Always add symlink to buildRoot/filename so local files are available
     createSymlink(filename, sourceDir&"/"&lastPathPart(filename))
@@ -122,28 +116,32 @@ proc setSourcePermissions*() =
     for path in toSeq(walkDir(".")):
         if dirExists(path.path):
             debug "Setting permissions for " & path.path
-            setFilePermissions(path.path, {fpUserExec, fpUserWrite, fpUserRead, 
-                                          fpGroupExec, fpGroupRead, 
+            setFilePermissions(path.path, {fpUserExec, fpUserWrite, fpUserRead,
+                                          fpGroupExec, fpGroupRead,
                                           fpOthersExec, fpOthersRead})
-            
+
             try:
                 discard posix.chown(cstring(path.path), 999, 999)
                 # Set permissions for all files in the directory
-                for subPath in toSeq(walkDirRec(path.path, {pcFile, pcLinkToFile, pcDir, pcLinkToDir})):
+                for subPath in toSeq(walkDirRec(path.path, {pcFile,
+                        pcLinkToFile, pcDir, pcLinkToDir})):
                     discard posix.chown(cstring(subPath), 999, 999)
             except:
                 debug "Failed to set owner for " & path.path
 
 
-proc sourceDownloader*(runf: runFile, pkgName: string, sourceDir: string, runFilePath: string) =
+proc sourceDownloader*(runf: runFile, pkgName: string, sourceDir: string,
+        runFilePath: string) =
     ## Wrapper function for downloading and extracting sources
-    var i = 0
+    debug "sourceDownloader ran, sourceDir: "&sourceDir&", runFilePath: "&runFilePath
 
-    for source in runf.sources.split(" "):
+    for sourceEntry in runf.sources:
+        let source = sourceEntry.url
+        debug "source: "&source
         var filename: string
-        if source.startsWith("git::"): 
-            filename = lastPathPart(source.split("::")[1]) 
-        else: 
+        if source.startsWith("git::"):
+            filename = lastPathPart(source.split("::")[1])
+        else:
             filename = extractFilename(source)
         var sourcePath = kpkgSourcesDir & "/" & pkgName & "/" & filename
         let localPath = runFilePath & "/" & source
@@ -160,15 +158,13 @@ proc sourceDownloader*(runf: runFile, pkgName: string, sourceDir: string, runFil
             debug "source is not a local file or directory, using sourcePath: " & sourcePath
 
 
-        
+
         if not isLocalFile:
             downloadSource(source, sourcePath, pkgName)
 
-        verifyChecksum(filename, sourcePath, source, runf, i, sourceDir, isLocalFile)
-        
+        verifyChecksum(filename, sourcePath, source, sourceEntry, sourceDir, isLocalFile)
+
         # Skip extraction for Git repositories as they're already in the correct format
         # And also skip localfiles
         if runf.extract and not (source.startsWith("git::") or isLocalFile):
             extractSources(sourcePath, sourceDir)
-
-        i += 1

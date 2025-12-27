@@ -135,7 +135,7 @@ while [ "$#" -gt 0 ]; do
 done
 
 if [ "$installDeps" = "1" ]; then
-	nimble install fuzzy futhark@0.12.5 cligen nimcrypto norm fusion -y \
+	nimble install fuzzy futhark@0.12.5 cligen nimcrypto norm fusion regex -y \
 		|| err "Installing dependencies failed"
 fi
 
@@ -145,7 +145,7 @@ IFS=","
 for v in $projects; do
 	echo "building $v"
 	case $v in
-		kpkg|purr)
+		kpkg)
 			buildNim "$v" "$v.nim" "$prefix/$v" "on" "" "1" "1" "1"
 			;;
 		chkupd)
@@ -155,8 +155,8 @@ for v in $projects; do
 			buildNim "jumpstart" "jumpstart.nim" "$prefix/jumpstart" "on" "--mm:refc" "1" "" ""
 			buildNim "jumpstart" "jumpctl.nim" "$prefix/jumpctl" "off" "" "1" "" ""
 			;;
-		genpkglist)
-			buildNim "genpkglist" "main.nim" "$prefix/genpkglist" "off" "" "1" "" ""
+		run3tools)
+			buildNim "run3tools" "main.nim" "$prefix/run3tools" "off" "-d:run3Standalone" "1" "" ""
 			;;
 		kreastrap)
 			buildNim "kreastrap" "kreastrap.nim" "$srcdir/kreastrap/kreastrap" \
