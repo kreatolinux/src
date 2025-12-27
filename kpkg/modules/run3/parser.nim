@@ -111,6 +111,31 @@ proc parseString(p: var Parser): string =
     err.col = tok.col
     raise err
 
+proc parseStringValue(p: var Parser): string =
+  ## Parse a string value, concatenating multiple unquoted tokens
+  ## This handles cases where unquoted values like hex checksums
+  ## are split into multiple tokens by the lexer
+  var parts: seq[string] = @[]
+
+  while true:
+    let tok = p.peek()
+    case tok.kind
+    of tkString:
+      parts.add(tok.value)
+      discard p.advance()
+      break # Quoted strings are complete
+    of tkIdentifier, tkNumber:
+      parts.add(tok.value)
+      discard p.advance()
+      # Check if next token should be part of this value
+      let nextTok = p.peek()
+      if nextTok.kind notin {tkIdentifier, tkNumber}:
+        break
+    else:
+      break
+
+  return parts.join("")
+
 proc parseListItems(p: var Parser): seq[string] =
   ## Parse list items (lines starting with -)
   result = @[]
@@ -128,7 +153,7 @@ proc parseListItems(p: var Parser): seq[string] =
       raise err
     discard p.advance() # Skip -
     p.skipNewlines()
-    result.add(p.parseString())
+    result.add(p.parseStringValue())
     p.skipNewlines()
 
 proc parseVariableDeclaration(p: var Parser): AstNode =
