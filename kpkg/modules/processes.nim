@@ -108,7 +108,8 @@ proc execEnv*(command: string, error = "none", passthrough = false,
 
     # Use --unshare-user for non-root builds (to satisfy configure scripts that refuse to run as root)
     # Skip it for postinstall scripts that need root to modify system directories
-    let userNsOpts = if asRoot: "" else: "--unshare-user --uid 1000 --gid 1000 "
+    # UID/GID 999 matches the chown in buildcmd.nim for source directories
+    let userNsOpts = if asRoot: "" else: "--unshare-user --uid 999 --gid 999 "
 
     return execCmdKpkg(localeEnvPrefix&"bwrap "&userNsOpts&"--bind "&path&" / --bind "&kpkgTempDir1&" "&kpkgTempDir1&" --bind /etc/kpkg/repos /etc/kpkg/repos --bind "&kpkgTempDir2&" "&kpkgTempDir2&" --bind "&kpkgSourcesDir&" "&kpkgSourcesDir&" --dev /dev --proc /proc --perms 1777 --tmpfs /dev/shm --ro-bind /etc/resolv.conf /etc/resolv.conf /bin/sh -c \""&command.replace("\"", "\\\"")&"\"",
             error, silentMode = silentMode)
