@@ -102,5 +102,5 @@ proc execEnv*(command: string, error = "none", passthrough = false,
 
     debug "execEnv: about to run bwrap with path: " & path & ", command: " & command
 
-    return execCmdKpkg(localeEnvPrefix&"bwrap --bind "&path&" / --bind "&kpkgTempDir1&" "&kpkgTempDir1&" --bind /etc/kpkg/repos /etc/kpkg/repos --bind "&kpkgTempDir2&" "&kpkgTempDir2&" --bind "&kpkgSourcesDir&" "&kpkgSourcesDir&" --dev /dev --proc /proc --perms 1777 --tmpfs /dev/shm --ro-bind /etc/resolv.conf /etc/resolv.conf /bin/sh -c \""&command.replace("\"", "\\\"")&"\"",
+    return execCmdKpkg(localeEnvPrefix&"bwrap --unshare-user --uid 1000 --gid 1000 --bind "&path&" / --bind "&kpkgTempDir1&" "&kpkgTempDir1&" --bind /etc/kpkg/repos /etc/kpkg/repos --bind "&kpkgTempDir2&" "&kpkgTempDir2&" --bind "&kpkgSourcesDir&" "&kpkgSourcesDir&" --dev /dev --proc /proc --perms 1777 --tmpfs /dev/shm --ro-bind /etc/resolv.conf /etc/resolv.conf /bin/sh -c \""&command.replace("\"", "\\\"")&"\"",
             error, silentMode = silentMode)
