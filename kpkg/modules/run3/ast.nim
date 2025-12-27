@@ -211,8 +211,11 @@ proc newBreakNode*(line: int = 0): AstNode =
   AstNode(kind: nkBreak, line: line)
 
 proc hasFunction*(parsed: ParsedRunfile, name: string): bool =
-  ## Check if a function exists in the parsed runfile
+  ## Check if a function exists in the parsed runfile (searches both regular and custom functions)
   for funcNode in parsed.functions:
     if funcNode.kind == nkFunction and funcNode.funcName == name:
+      return true
+  for funcNode in parsed.customFuncs:
+    if funcNode.kind == nkCustomFunc and funcNode.customFuncName == name:
       return true
   return false

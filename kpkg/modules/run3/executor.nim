@@ -252,10 +252,15 @@ proc loadCustomFunctions*(ctx: ExecutionContext, parsed: ParsedRunfile) =
             ctx.customFuncs[funcNode.customFuncName] = funcNode.customFuncBody
 
 proc getFunctionByName*(parsed: ParsedRunfile, name: string): seq[AstNode] =
-    ## Get a function's body by name
+    ## Get a function's body by name (searches both regular and custom functions)
+    # First check regular functions
     for funcNode in parsed.functions:
         if funcNode.kind == nkFunction and funcNode.funcName == name:
             return funcNode.funcBody
+    # Then check custom functions
+    for funcNode in parsed.customFuncs:
+        if funcNode.kind == nkCustomFunc and funcNode.customFuncName == name:
+            return funcNode.customFuncBody
     return @[]
 
 proc executeRun3Function*(ctx: ExecutionContext, parsed: ParsedRunfile,
