@@ -401,7 +401,7 @@ proc builtinCd*(ctx: ExecutionContext, path: string): bool =
 
 proc builtinEnv*(ctx: ExecutionContext, varName: string, value: string) =
   ## Set an environment variable for subsequent exec commands
-  let resolvedValue = ctx.resolveVariables(value)
+  let resolvedValue = stripQuotes(ctx.resolveVariables(value))
   ctx.envVars[varName] = resolvedValue
 
 proc builtinLocal*(ctx: ExecutionContext, varName: string, value: string) =
@@ -492,12 +492,12 @@ proc evaluateSingleCondition(ctx: ExecutionContext, condition: string): bool =
     let parts = resolved.split("==")
     if parts.len == 2:
       return parts[0].strip().strip(chars = {'"', '\''}) == parts[1].strip(
-          ).strip(chars = {'"', '\''})
+        ).strip(chars = {'"', '\''})
   elif "!=" in resolved:
     let parts = resolved.split("!=")
     if parts.len == 2:
       return parts[0].strip().strip(chars = {'"', '\''}) != parts[1].strip(
-          ).strip(chars = {'"', '\''})
+        ).strip(chars = {'"', '\''})
 
   # Check for boolean-like values
   if resolved.toLowerAscii() in ["true", "1", "yes", "y", "on"]:
