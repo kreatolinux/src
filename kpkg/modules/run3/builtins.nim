@@ -387,7 +387,7 @@ proc builtinPrint*(ctx: ExecutionContext, text: string) =
 
 proc builtinCd*(ctx: ExecutionContext, path: string): bool =
   ## Change current directory
-  let resolvedPath = ctx.resolveVariables(path)
+  let resolvedPath = stripQuotes(ctx.resolveVariables(path))
 
   # Handle relative paths
   var fullPath = resolvedPath
@@ -418,7 +418,7 @@ proc builtinGlobal*(ctx: ExecutionContext, varName: string, value: string) =
 
 proc builtinWrite*(ctx: ExecutionContext, path: string, content: string) =
   ## Write content to a file
-  let resolvedPath = ctx.resolveVariables(path)
+  let resolvedPath = stripQuotes(ctx.resolveVariables(path))
   let resolvedContent = stripQuotes(ctx.resolveVariables(content))
 
   # Determine full path
@@ -435,7 +435,7 @@ proc builtinWrite*(ctx: ExecutionContext, path: string, content: string) =
 
 proc builtinAppend*(ctx: ExecutionContext, path: string, content: string) =
   ## Append content to a file
-  let resolvedPath = ctx.resolveVariables(path)
+  let resolvedPath = stripQuotes(ctx.resolveVariables(path))
   let resolvedContent = stripQuotes(ctx.resolveVariables(content))
 
   # Determine full path
