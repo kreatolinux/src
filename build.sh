@@ -149,7 +149,7 @@ for v in $projects; do
 			buildNim "$v" "$v.nim" "$prefix/$v" "on" "" "1" "1" "1"
 			;;
 		chkupd)
-			buildNim "$v" "$v.nim" "$prefix/$v" "on" "" "" "" "1"
+			buildNim "$v" "$v.nim" "$prefix/$v" "on" "-d:run3NoLibArchive" "" "" "1"
 			;;
 		jumpstart)
 			buildNim "jumpstart" "jumpstart.nim" "$prefix/jumpstart" "on" "--mm:refc" "1" "" ""

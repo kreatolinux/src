@@ -134,8 +134,11 @@ proc repologyCheck*(package: string, repo: string, autoUpdate = false,
 
     var isOutdated = false
 
+    # Track the expected release (with python version suffix if applicable)
+    # This is used for comparison only, not for updating the file
+    var expectedRelease = pkgRelease
     if "python" in pkgDeps:
-        pkgRelease = pkgRelease&"-"&parseRun3(repo & "/python").getVersion()
+        expectedRelease = pkgRelease&"-"&parseRun3(repo & "/python").getVersion()
 
     if verbose:
         echo "Current package version: " & pkgVersion
@@ -173,10 +176,10 @@ proc repologyCheck*(package: string, repo: string, autoUpdate = false,
 
     if verbose:
         echo "Package is outdated: " & $isOutdated
-        echo "Current release: " & pkgRelease & ", expected release: " & pkgRelease
+        echo "Current release: " & pkgRelease & ", expected release: " & expectedRelease
 
     if autoUpdate:
-        if pkg.getRelease() == pkgRelease and not isOutdated:
+        if expectedRelease == pkgRelease and not isOutdated:
             echo "Package is already up-to-date."
             return
         else:
@@ -184,7 +187,10 @@ proc repologyCheck*(package: string, repo: string, autoUpdate = false,
             if not isOutdated:
                 version = pkgVersion
 
-            autoUpdater(pkg, packageDir, version, skipIfDownloadFails, pkgRelease)
+            # Only pass release to autoupdater if version is not outdated
+            # (meaning we're only rebuilding due to dependency change)
+            # In that case, don't modify the release in the file at all
+            autoUpdater(pkg, packageDir, version, skipIfDownloadFails)
     else:
         if verbose or isOutdated:
             echo "Latest version found: " & version
