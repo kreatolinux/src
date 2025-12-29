@@ -4,6 +4,7 @@
 import strutils
 import ast
 import lexer
+import utils
 
 when not defined(run3Standalone):
   import ../logger
@@ -141,7 +142,6 @@ proc parseListItems(p: var Parser): seq[string] =
   result = @[]
   p.skipNewlines()
 
-  const maxItems = 10000 # Safety limit
   var itemCount = 0
 
   while p.peek().kind == tkDash:
@@ -228,7 +228,6 @@ proc parseExpression(p: var Parser): string =
   ## Parse an expression (for conditions, arguments, etc.)
   ## Handles variable references and basic expressions
   var parts: seq[string] = @[]
-  const maxIterations = 10000 # Safety limit
   var iterations = 0
 
   while true:
@@ -327,7 +326,6 @@ proc parseCondition(p: var Parser): string =
   ## Parse a condition expression for if statements
   ## Handles ||, &&, ==, !=, =~, and regex strings e"pattern"
   var parts: seq[string] = @[]
-  const maxIterations = 10000
   var iterations = 0
 
   while true:
@@ -417,7 +415,6 @@ proc parseMacroArgValue(p: var Parser): string =
   ## Handles paths like /usr/share/man, variables like $var, and quoted strings
   ## Reads until whitespace, newline, or next -- flag
   var parts: seq[string] = @[]
-  const maxIterations = 10000
   var iterations = 0
 
   while p.peek().kind notin {tkNewline, tkRBrace, tkEof}:
@@ -517,7 +514,6 @@ proc parseSingleTokenOrVar(p: var Parser): string =
       # Check for manipulation
       var res = "${" & baseExpr
       if p.peek().kind == tkDot or p.peek().kind == tkLBracket:
-        const maxIterations = 10000
         var iterations = 0
         while p.peek().kind != tkRBrace and p.peek().kind != tkEof:
           iterations += 1
@@ -558,7 +554,6 @@ proc parseStatement(p: var Parser): AstNode =
 
     # Parse macro arguments until newline or }
     # Supports: positional args, variable refs (${var}), -flag and --flag style args
-    const maxArgs = 1000
     var argCount = 0
     while p.peek().kind notin {tkNewline, tkRBrace, tkEof}:
       argCount += 1
@@ -654,7 +649,6 @@ proc parseStatement(p: var Parser): AstNode =
     p.skipNewlines()
 
     var thenBranch: seq[AstNode] = @[]
-    const maxStatements = 10000 # Safety limit
     var stmtCount = 0
     while p.peek().kind != tkRBrace and p.peek().kind != tkEof:
       stmtCount += 1
@@ -718,11 +712,10 @@ proc parseStatement(p: var Parser): AstNode =
     p.skipNewlines()
 
     var body: seq[AstNode] = @[]
-    const maxForStatements = 10000 # Safety limit
     var forStmtCount = 0
     while p.peek().kind != tkRBrace and p.peek().kind != tkEof:
       forStmtCount += 1
-      if forStmtCount > maxForStatements:
+      if forStmtCount > maxStatements:
         var err = newException(ParseError, "For body exceeded maximum statements - possible infinite loop")
         err.line = p.peek().line
         err.col = p.peek().col
@@ -746,7 +739,6 @@ proc parseStatement(p: var Parser): AstNode =
     let name = p.advance().value
     var args: seq[string] = @[]
     # Parse arguments until newline or }
-    const maxArgs = 1000 # Safety limit
     var argCount = 0
     while p.peek().kind notin {tkNewline, tkRBrace, tkEof}:
       argCount += 1
@@ -787,7 +779,6 @@ proc parseFunctionBody(p: var Parser): seq[AstNode] =
   discard p.expect(tkLBrace)
   p.skipNewlines()
 
-  const maxStatements = 10000 # Safety limit
   var stmtCount = 0
 
   while p.peek().kind != tkRBrace and p.peek().kind != tkEof:
@@ -823,7 +814,6 @@ proc parse*(p: var Parser): ParsedRunfile =
   result.functions = @[]
   result.customFuncs = @[]
 
-  const maxIterations = 100000 # Safety limit
   var iterations = 0
 
   debug "parse: starting variable declarations"
@@ -833,7 +823,7 @@ proc parse*(p: var Parser): ParsedRunfile =
               (p.peek().kind == tkIdentifier and p.peek(1).kind in {tkColon,
                       tkPlusColon, tkMinusColon}):
       iterations += 1
-      if iterations > maxIterations:
+      if iterations > maxTokens:
         raise newException(ParseError, "Parser exceeded maximum iterations - possible infinite loop")
 
       p.skipCommentsAndNewlines()
@@ -856,7 +846,7 @@ proc parse*(p: var Parser): ParsedRunfile =
   debug "parse: starting function parsing"
   while p.peek().kind != tkEof:
     iterations += 1
-    if iterations > maxIterations:
+    if iterations > maxTokens:
       raise newException(ParseError, "Parser exceeded maximum iterations - possible infinite loop")
 
     debug "parse: function loop iteration "&($iterations)&", token kind: "&(

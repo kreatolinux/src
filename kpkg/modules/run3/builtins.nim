@@ -167,7 +167,6 @@ proc resolveManipulation(ctx: ExecutionContext, expr: string,
 
   let tokens = tokenize(expr)
   var p = 0
-  const maxIterations = 10000 # Safety limit to prevent infinite loops
 
   proc peek(): Token =
     if p < tokens.len: tokens[p] else: Token(kind: tkEof)

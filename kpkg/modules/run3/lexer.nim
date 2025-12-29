@@ -2,6 +2,7 @@
 ## Breaks input text into tokens for parsing
 
 import strutils
+import utils
 
 type
   TokenKind* = enum
@@ -133,7 +134,6 @@ proc readString(lex: var Lexer, quote: char): string =
   result = ""
   discard lex.advance() # Skip opening quote
   var braceDepth = 0
-  const maxStringLen = 1000000 # 1MB safety limit
 
   while true:
     if result.len > maxStringLen:
@@ -447,7 +447,6 @@ proc tokenize*(input: string): seq[Token] =
   ## Tokenize entire input into a sequence of tokens
   result = @[]
   var lex = initLexer(input)
-  const maxTokens = 100000 # Safety limit to prevent memory exhaustion
 
   while true:
     if result.len > maxTokens:

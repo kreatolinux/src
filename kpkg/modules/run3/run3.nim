@@ -10,6 +10,7 @@ import ast
 import lexer
 import parser
 import variables
+import utils
 
 when not defined(run3Standalone):
   import builtins
@@ -90,7 +91,6 @@ proc resolveManipulationWithTable(vars: Table[string, VarValue], expr: string): 
     ## Supports interleaved methods and indexing: ${version.split('.')[0:2].join('.')}
     let tokens = tokenize(expr)
     var p = 0
-    const maxIter = 10000
 
     proc peek(): Token =
         if p < tokens.len: tokens[p] else: Token(kind: tkEof)
@@ -116,7 +116,7 @@ proc resolveManipulationWithTable(vars: Table[string, VarValue], expr: string): 
     # Parse and apply operations (methods and indexing interleaved)
     while peek().kind == tkDot or peek().kind == tkLBracket:
         iterations += 1
-        if iterations > maxIter:
+        if iterations > maxIterations:
             break
 
         if peek().kind == tkDot:
@@ -129,7 +129,7 @@ proc resolveManipulationWithTable(vars: Table[string, VarValue], expr: string): 
                 discard advance() # (
                 while peek().kind != tkRParen and peek().kind != tkEof:
                     iterations += 1
-                    if iterations > maxIter:
+                    if iterations > maxIterations:
                         break
                     if peek().kind == tkString or peek().kind == tkIdentifier or
                             peek().kind == tkNumber:
@@ -150,7 +150,7 @@ proc resolveManipulationWithTable(vars: Table[string, VarValue], expr: string): 
             var indexExpr = ""
             while peek().kind != tkRBracket and peek().kind != tkEof:
                 iterations += 1
-                if iterations > maxIter:
+                if iterations > maxIterations:
                     break
                 indexExpr.add(advance().value)
             discard advance() # ]
