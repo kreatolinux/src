@@ -19,6 +19,16 @@ const
 let
   varSimplePattern* = re2(r"\$([a-zA-Z_][a-zA-Z0-9_]*)") # $varname
 
+# Regex patterns for condition parsing
+# These capture: left operand, operator, right operand
+let
+  conditionOpPattern* = re2(r"^(.+?)\s*(=~|==|!=)\s*(.+)$") # matches: left op right
+
+# Boolean value sets
+const
+  trueBooleans* = ["true", "1", "yes", "y", "on"]
+  falseBooleans* = ["false", "0", "no", "n", "off", ""]
+
 proc stripQuotes*(s: string): string =
   ## Strip outer quotes if present (single or double)
   if s.len >= 2 and ((s[0] == '"' and s[^1] == '"') or (s[0] == '\'' and s[
@@ -105,3 +115,55 @@ proc replaceSimpleVars*(text: string, getVar: proc(
       offset = matchStart + value.len
     else:
       break
+
+type
+  ConditionParts* = object
+    ## Parsed condition with operator
+    left*: string
+    op*: string
+    right*: string
+    valid*: bool
+
+proc parseConditionOperator*(condition: string): ConditionParts =
+  ## Parse a condition string into left, operator, right parts using regex
+  ## Returns valid=false if no operator found
+  var matches: RegexMatch2
+  if condition.find(conditionOpPattern, matches):
+    result.left = condition[matches.group(0)].strip()
+    result.op = condition[matches.group(1)]
+    result.right = condition[matches.group(2)].strip()
+    result.valid = true
+  else:
+    result.valid = false
+
+proc stripPatternWrapper*(pattern: string): string =
+  ## Strip e"..." or e'...' or regular quotes from regex pattern
+  result = pattern
+  if result.startsWith("e\"") and result.endsWith("\""):
+    result = result[2..^2]
+  elif result.startsWith("e'") and result.endsWith("'"):
+    result = result[2..^2]
+  elif result.startsWith("\"") and result.endsWith("\""):
+    result = result[1..^2]
+  elif result.startsWith("'") and result.endsWith("'"):
+    result = result[1..^2]
+
+proc isTrueBoolean*(s: string): bool =
+  ## Check if string represents a true boolean value
+  s.toLowerAscii() in trueBooleans
+
+proc isFalseBoolean*(s: string): bool =
+  ## Check if string represents a false boolean value
+  s.toLowerAscii() in falseBooleans
+
+proc splitLogicalOr*(condition: string): seq[string] =
+  ## Split condition by || operator
+  result = condition.split("||")
+  for i in 0 ..< result.len:
+    result[i] = result[i].strip()
+
+proc splitLogicalAnd*(condition: string): seq[string] =
+  ## Split condition by && operator
+  result = condition.split("&&")
+  for i in 0 ..< result.len:
+    result[i] = result[i].strip()

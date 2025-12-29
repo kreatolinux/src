@@ -429,53 +429,32 @@ proc clearLocalVars*(ctx: ExecutionContext) =
 
 proc evaluateSingleCondition(ctx: ExecutionContext, condition: string): bool =
   ## Evaluate a single condition (no || or &&)
-  ## Supports:
-  ## - Variable existence checks ($var)
-  ## - Boolean literals (true, yes, 1)
-  ## - Equality checks ($var == "value")
-  ## - Inequality checks ($var != "value")
-  ## - Regex matching ($var =~ e"pattern")
-  ## - Existence/Non-empty checks (if $var)
+  ## Supports: ==, !=, =~ (regex), boolean literals, existence checks
   let resolved = ctx.resolveVariables(condition).strip()
 
-  # Check for regex match operator =~
-  if "=~" in resolved:
-    let parts = resolved.split("=~")
-    if parts.len == 2:
-      let leftVal = parts[0].strip().strip(chars = {'"', '\''})
-      var pattern = parts[1].strip()
-      # Strip e"..." wrapper if present
-      if pattern.startsWith("e\"") and pattern.endsWith("\""):
-        pattern = pattern[2..^2]
-      elif pattern.startsWith("e'") and pattern.endsWith("'"):
-        pattern = pattern[2..^2]
-      elif pattern.startsWith("\"") and pattern.endsWith("\""):
-        pattern = pattern[1..^2]
-      elif pattern.startsWith("'") and pattern.endsWith("'"):
-        pattern = pattern[1..^2]
+  # Parse condition using regex pattern
+  let parts = parseConditionOperator(resolved)
+  if parts.valid:
+    let leftVal = stripQuotes(parts.left)
+    case parts.op
+    of "=~":
+      let pattern = stripPatternWrapper(parts.right)
       try:
-        # Use ^ and $ anchors for full match by default
         return leftVal.match(re2("^(" & pattern & ")$"))
       except:
         warn("Invalid regex pattern: " & pattern)
         return false
-
-  # Check for equality operators
-  if "==" in resolved:
-    let parts = resolved.split("==")
-    if parts.len == 2:
-      return parts[0].strip().strip(chars = {'"', '\''}) == parts[1].strip(
-        ).strip(chars = {'"', '\''})
-  elif "!=" in resolved:
-    let parts = resolved.split("!=")
-    if parts.len == 2:
-      return parts[0].strip().strip(chars = {'"', '\''}) != parts[1].strip(
-        ).strip(chars = {'"', '\''})
+    of "==":
+      return leftVal == stripQuotes(parts.right)
+    of "!=":
+      return leftVal != stripQuotes(parts.right)
+    else:
+      discard
 
   # Check for boolean-like values
-  if resolved.toLowerAscii() in ["true", "1", "yes", "y", "on"]:
+  if isTrueBoolean(resolved):
     return true
-  if resolved.toLowerAscii() in ["false", "0", "no", "n", "off", ""]:
+  if isFalseBoolean(resolved):
     return false
 
   # Check if non-empty string
@@ -483,30 +462,20 @@ proc evaluateSingleCondition(ctx: ExecutionContext, condition: string): bool =
 
 proc evaluateCondition*(ctx: ExecutionContext, condition: string): bool =
   ## Evaluate a condition for if statements
-  ## Supports:
-  ## - || (OR) operator
-  ## - && (AND) operator
-  ## - == (equality)
-  ## - != (inequality)
-  ## - =~ (regex match) with e"pattern" syntax
-  ## - Boolean literals (true, yes, 1)
-  ## - Variable existence/non-empty checks
-
+  ## Supports: || (OR), && (AND), ==, !=, =~ (regex), boolean literals
   let resolved = ctx.resolveVariables(condition).strip()
 
-  # Handle || (OR) - split and evaluate, return true if any is true
+  # Handle || (OR)
   if "||" in resolved:
-    let orParts = resolved.split("||")
-    for part in orParts:
-      if ctx.evaluateSingleCondition(part.strip()):
+    for part in splitLogicalOr(resolved):
+      if ctx.evaluateSingleCondition(part):
         return true
     return false
 
-  # Handle && (AND) - split and evaluate, return true only if all are true
+  # Handle && (AND)
   if "&&" in resolved:
-    let andParts = resolved.split("&&")
-    for part in andParts:
-      if not ctx.evaluateSingleCondition(part.strip()):
+    for part in splitLogicalAnd(resolved):
+      if not ctx.evaluateSingleCondition(part):
         return false
     return true
 
