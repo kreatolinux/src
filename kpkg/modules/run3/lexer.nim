@@ -175,9 +175,17 @@ proc readString(lex: var Lexer, quote: char): string =
             else:
               result.add(lex.advance())
         elif innerCh == '\\' and lex.peek(1) != '\0':
-          # Escape sequence outside of nested string
-          result.add(lex.advance()) # backslash
-          result.add(lex.advance()) # escaped char
+          # Escape sequence outside of nested string - interpret it
+          discard lex.advance() # Skip backslash
+          let next = lex.advance()
+          case next
+          of 'n': result.add('\n')
+          of 't': result.add('\t')
+          of 'r': result.add('\r')
+          of '\\': result.add('\\')
+          of '"': result.add('"')
+          of '\'': result.add('\'')
+          else: result.add(next)
         else:
           result.add(lex.advance())
     elif ch == quote and braceDepth == 0:
