@@ -73,18 +73,23 @@ proc removeInternal*(package: string, root = "",
     err("package "&package&" is not installed")
 
   var pkg = getPackage(actualPackage, root)
+  debug "removeInternal: getPackage completed for '"&actualPackage&"'"
 
   if not noRunfile:
+    debug "removeInternal: noRunfile is false, entering block"
 
     if depCheck:
       debug "Dependency check starting"
       debug package&" "&installedDir&" "&root
       discard dependencyCheck(package, root, force, ignorePackage = fullPkgList)
 
+    debug "removeInternal: pkg.isGroup = " & $pkg.isGroup
     if not pkg.isGroup:
       debug "Starting removal process"
 
+  debug "removeInternal: about to call getListFiles"
   let listFiles = getListFiles(actualPackage, root)
+  debug "removeInternal: getListFiles returned " & $listFiles.len & " files"
 
   for line in listFiles:
     if not removeConfigs and not noRunfile:

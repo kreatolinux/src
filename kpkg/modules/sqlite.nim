@@ -270,16 +270,21 @@ proc getListFiles*(packageName: string, root: string, package = getPackage(
   # Gives a list of files.
   # comparable to list_files in kpkg <v6.
 
+  debug "getListFiles: entered for package '"&packageName&"' at root '"&root&"'"
   rootCheck(root)
+  debug "getListFiles: rootCheck completed"
 
   var files = @[newFileInternal()]
+  debug "getListFiles: about to select files from db"
   kpkgDb.select(files, "package = ?", package)
+  debug "getListFiles: db select completed, got " & $files.len & " files"
 
   var listFiles: seq[string]
 
   for file in files:
     listFiles = listFiles&file.path.replace("\"", "")
 
+  debug "getListFiles: returning " & $listFiles.len & " file paths"
   return listFiles
 
 proc getPackageByValue*(package = newPackageInternal(), field = ""): string =
