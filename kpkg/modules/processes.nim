@@ -10,7 +10,11 @@ proc execCmdKpkg*(command: string, error = "none", silentMode = false): tuple[
   # Like execCmdKpkg, but captures output instead of printing (unless not silent).
   debug "execCmdKpkg: command: "&command
   let process = startProcess(command, options = {poEvalCommand,
-      poStdErrToStdOut})
+      poStdErrToStdOut, poUsePath})
+
+  # Close stdin to prevent the child process from waiting for input
+  close(inputStream(process))
+
   var line: string
   var output = ""
 
