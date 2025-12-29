@@ -7,6 +7,7 @@ import run3
 import tables
 import strutils
 import sequtils
+import utils
 
 proc testParser() =
   echo "=== Testing Parser ==="
@@ -190,8 +191,8 @@ proc testMacros() =
     echo "Autocd: ", args1.autocd
     echo "Prefix: ", args1.prefix
     echo "Passthrough: '", args1.passthroughArgs, "'"
-    
-    if args1.buildSystem == bsMeson and args1.autocd == true and 
+
+    if args1.buildSystem == bsMeson and args1.autocd == true and
        args1.prefix == "/usr/local" and args1.passthroughArgs == "":
       echo "Internal args only: Passed"
     else:
@@ -206,39 +207,39 @@ proc testMacroArgParsing() =
 
   try:
     # Test mixed args - internal + passthrough
-    let args = parseMacroArgs(@["--ninja", "-Dplatforms=wayland,x11", 
+    let args = parseMacroArgs(@["--ninja", "-Dplatforms=wayland,x11",
         "-Dgallium-drivers=auto", "--enable-foo", "install.prefix=/usr"])
-    
+
     echo "Build system: ", args.buildSystem
     echo "Passthrough: '", args.passthroughArgs, "'"
-    
+
     # Verify internal args are recognized
     if args.buildSystem != bsNinja:
       echo "✗ Failed: --ninja not recognized as build system"
       return
     echo "  --ninja recognized: Passed"
-    
+
     # Verify passthrough args are collected
     if "-Dplatforms=wayland,x11" notin args.passthroughArgs:
       echo "✗ Failed: -Dplatforms=wayland,x11 not in passthrough"
       return
     echo "  -Dplatforms in passthrough: Passed"
-    
+
     if "-Dgallium-drivers=auto" notin args.passthroughArgs:
       echo "✗ Failed: -Dgallium-drivers=auto not in passthrough"
       return
     echo "  -Dgallium-drivers in passthrough: Passed"
-    
+
     if "--enable-foo" notin args.passthroughArgs:
       echo "✗ Failed: --enable-foo not in passthrough"
       return
     echo "  --enable-foo in passthrough: Passed"
-    
+
     if "install.prefix=/usr" notin args.passthroughArgs:
       echo "✗ Failed: install.prefix=/usr not in passthrough"
       return
     echo "  install.prefix=/usr in passthrough: Passed"
-    
+
     # Test that internal args are NOT in passthrough
     if "--ninja" in args.passthroughArgs:
       echo "✗ Failed: --ninja should not be in passthrough"
@@ -246,23 +247,23 @@ proc testMacroArgParsing() =
     echo "  --ninja not in passthrough: Passed"
 
     # Test --set style args (flag followed by value)
-    let args2 = parseMacroArgs(@["--set", "install.prefix=/usr", "--set", 
+    let args2 = parseMacroArgs(@["--set", "install.prefix=/usr", "--set",
         "llvm.link-shared=true", "--llvm-config=/usr/bin/llvm-config"])
-    
+
     echo "\nTest --set style args:"
     echo "Passthrough: '", args2.passthroughArgs, "'"
-    
+
     # --set is not a recognized internal arg, so it should pass through
     if "--set" notin args2.passthroughArgs:
       echo "✗ Failed: --set not in passthrough"
       return
     echo "  --set in passthrough: Passed"
-    
+
     if "install.prefix=/usr" notin args2.passthroughArgs:
       echo "✗ Failed: install.prefix=/usr not in passthrough"
       return
     echo "  install.prefix=/usr in passthrough: Passed"
-    
+
     if "--llvm-config=/usr/bin/llvm-config" notin args2.passthroughArgs:
       echo "✗ Failed: --llvm-config not in passthrough"
       return
@@ -543,6 +544,137 @@ package {
   finally:
     removeDir(testDir)
 
+proc testUtilsHelpers() =
+  echo "\n=== Testing Utils Helpers ==="
+
+  try:
+    # Test stripQuotes
+    block:
+      doAssert stripQuotes("\"hello\"") == "hello"
+      doAssert stripQuotes("'world'") == "world"
+      doAssert stripQuotes("noquotes") == "noquotes"
+      doAssert stripQuotes("\"\"") == ""
+      doAssert stripQuotes("''") == ""
+      doAssert stripQuotes("\"only start") == "\"only start"
+      doAssert stripQuotes("only end\"") == "only end\""
+      echo "stripQuotes: Passed"
+
+    # Test extractBraceExpr
+    block:
+      let (expr1, end1) = extractBraceExpr("${foo}", 0)
+      doAssert expr1 == "foo"
+      doAssert end1 == 6
+
+      let (expr2, end2) = extractBraceExpr("prefix${bar}suffix", 6)
+      doAssert expr2 == "bar"
+      doAssert end2 == 12
+
+      let (expr3, end3) = extractBraceExpr("${nested.method()}", 0)
+      doAssert expr3 == "nested.method()"
+      doAssert end3 == 18 # len("${nested.method()}") == 18
+
+      # Not a brace expr
+      let (expr4, end4) = extractBraceExpr("nope", 0)
+      doAssert expr4 == ""
+      doAssert end4 == 0
+
+      echo "extractBraceExpr: Passed"
+
+    # Test parseConditionOperator
+    block:
+      let cp1 = parseConditionOperator("left == right")
+      doAssert cp1.valid
+      doAssert cp1.left == "left"
+      doAssert cp1.op == "=="
+      doAssert cp1.right == "right"
+
+      let cp2 = parseConditionOperator("foo != bar")
+      doAssert cp2.valid
+      doAssert cp2.left == "foo"
+      doAssert cp2.op == "!="
+      doAssert cp2.right == "bar"
+
+      let cp3 = parseConditionOperator("value =~ e\"pattern\"")
+      doAssert cp3.valid
+      doAssert cp3.left == "value"
+      doAssert cp3.op == "=~"
+      doAssert cp3.right == "e\"pattern\""
+
+      let cp4 = parseConditionOperator("no operator here")
+      doAssert not cp4.valid
+
+      echo "parseConditionOperator: Passed"
+
+    # Test stripPatternWrapper
+    block:
+      doAssert stripPatternWrapper("e\"pattern\"") == "pattern"
+      doAssert stripPatternWrapper("e'pattern'") == "pattern"
+      doAssert stripPatternWrapper("\"quoted\"") == "quoted"
+      doAssert stripPatternWrapper("'single'") == "single"
+      doAssert stripPatternWrapper("plain") == "plain"
+      echo "stripPatternWrapper: Passed"
+
+    # Test isTrueBoolean/isFalseBoolean
+    block:
+      doAssert isTrueBoolean("true")
+      doAssert isTrueBoolean("TRUE")
+      doAssert isTrueBoolean("1")
+      doAssert isTrueBoolean("yes")
+      doAssert isTrueBoolean("on")
+      doAssert not isTrueBoolean("false")
+      doAssert not isTrueBoolean("maybe")
+
+      doAssert isFalseBoolean("false")
+      doAssert isFalseBoolean("FALSE")
+      doAssert isFalseBoolean("0")
+      doAssert isFalseBoolean("no")
+      doAssert isFalseBoolean("off")
+      doAssert isFalseBoolean("")
+      doAssert not isFalseBoolean("true")
+      doAssert not isFalseBoolean("maybe")
+
+      echo "isTrueBoolean/isFalseBoolean: Passed"
+
+    # Test splitLogicalOr/splitLogicalAnd
+    block:
+      let orParts = splitLogicalOr("a || b || c")
+      doAssert orParts == @["a", "b", "c"]
+
+      let andParts = splitLogicalAnd("x && y && z")
+      doAssert andParts == @["x", "y", "z"]
+
+      # No operators
+      let single = splitLogicalOr("single")
+      doAssert single == @["single"]
+
+      echo "splitLogicalOr/splitLogicalAnd: Passed"
+
+    # Test isSimpleVarName
+    block:
+      doAssert isSimpleVarName("foo")
+      doAssert isSimpleVarName("_bar")
+      doAssert isSimpleVarName("test123")
+      doAssert isSimpleVarName("my-var")
+      doAssert isSimpleVarName("my_var")
+      doAssert not isSimpleVarName("")
+      doAssert not isSimpleVarName("123abc")
+      doAssert not isSimpleVarName("has.dot")
+      doAssert not isSimpleVarName("has space")
+      doAssert not isSimpleVarName("has(paren)")
+      echo "isSimpleVarName: Passed"
+
+    # Test findMatchingBrace
+    block:
+      doAssert findMatchingBrace("${foo}", 1) == 5
+      doAssert findMatchingBrace("${a{b}c}", 1) == 7
+      doAssert findMatchingBrace("${unclosed", 1) == -1
+      echo "findMatchingBrace: Passed"
+
+    echo "✓ Utils helpers test passed"
+  except Exception as e:
+    echo "✗ Utils helpers test failed: ", e.msg
+    echo getStackTrace(e)
+
 proc testForLoopWithExpression() =
   echo "\n=== Testing For Loop with Variable Expression ==="
 
@@ -587,6 +719,7 @@ when isMainModule:
   testExecChaining()
   testNewConditionOperators()
   testContinueBreak()
+  testUtilsHelpers()
   testForLoopWithExpression()
 
   echo "\n=== All Tests Complete ==="
