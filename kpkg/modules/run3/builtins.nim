@@ -5,14 +5,16 @@ import os
 import osproc
 import regex
 import strutils
-import strtabs
 import tables
 import ast
 import lexer
 import variables
+import utils
 import ../commonPaths
 import ../processes
 import ../logger
+
+export utils.stripQuotes
 
 type
   ExecutionContext* = ref object
@@ -274,60 +276,29 @@ proc resolveVariables*(ctx: ExecutionContext, text: string,
     depth: int = 0): string =
   ## Resolve variable references in text
   ## Handles $var and ${var} syntax
-  if depth > 10:
+  if depth > maxRecursionDepth:
     warn("resolveVariables: maximum recursion depth exceeded, returning original text")
     return text
 
   result = text
 
-  # Replace ${var} first
+  # First pass: Replace ${...} expressions (may contain methods/indexing)
   var i = 0
   while i < result.len:
     if i < result.len - 1 and result[i] == '$' and result[i+1] == '{':
-      # Find the closing }
-      var j = i + 2
-      var braceCount = 1
-      while j < result.len and braceCount > 0:
-        if result[j] == '{':
-          braceCount += 1
-        elif result[j] == '}':
-          braceCount -= 1
-        j += 1
-
-      if braceCount == 0:
-        let varExpr = result[i+2..<j-1]
+      let (varExpr, endPos) = extractBraceExpr(result, i)
+      if varExpr.len > 0:
         let value = ctx.resolveManipulation(varExpr, depth + 1)
-        result = result[0..<i] & value & result[j..^1]
+        result = result[0 ..< i] & value & result[endPos .. ^1]
         i += value.len
       else:
         i += 1
     else:
       i += 1
 
-  # Replace $var
-  i = 0
-  while i < result.len:
-    if result[i] == '$':
-      var j = i + 1
-      while j < result.len and (result[j].isAlphaNumeric() or result[j] == '_'):
-        j += 1
-
-      if j > i + 1:
-        let varName = result[i+1..<j]
-        let value = ctx.getVariable(varName)
-        result = result[0..<i] & value & result[j..^1]
-        i += value.len
-      else:
-        i += 1
-    else:
-      i += 1
-
-proc stripQuotes*(s: string): string =
-  ## Strip outer quotes if present
-  if s.len >= 2 and ((s[0] == '"' and s[^1] == '"') or (s[0] == '\'' and s[
-          ^1] == '\'')):
-    return s[1..^2]
-  return s
+  # Second pass: Replace simple $varname references using regex helper
+  result = replaceSimpleVars(result, proc(
+      name: string): string = ctx.getVariable(name))
 
 proc builtinExec*(ctx: ExecutionContext, command: string): int =
   ## Execute a shell command

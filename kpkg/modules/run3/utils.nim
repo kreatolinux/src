@@ -1,0 +1,107 @@
+## Shared utilities for run3 module
+## Contains common constants, regex patterns, and helper functions
+
+import regex
+import strutils
+
+# Safety limits for parsing/execution
+const
+  maxIterations* = 10000
+  maxRecursionDepth* = 10
+  maxStringLen* = 1000000
+  maxTokens* = 100000
+  maxStatements* = 10000
+  maxArgs* = 1000
+  maxItems* = 10000
+
+# Regex patterns for variable resolution
+# Note: These handle simple cases; complex nested expressions need manual parsing
+let
+  varSimplePattern* = re2(r"\$([a-zA-Z_][a-zA-Z0-9_]*)") # $varname
+
+proc stripQuotes*(s: string): string =
+  ## Strip outer quotes if present (single or double)
+  if s.len >= 2 and ((s[0] == '"' and s[^1] == '"') or (s[0] == '\'' and s[
+      ^1] == '\'')):
+    return s[1..^2]
+  return s
+
+proc findMatchingBrace*(text: string, start: int): int =
+  ## Find the position of the closing brace matching the opening brace at start
+  ## Returns -1 if not found
+  ## Assumes text[start] == '{' or text[start-1..start] == "${"
+  var braceCount = 1
+  var i = start
+  if i < text.len and text[i] == '$':
+    i += 1
+  if i < text.len and text[i] == '{':
+    i += 1
+  else:
+    return -1
+
+  while i < text.len and braceCount > 0:
+    if text[i] == '{':
+      braceCount += 1
+    elif text[i] == '}':
+      braceCount -= 1
+    i += 1
+
+  if braceCount == 0:
+    return i - 1 # Position of closing brace
+  return -1
+
+proc extractBraceExpr*(text: string, start: int): tuple[expr: string, endPos: int] =
+  ## Extract expression from ${...} starting at position of $
+  ## Returns the expression (without ${}) and the position after }
+  if start + 1 >= text.len or text[start] != '$' or text[start + 1] != '{':
+    return ("", start)
+
+  let closingPos = findMatchingBrace(text, start + 1)
+  if closingPos == -1:
+    return ("", start)
+
+  result.expr = text[start + 2 ..< closingPos]
+  result.endPos = closingPos + 1
+
+proc isSimpleVarName*(expr: string): bool =
+  ## Check if expression is a simple variable name (no methods, indexing, or special chars)
+  if expr.len == 0:
+    return false
+
+  # First char must be letter or underscore
+  if not (expr[0].isAlphaAscii() or expr[0] == '_'):
+    return false
+
+  # Rest must be alphanumeric, underscore, or dash
+  for i in 1 ..< expr.len:
+    let c = expr[i]
+    if not (c.isAlphaNumeric() or c == '_' or c == '-'):
+      return false
+
+  return true
+
+proc replaceSimpleVars*(text: string, getVar: proc(
+    name: string): string): string =
+  ## Replace simple $varname references using regex
+  ## Does NOT handle ${...} expressions
+  result = text
+  var matches: RegexMatch2
+  var offset = 0
+
+  while offset < result.len:
+    let searchText = result[offset..^1]
+    if searchText.find(varSimplePattern, matches):
+      let matchStart = offset + matches.boundaries.a
+      let matchEnd = offset + matches.boundaries.b
+      let varName = searchText[matches.group(0)]
+
+      # Make sure this isn't part of ${...}
+      if matchStart > 0 and result[matchStart - 1] == '{':
+        offset = matchEnd + 1
+        continue
+
+      let value = getVar(varName)
+      result = result[0 ..< matchStart] & value & result[matchEnd + 1 .. ^1]
+      offset = matchStart + value.len
+    else:
+      break
