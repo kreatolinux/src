@@ -263,9 +263,11 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
           createDirWithPermissionsAndOwnership(
                   kpkgInstallTemp&"/"&file.parentDir(),
                   root&"/"&file.parentDir())
+        debug "Installing file: "&file
         copyFileWithPermissionsAndOwnership(kpkgInstallTemp&"/"&file, root&"/"&file)
       elif dirExists(kpkgInstallTemp&"/"&file) and not (dirExists(
               root&"/"&file) or symlinkExists(root&"/"&file)):
+        debug "Installing directory: "&file
         createDirWithPermissionsAndOwnership(kpkgInstallTemp&"/"&file, root&"/"&file)
   else:
     # Register group packages in the database
