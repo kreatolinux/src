@@ -316,22 +316,27 @@ proc builtinExec*(ctx: ExecutionContext, command: string): int =
   # Build environment variable exports for the command
   var cmdParts: seq[string] = @[]
 
+  # Helper to escape values for use within single quotes
+  # In single quotes, only ' needs escaping (by ending quote, adding \', starting quote again)
+  proc escapeForSingleQuote(s: string): string =
+    "'" & s.replace("'", "'\\''") & "'"
+
   # Add custom environment variables
   for key, val in ctx.envVars:
-    cmdParts.add("export " & key & "=" & quoteShell(val))
+    cmdParts.add("export " & key & "=" & escapeForSingleQuote(val))
 
   # Add standard build variables
   if ctx.destDir != "":
-    cmdParts.add("export DESTDIR=" & quoteShell(ctx.destDir))
+    cmdParts.add("export DESTDIR=" & escapeForSingleQuote(ctx.destDir))
     if ctx.buildRoot != "":
-      cmdParts.add("export ROOT=" & quoteShell(ctx.buildRoot))
+      cmdParts.add("export ROOT=" & escapeForSingleQuote(ctx.buildRoot))
   if ctx.srcDir != "":
-    cmdParts.add("export SRCDIR=" & quoteShell(ctx.srcDir))
+    cmdParts.add("export SRCDIR=" & escapeForSingleQuote(ctx.srcDir))
   if ctx.packageName != "":
-    cmdParts.add("export PACKAGENAME=" & quoteShell(ctx.packageName))
+    cmdParts.add("export PACKAGENAME=" & escapeForSingleQuote(ctx.packageName))
 
   # Add cd command
-  cmdParts.add("cd " & quoteShell(ctx.currentDir))
+  cmdParts.add("cd " & escapeForSingleQuote(ctx.currentDir))
 
   # Add the actual command
   cmdParts.add(resolvedCmd)
