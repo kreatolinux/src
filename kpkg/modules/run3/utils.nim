@@ -17,7 +17,7 @@ const
 # Regex patterns for variable resolution
 # Note: These handle simple cases; complex nested expressions need manual parsing
 let
-  varSimplePattern* = re2(r"\$([a-zA-Z_][a-zA-Z0-9_]*)") # $varname
+  varSimplePattern* = re2(r"\$([a-zA-Z_][a-zA-Z0-9_]*|\d+)") # $varname or $0, $1, etc.
 
 # Regex patterns for condition parsing
 # These capture: left operand, operator, right operand
