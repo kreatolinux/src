@@ -288,22 +288,6 @@ proc buildDependencyGraph*(pkgs: seq[string], ctx: dependencyContext,
                     debug "dephandler: Skipping build dep '"&bdep&"' (empty or in ignoreDeps)"
                     continue
 
-                # Check for circular dependencies
-                if prevPkgName == bdep:
-                    if ctx.ignoreCircularDeps:
-                        debug "dephandler: Ignoring circular dependency: "&prevPkgName&" -> "&bdep
-                        continue
-                    elif not packageExists(bdep, "/"):
-                        if ctx.useBootstrap:
-                            debug "dephandler: Bootstrap mode: allowing circular dependency"
-                            continue
-                        else:
-                            err("circular dependency detected for '"&bdep&"'", false)
-                            continue
-                    else:
-                        debug "dephandler: Circular dependency found but continuing: "&prevPkgName&" -> "&bdep
-                        continue
-
                 # Check version requirements
                 let chkVer = checkVersions(ctx.root, bdep, repo)
                 let depName = chkVer[1]
@@ -346,22 +330,6 @@ proc buildDependencyGraph*(pkgs: seq[string], ctx: dependencyContext,
                     debug "dephandler: Skipping runtime dep '"&dep&"' (empty or in ignoreDeps)"
                     continue
 
-                # Check for circular dependencies
-                if prevPkgName == dep:
-                    if ctx.ignoreCircularDeps:
-                        debug "dephandler: Ignoring circular dependency: "&prevPkgName&" -> "&dep
-                        continue
-                    elif ctx.isBuild and not packageExists(dep, "/"):
-                        if ctx.useBootstrap:
-                            debug "dephandler: Bootstrap mode: allowing circular dependency"
-                            continue
-                        else:
-                            err("circular dependency detected for '"&dep&"'", false)
-                            continue
-                    else:
-                        debug "dephandler: Circular dependency found but continuing: "&prevPkgName&" -> "&dep
-                        continue
-
                 # Check version requirements
                 let chkVer = checkVersions(ctx.root, dep, repo)
                 let depName = chkVer[1]
@@ -398,21 +366,44 @@ proc buildDependencyGraph*(pkgs: seq[string], ctx: dependencyContext,
             $graph.nodes.len)&" nodes"
     return graph
 
-proc topologicalSort(graph: dependencyGraph): seq[string] =
+proc topologicalSort(graph: dependencyGraph,
+        ignoreCircularDeps: bool = false): seq[string] =
     ## Perform topological sort using DFS to determine installation order
     ## Returns packages in order where dependencies come before dependents
     ##
     ## Graph structure: edges go FROM dependency TO dependent
     ## Example: graph.edges["openssl"] = ["python"] means python depends on openssl
+    ##
+    ## If a cycle is detected and ignoreCircularDeps is false, this proc will
+    ## error out with a message instructing the packager to use bootstrap
+    ## dependencies (bsdeps) to break the cycle.
+    ##
+    ## If ignoreCircularDeps is true, cycles are warned about but processing
+    ## continues (useful for query commands like `kpkg get deps`).
 
     var visited = initTable[string, bool]()
     var visiting = initTable[string, bool]()
     var sortResult: seq[string] = @[]
+    var visitStack: seq[string] = @[] # Track the current DFS path for cycle reporting
+    var cycleDetected = false
+    var cyclePath: seq[string] = @[]
 
     proc visit(node: string) =
-        # Check for cycles
+        # Stop processing if cycle already detected
+        if cycleDetected:
+            return
+
+        # Check for cycles - if we're visiting a node that's already in progress,
+        # we've found a cycle
         if visiting.getOrDefault(node, false):
-            debug "dephandler: Warning: Cycle detected involving package: " & node
+            # Extract the cycle from visitStack
+            let cycleStart = visitStack.find(node)
+            if cycleStart >= 0:
+                cyclePath = visitStack[cycleStart .. ^1]
+                cyclePath.add(node) # Close the cycle
+            else:
+                cyclePath = @[node]
+            cycleDetected = true
             return
 
         # Skip if already processed
@@ -421,14 +412,18 @@ proc topologicalSort(graph: dependencyGraph): seq[string] =
 
         # Mark as currently being visited (for cycle detection)
         visiting[node] = true
+        visitStack.add(node)
 
         # Recursively visit all nodes this node points to (dependents)
         # We visit dependents first so they get added to result first
         if graph.edges.hasKey(node):
             for dependent in graph.edges[node]:
                 visit(dependent)
+                if cycleDetected:
+                    return
 
-        # Mark as fully visited
+        # Pop from stack and mark as fully visited
+        visitStack.setLen(visitStack.len - 1)
         visiting[node] = false
         visited[node] = true
 
@@ -440,6 +435,18 @@ proc topologicalSort(graph: dependencyGraph): seq[string] =
     for node in graph.nodes.keys:
         if not visited.getOrDefault(node, false):
             visit(node)
+            if cycleDetected:
+                break
+
+    # Handle cycle detection result
+    if cycleDetected:
+        let cycleMsg = "circular dependency detected: " & cyclePath.join(
+                " -> ") &
+            ". Use bootstrap dependencies (bsdeps) to break the cycle."
+        if ignoreCircularDeps:
+            warn(cycleMsg)
+        else:
+            err(cycleMsg)
 
     # Reverse: since we added dependents before dependencies in post-order,
     # reversing gives us dependencies before dependents
@@ -447,12 +454,13 @@ proc topologicalSort(graph: dependencyGraph): seq[string] =
 
     return sortResult
 
-proc flattenDependencyOrder*(graph: dependencyGraph): seq[string] =
+proc flattenDependencyOrder*(graph: dependencyGraph,
+        ignoreCircularDeps: bool = false): seq[string] =
     ## Convert graph to installation order (dependencies first)
 
     # Topological sort now gives us the correct order directly
     # (dependencies before dependents) since edges go from dependency to dependent
-    let sorted = topologicalSort(graph)
+    let sorted = topologicalSort(graph, ignoreCircularDeps)
     debug "dephandler: Topological sort result ("&(
             $sorted.len)&" packages): "&sorted.join(", ")
     return sorted
@@ -527,7 +535,7 @@ proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "],
     )
 
     # Flatten to installation order
-    let ordered = flattenDependencyOrder(graph)
+    let ordered = flattenDependencyOrder(graph, ctx.ignoreCircularDeps)
 
     # Filter out root packages (the packages being built/installed) and empty strings
     # We only want the dependencies, not the target packages themselves
@@ -575,7 +583,7 @@ proc dephandlerWithGraph*(pkgs: seq[string], ignoreDeps = @["  "],
     )
 
     # Flatten to installation order
-    let ordered = flattenDependencyOrder(graph)
+    let ordered = flattenDependencyOrder(graph, ctx.ignoreCircularDeps)
 
     # Filter out root packages (the packages being built/installed) and empty strings
     let rootPkgSet = pkgs.toHashSet()
