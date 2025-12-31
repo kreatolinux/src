@@ -72,18 +72,19 @@ proc autoUpdater*(pkg: Run3File, packageDir: string, newVersion: string,
                     getSum(filename, sumType)))
     c = c+1
 
-    # Replace the version (only the version: line to avoid corrupting other fields)
-    let versionPattern = "^(version:\\s*\")" & escapeRegex(version) & "(\")"
-    var content = readFile(packageDir&"/"&runFileName)
-    content = content.replace(re2(versionPattern, {regexMultiline}), "${1}" &
-        newVersion & "${2}")
-    writeFile(packageDir&"/"&runFileName, content)
+  # Replace the version (only the version: line to avoid corrupting other fields)
+  # Handle both quoted and unquoted version values
+  let versionPattern = "^(version:\\s*\"?)" & escapeRegex(version) & "(\"?)"
+  var content = readFile(packageDir&"/"&runFileName)
+  content = content.replace(re2(versionPattern, {regexMultiline}), "${1}" &
+      newVersion & "${2}")
+  writeFile(packageDir&"/"&runFileName, content)
 
-    # Replace the release (only the release: line to avoid corrupting other fields)
-    if not isEmptyOrWhitespace(release):
-      let releasePattern = "^(release:\\s*\")" & escapeRegex(pkgRelease) & "(\")"
-      content = readFile(packageDir&"/"&runFileName)
-      content = content.replace(re2(releasePattern, {regexMultiline}), "${1}" &
-          release & "${2}")
-      writeFile(packageDir&"/"&runFileName, content)
+  # Replace the release (only the release: line to avoid corrupting other fields)
+  if not isEmptyOrWhitespace(release):
+    let releasePattern = "^(release:\\s*\"?)" & escapeRegex(pkgRelease) & "(\"?)"
+    content = readFile(packageDir&"/"&runFileName)
+    content = content.replace(re2(releasePattern, {regexMultiline}), "${1}" &
+        release & "${2}")
+    writeFile(packageDir&"/"&runFileName, content)
     echo "Autoupdate complete. As always, you should check if the package does build or not."

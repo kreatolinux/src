@@ -15,24 +15,49 @@ proc compareVersions(version1: string, version2: string, isSemver: bool): int =
         let v2Split = split(version2, ".")
 
         # Compare MAJOR
-        if v1Split[0] > v2Split[0]:
-            return 1
-        elif v1Split[0] < v2Split[0]:
-            return -1
+        try:
+            let v1Major = parseInt(v1Split[0])
+            let v2Major = parseInt(v2Split[0])
+            if v1Major > v2Major:
+                return 1
+            elif v1Major < v2Major:
+                return -1
+        except ValueError:
+            # Fallback to string comparison if parsing fails
+            if v1Split[0] > v2Split[0]:
+                return 1
+            elif v1Split[0] < v2Split[0]:
+                return -1
 
         # Compare MINOR if MAJOR is equal
         if v1Split.len > 1 and v2Split.len > 1:
-            if v1Split[1] > v2Split[1]:
-                return 1
-            elif v1Split[1] < v2Split[1]:
-                return -1
+            try:
+                let v1Minor = parseInt(v1Split[1])
+                let v2Minor = parseInt(v2Split[1])
+                if v1Minor > v2Minor:
+                    return 1
+                elif v1Minor < v2Minor:
+                    return -1
+            except ValueError:
+                if v1Split[1] > v2Split[1]:
+                    return 1
+                elif v1Split[1] < v2Split[1]:
+                    return -1
 
             # Compare PATCH if MINOR is equal
             if v1Split.len > 2 and v2Split.len > 2:
-                if v1Split[2] > v2Split[2]:
-                    return 1
-                elif v1Split[2] < v2Split[2]:
-                    return -1
+                try:
+                    let v1Patch = parseInt(v1Split[2])
+                    let v2Patch = parseInt(v2Split[2])
+                    if v1Patch > v2Patch:
+                        return 1
+                    elif v1Patch < v2Patch:
+                        return -1
+                except ValueError:
+                    if v1Split[2] > v2Split[2]:
+                        return 1
+                    elif v1Split[2] < v2Split[2]:
+                        return -1
 
         return 0
     else:
@@ -137,8 +162,6 @@ proc repologyCheck*(package: string, repo: string, autoUpdate = false,
     # Track the expected release (with python version suffix if applicable)
     # This is used for comparison only, not for updating the file
     var expectedRelease = pkgRelease
-    if "python" in pkgDeps:
-        expectedRelease = pkgRelease&"-"&parseRun3(repo & "/python").getVersion()
 
     if verbose:
         echo "Current package version: " & pkgVersion
@@ -150,18 +173,37 @@ proc repologyCheck*(package: string, repo: string, autoUpdate = false,
         let versionSplit = split(version, ".")
 
         # MAJOR
-        if versionSplit[0] > pkgVerSplit[0]:
-            isOutdated = true
-        elif versionSplit[0] == pkgVerSplit[0]:
-            # MINOR
-            if versionSplit.len > 1 and pkgVerSplit.len > 1:
-                if versionSplit[1] > pkgVerSplit[1]:
-                    isOutdated = true
-                elif versionSplit[1] == pkgVerSplit[1]:
-                    # PATCH
-                    if versionSplit.len > 2 and pkgVerSplit.len > 2:
-                        if versionSplit[2] > pkgVerSplit[2]:
-                            isOutdated = true
+        try:
+            let vMajor = parseInt(versionSplit[0])
+            let pkgMajor = parseInt(pkgVerSplit[0])
+            if vMajor > pkgMajor:
+                isOutdated = true
+            elif vMajor == pkgMajor:
+                # MINOR
+                if versionSplit.len > 1 and pkgVerSplit.len > 1:
+                    let vMinor = parseInt(versionSplit[1])
+                    let pkgMinor = parseInt(pkgVerSplit[1])
+                    if vMinor > pkgMinor:
+                        isOutdated = true
+                    elif vMinor == pkgMinor:
+                        # PATCH
+                        if versionSplit.len > 2 and pkgVerSplit.len > 2:
+                            let vPatch = parseInt(versionSplit[2])
+                            let pkgPatch = parseInt(pkgVerSplit[2])
+                            if vPatch > pkgPatch:
+                                isOutdated = true
+        except ValueError:
+            # Fallback to string comparison if parsing fails
+            if versionSplit[0] > pkgVerSplit[0]:
+                isOutdated = true
+            elif versionSplit[0] == pkgVerSplit[0]:
+                if versionSplit.len > 1 and pkgVerSplit.len > 1:
+                    if versionSplit[1] > pkgVerSplit[1]:
+                        isOutdated = true
+                    elif versionSplit[1] == pkgVerSplit[1]:
+                        if versionSplit.len > 2 and pkgVerSplit.len > 2:
+                            if versionSplit[2] > pkgVerSplit[2]:
+                                isOutdated = true
     else:
         try:
             let versionInt = parseInt(replace(version, ".", ""))
