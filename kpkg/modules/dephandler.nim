@@ -308,6 +308,12 @@ proc buildDependencyGraph*(pkgs: seq[string], ctx: dependencyContext,
                     else:
                         debug "dephandler: Build dep '"&depName&"' not found in any repository!"
 
+                # Skip self-dependency if the package is already installed
+                # (e.g., gmake requiring gmake to build - use the installed gmake)
+                if depName == pkg and packageExists(depName, ctx.root):
+                    debug "dephandler: Skipping self-dependency '"&depName&"' (already installed)"
+                    continue
+
                 # Add edge and schedule for processing (edge from dependency to dependent)
                 debug "dephandler: Adding edge '"&depName&"' -> '"&pkg&"' for build dep"
                 addEdge(graph, depName, pkg)
@@ -346,6 +352,12 @@ proc buildDependencyGraph*(pkgs: seq[string], ctx: dependencyContext,
                     let depRepo = findPkgRepo(depName)
                     if depRepo != "":
                         repo = depRepo
+
+                # Skip self-dependency if the package is already installed
+                # (e.g., gmake requiring gmake to build - use the installed gmake)
+                if depName == pkg and packageExists(depName, ctx.root):
+                    debug "dephandler: Skipping self-dependency '"&depName&"' (already installed)"
+                    continue
 
                 # Add edge and schedule for processing (edge from dependency to dependent)
                 addEdge(graph, depName, pkg)
