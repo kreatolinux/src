@@ -224,6 +224,22 @@ proc parseVarManipulation(p: var Parser, baseVar: string): AstNode =
 
   return newVarManipNode(baseVar, methods, indexExpr)
 
+proc parseExecCommand(p: var Parser): string =
+  ## Parse an exec command - returns raw string value without re-quoting
+  ## This preserves the original quoting for shell commands
+  let tok = p.peek()
+  if tok.kind == tkString:
+    discard p.advance()
+    return tok.value
+  elif tok.kind == tkIdentifier or tok.kind == tkNumber:
+    discard p.advance()
+    return tok.value
+  else:
+    var err = newException(ParseError, "Expected string for exec command but got " & $tok.kind)
+    err.line = tok.line
+    err.col = tok.col
+    raise err
+
 proc parseExpression(p: var Parser): string =
   ## Parse an expression (for conditions, arguments, etc.)
   ## Handles variable references and basic expressions
@@ -544,7 +560,7 @@ proc parseStatement(p: var Parser): AstNode =
   case tok.kind
   of tkExec:
     discard p.advance()
-    let cmd = p.parseExpression()
+    let cmd = p.parseExecCommand()
     return newExecNode(cmd, tok.line)
 
   of tkMacro:
