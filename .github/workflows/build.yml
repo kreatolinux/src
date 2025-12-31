@@ -27,8 +27,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /var/cache/kpkg/archives
-          key: binary-cache-20626774742
+          key: binary-cache
           restore-keys: |
+            binary-cache-20626774742
             binary-cache
     
 
