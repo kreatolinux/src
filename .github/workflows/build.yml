@@ -27,10 +27,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /var/cache/kpkg/archives
-          key: binary-cache-20626774742
-          #restore-keys: |
-          #  
-          #  binary-cache
+          key: binary-cache-${{ github.run_id }}
+          restore-keys: |
+            binary-cache
     
 
       - name: build (amd64) (release)
