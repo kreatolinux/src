@@ -61,6 +61,20 @@ proc isKpkgRunning*() =
   if isRunningFromName("kpkg"):
     err("another instance of kpkg is running, will not proceed", false)
 
+proc escapeForDoubleQuotes(s: string): string =
+  ## Escape a string for use within double quotes in shell
+  ## Need to escape: $ ` " \ and newlines
+  result = ""
+  for c in s:
+    case c
+    of '$', '`', '"', '\\':
+      result.add('\\')
+      result.add(c)
+    of '\n':
+      result.add("\\n")
+    else:
+      result.add(c)
+
 proc execEnv*(command: string, error = "none", passthrough = false,
         silentMode = false, path = kpkgMergedPath, remount = false,
         asRoot = false): tuple[
@@ -71,7 +85,7 @@ proc execEnv*(command: string, error = "none", passthrough = false,
   debug "execEnv: entered with path=" & path & ", passthrough=" & $passthrough &
       ", asRoot=" & $asRoot
   if passthrough:
-    return execCmdKpkg(localeEnvPrefix&"/bin/sh -c '"&command.replace("'", "'\\''")&"'", error,
+    return execCmdKpkg(localeEnvPrefix&"/bin/sh -c \""&escapeForDoubleQuotes(command)&"\"", error,
             silentMode = silentMode)
   else:
     debug "execEnv: checking if path exists: " & path
@@ -113,5 +127,6 @@ proc execEnv*(command: string, error = "none", passthrough = false,
     # This is needed because we run as root inside the sandbox for write access
     let forceUnsafeConfigure = if asRoot: "" else: "FORCE_UNSAFE_CONFIGURE=1 "
 
-    return execCmdKpkg(localeEnvPrefix&forceUnsafeConfigure&"bwrap --bind "&path&" / --bind "&kpkgTempDir1&" "&kpkgTempDir1&" --bind /etc/kpkg/repos /etc/kpkg/repos --bind "&kpkgTempDir2&" "&kpkgTempDir2&" --bind "&kpkgSourcesDir&" "&kpkgSourcesDir&" --dev /dev --proc /proc --perms 1777 --tmpfs /dev/shm --ro-bind /etc/resolv.conf /etc/resolv.conf /bin/sh -c '"&command.replace("'", "'\\''")&"'",
+    return execCmdKpkg(localeEnvPrefix&forceUnsafeConfigure&"bwrap --bind "&path&" / --bind "&kpkgTempDir1&" "&kpkgTempDir1&" --bind /etc/kpkg/repos /etc/kpkg/repos --bind "&kpkgTempDir2&" "&kpkgTempDir2&" --bind "&kpkgSourcesDir&" "&kpkgSourcesDir&" --dev /dev --proc /proc --perms 1777 --tmpfs /dev/shm --ro-bind /etc/resolv.conf /etc/resolv.conf /bin/sh -c \""&escapeForDoubleQuotes(command)&"\"",
             error, silentMode = silentMode)
+
