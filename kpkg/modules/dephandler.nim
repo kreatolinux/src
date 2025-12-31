@@ -440,6 +440,7 @@ proc topologicalSort(graph: dependencyGraph,
 
     # Handle cycle detection result
     if cycleDetected:
+        debug "which came first, the chicken or the egg?"
         let cycleMsg = "circular dependency detected: " & cyclePath.join(
                 " -> ") &
             ". Use bootstrap dependencies (bsdeps) to break the cycle."
