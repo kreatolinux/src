@@ -15,13 +15,13 @@ var mountPath {.threadvar.}: string
 var serviceHandlerPath* {.threadvar.}: string
 
 if getuid() != 0:
-    # User mode
-    sockPath = getEnv("HOME")&"/.local/share/jumpstart.sock"
-    servicePath = getEnv("HOME")&"/.config/jumpstart/services"
-    mountPath = getEnv("HOME")&"/.config/jumpstart/mounts"
-    serviceHandlerPath = getEnv("HOME")&"/.local/share/serviceHandler"
+  # User mode
+  sockPath = getEnv("HOME")&"/.local/share/jumpstart.sock"
+  servicePath = getEnv("HOME")&"/.config/jumpstart/services"
+  mountPath = getEnv("HOME")&"/.config/jumpstart/mounts"
+  serviceHandlerPath = getEnv("HOME")&"/.local/share/serviceHandler"
 else:
-    sockPath = "/run/jumpstart.sock"
-    servicePath = "/etc/jumpstart/services"
-    mountPath = "/etc/jumpstart/mounts"
-    serviceHandlerPath = "/run/serviceHandler"
+  sockPath = "/run/jumpstart.sock"
+  servicePath = "/etc/jumpstart/services"
+  mountPath = "/etc/jumpstart/mounts"
+  serviceHandlerPath = "/run/serviceHandler"

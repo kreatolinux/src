@@ -161,6 +161,50 @@ build {
 
 You can also use any variable manipulation methods in if statements, including inline exec to execute commands and use their output or exit code in conditions. See **VARIABLE MANIPULATION** for details on available methods.
 
+### CONDITION OPERATORS
+
+The following operators are supported in conditions:
+
+* **==** (equality): `if "$var" == "value" { ... }`
+* **!=** (inequality): `if "$var" != "value" { ... }`
+* **=~** (regex match): `if "$var" =~ e"pattern" { ... }`
+* **||** (OR): `if "$var" == "a" || "$var" == "b" { ... }`
+* **&&** (AND): `if "$var1" == "a" && "$var2" == "b" { ... }`
+
+### REGEX MATCHING
+
+Use the `=~` operator with `e"pattern"` syntax for regex matching. The pattern uses standard regex syntax with `|` for alternatives.
+
+```bash
+package {
+    for APPLET in applets {
+        # Skip applets provided by other packages
+        if "$APPLET" =~ e"clear|grep|egrep|fgrep|tar|bzip2" {
+            continue
+        }
+        exec "ln -s /bin/busybox $ROOT/bin/$APPLET"
+    }
+}
+```
+
+### COMBINING CONDITIONS
+
+You can combine multiple conditions using `||` (OR) and `&&` (AND):
+
+```bash
+build {
+    # OR: true if any condition is true
+    if "$ARCH" == "x86_64" || "$ARCH" == "amd64" {
+        print "Building for 64-bit x86"
+    }
+    
+    # AND: true only if all conditions are true
+    if "$DEBUG" == "true" && "$VERBOSE" == "true" {
+        print "Debug mode with verbose output"
+    }
+}
+```
+
 ## VARIABLE MANIPULATION
 Variables can be manipulated directly within strings using object-style methods. This is particularly useful for constructing source URLs that require specific version formatting (e.g., extracting "Major.Minor" from a full version string). You can also use inline exec to execute commands and use their output or exit code.
 
@@ -235,6 +279,57 @@ build {
 }
 ```
 
+You can also use inline list literals directly in for loops:
+
+```bash
+package {
+    for file in ["tzselect", "zdump", "zic"] {
+        exec "rm -f $ROOT/usr/bin/$file"
+    }
+}
+```
+
+### VARIABLE EXPRESSIONS IN FOR LOOPS
+
+For loops support variable expressions that resolve to lists. This is useful when iterating over dynamic content like command output:
+
+```bash
+package {
+    # Iterate over lines from command output
+    for APPLET in "${exec(\"$ROOT/bin/busybox --list\").output()}" {
+        print "Processing applet: $APPLET"
+    }
+    
+    # Iterate over a variable that contains newline-separated values
+    local items: "${exec(\"ls -1\").output()}"
+    for item in "$items" {
+        print "Item: $item"
+    }
+}
+```
+
+### LOOP CONTROL: CONTINUE AND BREAK
+
+Use `continue` to skip to the next iteration and `break` to exit the loop entirely:
+
+```bash
+package {
+    for APPLET in applets {
+        # Skip certain applets
+        if "$APPLET" =~ e"grep|tar|bzip2" {
+            continue
+        }
+        
+        # Stop processing if we hit a specific applet
+        if "$APPLET" == "STOP" {
+            break
+        }
+        
+        exec "ln -s /bin/busybox $ROOT/bin/$APPLET"
+    }
+}
+```
+
 ## BUILTIN COMMANDS
 These are the built-in commands available in the runfile environment:
 
@@ -248,6 +343,8 @@ These are the built-in commands available in the runfile environment:
 * **env**: Allows you to set and override environment variables inside a function. Usage: `env [VAR]=[VALUE]`
 * **write**: Write content to a file. Overwrites the file if it exists. Usage: `write [FILE] [STRING]`
 * **append**: Append content to a file. Creates the file if it does not exist. Usage: `append [FILE] [STRING]`
+* **continue**: Skip to the next iteration in a for loop. Usage: `continue`
+* **break**: Exit from a for loop immediately. Usage: `break`
 
 See **STRINGS** for information on multi-line content.
 

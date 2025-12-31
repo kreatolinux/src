@@ -16,7 +16,7 @@ else:
   include "generated.nim"
 
 type
-  LibarchiveError* = object of CatchableError 
+  LibarchiveError* = object of CatchableError
 
 proc debugWarn(f: string, err: string) =
   when not defined(release):
@@ -25,11 +25,11 @@ proc debugWarn(f: string, err: string) =
 proc copyData(ar: ptr structarchive, aw: ptr structarchive): int =
   # Function copy_data(), gotten from untar.c
   var r: int
-  var size: culong 
-  
+  var size: culong
+
   # Is a const in the original untar.c, but idk how to do immutable pointers, lmk if there is a way
-  var buff: pointer 
-  
+  var buff: pointer
+
   var offset: laint64t
   while true:
     r = archiveReadDataBlock(ar, addr(buff), addr(size), addr(offset))
@@ -45,7 +45,8 @@ proc copyData(ar: ptr structarchive, aw: ptr structarchive): int =
 if setlocale(LC_ALL, "") == nil:
   raise newException(OSError, "setlocale failed")
 
-proc extract*(fileName: string, path = getCurrentDir(), ignoreFiles = @[""], getFiles = @[""]): seq[string] =
+proc extract*(fileName: string, path = getCurrentDir(), ignoreFiles = @[""],
+    getFiles = @[""]): seq[string] =
   # Extracts a file to a directory.
   # Based on untar.c in libarchive/examples
 
@@ -54,7 +55,7 @@ proc extract*(fileName: string, path = getCurrentDir(), ignoreFiles = @[""], get
 
   if not dirExists(path):
     raise newException(OSError, '`'&path&"` doesn't exist")
-  
+
   if not fileExists(fileName):
     raise newException(OSError, '`'&fileName&"` doesn't exist")
 
@@ -66,12 +67,13 @@ proc extract*(fileName: string, path = getCurrentDir(), ignoreFiles = @[""], get
 
   a = archiveReadNew()
   ext = archiveWriteDiskNew()
-  discard archiveWriteDiskSetOptions(ext, ARCHIVE_EXTRACT_TIME + ARCHIVE_EXTRACT_FFLAGS + ARCHIVE_EXTRACT_PERM + ARCHIVE_EXTRACT_ACL + ARCHIVE_EXTRACT_OWNER)
+  discard archiveWriteDiskSetOptions(ext, ARCHIVE_EXTRACT_TIME +
+      ARCHIVE_EXTRACT_FFLAGS + ARCHIVE_EXTRACT_PERM + ARCHIVE_EXTRACT_ACL + ARCHIVE_EXTRACT_OWNER)
   discard archiveReadSupportFormatAll(a)
   discard archiveReadSupportFilterAll(a)
   discard archiveWriteDiskSetStandardLookup(ext)
   r = archiveReadOpenFilename(a, filename, 10240)
-  
+
   # I am using chdir as compilation with setCurrentDir() fail for some reason.
   discard chdir(path)
 
@@ -80,17 +82,19 @@ proc extract*(fileName: string, path = getCurrentDir(), ignoreFiles = @[""], get
 
     if r == ARCHIVE_EOF:
       break
-    
+
     if r != ARCHIVE_OK:
       raise newException(LibarchiveError, $archiveErrorString(a))
-    
+
     if not ($archiveEntryPathname(entry) in resultStr):
       resultStr = resultStr&($archiveEntryPathname(entry))
-  
-    if not (isEmptyOrWhitespace(getFiles.join(""))) and not ($archiveEntryPathname(entry) in getFiles):
-      continue 
 
-    if $archiveEntryPathname(entry) in ignoreFiles and fileExists(path&"/"&($archiveEntryPathname(entry))):
+    if not (isEmptyOrWhitespace(getFiles.join(""))) and not (
+        $archiveEntryPathname(entry) in getFiles):
+      continue
+
+    if $archiveEntryPathname(entry) in ignoreFiles and fileExists(path&"/"&(
+        $archiveEntryPathname(entry))):
       debug($archiveEntryPathname(entry)&" in ignoreFiles, ignoring")
       continue
 
@@ -111,7 +115,7 @@ proc extract*(fileName: string, path = getCurrentDir(), ignoreFiles = @[""], get
 proc createArchive*(fileName: string, path = getCurrentDir()) =
   # Creates an archive in the desired directory.
   # Based on minitar.c
-  
+
   if not dirExists(path):
     raise newException(OSError, '`'&path&"` doesn't exist")
 
@@ -123,7 +127,7 @@ proc createArchive*(fileName: string, path = getCurrentDir()) =
   var buffer: pointer = alloc(16384)
 
   archive = archiveWriteNew()
-  
+
   if archiveWriteSetFormatFilterByExt(archive, fileName) != ARCHIVE_OK:
     raise newException(OSError, "Couldn't guess file format by extension")
 
@@ -132,38 +136,38 @@ proc createArchive*(fileName: string, path = getCurrentDir()) =
   discard chdir(path)
 
   for i in toSeq(walkDirRec(path, {pcFile, pcLinkToFile, pcDir, pcLinkToDir})):
-    
+
     var disk = archiveReadDiskNew()
-    
+
     discard archiveReadDiskSetStandardLookup(disk)
-    
+
     r = archiveReadDiskOpen(disk, cstring(relativePath(i, getCurrentDir())))
-    
+
     if r != ARCHIVE_OK:
       raise newException(LibarchiveError, $archive_error_string(disk))
-    
+
     discard archiveReadDiskSetSymlinkPhysical(disk)
-    
+
     while true:
       entry = archive_entry_new()
       r = archiveReadNextHeader2(disk, entry)
-      
+
       if r == ARCHIVE_EOF:
         break
-      
+
       if r != ARCHIVE_OK:
         raise newException(LibarchiveError, $archive_error_string(disk))
-      
+
       discard archiveReadDiskDescend(disk)
-      
+
       r = archiveWriteHeader(archive, entry)
-      
+
       if r < ARCHIVE_OK:
         debugWarn("", $archiveErrorString(archive))
-      
+
       if r == ARCHIVE_FATAL:
         quit(1)
-      
+
       if r > ARCHIVE_FAILED and fileExists(i):
         file = open($archiveEntrySourcepath(entry))
         length = culong(readBuffer(file, buffer, sizeof(buffer)))

@@ -10,38 +10,40 @@ var config {.threadvar.}: Config
 
 const branch* {.strdefine.}: string = "stable"
 
-proc initializeConfig*(): Config =
-  ## Initializes the configuration file
-
-  if not isAdmin():
-    err("please be root to initialize config", false)
-
-  discard existsOrCreateDir("/etc/kpkg")
-  discard existsOrCreateDir("/etc/kpkg/repos")
-
-  var config = newConfig()
+proc createDefaultConfig(): Config =
+  result = newConfig()
   # [Options]
-  config.setSectionKey("Options", "cc", "gcc") # GCC works the best right now
-  config.setSectionKey("Options", "cxx", "g++") # GCC works the best right now
-  config.setSectionKey("Options", "ccache", "false")
-  config.setSectionKey("Options", "verticalSummary", "false")
-  config.setSectionKey("Options", "sourceMirror", "mirror.krea.to/sources")
+  result.setSectionKey("Options", "cc", "gcc") # GCC works the best right now
+  result.setSectionKey("Options", "cxx", "g++") # GCC works the best right now
+  result.setSectionKey("Options", "ccache", "false")
+  result.setSectionKey("Options", "verticalSummary", "false")
+  result.setSectionKey("Options", "sourceMirror", "mirror.krea.to/sources")
 
   # [Repositories]
-  config.setSectionKey("Repositories", "repoDirs",
+  result.setSectionKey("Repositories", "repoDirs",
       "/etc/kpkg/repos/main /etc/kpkg/repos/lockin") # Seperate by space
-  config.setSectionKey("Repositories", "repoLinks",
+  result.setSectionKey("Repositories", "repoLinks",
       "https://github.com/kreatolinux/kpkg-repo.git::"&branch&" https://github.com/kreatolinux/kpkg-repo-lockin.git::"&branch) # Seperate by space, must match RepoDirs
 
-  config.setSectionKey("Repositories", "binRepos",
+  result.setSectionKey("Repositories", "binRepos",
       "mirror.krea.to") # Seperate by space
   
   # [Parallelization]
-  config.setSectionKey("Parallelization", "threadsUsed", "1")
+  result.setSectionKey("Parallelization", "threadsUsed", "1")
 
   # [Upgrade]
-  config.setSectionKey("Upgrade", "buildByDefault", "yes") # Build packages by default
+  result.setSectionKey("Upgrade", "buildByDefault", "yes") # Build packages by default
   # config.setSectionKey("Upgrade, "dontUpgrade", "") # kpkg wont touch this package, seperate by space
+
+proc initializeConfig*(): Config =
+  ## Initializes the configuration file
+  var config = createDefaultConfig()
+
+  if not isAdmin():
+    return config
+
+  discard existsOrCreateDir("/etc/kpkg")
+  discard existsOrCreateDir("/etc/kpkg/repos")
 
   config.writeConfig(configPath)
 
@@ -75,16 +77,16 @@ proc getConfigSection*(section: string, defaultVal = ""): string =
     if entry.kind == cfgEof: break
 
     if reachedSection:
-        if entry.kind == cfgKeyValuePair:
-            if isEmptyOrWhitespace(res):
-                res = entry.key & "=" & entry.value
-            else:
-                res.add("\n" & entry.key & "=" & entry.value)
+      if entry.kind == cfgKeyValuePair:
+        if isEmptyOrWhitespace(res):
+          res = entry.key & "=" & entry.value
         else:
-            break
+          res.add("\n" & entry.key & "=" & entry.value)
+      else:
+        break
 
     if entry.kind == cfgSectionStart and entry.section == section:
-        reachedSection = true
+      reachedSection = true
 
   return res
 
@@ -107,7 +109,7 @@ proc returnConfig*(): string =
     config = initializeConfig()
   else:
     config = loadConfig(configPath)
-  
+
   echo ($config).strip()
 
 

@@ -1,386 +1,197 @@
 import os
 import logger
 import parsecfg
+import sequtils
 import strutils
 import tables
+import run3/run3
+import run3/parser
+import run3/variables
 
-
-# Function name validation
-proc isValidFunctionName(name: string): bool =
-    if name.len == 0: return false
-    let first = name[0]
-    if not (first.isAlphaAscii or first == '_'): return false
-    for c in name[1..^1]:
-        if not (c.isAlphaNumeric or c == '_'): return false
-    return true
+type
+  SourceEntry* = tuple
+    url: string
+    sha256sum: string
+    sha512sum: string
+    b2sum: string
 
 type runFile* = object
-    pkg*: string
-    sources*: string
-    version*: string
-    release*: string
-    extract*: bool = true
-    sha256sum*: string
-    sha512sum*: string
-    b2sum*: string
-    epoch*: string
-    desc*: string
-    versionString*: string
-    conflicts*: seq[string]
-    deps*: seq[string]
-    bdeps*: seq[string]
-    bsdeps*: seq[string]
-    backup*: seq[string]
-    optdeps*: seq[string]
-    replaces*: seq[string]
-    noChkupd*: bool
-    isGroup*: bool
-    isParsed*: bool
-    isSemver*: bool = false
-    functions*: seq[tuple[name: string, body: string]]
+  pkg*: string
+  sources*: seq[SourceEntry]
+  version*: string
+  release*: string
+  extract*: bool = true
+  epoch*: string
+  desc*: string
+  versionString*: string
+  conflicts*: seq[string]
+  deps*: seq[string]
+  bdeps*: seq[string]
+  bsdeps*: seq[string]
+  backup*: seq[string]
+  optdeps*: seq[string]
+  replaces*: seq[string]
+  noChkupd*: bool
+  isGroup*: bool
+  isParsed*: bool
+  isSemver*: bool = false
+  run3Data*: Run3File ## Parsed run3 representation
+  functions*: seq[tuple[name: string, body: string]]
 
 proc parseRunfile*(path: string, removeLockfileWhenErr = true): runFile =
-    ## Parse a runfile.
+  ## Parse a run3 file into a runFile object.
 
-    var vars: seq[string]
-    var ret: runFile
-    ret.functions = @[]
-    let package = lastPathPart(path)
-    var extractisRead = false
-    var override: Config
-    var bootstrapDependsExplicitlySet = false  # Track if BOOTSTRAP_DEPENDS was set with =
-    
-    # Function parsing state
-    var currentFunction = ""
-    var braceCount = 0
-    var functionBody: seq[string]
-    
-    if fileExists("/etc/kpkg/override/"&package&".conf"):
-        override = loadConfig("/etc/kpkg/override/"&package&".conf")
+  var ret: runFile
+  ret.functions = @[]
+  let package = lastPathPart(path)
+  var override: Config
+
+  debug "parseRunfile: starting parse for '"&package&"'"
+
+  if fileExists("/etc/kpkg/override/"&package&".conf"):
+    override = loadConfig("/etc/kpkg/override/"&package&".conf")
+  else:
+    override = newConfig()
+
+  try:
+    # Use run3 parser
+    debug "parseRunfile: calling run3.parseRun3"
+    let rf = run3.parseRun3(path)
+    debug "parseRunfile: run3.parseRun3 completed"
+    ret.run3Data = rf
+    debug "parseRunfile: getting all variables"
+    let allVars = rf.getAllVariables()
+    debug "parseRunfile: got all variables"
+
+    ret.pkg = rf.getVariable("name", override, "runFile", "name")
+    ret.desc = rf.getVariable("description", override, "runFile", "description")
+    ret.version = rf.getVariable("version", override, "runFile", "version")
+    ret.release = rf.getVariable("release", override, "runFile", "release")
+
+    # Parse sources and checksums into SourceEntry tuples
+    let sourceUrls = rf.getListVariable("sources", override, "runFile", "sources")
+    let sha256sums = rf.getListVariable("sha256sum", override, "runFile", "sha256sum")
+    let sha512sums = rf.getListVariable("sha512sum", override, "runFile", "sha512sum")
+    let b2sums = rf.getListVariable("b2sum", override, "runFile", "b2sum")
+
+    ret.sources = @[]
+    for i, url in sourceUrls:
+      let entry: SourceEntry = (
+        url: url,
+        sha256sum: if i < sha256sums.len: sha256sums[i] else: "",
+        sha512sum: if i < sha512sums.len: sha512sums[i] else: "",
+        b2sum: if i < b2sums.len: b2sums[i] else: ""
+      )
+      ret.sources.add(entry)
+
+    let noChkupdStr = rf.getVariable("no_chkupd", override, "runFile", "noChkupd")
+    if noChkupdStr != "": ret.noChkupd = parseBool(noChkupdStr)
+
+    let isSemverStr = rf.getVariable("is_semver", override, "runFile", "isSemver")
+    if isSemverStr != "": ret.isSemver = parseBool(isSemverStr)
+
+    ret.epoch = rf.getVariable("epoch", override, "runFile", "epoch")
+
+    ret.backup = rf.getListVariable("backup", override, "runFile", "backup")
+
+    ret.conflicts = rf.getListVariable("conflicts", override, "runFile", "conflicts")
+    ret.deps = rf.getListVariable("depends", override, "runFile", "depends")
+    ret.bdeps = rf.getListVariable("build_depends", override, "runFile", "buildDepends")
+
+    # Bootstrap depends logic
+
+    # Determine variable name for bootstrap dependencies
+    var bsdepsName = "bootstrap_depends"
+    if not allVars.hasKey("bootstrap_depends") and allVars.hasKey("build_depends"):
+      bsdepsName = "build_depends"
+
+    ret.bsdeps = rf.getListVariable(bsdepsName, override, "runFile", "bootstrapDepends")
+
+
+    # Optdepends
+
+    # Check variable existence order
+    var optVarName = ""
+    if allVars.hasKey("optdepends"): optVarName = "optdepends"
+    elif allVars.hasKey("opt_depends"): optVarName = "opt_depends"
+    elif allVars.hasKey("opt-depends"): optVarName = "opt-depends"
+
+    # Construct raw value joined with " ;; " for override check
+    var optVal = ""
+    if optVarName != "":
+      let v = allVars[optVarName]
+      if v.isList:
+        optVal = v.toList().join(" ;; ")
+      else:
+        optVal = v.toString()
+
+    let optOverridden = override.getSectionValue("runFile", "optDepends", optVal)
+
+    # Use list directly if not overridden
+    if optOverridden == optVal and optVarName != "" and allVars[
+            optVarName].isList:
+      var res: seq[string] = @[]
+      for item in allVars[optVarName].toList():
+        res.add(rf.substituteVariables(item))
+      ret.optdeps = res
     else:
-        override = newConfig() # So we don't get storage access errors
+      let optSub = rf.substituteVariables(optOverridden)
+      if optSub.len > 0:
+        ret.optdeps = optSub.split(" ;; ")
+        ret.optdeps.keepItIf(it.len > 0)
+      else:
+        ret.optdeps = @[]
 
-    try:
-        for i in lines path&"/run":
-            if i.split('=').len >= 3:
-                vars = i.split('"')
-                vars[0] = replace(vars[0], "=")
-            else:
-                vars = i.split('=')
-            case vars[0].toLower:
-                of "name":
-                    ret.pkg = override.getSectionValue("runFile", "name", vars[1].multiReplace(
-                    ("\"", ""),
-                    ("'", "")
-                    ).strip())
-                of "description":
-                    ret.desc = override.getSectionValue("runFile", "description", vars[1].multiReplace(
-                    ("\"", ""),
-                    ("'", "")
-                    ).strip())
-                of "sources":
-                    ret.sources = override.getSectionValue("runFile", "sources", vars[1].strip())
-                of "version":
-                    ret.version = override.getSectionValue("runFile", "version", vars[1].multiReplace(
-                    ("\"", ""),
-                    ("'", "")
-                    ).strip())
-                of "release":
-                    ret.release = override.getSectionValue("runFile", "release", vars[1].multiReplace(
-                    ("\"", ""),
-                    ("'", "")
-                    ).strip())
-                of "no_chkupd", "nochkupd", "no-chkupd":
-                    ret.noChkupd = parseBool(override.getSectionValue("runFile", "noChkupd", vars[1].multiReplace(
-                    ("\"", ""),
-                    ("'", "")
-                    ).strip()))
-                of "is_semver", "issemver", "is-semver":
-                    ret.noChkupd = parseBool(override.getSectionValue("runFile", "isSemver", vars[1].multiReplace(
-                    ("\"", ""),
-                    ("'", "")
-                    ).strip()))
-                of "epoch":
-                    ret.epoch = override.getSectionValue("runFile", "epoch", vars[1].multiReplace(
-                    ("\"", ""),
-                    ("'", "")
-                    ).strip())
-                of "backup":
-                    ret.backup = override.getSectionValue("runFile", "backup", vars[1].multiReplace(
-                    ("\"", ""),
-                    ("'", "")
-                    ).strip()).split(" ")
-                of "sha256sum":
-                    ret.sha256sum = override.getSectionValue("runFile", "sha256sum", vars[1].strip())
-                of "sha512sum":
-                    ret.sha512sum = override.getSectionValue("runFile", "sha512sum", vars[1].strip())
-                of "b2sum":
-                    ret.b2sum = override.getSectionValue("runFile", "b2sum", vars[1].strip())
-                of "conflicts":
-                    ret.conflicts = override.getSectionValue("runFile", "conflicts", vars[1].multiReplace(
-                    ("\"", ""),
-                    ("'", "")
-                    ).strip()).split(" ")
-                of "depends":
-                    ret.deps = override.getSectionValue("runFile", "depends", vars[1].multiReplace(
-                    ("\"", ""),
-                    ("'", "")
-                    ).strip()).split(" ")
-                of "depends+":
-                    ret.deps = ret.deps&vars[1].multiReplace(
-                    ("\"", ""),
-                    ("'", "")
-                    ).strip().split(" ")
-                of "depends-":
-                    for i in vars[1].multiReplace(
-                    ("\"", ""),
-                    ("'", "")
-                    ).strip().split(" "):
-                        if ret.deps.find(i) != -1:
-                            ret.deps.delete(ret.deps.find(i))
-                of "build_depends", "builddepends", "build-depends":
-                    ret.bdeps = override.getSectionValue("runFile", "buildDepends", vars[1].multiReplace(
-                    ("\"", ""),
-                    ("'", "")
-                    ).strip()).split(" ")
-                of "build_depends+", "builddepends+", "build-depends+":
-                    ret.bdeps = ret.bdeps&vars[1].multiReplace(
-                    ("\"", ""),
-                    ("'", "")
-                    ).strip().split(" ")
-                of "build_depends-", "builddepends-", "build-depends-":
-                    for i in vars[1].multiReplace(
-                    ("\"", ""),
-                    ("'", "")
-                    ).strip().split(" "):
-                        if ret.bdeps.find(i) != -1:
-                            ret.bdeps.delete(ret.bdeps.find(i))
-                of "bootstrap_depends", "bootstrapdepends", "bootstrap-depends":
-                    bootstrapDependsExplicitlySet = true
-                    ret.bsdeps = override.getSectionValue("runFile", "bootstrapDepends", vars[1].multiReplace(
-                    ("\"", ""),
-                    ("'", "")
-                    ).strip()).split(" ")
-                of "bootstrap_depends+", "bootstrapdepends+", "bootstrap-depends+":
-                    # If BOOTSTRAP_DEPENDS was never explicitly set, initialize with BUILD_DEPENDS
-                    if not bootstrapDependsExplicitlySet and ret.bsdeps.len == 0:
-                        ret.bsdeps = ret.bdeps
-                        bootstrapDependsExplicitlySet = true
-                    ret.bsdeps = ret.bsdeps&vars[1].multiReplace(
-                    ("\"", ""),
-                    ("'", "")
-                    ).strip().split(" ")
-                of "bootstrap_depends-", "bootstrapdepends-", "bootstrap-depends-":
-                    # If BOOTSTRAP_DEPENDS was never explicitly set, initialize with BUILD_DEPENDS
-                    if not bootstrapDependsExplicitlySet and ret.bsdeps.len == 0:
-                        ret.bsdeps = ret.bdeps
-                        bootstrapDependsExplicitlySet = true
-                    for i in vars[1].multiReplace(
-                    ("\"", ""),
-                    ("'", "")
-                    ).strip().split(" "):
-                        if ret.bsdeps.find(i) != -1:
-                            ret.bsdeps.delete(ret.bsdeps.find(i))
-                of "optdepends", "opt-depends", "opt_depends":
-                    ret.optdeps = override.getSectionValue("runFile", "optDepends", vars[1].multiReplace(
-                    ("\"", ""),
-                    ("'", "")
-                    ).strip()).split(" ;; ")
-                of "is_group", "is-group", "isgroup":
-                    ret.isGroup = parseBool(override.getSectionValue("runFile", "isGroup", vars[1].multiReplace(
-                    ("\"", ""),
-                    ("'", "")
-                    ).strip()))
-                of "extract":
-                    extractisRead = true
-                    ret.extract = parseBool(override.getSectionValue("runFile", "extract", vars[1].multiReplace(
-                    ("\"", ""),
-                    ("'", "")
-                    ).strip()))
-                of "replaces":
-                    ret.replaces = override.getSectionValue("runFile", "replaces", vars[1].multiReplace(
-                    ("\"", ""),
-                    ("'", "")
-                    ).strip()).split(" ")
-            
-            # Handle function definitions and bodies
-            if currentFunction == "":
-                # Check for all function definition styles
-                var trimmed = i.strip()
-                # Handle all possible forms: func(){, func() {, func {, func{
-                if '{' in trimmed:
-                    var funcName = trimmed
-                    # Remove everything from { onwards
-                    funcName = funcName[0..funcName.find('{')-1].strip()
-                    # Remove parentheses if they exist
-                    if funcName.endsWith("()"):
-                        funcName = funcName[0..^3].strip()
-                    
-                    if isValidFunctionName(funcName):
-                        currentFunction = funcName
-                        braceCount = 1
-                        functionBody = @[i]
-                        #debug("FUNCPARSE: Found function " & currentFunction & " at line: " & i)
-                        continue
-                    else:
-                        #debug("FUNCPARSE: Invalid function name: " & funcName)
-                        continue
+    let isGroupStr = rf.getVariable("is_group", override, "runFile", "isGroup")
+    if isGroupStr != "": ret.isGroup = parseBool(isGroupStr)
 
-            if currentFunction != "":
-                let initialBraces = braceCount
-                braceCount += i.count('{')
-                braceCount -= i.count('}')
-                
-                var braceEvents: seq[string] = @[]
-                if i.count('{') > 0:
-                    braceEvents.add("+{" & $i.count('{') & "}")
-                if i.count('}') > 0:
-                    braceEvents.add("-}" & $i.count('}') & "}")
-                
-                #debug("FUNCPARSE: " & currentFunction &
-                #      " | Braces: " & $initialBraces & " ? " & $braceCount &
-                #      " | Changes: " & braceEvents.join(", ") &
-                #      " | Line: " & i)
-                
-                functionBody.add(i)
-                
-                if braceCount == 0:
-                    if functionBody.len > 0:
-                        ret.functions.add((name: currentFunction, body: functionBody.join("\n")))
-                        #debug("FUNCPARSE: Completed function " & currentFunction &
-                        #      " | Body lines: " & $functionBody.len)
-                    #else:
-                        #debug("FUNCPARSE: Empty function body for " & currentFunction)
-                    currentFunction = ""
-                    functionBody = @[]
-                continue
+    let extractStr = rf.getVariable("extract", override, "runFile", "extract")
+    if extractStr != "": ret.extract = parseBool(extractStr)
+    else: ret.extract = true
 
-            # There gotta be a cleaner way to do this, hmu if you know one -kreato
-            let p = replace(package, '-', '_')
+    ret.replaces = rf.getListVariable("replaces", override, "runFile", "replaces")
 
-            if vars[0].toLower == "depends_"&p&"+" or vars[0].toLower ==
-                    "depends-"&p&"+" or vars[0].toLower == "depends"&p&"+":
-                ret.deps = ret.deps&vars[1].multiReplace(
-                ("\"", ""),
-                ("'", "")
-                ).split(" ")
-            elif vars[0].toLower == "depends_"&p&"-" or vars[0].toLower ==
-                    "depends-"&p&"-" or vars[0].toLower == "depends"&p&"-":
-                for i in vars[1].multiReplace(
-                ("\"", ""),
-                ("'", "")
-                ).split(" "):
-                    if ret.deps.find(i) != -1:
-                        ret.deps.delete(ret.deps.find(i))
-            elif vars[0].toLower == "depends_"&p or vars[0].toLower ==
-                    "depends-"&p or vars[0].toLower == "depends"&p:
-                ret.deps = vars[1].multiReplace(
-                ("\"", ""),
-                ("'", "")
-                ).split(" ")
-            
-            if vars[0].toLower == "bootstrap_depends_"&p&"+" or vars[0].toLower ==
-                    "bootstrap-depends-"&p&"+" or vars[0].toLower == "bootstrapdepends"&p&"+":
-                # If BOOTSTRAP_DEPENDS was never explicitly set, initialize with BUILD_DEPENDS
-                if not bootstrapDependsExplicitlySet and ret.bsdeps.len == 0:
-                    ret.bsdeps = ret.bdeps
-                    bootstrapDependsExplicitlySet = true
-                ret.bsdeps = ret.bsdeps&vars[1].multiReplace(
-                ("\"", ""),
-                ("'", "")
-                ).split(" ")
-            elif vars[0].toLower == "bootstrap_depends_"&p&"-" or vars[0].toLower ==
-                    "bootstrap-depends-"&p&"-" or vars[0].toLower == "bootstrapdepends"&p&"-":
-                # If BOOTSTRAP_DEPENDS was never explicitly set, initialize with BUILD_DEPENDS
-                if not bootstrapDependsExplicitlySet and ret.bsdeps.len == 0:
-                    ret.bsdeps = ret.bdeps
-                    bootstrapDependsExplicitlySet = true
-                for i in vars[1].multiReplace(
-                ("\"", ""),
-                ("'", "")
-                ).split(" "):
-                    if ret.bsdeps.find(i) != -1:
-                        ret.bsdeps.delete(ret.bsdeps.find(i))
-            elif vars[0].toLower == "bootstrap_depends_"&p or vars[0].toLower ==
-                    "bootstrap-depends-"&p or vars[0].toLower == "bootstrapdepends"&p:
-                bootstrapDependsExplicitlySet = true
-                ret.bsdeps = vars[1].multiReplace(
-                ("\"", ""),
-                ("'", "")
-                ).split(" ")
+    # Handle depends_package logic
+    let p = replace(package, '-', '_')
+    let pLower = p.toLowerAscii()
 
-    except CatchableError:
-        when defined(release):
-            err(path&" doesn't seem to have a runfile. possibly a broken package?", removeLockfileWhenErr)
-        else:
-            debug(path&" doesn't seem to have a runfile. possibly a broken package?")
-            raise getCurrentException()
+    for key, val in allVars:
+      let kLower = key.toLowerAscii()
+      if kLower == "depends_" & pLower or kLower == "depends-" & pLower or
+              kLower == "depends" & pLower:
+        let extra = rf.getListVariable(key)
+        ret.deps.add(extra)
+      elif kLower == "bootstrap_depends_" & pLower or kLower ==
+              "bootstrap-depends-" & pLower or kLower ==
+              "bootstrapdepends" & pLower:
+        let extra = rf.getListVariable(key)
+        ret.bsdeps.add(extra)
 
-    when declared(ret.epoch):
-        ret.versionString = ret.version&"-"&ret.release&"-"&ret.epoch
-    else:
-        ret.versionString = ret.version&"-"&ret.release
-        ret.epoch = "no"
+    # Functions
+    for fnName in rf.getAllFunctions():
+      ret.functions.add((name: fnName, body: ""))
 
-        var replaceWith = @[
-            ("$NAME", ret.pkg),
-            ("$Name", ret.pkg),
-            ("$name", ret.pkg),
-            ("$VERSION", ret.version),
-            ("$Version", ret.version),
-            ("$version", ret.version),
-            ("$RELEASE", ret.release),
-            ("$release", ret.release),
-            ("$Release", ret.release),
-            ("$EPOCH", ret.epoch),
-            ("$epoch", ret.epoch),
-            ("$Epoch", ret.epoch),
-            ("$SHA256SUM", ret.sha256sum),
-            ("$sha256sum", ret.sha256sum),
-            ("$Sha256sum", ret.sha256sum),
-            ("$SHA512SUM", ret.sha512sum),
-            ("$sha512sum", ret.sha512sum),
-            ("$Sha512sum", ret.sha512sum),
-            ("$b2sum", ret.b2sum),
-            ("$B2sum", ret.b2sum),
-            ("$B2SUM", ret.b2sum),
-            ("\"", ""),
-            ("'", "")
-            ]
+    # Custom functions
+    for fnName in rf.getAllCustomFunctions():
+      ret.functions.add((name: fnName, body: ""))
 
-    if not isEmptyOrWhitespace(ret.sha256sum):
-        ret.sha256sum = ret.sha256sum.multiReplace(replaceWith)
-   
-    if not extractisRead:
-        ret.extract = true # default value
+  except IOError:
+    err(path&" doesn't seem to have a run3 file. possibly a broken package?",
+        removeLockfileWhenErr, raiseExceptionInstead = false)
+  except ParseError as e:
+    err(path&"/run3 parse error at line "&($e.line)&", column "&(
+        $e.col)&": "&e.msg, removeLockfileWhenErr,
+        raiseExceptionInstead = false)
+  except CatchableError:
+    err(path&" error parsing run3 file: "&getCurrentExceptionMsg(),
+        removeLockfileWhenErr, raiseExceptionInstead = false)
 
-    if not isEmptyOrWhitespace(ret.sources):
-        ret.sources = ret.sources.multiReplace(replaceWith)
+  # Calculate versionString
+  if ret.epoch != "" and ret.epoch != "no":
+    ret.versionString = ret.version&"-"&ret.release&"-"&ret.epoch
+  else:
+    ret.versionString = ret.version&"-"&ret.release
+    ret.epoch = "no"
 
-    if not isEmptyOrWhitespace(ret.sha512sum):
-        ret.sha512sum = ret.sha512sum.multiReplace(replaceWith)
-    
-    if not isEmptyOrWhitespace(ret.b2sum):
-        ret.b2sum = ret.b2sum.multiReplace(replaceWith)
-
-    # Replace variables in function bodies
-    for i in 0..<ret.functions.len:
-        if not isEmptyOrWhitespace(ret.functions[i].body):
-            ret.functions[i].body = ret.functions[i].body.multiReplace(replaceWith)
-
-    ret.isParsed = true
-
-    # Log final function parsing statistics
-    var validFuncs = 0
-    var totalChars = 0
-    for fn in ret.functions:
-        if not isEmptyOrWhitespace(fn.body):
-            validFuncs += 1
-            totalChars += fn.body.len
-    
-    #debug("FUNCPARSE: Final stats - Valid functions: " & $validFuncs &
-    #      " | Total characters: " & $totalChars &
-    #     " | Average chars per function: " & 
-    #      (if validFuncs > 0: $(totalChars div validFuncs) else: "0"))
-
-    return ret
+  ret.isParsed = true
+  return ret

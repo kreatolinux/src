@@ -1,54 +1,90 @@
 import os
 import strutils
+import regex
 import ../kpkg/modules/checksums
-import ../kpkg/modules/runparser
+import ../kpkg/modules/run3/run3
 import ../kpkg/modules/downloader
 
-proc autoUpdater*(pkg: runFile, packageDir: string, newVersion: string,
+proc escapeRegex(s: string): string =
+  ## Escape special regex characters in a string
+  result = ""
+  for c in s:
+    case c
+    of '.', '^', '$', '*', '+', '?', '(', ')', '[', ']', '{', '}', '|', '\\':
+      result.add('\\')
+      result.add(c)
+    else:
+      result.add(c)
+
+proc autoUpdater*(pkg: Run3File, packageDir: string, newVersion: string,
                 skipIfDownloadFails: bool, release: string = "") =
-        # Autoupdates packages.
-        echo "Autoupdating.."
+  # Autoupdates packages.
+  echo "Autoupdating.."
 
-        setCurrentDir("/tmp")
-        var c = 0
-        var source: string
-        var filename: string
-        
-        var splitSum: seq[string]
-        var sumType: string
+  setCurrentDir("/tmp")
+  var c = 0
+  var source: string
+  var filename: string
 
-        if not isEmptyOrWhitespace(pkg.b2sum):
-            splitSum = pkg.b2sum.split(" ")
-            sumType = "b2"
-        elif not isEmptyOrWhitespace(pkg.sha512sum):
-            splitSum = pkg.sha512sum.split(" ")
-            sumType = "sha512"
-        elif not isEmptyOrWhitespace(pkg.sha256sum):
-            splitSum = pkg.sha256sum.split(" ")
-            sumType = "sha256"
+  var splitSum: seq[string]
+  var sumType: string
 
-        for i in splitSum:
-                source = pkg.sources.split(" ")[c].replace(pkg.version, newVersion)
-                filename = extractFilename(source).strip().replace(pkg.version, newVersion)
+  let b2sum = pkg.getB2sum()
+  let sha512sum = pkg.getSha512sum()
+  let sha256sum = pkg.getSha256sum()
+  let newSources = pkg.getSourcesWithVersion(newVersion)
+  let version = pkg.getVersion()
+  let pkgRelease = pkg.getRelease()
+  let pkgName = pkg.getName()
 
-                # Download the source
-                try:
-                        download(source, filename, raiseWhenFail = true)
-                except Exception:
-                        if skipIfDownloadFails:
-                                echo "WARN: '"&pkg.pkg&"' failed because of download. Skipping."
-                                return
+  if b2sum.len > 0:
+    splitSum = b2sum
+    sumType = "b2"
+  elif sha512sum.len > 0:
+    splitSum = sha512sum
+    sumType = "sha512"
+  elif sha256sum.len > 0:
+    splitSum = sha256sum
+    sumType = "sha256"
 
-                # Replace the sum
-                writeFile(packageDir&"/run", readFile(packageDir&"/run").replace(splitSum[c], getSum(filename, sumType)))
-                c = c+1
+  var runFileName = "run3"
+  if not fileExists(packageDir & "/run3") and fileExists(packageDir & "/run"):
+    runFileName = "run"
 
-                # Replace the version
-                writeFile(packageDir&"/run", readFile(
-                                packageDir&"/run").replace(pkg.version, newVersion))
+  for i in splitSum:
+    source = newSources[c]
+    filename = extractFilename(source).strip()
 
-                # Replace the release (if it exists)
-                if not isEmptyOrWhitespace(release):
-                        writeFile(packageDir&"/run", readFile(
-                               packageDir&"/run").replace(pkg.release, release))
-                echo "Autoupdate complete. As always, you should check if the package does build or not."
+    # Download the source
+    try:
+      download(source, filename, raiseWhenFail = true)
+    except Exception as e:
+      if skipIfDownloadFails:
+        echo "WARN: '"&pkgName&"' failed because of download. Skipping."
+        return
+      else:
+        echo "ERROR: '"&pkgName&"' failed because of download: " & e.msg
+        raise
+
+    # Replace the sum
+    writeFile(packageDir&"/"&runFileName, readFile(
+                    packageDir&"/"&runFileName).replace(splitSum[c],
+                    getSum(filename, sumType)))
+    c = c+1
+
+  # Replace the version (only the version: line to avoid corrupting other fields)
+  # Handle both quoted and unquoted version values
+  let versionPattern = "^(version:\\s*\"?)" & escapeRegex(version) & "(\"?)"
+  var content = readFile(packageDir&"/"&runFileName)
+  content = content.replace(re2(versionPattern, {regexMultiline}), "${1}" &
+      newVersion & "${2}")
+  writeFile(packageDir&"/"&runFileName, content)
+
+  # Replace the release (only the release: line to avoid corrupting other fields)
+  if not isEmptyOrWhitespace(release):
+    let releasePattern = "^(release:\\s*\"?)" & escapeRegex(pkgRelease) & "(\"?)"
+    content = readFile(packageDir&"/"&runFileName)
+    content = content.replace(re2(releasePattern, {regexMultiline}), "${1}" &
+        release & "${2}")
+    writeFile(packageDir&"/"&runFileName, content)
+    echo "Autoupdate complete. As always, you should check if the package does build or not."

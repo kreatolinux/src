@@ -13,27 +13,30 @@ proc allOverrides*(): seq[string] =
   ## Returns all overrides.
   return toSeq(walkFiles(overridesPath&"/*.conf"))
 
-proc getOverrideValue*(package: string, section: string, key: string, defaultVal = ""): string =
+proc getOverrideValue*(package: string, section: string, key: string,
+    defaultVal = ""): string =
   ## Reads the override file and returns value of section.
-  
+
   if fileExists(overridesPath&"/"&package&".conf"):
     override = loadConfig(overridesPath&"/"&package&".conf")
   else:
     err "internal: override file not found."
-  
+
   return override.getSectionValue(section, key, defaultVal)
 
-proc setOverrideValue*(package: string, section: string, key: string, value: string) =
+proc setOverrideValue*(package: string, section: string, key: string,
+    value: string) =
   ## Sets the value of a key in the override file.
   if fileExists(overridesPath&"/"&package&".conf"):
     override = loadConfig(overridesPath&"/"&package&".conf")
   else:
     err "override file not found. Create new file by running `kpkg init override`."
-  
+
   override.setSectionKey(section, key, value)
   override.writeConfig(overridesPath&"/"&package&".conf")
 
-proc getOverrideSection*(package: string, section: string, defaultVal = ""): string =
+proc getOverrideSection*(package: string, section: string,
+    defaultVal = ""): string =
   ## Reads the override file and returns value of section.
   if fileExists(overridesPath&"/"&package&".conf"):
     override = loadConfig(overridesPath&"/"&package&".conf")
@@ -52,16 +55,16 @@ proc getOverrideSection*(package: string, section: string, defaultVal = ""): str
     if entry.kind == cfgEof: break
 
     if reachedSection:
-        if entry.kind == cfgKeyValuePair:
-            if isEmptyOrWhitespace(res):
-                res = entry.key & "=" & entry.value
-            else:
-                res.add("\n" & entry.key & "=" & entry.value)
+      if entry.kind == cfgKeyValuePair:
+        if isEmptyOrWhitespace(res):
+          res = entry.key & "=" & entry.value
         else:
-            break
+          res.add("\n" & entry.key & "=" & entry.value)
+      else:
+        break
 
     if entry.kind == cfgSectionStart and entry.section == section:
-        reachedSection = true
+      reachedSection = true
 
   return res
 
@@ -71,5 +74,5 @@ proc returnOverride*(package: string): string =
     override = loadConfig(overridesPath&"/"&package&".conf")
   else:
     err "internal: override file not found."
-  
+
   echo ($override).strip()

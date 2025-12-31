@@ -17,51 +17,51 @@ import ../commonTasks
 
 
 proc cleanUp*() {.noconv.} =
-    ## Cleans up.
-    debug "builder-ng: clean up"
-    removeLockfile()
-    quit(0)
+  ## Cleans up.
+  debug "builder-ng: clean up"
+  removeLockfile()
+  quit(0)
 
 proc getArch*(target: string): string =
-    var arch: string
-        
-    if target != "default":
-        arch = target.split("-")[0]
-    else:
-        arch = uname().machine
+  var arch: string
 
-    
-    if arch == "amd64":
-        arch = "x86_64" # For compatibility
+  if target != "default":
+    arch = target.split("-")[0]
+  else:
+    arch = uname().machine
 
-    debug "arch: '"&arch&"'"
 
-    return arch
+  if arch == "amd64":
+    arch = "x86_64" # For compatibility
+
+  debug "arch: '"&arch&"'"
+
+  return arch
 
 
 proc getKtarget*(target: string, destDir: string): string =
-    var kTarget: string
+  var kTarget: string
 
-    if target != "default":
-        
-        if target.split("-").len != 3 and target.split("-").len != 5:
-            err("target '"&target&"' invalid", false)
-        
-        if target.split("-").len == 5:
-            kTarget = target
-        else:
-            kTarget = kpkgTarget(destDir, target)
+  if target != "default":
+
+    if target.split("-").len != 3 and target.split("-").len != 5:
+      err("target '"&target&"' invalid", false)
+
+    if target.split("-").len == 5:
+      kTarget = target
     else:
-        kTarget = kpkgTarget(destDir)
+      kTarget = kpkgTarget(destDir, target)
+  else:
+    kTarget = kpkgTarget(destDir)
 
-    debug "kpkgTarget: '"&kTarget&"'"
+  debug "kpkgTarget: '"&kTarget&"'"
 
-    return kTarget
+  return kTarget
 
-    
+
 
 proc preliminaryChecks*(target: string, actualRoot: string) =
-    #[
+  #[
     This function includes the following checks:
         - is root (isAdmin)
         - is kpkg running (isKpkgRunning)
@@ -72,20 +72,20 @@ proc preliminaryChecks*(target: string, actualRoot: string) =
     ]#
     
     # TODO: have an user mode for this
-    if not isAdmin():
-        err("you have to be root for this action.", false)
-    
-    if target != "default" and actualRoot == "default":
-        err("internal error: actualRoot needs to be set when target is used (please open a bug report)")
+  if not isAdmin():
+    err("you have to be root for this action.", false)
 
-    isKpkgRunning()
-    checkLockfile()
-    
-    setControlCHook(cleanUp)
+  if target != "default" and actualRoot == "default":
+    err("internal error: actualRoot needs to be set when target is used (please open a bug report)")
+
+  isKpkgRunning()
+  checkLockfile()
+
+  setControlCHook(cleanUp)
 
 
 proc initEnv*(actualPackage: string, kTarget: string) =
-    #[
+  #[
     This function initializes the environment for the build process.
 
     This includes:
@@ -94,24 +94,25 @@ proc initEnv*(actualPackage: string, kTarget: string) =
 
     If any of these checks fail, the program will exit.
     ]#
-    debug "builder-ng: initEnv"
+  debug "builder-ng: initEnv"
 
-    # Create tarball directory if it doesn't exist
-    discard existsOrCreateDir("/var/cache")
-    discard existsOrCreateDir(kpkgCacheDir)
-    discard existsOrCreateDir(kpkgArchivesDir)
-    discard existsOrCreateDir(kpkgSourcesDir)
-    discard existsOrCreateDir(kpkgSourcesDir&"/"&actualPackage)
-    discard existsOrCreateDir(kpkgArchivesDir&"/system")
-    discard existsOrCreateDir(kpkgArchivesDir&"/system/"&kTarget)
+  # Create tarball directory if it doesn't exist
+  discard existsOrCreateDir("/var/cache")
+  discard existsOrCreateDir(kpkgCacheDir)
+  discard existsOrCreateDir(kpkgArchivesDir)
+  discard existsOrCreateDir(kpkgSourcesDir)
+  discard existsOrCreateDir(kpkgSourcesDir&"/"&actualPackage)
+  discard existsOrCreateDir(kpkgArchivesDir&"/system")
+  discard existsOrCreateDir(kpkgArchivesDir&"/system/"&kTarget)
 
-    # Create required directories
-    createDir(kpkgBuildRoot)
-    createDir(kpkgSrcDir)
+  # Create required directories
+  createDir(kpkgBuildRoot)
+  createDir(kpkgSrcDir)
 
-    setFilePermissions(kpkgBuildRoot, {fpUserExec, fpUserRead, fpGroupExec, fpGroupRead,
-            fpOthersExec, fpOthersRead})
-    setFilePermissions(kpkgSrcDir, {fpOthersWrite, fpOthersRead, fpOthersExec})
+  setFilePermissions(kpkgBuildRoot, {fpUserExec, fpUserWrite, fpUserRead,
+          fpGroupExec, fpGroupWrite, fpGroupRead,
+          fpOthersExec, fpOthersWrite, fpOthersRead})
+  setFilePermissions(kpkgSrcDir, {fpOthersWrite, fpOthersRead, fpOthersExec})
 
-    createLockfile()
-    debug "builder-ng: initEnv done"
+  createLockfile()
+  debug "builder-ng: initEnv done"
