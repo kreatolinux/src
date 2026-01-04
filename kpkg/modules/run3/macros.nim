@@ -179,13 +179,13 @@ proc macroBuild*(ctx: ExecutionContext, args: seq[string]): int =
     case macroArgs.buildSystem
     of bsMeson:
         result = ctx.builtinExec("meson setup build --prefix=" &
-                macroArgs.prefix & extraArgs)
+                macroArgs.prefix & " --default-library=both" & extraArgs)
         if result != 0: return result
         return ctx.builtinExec("meson compile -C build")
 
     of bsCMake:
         result = ctx.builtinExec("cmake -B build -DCMAKE_INSTALL_PREFIX=" &
-                macroArgs.prefix & extraArgs)
+                macroArgs.prefix & " -DBUILD_SHARED_LIBS=ON" & extraArgs)
         if result != 0: return result
         return ctx.builtinExec("cmake --build build")
 
@@ -196,7 +196,8 @@ proc macroBuild*(ctx: ExecutionContext, args: seq[string]): int =
         return ctx.builtinExec("make" & extraArgs)
 
     of bsAutotools:
-        result = ctx.builtinExec("./configure --prefix=" & macroArgs.prefix & extraArgs)
+        result = ctx.builtinExec("./configure --prefix=" & macroArgs.prefix &
+                " --enable-shared" & extraArgs)
         if result != 0: return result
         return ctx.builtinExec("make")
 
@@ -204,17 +205,17 @@ proc macroBuild*(ctx: ExecutionContext, args: seq[string]): int =
         # Try to detect build system
         if fileExists(ctx.currentDir / "meson.build"):
             result = ctx.builtinExec("meson setup build --prefix=" &
-                    macroArgs.prefix & extraArgs)
+                    macroArgs.prefix & " --default-library=both" & extraArgs)
             if result != 0: return result
             return ctx.builtinExec("meson compile -C build")
         elif fileExists(ctx.currentDir / "CMakeLists.txt"):
             result = ctx.builtinExec("cmake -B build -DCMAKE_INSTALL_PREFIX=" &
-                    macroArgs.prefix & extraArgs)
+                    macroArgs.prefix & " -DBUILD_SHARED_LIBS=ON" & extraArgs)
             if result != 0: return result
             return ctx.builtinExec("cmake --build build")
         elif fileExists(ctx.currentDir / "configure"):
             result = ctx.builtinExec("./configure --prefix=" &
-                    macroArgs.prefix & extraArgs)
+                    macroArgs.prefix & " --enable-shared" & extraArgs)
             if result != 0: return result
             return ctx.builtinExec("make")
         elif fileExists(ctx.currentDir / "Makefile"):
