@@ -196,8 +196,7 @@ proc macroBuild*(ctx: ExecutionContext, args: seq[string]): int =
         return ctx.builtinExec("make" & extraArgs)
 
     of bsAutotools:
-        result = ctx.builtinExec("./configure --prefix=" & macroArgs.prefix &
-                " --enable-shared" & extraArgs)
+        result = ctx.builtinExec("./configure --prefix=" & macroArgs.prefix & extraArgs)
         if result != 0: return result
         return ctx.builtinExec("make")
 
@@ -215,7 +214,7 @@ proc macroBuild*(ctx: ExecutionContext, args: seq[string]): int =
             return ctx.builtinExec("cmake --build build")
         elif fileExists(ctx.currentDir / "configure"):
             result = ctx.builtinExec("./configure --prefix=" &
-                    macroArgs.prefix & " --enable-shared" & extraArgs)
+                    macroArgs.prefix & extraArgs)
             if result != 0: return result
             return ctx.builtinExec("make")
         elif fileExists(ctx.currentDir / "Makefile"):
