@@ -21,6 +21,7 @@ type runFile* = object
   version*: string
   release*: string
   extract*: bool = true
+  autocd*: bool = true
   epoch*: string
   desc*: string
   versionString*: string
@@ -148,6 +149,14 @@ proc parseRunfile*(path: string, removeLockfileWhenErr = true): runFile =
     let extractStr = rf.getVariable("extract", override, "runFile", "extract")
     if extractStr != "": ret.extract = parseBool(extractStr)
     else: ret.extract = true
+
+    # Parse autocd - defaults to true, but if extract is false and autocd not set, defaults to false
+    let autocdStr = rf.getVariable("autocd", override, "runFile", "autocd")
+    if autocdStr != "":
+      ret.autocd = parseBool(autocdStr)
+    else:
+      # If autocd not explicitly set, default based on extract
+      ret.autocd = ret.extract
 
     ret.replaces = rf.getListVariable("replaces", override, "runFile", "replaces")
 

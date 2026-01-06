@@ -430,6 +430,21 @@ proc getExtract*(rf: Run3File): bool =
         return true # Default
     return extract.toLowerAscii() in ["true", "1", "yes", "y", "on"]
 
+proc getAutocd*(rf: Run3File): bool =
+    ## Get the autocd flag
+    ## Defaults to true, but if extract is explicitly false and autocd is not set,
+    ## autocd defaults to false
+    let autocd = rf.getVariable("autocd")
+    let extract = rf.getVariable("extract")
+    
+    if autocd == "":
+        # If autocd not set, default based on extract setting
+        # If extract is explicitly false, autocd defaults to false
+        if extract != "" and extract.toLowerAscii() notin ["true", "1", "yes", "y", "on"]:
+            return false
+        return true # Default
+    return autocd.toLowerAscii() in ["true", "1", "yes", "y", "on"]
+
 proc getVersionString*(rf: Run3File): string =
     ## Get the full version string (version-release or version-release-epoch)
     let version = rf.getVersion()

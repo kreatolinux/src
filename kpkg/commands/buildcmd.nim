@@ -188,7 +188,7 @@ proc builder*(package: string, destdir: string, offline = false,
   # Default to kpkgSrcDir, update to autocd folder if applicable
   var actualSrcDir = kpkgSrcDir
 
-  if amountOfFolders == 1 and (not isEmptyOrWhitespace(folder)):
+  if pkg.autocd and amountOfFolders == 1 and (not isEmptyOrWhitespace(folder)):
     try:
       # autocd
       setCurrentDir(folder)
