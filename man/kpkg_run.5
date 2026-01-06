@@ -505,6 +505,38 @@ See \f[B]STRINGS\f[R] for information on multi-line content.
 .PP
 The rest of the shell commands (should you need them) can only be
 accessed using the \f[V]exec\f[R] parameter.
+.SS MACROS
+.PP
+Macros are helper commands that simplify common build operations.
+They are invoked using \f[V]macro [NAME] [FLAGS]\f[R].
+.SS EXTRACT MACRO
+.PP
+Extracts all archive files in the current directory.
+.PP
+Usage: \f[V]macro extract [--autocd=true|false]\f[R]
+.PP
+Flags: * \f[B]\[en]autocd\f[R]: When \f[V]true\f[R], automatically
+changes into the extracted directory if there is exactly one directory
+after extraction.
+Default is \f[V]false\f[R].
+.PP
+Supported archive formats: \f[V].tar\f[R], \f[V].gz\f[R],
+\f[V].tgz\f[R], \f[V].xz\f[R], \f[V].txz\f[R], \f[V].bz2\f[R],
+\f[V].tbz2\f[R], \f[V].zip\f[R]
+.PP
+Example:
+.IP
+.nf
+\f[C]
+prepare {
+    macro extract --autocd=true
+}
+\f[R]
+.fi
+.PP
+This is useful when you need to manually control the extraction process
+in the \f[V]prepare\f[R] function instead of relying on automatic
+extraction.
 .SS STRINGS
 .PP
 Strings can be enclosed in double quotes (\f[V]\[dq]\f[R]) or single
@@ -654,6 +686,19 @@ You can use \f[V]SKIP\f[R] for git sources as this value is ignored.
 .IP \[bu] 2
 \f[B]no_chkupd\f[R]: Disables auto-updating through chkupd.
 Default is \f[V]false\f[R].
+.IP \[bu] 2
+\f[B]extract\f[R]: Controls whether source archives are automatically
+extracted before building.
+Default is \f[V]true\f[R].
+Set to \f[V]false\f[R] for packages that handle extraction manually or
+don\[cq]t need it.
+.IP \[bu] 2
+\f[B]autocd\f[R]: Controls whether kpkg automatically changes into the
+extracted directory after extraction.
+Default is \f[V]true\f[R] when \f[V]extract\f[R] is \f[V]true\f[R], and
+\f[V]false\f[R] when \f[V]extract\f[R] is \f[V]false\f[R].
+When enabled and there is exactly one directory after extraction, kpkg
+will automatically \f[V]cd\f[R] into it.
 .IP \[bu] 2
 \f[B]replaces\f[R]: Specifies packages that this package replaces.
 .IP \[bu] 2
