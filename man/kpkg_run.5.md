@@ -350,6 +350,28 @@ See **STRINGS** for information on multi-line content.
 
 The rest of the shell commands (should you need them) can only be accessed using the `exec` parameter.
 
+## MACROS
+Macros are helper commands that simplify common build operations. They are invoked using `macro [NAME] [FLAGS]`.
+
+### EXTRACT MACRO
+Extracts all archive files in the current directory.
+
+Usage: `macro extract [--autocd=true|false]`
+
+Flags:
+* **--autocd**: When `true`, automatically changes into the extracted directory if there is exactly one directory after extraction. Default is `false`.
+
+Supported archive formats: `.tar`, `.gz`, `.tgz`, `.xz`, `.txz`, `.bz2`, `.tbz2`, `.zip`
+
+Example:
+```bash
+prepare {
+    macro extract --autocd=true
+}
+```
+
+This is useful when you need to manually control the extraction process in the `prepare` function instead of relying on automatic extraction.
+
 ## STRINGS
 Strings can be enclosed in double quotes (`"`) or single quotes (`'`). 
 
@@ -437,6 +459,8 @@ Do mind that Git repositories don't have the checksum ability. You can use `SKIP
 ## OPTIONAL VARIABLES
 * **epoch**: Only use when versioning logic fails for the package.
 * **no_chkupd**: Disables auto-updating through chkupd. Default is `false`. 
+* **extract**: Controls whether source archives are automatically extracted before building. Default is `true`. Set to `false` for packages that handle extraction manually or don't need it.
+* **autocd**: Controls whether kpkg automatically changes into the extracted directory after extraction. Default is `true` when `extract` is `true`, and `false` when `extract` is `false`. When enabled and there is exactly one directory after extraction, kpkg will automatically `cd` into it.
 * **replaces**: Specifies packages that this package replaces.
 * **opt_depends**: Optional dependencies for the package, with description after colon.
 * **conflicts**: Specifies packages that conflict with this package.
