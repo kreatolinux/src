@@ -13,6 +13,7 @@ import ../modules/config
 import ../modules/lockfile
 import ../modules/isolation
 import ../modules/runparser
+import ../modules/processes
 import ../modules/dephandler
 import ../modules/commonTasks
 import ../modules/commonPaths
