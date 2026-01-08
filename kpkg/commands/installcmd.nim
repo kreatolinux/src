@@ -281,8 +281,10 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
             pkg.backup.join("!!k!!"), pkg.replaces.join("!!k!!"), pkg.desc,
             mI, pkg.isGroup, basePackage, root)
 
-  # Run ldconfig afterwards for any new libraries
-  discard execProcess("ldconfig")
+  # Run ldconfig afterwards for any new libraries.
+  # If we're installing into a non-root prefix (e.g. sandbox env), update that root's cache.
+  let ldconfigCmd = if root == "/": "ldconfig" else: "ldconfig -r " & root
+  discard execProcess(ldconfigCmd)
 
   if dirExists(kpkgOverlayPath) and dirExists(kpkgMergedPath) and umount:
     discard umountOverlay(error = "unmounting overlays")

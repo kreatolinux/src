@@ -488,6 +488,13 @@ proc build*(no = false, yes = false, root = "/",
           if not isEmptyOrWhitespace(d):
             runPostInstall(d)
 
+        # Refresh linker cache in the merged overlay so runtime tools in the sandbox
+        # (e.g. gettext's msgfmt) can resolve shared libraries installed as deps.
+        discard runLdconfig(kpkgMergedPath, silentMode = true)
+      else:
+        # Cross/alt target builds still execute inside the merged overlay; refresh cache anyway.
+        discard runLdconfig(kpkgMergedPath, silentMode = true)
+
       let packageSplit = parsePkgInfo(i)
 
       # Determine if this is a bootstrap build from the graph

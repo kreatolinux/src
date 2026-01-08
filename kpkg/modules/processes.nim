@@ -61,6 +61,19 @@ proc isKpkgRunning*() =
   if isRunningFromName("kpkg"):
     err("another instance of kpkg is running, will not proceed", false)
 
+proc runLdconfig*(root: string, silentMode = false): int =
+  ## Refresh the dynamic linker cache for the given root.
+  ## Uses `ldconfig -r <root>` for non-root installs.
+  if isEmptyOrWhitespace(root):
+    warn "runLdconfig: empty root, skipping"
+    return 0
+
+  let cmd = if root == "/": "ldconfig" else: "ldconfig -r " & root
+  let res = execCmdKpkg(cmd, silentMode = silentMode)
+  if res.exitCode != 0:
+    warn "ldconfig failed (cmd: " & cmd & ", exitCode: " & $res.exitCode & ")"
+  return res.exitCode
+
 proc execEnv*(command: string, error = "none", passthrough = false,
         silentMode = false, path = kpkgMergedPath, remount = false,
         asRoot = false): tuple[
