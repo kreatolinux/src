@@ -63,15 +63,21 @@ proc isKpkgRunning*() =
 
 proc runLdconfig*(root: string, silentMode = false): int =
   ## Refresh the dynamic linker cache for the given root.
-  ## Uses `ldconfig -r <root>` for non-root installs.
+  ## For non-root paths, runs ldconfig inside a bwrap sandbox to ensure
+  ## the cache is generated correctly for the sandbox environment.
   if isEmptyOrWhitespace(root):
     warn "runLdconfig: empty root, skipping"
     return 0
 
-  let cmd = if root == "/": "ldconfig" else: "ldconfig -r " & root
+  let cmd = if root == "/": "ldconfig"
+            else: "bwrap --bind " & root & " / /bin/sh -c ldconfig"
+  debug "runLdconfig: running '" & cmd & "'"
   let res = execCmdKpkg(cmd, silentMode = silentMode)
   if res.exitCode != 0:
     warn "ldconfig failed (cmd: " & cmd & ", exitCode: " & $res.exitCode & ")"
+    debug "ldconfig output: " & res.output
+  else:
+    debug "runLdconfig: success"
   return res.exitCode
 
 proc execEnv*(command: string, error = "none", passthrough = false,
