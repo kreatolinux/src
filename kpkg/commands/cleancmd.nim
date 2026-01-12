@@ -1,6 +1,5 @@
 import os
 import strutils
-import sequtils
 import ../modules/logger
 import ../modules/commonPaths
 
