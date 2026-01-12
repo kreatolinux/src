@@ -649,18 +649,13 @@ proc getSandboxDepsFromGraph*(pkg: string, graph: dependencyGraph,
     var visited = initHashSet[string]()
 
     # For bootstrap builds: only the bootstrap deps and their transitive runtime deps
-    # For regular builds: build deps + their transitive runtime deps + package's transitive runtime deps
+    # For regular builds: build deps + package's transitive runtime deps
     if isBootstrapBuild:
         # Bootstrap: get all transitive runtime deps of the bootstrap deps themselves
         let transitiveDeps = collectRuntimeDepsFromGraph(baseDeps, graph, visited)
         sandboxDeps = sandboxDeps & transitiveDeps
     else:
-        # Regular build: include transitive runtime deps of build dependencies
-        # (needed when build tools use other tools that have runtime deps)
-        let buildDepTransitiveDeps = collectRuntimeDepsFromGraph(baseDeps,
-                graph, visited)
-        sandboxDeps = sandboxDeps & buildDepTransitiveDeps
-        # Also include all transitive runtime deps of the package being built
+        # Regular build: include all transitive runtime deps of the package being built
         let transitiveDeps = collectRuntimeDepsFromGraph(@[pkg], graph, visited)
         # Filter out the package itself from its transitive deps
         sandboxDeps = sandboxDeps & transitiveDeps.filterIt(it != pkg)
