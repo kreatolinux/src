@@ -1,5 +1,4 @@
 import os
-import parsecfg
 import strutils
 import ../modules/sqlite
 import ../modules/logger

@@ -2,7 +2,6 @@ import os
 import posix
 import sets
 import tables
-import times
 import strutils
 import sequtils
 import parsecfg

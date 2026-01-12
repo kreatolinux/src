@@ -71,4 +71,4 @@ proc upgrade*(root = "/",
   else:
     discard install(packages, root, yes = yes, no = no, isUpgrade = true)
 
-  success("done", true)
+  info("done")
