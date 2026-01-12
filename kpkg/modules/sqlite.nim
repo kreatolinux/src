@@ -28,6 +28,7 @@ type
 var kpkgDb: DbConn
 var connOn = false
 var currentRoot: string = ""
+var inTransaction = false
 
 
 func newPackageInternal(name = "", version = "", deps = "", bdeps = "",
@@ -49,6 +50,7 @@ proc closeDb*() =
     close kpkgDb
     connOn = false
     currentRoot = ""
+    inTransaction = false
 
 proc rootCheck(root: string) =
   # Root checks (internal)
@@ -73,6 +75,47 @@ proc rootCheck(root: string) =
   if firstTime:
     kpkgDb.createTables(newFileInternal())
 
+
+proc beginTransaction*(root: string) =
+  ## Begin a database transaction. All subsequent operations will be
+  ## part of this transaction until commit or rollback is called.
+  rootCheck(root)
+  if not inTransaction:
+    kpkgDb.exec(sql"BEGIN TRANSACTION")
+    inTransaction = true
+    debug "SQLite transaction started"
+
+proc commitTransaction*(root: string) =
+  ## Commit the current transaction, making all changes permanent.
+  rootCheck(root)
+  if inTransaction:
+    kpkgDb.exec(sql"COMMIT")
+    inTransaction = false
+    debug "SQLite transaction committed"
+
+proc rollbackTransaction*(root: string) =
+  ## Rollback the current transaction, discarding all changes.
+  rootCheck(root)
+  if inTransaction:
+    kpkgDb.exec(sql"ROLLBACK")
+    inTransaction = false
+    debug "SQLite transaction rolled back"
+
+proc isInTransaction*(): bool =
+  ## Check if a transaction is currently active.
+  return inTransaction
+
+template withDbTransaction*(root: string, body: untyped) =
+  ## Execute a block of code within a database transaction.
+  ## If the block completes successfully, the transaction is committed.
+  ## If an exception occurs, the transaction is rolled back.
+  beginTransaction(root)
+  try:
+    body
+    commitTransaction(root)
+  except:
+    rollbackTransaction(root)
+    raise
 
 
 proc getFileByValue*(file = newFileInternal(), field = ""): string =
@@ -172,7 +215,7 @@ proc getPackage*(name: string, root: string): Package =
   debug "getPackage ran, name: '"&name&"', root: '"&root&"'"
 
   if not packageExists(name, root):
-    error("internal: package '"&name&"' doesn't exist at '"&root&"', but attempted to getPackage anyway")
+    logger.error("internal: package '"&name&"' doesn't exist at '"&root&"', but attempted to getPackage anyway")
     quit(1)
 
   var package = newPackageInternal()

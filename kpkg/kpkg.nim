@@ -17,6 +17,7 @@
 # along with Kreato Linux.  If not, see <https://www.gnu.org/licenses/>.
 
 import cligen
+import os
 import commands/getsetcmd
 import commands/infocmd
 import commands/buildcmd
@@ -31,7 +32,17 @@ import commands/providescmd
 import commands/checkcmd
 import commands/listcmd
 import commands/initcmd
+import modules/transaction
+import modules/logger
 import ../common/version
+
+# Check for and recover from any incomplete transactions from previous runs
+# This must happen early, before any other operations
+if isAdmin():
+  if recoverFromCrash():
+    info "Recovered from incomplete transaction(s)"
+  # Clean up old transaction journals periodically
+  cleanupOldTransactions(7)
 
 if commitVer != "unavailable":
   clCfg.version = "kpkg "&ver&", commit "&commitVer

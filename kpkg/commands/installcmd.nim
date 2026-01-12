@@ -17,17 +17,145 @@ import ../modules/libarchive
 import ../modules/commonTasks
 import ../modules/commonPaths
 import ../modules/removeInternal
+import ../modules/transaction
 import ../modules/run3/executor
 import ../modules/run3/run3
 
 setControlCHook(ctrlc)
+
+type
+  FileToInstall = object
+    srcPath: string  # Path in the extracted temp directory
+    destPath: string # Final destination path in root
+    relPath: string  # Relative path for database
+    checksum: string # Blake2 checksum
+    isDir: bool      # Whether this is a directory
+    isSymlink: bool  # Whether this is a symlink
+
+proc validateExtractedFiles(kpkgInstallTemp: string, extractTarball: seq[string],
+                            dict: Config, pkg: runFile): seq[FileToInstall] =
+  ## Validate all extracted files and return a list of files to install.
+  ## This is the "check" phase - no side effects on the target system.
+  result = @[]
+
+  for file in extractTarball:
+    if "pkgsums.ini" == lastPathPart(file) or "pkgInfo.ini" == lastPathPart(file):
+      continue
+
+    let relPath = relativePath(file, kpkgInstallTemp)
+    let srcPath = kpkgInstallTemp & "/" & file
+    let value = dict.getSectionValue("", relPath)
+
+    let isSymlink = symlinkExists(srcPath)
+    let isRegularFile = fileExists(srcPath) and not isSymlink
+    let isDir = dirExists(srcPath) and not isSymlink
+
+    # Skip if in backup list
+    if relPath in pkg.backup:
+      continue
+
+    # Validate checksums for regular files
+    if isRegularFile:
+      if isEmptyOrWhitespace(value):
+        debug file
+        fatal("package sums invalid - file exists but no checksum in manifest")
+
+      let actualSum = getSum(srcPath, "b2")
+      if actualSum != value:
+        fatal("sum for file '" & file & "' invalid")
+
+      result.add(FileToInstall(
+        srcPath: srcPath,
+        destPath: "", # Will be set later with root
+        relPath: relPath,
+        checksum: value,
+        isDir: false,
+        isSymlink: false
+      ))
+    elif isSymlink:
+      result.add(FileToInstall(
+        srcPath: srcPath,
+        destPath: "",
+        relPath: relPath,
+        checksum: "",
+        isDir: false,
+        isSymlink: true
+      ))
+    elif isDir:
+      result.add(FileToInstall(
+        srcPath: srcPath,
+        destPath: "",
+        relPath: relPath,
+        checksum: "",
+        isDir: true,
+        isSymlink: false
+      ))
+
+proc backupExistingFiles(tx: Transaction, filesToInstall: var seq[FileToInstall],
+                         root: string, pkg: runFile) =
+  ## Backup existing files that will be replaced.
+  ## This allows rollback if installation fails.
+  for i in 0..<filesToInstall.len:
+    let destPath = root & "/" & filesToInstall[i].relPath
+    filesToInstall[i].destPath = destPath
+
+    # Skip backup files
+    if filesToInstall[i].relPath in pkg.backup:
+      continue
+
+    # Backup existing files/symlinks (not directories)
+    if fileExists(destPath) or symlinkExists(destPath):
+      let backupPath = tx.backupFile(destPath)
+      if backupPath != "":
+        tx.recordFileReplaced(destPath, backupPath)
+
+proc installFilesAtomic(tx: Transaction, filesToInstall: seq[FileToInstall],
+                        kpkgInstallTemp: string, root: string) =
+  ## Install files with transaction recording for rollback support.
+
+  # First pass: create directories
+  for f in filesToInstall:
+    if f.isDir:
+      if not (dirExists(f.destPath) or symlinkExists(f.destPath)):
+        createDirWithPermissionsAndOwnership(f.srcPath, f.destPath)
+        tx.recordDirCreated(f.destPath)
+        debug "Installed directory: " & f.relPath
+
+  # Second pass: install files and symlinks
+  for f in filesToInstall:
+    if f.isDir:
+      continue
+
+    # Ensure parent directory exists
+    let parentDir = f.destPath.parentDir()
+    if not dirExists(parentDir):
+      let srcParentDir = f.srcPath.parentDir()
+      createDirWithPermissionsAndOwnership(srcParentDir, parentDir)
+      tx.recordDirCreated(parentDir)
+
+    # Remove existing file if it wasn't backed up (e.g., from a replaced package)
+    if fileExists(f.destPath) or symlinkExists(f.destPath):
+      removeFile(f.destPath)
+
+    if f.isSymlink:
+      # Copy symlink
+      let target = expandSymlink(f.srcPath)
+      createSymlink(target, f.destPath)
+      tx.recordSymlinkCreated(f.destPath)
+      debug "Installed symlink: " & f.relPath
+    else:
+      # Copy regular file with permissions
+      copyFileWithPermissionsAndOwnership(f.srcPath, f.destPath)
+      tx.recordFileCreated(f.destPath)
+      debug "Installed file: " & f.relPath
 
 proc installPkg*(repo: string, package: string, root: string, runf = runFile(
         isParsed: false), manualInstallList: seq[string], isUpgrade = false,
                 kTarget = kpkgTarget(root), ignorePostInstall = false,
                 umount = true, disablePkgInfo = false, ignorePreInstall = false,
                 basePackage = false, version = "") =
-  ## Installs a package.
+  ## Installs a package atomically with transaction support.
+  ## If installation fails at any point, changes are rolled back.
 
   var pkg: runFile
 
@@ -45,13 +173,14 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
   let isUpgradeActual = (packageExists(package, root) and getPackage(package,
           root).version != pkg.versionString) or isUpgrade
 
-  # Prepare Context
+  # Prepare Context for run3 scripts
   let ctx = initFromRunfile(pkg.run3Data.parsed, destDir = root,
           srcDir = repo&"/"&package, buildRoot = root)
   ctx.builtinEnv("ROOT", root)
   ctx.builtinEnv("DESTDIR", root)
   ctx.passthrough = true
 
+  # Run preupgrade hook (before any changes)
   if isUpgradeActual:
     var preupgradeFunc = ""
     if pkg.run3Data.parsed.hasFunction("preupgrade_"&replace(package, '-', '_')):
@@ -63,6 +192,7 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
       if executeRun3Function(ctx, pkg.run3Data.parsed, preupgradeFunc) != 0:
         fatal("preupgrade failed")
 
+  # Run preinstall hook (before any changes)
   if not packageExists(package, root):
     var preinstallFunc = ""
     if pkg.run3Data.parsed.hasFunction("preinstall_"&replace(package, '-', '_')):
@@ -79,16 +209,17 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
 
   let isGroup = pkg.isGroup
 
+  # Check for conflicts
   for i in pkg.conflicts:
     if packageExists(i, root):
       fatal(i&" conflicts with "&package)
 
+  # Setup temp directories
   removeDir("/tmp/kpkg/reinstall/"&package&"-old")
   createDir("/tmp")
   createDir("/tmp/kpkg")
 
   var tarball: string
-
   var pkgVersion = pkg.versionString
 
   if not isEmptyOrWhitespace(version):
@@ -99,227 +230,240 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
 
   setCurrentDir(kpkgArchivesDir)
 
-  for i in pkg.replaces:
-    if packageExists(i, root):
-      # Check if the package is actually installed or just replaced by another package
-      let replacedInfo = isReplaced(i, root)
-      if replacedInfo.replaced:
-        # Package is already replaced by another package, skip removal
-        debug "Package '"&i&"' is already replaced by '"&replacedInfo.package.name&"', skipping removal"
-        continue
+  # Create transaction for atomic installation
+  var tx = newTransaction(package, root)
 
+  try:
+    # Handle package replacements with transaction support
+    for i in pkg.replaces:
+      if packageExists(i, root):
+        let replacedInfo = isReplaced(i, root)
+        if replacedInfo.replaced:
+          debug "Package '"&i&"' is already replaced by '"&replacedInfo.package.name&"', skipping removal"
+          continue
+
+        # Backup files from replaced package before removal
+        let replacedFiles = getListFiles(i, root)
+        for f in replacedFiles:
+          let fullPath = root & "/" & f
+          if fileExists(fullPath) or symlinkExists(fullPath):
+            let backupPath = tx.backupFile(fullPath)
+            if backupPath != "":
+              tx.recordFileDeleted(fullPath, backupPath)
+
+        if kTarget != kpkgTarget(root):
+          removeInternal(i, root, initCheck = false)
+        else:
+          removeInternal(i, root)
+
+    # Handle reinstallation - backup old package files
+    let wasInstalled = packageExists(package, root) and (not isGroup)
+    if wasInstalled:
+      info "package already installed, reinstalling"
+
+      # Backup all files from the old package
+      let oldFiles = getListFiles(package, root)
+      for f in oldFiles:
+        let fullPath = root & "/" & f
+        if fileExists(fullPath) or symlinkExists(fullPath):
+          let backupPath = tx.backupFile(fullPath)
+          if backupPath != "":
+            tx.recordFileDeleted(fullPath, backupPath)
+
+      # Remove old package from database (but files are backed up)
       if kTarget != kpkgTarget(root):
-        removeInternal(i, root, initCheck = false)
+        removeInternal(package, root, ignoreReplaces = true,
+                noRunfile = true, initCheck = false)
       else:
-        removeInternal(i, root)
+        removeInternal(package, root, ignoreReplaces = true,
+                noRunfile = false, depCheck = false)
 
-  if (packageExists(package, root)) and (not isGroup):
+    discard existsOrCreateDir(root&"/var")
+    discard existsOrCreateDir(root&"/var/cache")
+    discard existsOrCreateDir(root&kpkgCacheDir)
 
-    info "package already installed, reinstalling"
-    if kTarget != kpkgTarget(root):
-      removeInternal(package, root, ignoreReplaces = true,
-              noRunfile = true, initCheck = false)
+    if not isGroup:
+      var extractTarball: seq[string]
+      let kpkgInstallTemp = kpkgTempDir1&"/install-"&package
+      if dirExists(kpkgInstallTemp):
+        removeDir(kpkgInstallTemp)
+
+      createDir(kpkgInstallTemp)
+      setCurrentDir(kpkgInstallTemp)
+
+      # Phase 1: Extract tarball
+      try:
+        extractTarball = extract(tarball, kpkgInstallTemp)
+      except Exception:
+        when defined(release):
+          tx.rollback()
+          fatal("extracting the tarball failed for "&package)
+        else:
+          tx.rollback()
+          removeLockfile()
+          raise getCurrentException()
+
+      var dict = loadConfig(kpkgInstallTemp&"/pkgsums.ini")
+
+      # Phase 2: Validate all files (no side effects)
+      var filesToInstall = validateExtractedFiles(kpkgInstallTemp,
+          extractTarball, dict, pkg)
+
+      # Update destination paths
+      for i in 0..<filesToInstall.len:
+        filesToInstall[i].destPath = root & "/" & filesToInstall[i].relPath
+
+      # Phase 3: Check pkgInfo dependencies
+      if fileExists(kpkgInstallTemp&"/pkgInfo.ini") and (not disablePkgInfo):
+        var dict2 = loadConfig(kpkgInstallTemp&"/pkgInfo.ini")
+
+        for dep in dict2.getSectionValue("", "depends").split(" "):
+          if isEmptyOrWhitespace(dep):
+            continue
+
+          let depClean = dep.strip()
+          if isEmptyOrWhitespace(depClean):
+            continue
+
+          let hashPos = depClean.find('#')
+
+          if hashPos < 0 or hashPos == depClean.high:
+            warn "pkgInfo lists dependency '"&depClean&"', but it is missing a version; skipping check"
+            continue
+
+          let depName = depClean[0 ..< hashPos].strip()
+          let depVersion = depClean[(hashPos + 1) .. depClean.high].strip()
+
+          if isEmptyOrWhitespace(depName) or isEmptyOrWhitespace(depVersion):
+            warn "pkgInfo lists dependency '"&depClean&"', but it is missing a name or version; skipping check"
+            continue
+
+          if not packageExists(depName, root):
+            warn "pkgInfo lists dependency '"&depName&"', but it is not installed at '"&root&"'; skipping version check"
+            continue
+
+          var db: Package
+          try:
+            db = getPackage(depName, root)
+          except:
+            if isEnabled(lvlDebug):
+              debug "getPackage failed for '"&depName&"' at root '"&root&"'"
+              debug "pkgInfo.ini content:"
+              try:
+                let pkgInfoContent = readFile(kpkgInstallTemp&"/pkgInfo.ini")
+                for line in pkgInfoContent.splitLines():
+                  debug "  "&line
+              except:
+                debug "  (could not read pkgInfo.ini file)"
+            tx.rollback()
+            raise
+
+          if db.version != depVersion:
+            warn "this package is built with '"&depName&"#"&depVersion&"', while the system has '"&depName&"#"&db.version&"'"
+            warn "installing anyway, but issues may occur"
+            warn "this may be an error in the future"
+
+      # Phase 4: Backup existing files that will be replaced
+      backupExistingFiles(tx, filesToInstall, root, pkg)
+
+      # Phase 5: Install files with transaction recording
+      installFilesAtomic(tx, filesToInstall, kpkgInstallTemp, root)
+
+      # Phase 6: Update database (after all files are installed)
+      var mI = false
+      if package in manualInstallList:
+        info "Setting as manually installed"
+        mI = true
+
+      # Use database transaction for atomicity
+      beginTransaction(root)
+      try:
+        var pkgType = newPackage(package, pkgVersion, pkg.release, pkg.epoch,
+                pkg.deps.join("!!k!!"), pkg.bdeps.join("!!k!!"),
+                pkg.backup.join("!!k!!"), pkg.replaces.join("!!k!!"), pkg.desc,
+                mI, pkg.isGroup, basePackage, root)
+
+        # Add file entries to database
+        pkgSumsToSQL(kpkgInstallTemp&"/pkgsums.ini", pkgType, root)
+
+        commitTransaction(root)
+      except:
+        rollbackTransaction(root)
+        tx.rollback()
+        raise
+
     else:
-      removeInternal(package, root, ignoreReplaces = true,
-              noRunfile = false, depCheck = false)
+      # Register group packages in the database
+      var mI = false
+      if package in manualInstallList:
+        info "Setting as manually installed"
+        mI = true
 
-  discard existsOrCreateDir(root&"/var")
-  discard existsOrCreateDir(root&"/var/cache")
-  discard existsOrCreateDir(root&kpkgCacheDir)
+      beginTransaction(root)
+      try:
+        discard newPackage(package, pkgVersion, pkg.release, pkg.epoch,
+                pkg.deps.join("!!k!!"), pkg.bdeps.join("!!k!!"),
+                pkg.backup.join("!!k!!"), pkg.replaces.join("!!k!!"), pkg.desc,
+                mI, pkg.isGroup, basePackage, root)
+        commitTransaction(root)
+      except:
+        rollbackTransaction(root)
+        tx.rollback()
+        raise
 
-  if not isGroup:
-    var extractTarball: seq[string]
-    let kpkgInstallTemp = kpkgTempDir1&"/install-"&package
-    if dirExists(kpkgInstallTemp):
-      removeDir(kpkgInstallTemp)
+    # Run ldconfig afterwards for any new libraries.
+    let ldconfigCmd = if root == "/": "ldconfig" else: "ldconfig -r " & root
+    discard execProcess(ldconfigCmd)
 
-    createDir(kpkgInstallTemp)
-    setCurrentDir(kpkgInstallTemp)
-    try:
-      extractTarball = extract(tarball, kpkgInstallTemp)
-    except Exception:
-      when defined(release):
-        fatal("extracting the tarball failed for "&package)
-      else:
-        removeLockfile()
-        raise getCurrentException()
+    if dirExists(kpkgOverlayPath) and dirExists(kpkgMergedPath) and umount:
+      discard umountOverlay(error = "unmounting overlays")
 
-    var dict = loadConfig(kpkgInstallTemp&"/pkgsums.ini")
+    # Phase 7: Run postinstall (BEFORE cleanup so rollback is possible)
+    var postinstallFunc = ""
+    if pkg.run3Data.parsed.hasFunction("postinstall_"&replace(package, '-', '_')):
+      postinstallFunc = "postinstall_"&replace(package, '-', '_')
+    elif pkg.run3Data.parsed.hasFunction("postinstall"):
+      postinstallFunc = "postinstall"
 
-    # Checking loop
-    for file in extractTarball:
-      if "pkgsums.ini" == lastPathPart(file) or "pkgInfo.ini" ==
-              lastPathPart(file): continue
-      let value = dict.getSectionValue("", relativePath(file,
-              kpkgInstallTemp))
-      let doesFileExist = (fileExists(kpkgInstallTemp&"/"&file) and
-              not symlinkExists(kpkgInstallTemp&"/"&file))
+    if postinstallFunc != "":
+      if executeRun3Function(ctx, pkg.run3Data.parsed, postinstallFunc) != 0:
+        if ignorePostInstall:
+          warn "postinstall failed"
+        else:
+          tx.rollback()
+          rollbackTransaction(root)
+          fatal("postinstall failed")
 
-      #let rootFilePath = absolutePath(root&"/"&relativePath(file, kpkgInstallTemp))
-      #if fileExists(rootFilePath):
-      #    err("\""&rootFilePath&"\" already exists in filesystem, installation failed")
+    # Phase 8: Run postupgrade
+    if isUpgradeActual:
+      var postupgradeFunc = ""
+      if pkg.run3Data.parsed.hasFunction("postupgrade_"&replace(package, '-', '_')):
+        postupgradeFunc = "postupgrade_"&replace(package, '-', '_')
+      elif pkg.run3Data.parsed.hasFunction("postupgrade"):
+        postupgradeFunc = "postupgrade"
 
-      if isEmptyOrWhitespace(value) and not doesFileExist:
-        continue
+      if postupgradeFunc != "":
+        if executeRun3Function(ctx, pkg.run3Data.parsed, postupgradeFunc) != 0:
+          tx.rollback()
+          rollbackTransaction(root)
+          fatal("postupgrade failed")
 
-      if isEmptyOrWhitespace(value) and doesFileExist:
-        debug file
-        fatal("package sums invalid")
+    # Phase 9: Commit transaction (removes backups, deletes journal)
+    tx.commit()
 
-      if getSum(kpkgInstallTemp&"/"&file, "b2") != value:
-        fatal("sum for file '"&file&"' invalid")
+    # Phase 10: Cleanup temp directories (AFTER successful commit)
+    when defined(release):
+      removeDir(kpkgTempDir1)
+      removeDir(kpkgTempDir2)
 
-    if fileExists(kpkgInstallTemp&"/pkgInfo.ini") and (
-            not disablePkgInfo): # pkgInfo is recommended, but not required
+    for i in pkg.optdeps:
+      info(i)
 
-      var dict2 = loadConfig(kpkgInstallTemp&"/pkgInfo.ini")
-
-      for dep in dict2.getSectionValue("", "depends").split(" "):
-
-        if isEmptyOrWhitespace(dep):
-          continue
-
-        let depClean = dep.strip()
-        if isEmptyOrWhitespace(depClean):
-          continue
-
-        let hashPos = depClean.find('#')
-
-        if hashPos < 0 or hashPos == depClean.high:
-          warn "pkgInfo lists dependency '"&depClean&"', but it is missing a version; skipping check"
-          continue
-
-        let depName = depClean[0 ..< hashPos].strip()
-        let depVersion = depClean[(hashPos + 1) .. depClean.high].strip()
-
-        if isEmptyOrWhitespace(depName) or isEmptyOrWhitespace(depVersion):
-          warn "pkgInfo lists dependency '"&depClean&"', but it is missing a name or version; skipping check"
-          continue
-
-        if not packageExists(depName, root):
-          warn "pkgInfo lists dependency '"&depName&"', but it is not installed at '"&root&"'; skipping version check"
-          continue
-
-        var db: Package
-        try:
-          db = getPackage(depName, root)
-        except:
-          if isEnabled(lvlDebug):
-            debug "getPackage failed for '"&depName&"' at root '"&root&"'"
-            debug "pkgInfo.ini content:"
-            try:
-              let pkgInfoContent = readFile(
-                      kpkgInstallTemp&"/pkgInfo.ini")
-              for line in pkgInfoContent.splitLines():
-                debug "  "&line
-            except:
-              debug "  (could not read pkgInfo.ini file)"
-          raise
-
-        if db.version != depVersion:
-          warn "this package is built with '"&depName&"#"&depVersion&"', while the system has '"&depName&"#"&db.version&"'"
-          warn "installing anyway, but issues may occur"
-          warn "this may be an error in the future"
-
-
-    var mI = false
-
-    if package in manualInstallList:
-      info "Setting as manually installed"
-      mI = true
-
-    var pkgType = newPackage(package, pkgVersion, pkg.release, pkg.epoch,
-            pkg.deps.join("!!k!!"), pkg.bdeps.join("!!k!!"),
-            pkg.backup.join("!!k!!"), pkg.replaces.join("!!k!!"), pkg.desc,
-            mI, pkg.isGroup, basePackage, root)
-
-    # Installation loop
-    for file in extractTarball:
-      let relPath = relativePath(file, kpkgInstallTemp)
-
-      if relPath in pkg.backup and (fileExists(root&"/"&relPath) or
-              dirExists(root&"/"&relPath)):
-        debug "\""&file&"\" is in pkg.backup, not installing"
-        dict.delSectionKey("", relativePath(file, kpkgInstallTemp))
-        continue
-
-      #if fileExists(root&"/"&relPath):
-      #    err "file \""&relPath&"\" already exists on filesystem, cannot continue"
-
-      if "pkgsums.ini" == lastPathPart(file):
-        pkgSumsToSQL(kpkgInstallTemp&"/"&file, pkgType, root)
-        continue
-
-      if "pkgInfo.ini" == lastPathPart(file):
-        # TODO: add pkgInfo class to modules/sqlite
-        continue
-
-
-
-      let doesFileExist = (fileExists(kpkgInstallTemp&"/"&file) or
-              symlinkExists(kpkgInstallTemp&"/"&file))
-      if doesFileExist:
-        if not dirExists(root&"/"&file.parentDir()):
-          createDirWithPermissionsAndOwnership(
-                  kpkgInstallTemp&"/"&file.parentDir(),
-                  root&"/"&file.parentDir())
-        debug "Installing file: "&file
-        copyFileWithPermissionsAndOwnership(kpkgInstallTemp&"/"&file, root&"/"&file)
-      elif dirExists(kpkgInstallTemp&"/"&file) and not (dirExists(
-              root&"/"&file) or symlinkExists(root&"/"&file)):
-        debug "Installing directory: "&file
-        createDirWithPermissionsAndOwnership(kpkgInstallTemp&"/"&file, root&"/"&file)
-  else:
-    # Register group packages in the database
-    var mI = false
-    if package in manualInstallList:
-      info "Setting as manually installed"
-      mI = true
-
-    discard newPackage(package, pkgVersion, pkg.release, pkg.epoch,
-            pkg.deps.join("!!k!!"), pkg.bdeps.join("!!k!!"),
-            pkg.backup.join("!!k!!"), pkg.replaces.join("!!k!!"), pkg.desc,
-            mI, pkg.isGroup, basePackage, root)
-
-  # Run ldconfig afterwards for any new libraries.
-  # If we're installing into a non-root prefix (e.g. sandbox env), update that root's cache.
-  let ldconfigCmd = if root == "/": "ldconfig" else: "ldconfig -r " & root
-  discard execProcess(ldconfigCmd)
-
-  if dirExists(kpkgOverlayPath) and dirExists(kpkgMergedPath) and umount:
-    discard umountOverlay(error = "unmounting overlays")
-
-  when defined(release):
-    removeDir(kpkgTempDir1)
-    removeDir(kpkgTempDir2)
-
-  # Postinstall
-  var postinstallFunc = ""
-  if pkg.run3Data.parsed.hasFunction("postinstall_"&replace(package, '-', '_')):
-    postinstallFunc = "postinstall_"&replace(package, '-', '_')
-  elif pkg.run3Data.parsed.hasFunction("postinstall"):
-    postinstallFunc = "postinstall"
-
-  if postinstallFunc != "":
-    if executeRun3Function(ctx, pkg.run3Data.parsed, postinstallFunc) != 0:
-      if ignorePostInstall:
-        warn "postinstall failed"
-      else:
-        fatal("postinstall failed")
-
-  if isUpgradeActual:
-    var postupgradeFunc = ""
-    if pkg.run3Data.parsed.hasFunction("postupgrade_"&replace(package, '-', '_')):
-      postupgradeFunc = "postupgrade_"&replace(package, '-', '_')
-    elif pkg.run3Data.parsed.hasFunction("postupgrade"):
-      postupgradeFunc = "postupgrade"
-
-    if postupgradeFunc != "":
-      if executeRun3Function(ctx, pkg.run3Data.parsed, postupgradeFunc) != 0:
-        fatal("postupgrade failed")
-
-  for i in pkg.optdeps:
-    info(i)
+  except CatchableError:
+    # Rollback on any error
+    error "Installation failed, rolling back..."
+    tx.rollback()
+    raise
 
 proc down_bin*(package: string, binrepos: seq[string], root: string,
         offline: bool, forceDownload = false, ignoreDownloadErrors = false,
