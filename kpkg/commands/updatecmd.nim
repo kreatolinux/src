@@ -10,7 +10,8 @@ proc update*(repo = "",
   ## Update repositories.
 
   if not isAdmin():
-    err("you have to be root for this action.", false)
+    error("you have to be root for this action.")
+    quit(1)
 
   let repodirs = getConfigValue("Repositories", "repoDirs")
   let repolinks = getConfigValue("Repositories", "repoLinks")
@@ -21,7 +22,8 @@ proc update*(repo = "",
   for i in repoList:
     if dirExists(i.dir):
       if execShellCmd("git -C "&i.dir&" pull") != 0:
-        err("failed to update repositories!", false)
+        error("failed to update repositories!")
+        quit(1)
     else:
       if "::" in i.link:
         info "repository on "&i.dir&" not found, cloning them now..."
@@ -47,5 +49,5 @@ proc update*(repo = "",
         setConfigValue("Repositories", "repoDirs", repodirs&" "&path)
 
 
-  success("updated all repositories")
+  info "updated all repositories"
   return 0

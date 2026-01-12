@@ -45,7 +45,8 @@ proc getKtarget*(target: string, destDir: string): string =
   if target != "default":
 
     if target.split("-").len != 3 and target.split("-").len != 5:
-      err("target '"&target&"' invalid", false)
+      error("target '"&target&"' invalid")
+      quit(1)
 
     if target.split("-").len == 5:
       kTarget = target
@@ -73,10 +74,11 @@ proc preliminaryChecks*(target: string, actualRoot: string) =
     
     # TODO: have an user mode for this
   if not isAdmin():
-    err("you have to be root for this action.", false)
+    error("you have to be root for this action.")
+    quit(1)
 
   if target != "default" and actualRoot == "default":
-    err("internal error: actualRoot needs to be set when target is used (please open a bug report)")
+    fatal("internal error: actualRoot needs to be set when target is used (please open a bug report)")
 
   isKpkgRunning()
   checkLockfile()

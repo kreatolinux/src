@@ -52,13 +52,13 @@ proc downloadSource*(url, filename, pkgName: string) =
         # Handle git repository
         let gitParts = url.split("::")
         if gitParts.len < 2:
-            err("Invalid git URL format: " & url)
+            fatal("Invalid git URL format: " & url)
         let repoUrl = gitParts[1]
         let branch = if gitParts.len > 2: gitParts[2] else: "HEAD"
         let repoName = lastPathPart(repoUrl)
         if execCmd("git clone " & repoUrl & " " & repoName & " && cd " &
                 repoName & " && git checkout " & branch) != 0:
-            err("Git clone failed for: " & repoUrl)
+            fatal("Git clone failed for: " & repoUrl)
         createSymlink(getCurrentDir() / repoName, filename)
     else:
         try:
@@ -104,9 +104,10 @@ proc verifyChecksum*(relativeFilename: string, filename, sourceUrl: string,
         if expectedDigest != actualDigest:
             if not (localFile and expectedDigest == "SKIP"):
                 removeFile(filename)
-                err(sumType & "sum doesn't match for " & sourceUrl &
+                error(sumType & "sum doesn't match for " & sourceUrl &
                     "\nExpected: '" & expectedDigest & "'\nActual: '" &
-                    actualDigest & "'", false)
+                    actualDigest & "'")
+                quit(1)
 
     # Always add symlink to buildRoot/filename so local files are available
     createSymlink(filename, sourceDir&"/"&lastPathPart(filename))

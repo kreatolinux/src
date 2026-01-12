@@ -45,10 +45,12 @@ proc audit*(package: seq[string], description = false, fetch = false,
   const dbPath = "/var/cache/kpkg/vulns.db"
 
   if not fileExists("/var/cache/kpkg/vulns.db") and not fetch:
-    err("Vulnerability database doesn't exist. Please create one using `kpkg audit --fetch`.", false)
+    error("Vulnerability database doesn't exist. Please create one using `kpkg audit --fetch`.")
+    quit(1)
 
   if fetch and not isAdmin():
-    err("you have to be root for this action.", false)
+    error("you have to be root for this action.")
+    quit(1)
 
   if fetch:
     removeFile(dbPath)
@@ -65,23 +67,25 @@ proc audit*(package: seq[string], description = false, fetch = false,
               $year(now()))&".json.xz", "/var/cache/kpkg/vulns.json.xz")
 
       if execShellCmd("xz -d vulns.json.xz") != 0:
-        err("Couldn't extract compressed file, is `xz` installed?", false)
+        error("Couldn't extract compressed file, is `xz` installed?")
+        quit(1)
 
-      success("'"&($updateVulns(dbConn, "/var/cache/kpkg/vulns.json",
+      info("'"&($updateVulns(dbConn, "/var/cache/kpkg/vulns.json",
               true))&"' vulnerabilities parsed.")
       removeFile("/var/cache/kpkg/vulns.json.xz")
       removeFile("/var/cache/kpkg/vulns.json")
     else:
       download("https://nightly.link/kreatolinux/src/workflows/build-db/master/vulndb.zip", "/var/cache/kpkg/vulndb.zip")
       discard extract("/var/cache/kpkg/vulndb.zip")
-      success("Vulnerability database installed.")
+      info("Vulnerability database installed.")
       removeFile("/var/cache/kpkg/vulndb.zip")
 
     return
 
 
   if not fileExists("/var/cache/kpkg/vulns.db"):
-    err("Vulnerability database doesn't exist. Please create one using `kpkg audit --fetch`.", false)
+    error("Vulnerability database doesn't exist. Please create one using `kpkg audit --fetch`.")
+    quit(1)
 
   if isEmptyOrWhitespace(package.join("")):
     for i in walkDirs("/var/cache/kpkg/installed/*"):

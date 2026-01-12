@@ -25,7 +25,7 @@ proc runPostInstall*(package: string, rootPath = kpkgMergedPath) =
   ## Runs postinstall scripts for a package in the provided environment root.
   ## Defaults to the merged overlay, but can be overridden (e.g. createEnv).
   debug "runPostInstall ran, package: '"&package&"', root: '"&rootPath&"'"
-  let silent = not isDebugMode()
+  let silent = not isEnabled(lvlDebug)
   debug "runPostInstall: finding repo for '"&package&"'"
   let repo = findPkgRepo(package)
 
@@ -63,7 +63,7 @@ proc runPostInstall*(package: string, rootPath = kpkgMergedPath) =
 
   if postinstallFunc != "":
     if executeRun3Function(ctx, pkg.run3Data.parsed, postinstallFunc) != 0:
-      err("postinstall failed on sandbox")
+      fatal("postinstall failed on sandbox")
 
 
 proc installFromRootInternal(package, root, destdir: string,
@@ -87,7 +87,8 @@ proc installFromRootInternal(package, root, destdir: string,
       when defined(release):
         info "removing unfinished environment"
         removeDir(destdir)
-        err("package \""&package&"\" has a broken symlink/invalid file structure, please reinstall the package", false)
+        error("package \""&package&"\" has a broken symlink/invalid file structure, please reinstall the package")
+        quit(1)
 
     if dirExists(root&"/"&listFilesSplitted) and not symlinkExists(
             root&"/"&listFilesSplitted):
@@ -139,7 +140,8 @@ proc installFromRoot*(package, root, destdir: string,
         removeDir(destdir)
 
       when defined(release):
-        err("undefined error, please open an issue", false)
+        error("undefined error, please open an issue")
+        quit(1)
       else:
         raise getCurrentException()
   return depsUsed
@@ -190,7 +192,8 @@ proc createEnv(root: string, ignorePostInstall = false) =
   except:
     removeDir(root)
     when defined(release):
-      err("setting default compiler in the environment failed", false)
+      error("setting default compiler in the environment failed")
+      quit(1)
     else:
       raise getCurrentException()
 
@@ -239,7 +242,8 @@ proc createEnv(root: string, ignorePostInstall = false) =
     debug "bwrap update-ca-trust failed with exit code: " & $result.exitCode
     debug "bwrap output: " & result.output
     removeDir(kpkgEnvPath)
-    err("creating sandbox environment failed", false)
+    error("creating sandbox environment failed")
+    quit(1)
 
   writeFile(kpkgEnvPath&"/envDateBuilt", now().format("yyyy-MM-dd"))
 

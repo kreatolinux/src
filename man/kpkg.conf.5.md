@@ -28,6 +28,13 @@ threadsUsed="1"
 
 [Upgrade]
 buildByDefault=yes
+
+[Logging]
+level=info
+timestamp=false
+colors=true
+fileLogging=false
+logFile=/var/log/kpkg.log
 ```
 
 ## OPTIONS
@@ -58,6 +65,13 @@ Please keep in mind that parallelization is in an alpha state and is not stable.
 ## UPGRADE
 * buildByDefault: Boolean to build on upgrades or not. Is enabled by default.
 * dontUpgrade: Optional. You can set packages that shouldn't be upgraded. Seperate by space.
+
+## LOGGING
+* level: Log level. Options: `trace`, `debug`, `info`, `warn`, `error`, `fatal`, `none`. Defaults to `info` in release builds, `debug` otherwise. Can be overridden by `KPKG_LOG_LEVEL` environment variable.
+* timestamp: Boolean to show timestamps in log messages. Defaults to `false`. Can be overridden by `KPKG_LOG_TIMESTAMP` environment variable.
+* colors: Boolean to enable colored output. Defaults to `true` when output is a terminal. Can be overridden by `KPKG_LOG_COLORS` environment variable.
+* fileLogging: Boolean to enable file logging. Defaults to `false`. When enabled, logs are written to the file specified by `logFile`.
+* logFile: Path to the log file. Defaults to `/var/log/kpkg.log`. Only used when `fileLogging` is enabled.
 
 # AUTHOR
 Written by Kreato.

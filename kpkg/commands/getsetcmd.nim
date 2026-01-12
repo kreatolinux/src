@@ -22,8 +22,8 @@ import ../modules/dephandler
 proc get*(invocations: seq[string]) =
   ## Gets a kpkg value. See kpkg_get(5) for more information.
   if invocations.len < 1:
-    err("No invocation provided. See kpkg_get(5) for more information.", false)
-    return
+    error("No invocation provided. See kpkg_get(5) for more information.")
+    quit(1)
 
   for invoc in invocations:
     let invocSplit = invoc.split(".")
@@ -44,8 +44,8 @@ proc get*(invocations: seq[string]) =
                 echo getPackageByValue(getPackage(invocSplit[2],
                         "/"), invocSplit[3])
               else:
-                err("'"&invoc&"': invalid invocation", false)
-                continue
+                error("'"&invoc&"': invalid invocation")
+                quit(1)
           of "file":
             case invocSplit.len:
               of 2:
@@ -56,8 +56,8 @@ proc get*(invocations: seq[string]) =
                 echo getFileByValue(getFile(invocSplit[2], "/"),
                         invocSplit[3])
               else:
-                err("'"&invoc&"': invalid invocation", false)
-                continue
+                error("'"&invoc&"': invalid invocation")
+                quit(1)
       of "config":
         case invocSplit.len:
           of 1:
@@ -67,8 +67,8 @@ proc get*(invocations: seq[string]) =
           of 3:
             echo getConfigValue(invocSplit[1], invocSplit[2])
           else:
-            err("'"&invoc&"': invalid invocation", false)
-            continue
+            error("'"&invoc&"': invalid invocation")
+            quit(1)
       of "overrides":
         case invocSplit.len:
           of 1:
@@ -82,8 +82,8 @@ proc get*(invocations: seq[string]) =
             echo getOverrideValue(invocSplit[1], invocSplit[2],
                     invocSplit[3])
           else:
-            err("'"&invoc&"': invalid invocation", false)
-            continue
+            error("'"&invoc&"': invalid invocation")
+            quit(1)
       of "depends":
         case invocSplit.len:
           of 3:
@@ -93,8 +93,8 @@ proc get*(invocations: seq[string]) =
             # Check if package exists in repos
             let repo = findPkgRepo(packageName)
             if repo == "":
-              err("'"&packageName&"': package not found", false)
-              continue
+              error("'"&packageName&"': package not found")
+              quit(1)
 
             var deps: seq[string]
             try:
@@ -114,15 +114,15 @@ proc get*(invocations: seq[string]) =
                           prevPkgName = packageName,
                           ignoreCircularDeps = true)
                 else:
-                  err("'"&depType&"': invalid dependency type. Use 'build' or 'install'", false)
-                  continue
+                  error("'"&depType&"': invalid dependency type. Use 'build' or 'install'")
+                  quit(1)
 
               # Output the dependencies
               for dep in deps:
                 echo dep
             except CatchableError:
-              err("failed to resolve dependencies for '"&packageName&"'", false)
-              continue
+              error("failed to resolve dependencies for '"&packageName&"'")
+              quit(1)
           of 4:
             let packageName = invocSplit[1]
             let depType = invocSplit[2]
@@ -130,14 +130,14 @@ proc get*(invocations: seq[string]) =
 
             # Only support .graph output format
             if outputFormat != "graph":
-              err("'"&outputFormat&"': invalid output format. Use 'graph'", false)
-              continue
+              error("'"&outputFormat&"': invalid output format. Use 'graph'")
+              quit(1)
 
             # Check if package exists in repos
             let repo = findPkgRepo(packageName)
             if repo == "":
-              err("'"&packageName&"': package not found", false)
-              continue
+              error("'"&packageName&"': package not found")
+              quit(1)
 
             try:
               # Build the dependency graph
@@ -162,20 +162,20 @@ proc get*(invocations: seq[string]) =
                   graph = buildDependencyGraph(@[packageName],
                           ctx, @["  "], false, false, packageName)
                 else:
-                  err("'"&depType&"': invalid dependency type. Use 'build' or 'install'", false)
-                  continue
+                  error("'"&depType&"': invalid dependency type. Use 'build' or 'install'")
+                  quit(1)
 
               # Generate and output Mermaid chart
               echo generateMermaidChart(graph, @[packageName])
             except CatchableError:
-              err("failed to generate dependency graph for '"&packageName&"'", false)
-              continue
+              error("failed to generate dependency graph for '"&packageName&"'")
+              quit(1)
           else:
-            err("'"&invoc&"': invalid invocation. Usage: depends.packageName.build[.graph] or depends.packageName.install[.graph]", false)
-            continue
+            error("'"&invoc&"': invalid invocation. Usage: depends.packageName.build[.graph] or depends.packageName.install[.graph]")
+            quit(1)
       else:
-        err("'"&invoc&"': invalid invocation. Available invocations: db, config, overrides, depends. See kpkg_get(5) for more information.", false)
-        continue
+        error("'"&invoc&"': invalid invocation. Available invocations: db, config, overrides, depends. See kpkg_get(5) for more information.")
+        quit(1)
 
 proc set*(file = "", append = false, invocation: seq[string]) =
   ## Sets a kpkg value. See kpkg_set(5) for more information.
@@ -188,7 +188,8 @@ proc set*(file = "", append = false, invocation: seq[string]) =
       fileToRead = lastPathPart(file)
     else:
       if not fileExists(file):
-        err("'"&file&"': file does not exist.", false)
+        error("'"&file&"': file does not exist.")
+        quit(1)
 
     for line in lines fileToRead:
 
@@ -209,27 +210,28 @@ proc set*(file = "", append = false, invocation: seq[string]) =
             set(append = true, invocation = @[lineSplit[0],
                     lineSplit[2]])
           else:
-            err("'"&line&"': invalid invocation.", false)
-            continue
+            error("'"&line&"': invalid invocation.")
+            quit(1)
       except:
         when not defined(release):
           raise getCurrentException()
         else:
-          err("'"&line&"': invalid invocation.", false)
-          continue
+          error("'"&line&"': invalid invocation.")
+          quit(1)
 
     return
 
   if invocation.len < 2:
-    err("No invocation provided. See kpkg_set(5) for more information.", false)
-    return
+    error("No invocation provided. See kpkg_set(5) for more information.")
+    quit(1)
 
   let invocSplit = invocation[0].split(".")
 
   case invocSplit[0]:
     of "config":
       if invocSplit.len < 3:
-        err("'"&invocation[0]&"': invalid invocation.", false)
+        error("'"&invocation[0]&"': invalid invocation.")
+        quit(1)
 
       if append:
         setConfigValue(invocSplit[1], invocSplit[2], getConfigValue(
@@ -240,7 +242,8 @@ proc set*(file = "", append = false, invocation: seq[string]) =
       echo getConfigValue(invocSplit[1], invocSplit[2])
     of "overrides":
       if invocSplit.len < 3:
-        err("'"&invocation[0]&"': invalid invocation.", false)
+        error("'"&invocation[0]&"': invalid invocation.")
+        quit(1)
 
       if append:
         setOverrideValue(invocSplit[1], invocSplit[2], invocSplit[3],

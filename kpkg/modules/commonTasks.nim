@@ -122,14 +122,14 @@ proc getInit*(root: string): string =
   try:
     return loadConfig(root&"/etc/kreato-release").getSectionValue("Core", "init")
   except CatchableError:
-    err("couldn't load "&root&"/etc/kreato-release")
+    fatal("couldn't load "&root&"/etc/kreato-release")
 
 proc getLibc*(root: string): string =
   ## Returns the libc.
   try:
     return loadConfig(root&"/etc/kreato-release").getSectionValue("Core", "libc")
   except CatchableError:
-    err("couldn't load "&root&"/etc/kreato-release")
+    fatal("couldn't load "&root&"/etc/kreato-release")
 
 proc systemTarget*(root: string): string =
   ## Returns the system target.
@@ -332,7 +332,8 @@ proc printPackagesPrompt*(packages: string, yes: bool, no: bool,
     output = readLine(stdin)
 
   if output.toLower() != "y":
-    info("exiting", true)
+    info("exiting")
+    quit(0)
 
 proc ctrlc*() {.noconv.} =
   for path in walkFiles("/var/cache/kpkg/archives/arch/"&hostCPU&"/*.partial"):

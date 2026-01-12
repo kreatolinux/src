@@ -8,12 +8,14 @@ proc info*(package: seq[string], testing = false): string =
   ## Get information about packages.
 
   if package.len == 0:
-    err("Please enter a package name", false)
+    error("Please enter a package name")
+    quit(1)
 
   let repo = findPkgRepo(package[0])
 
   if not dirExists(repo&"/"&package[0]):
-    err("Package "&package[0]&" doesn't exist", false)
+    error("Package "&package[0]&" doesn't exist")
+    quit(1)
 
   var pkg: runFile
   try:
@@ -35,4 +37,5 @@ proc info*(package: seq[string], testing = false): string =
     return ret
 
   # return err if package isn't installed (for scripting :p)
-  err(ret, false)
+  error(ret)
+  quit(1)

@@ -38,7 +38,7 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
       debug "parseRunfile ran, installPkg"
       pkg = runparser.parseRunfile(repo&"/"&package)
   except CatchableError:
-    err("Unknown error while trying to parse package on repository, possibly broken repo?")
+    fatal("Unknown error while trying to parse package on repository, possibly broken repo?")
 
   debug "installPkg ran, repo: '"&repo&"', package: '"&package&"', root: '"&root&"', manualInstallList: '"&manualInstallList.join(" ")&"'"
 
@@ -61,7 +61,7 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
 
     if preupgradeFunc != "":
       if executeRun3Function(ctx, pkg.run3Data.parsed, preupgradeFunc) != 0:
-        err("preupgrade failed")
+        fatal("preupgrade failed")
 
   if not packageExists(package, root):
     var preinstallFunc = ""
@@ -75,13 +75,13 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
         if ignorePreInstall:
           warn "preinstall failed"
         else:
-          err("preinstall failed")
+          fatal("preinstall failed")
 
   let isGroup = pkg.isGroup
 
   for i in pkg.conflicts:
     if packageExists(i, root):
-      err(i&" conflicts with "&package)
+      fatal(i&" conflicts with "&package)
 
   removeDir("/tmp/kpkg/reinstall/"&package&"-old")
   createDir("/tmp")
@@ -139,7 +139,7 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
       extractTarball = extract(tarball, kpkgInstallTemp)
     except Exception:
       when defined(release):
-        err("extracting the tarball failed for "&package)
+        fatal("extracting the tarball failed for "&package)
       else:
         removeLockfile()
         raise getCurrentException()
@@ -164,10 +164,10 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
 
       if isEmptyOrWhitespace(value) and doesFileExist:
         debug file
-        err("package sums invalid")
+        fatal("package sums invalid")
 
       if getSum(kpkgInstallTemp&"/"&file, "b2") != value:
-        err("sum for file '"&file&"' invalid")
+        fatal("sum for file '"&file&"' invalid")
 
     if fileExists(kpkgInstallTemp&"/pkgInfo.ini") and (
             not disablePkgInfo): # pkgInfo is recommended, but not required
@@ -204,7 +204,7 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
         try:
           db = getPackage(depName, root)
         except:
-          if isDebugMode():
+          if isEnabled(lvlDebug):
             debug "getPackage failed for '"&depName&"' at root '"&root&"'"
             debug "pkgInfo.ini content:"
             try:
@@ -305,7 +305,7 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
       if ignorePostInstall:
         warn "postinstall failed"
       else:
-        err("postinstall failed")
+        fatal("postinstall failed")
 
   if isUpgradeActual:
     var postupgradeFunc = ""
@@ -316,7 +316,7 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
 
     if postupgradeFunc != "":
       if executeRun3Function(ctx, pkg.run3Data.parsed, postupgradeFunc) != 0:
-        err("postupgrade failed")
+        fatal("postupgrade failed")
 
   for i in pkg.optdeps:
     info(i)
@@ -366,7 +366,7 @@ proc down_bin*(package: string, binrepos: seq[string], root: string,
         debug msg
         return
       else:
-        err(msg)
+        fatal(msg)
 
     if pkg.isGroup:
       return
@@ -394,7 +394,7 @@ proc down_bin*(package: string, binrepos: seq[string], root: string,
           debug msg
           return
         else:
-          err(msg)
+          fatal(msg)
     else:
       const msg = "attempted to download tarball from binary repository in offline mode"
       debug path
@@ -402,10 +402,10 @@ proc down_bin*(package: string, binrepos: seq[string], root: string,
         debug msg
         return
       else:
-        err(msg)
+        fatal(msg)
 
   if not downSuccess and not ignoreDownloadErrors:
-    err("couldn't download the binary")
+    fatal("couldn't download the binary")
 
 proc install_bin(packages: seq[string], binrepos: seq[string], root: string,
         offline: bool, downloadOnly = false, manualInstallList: seq[string],
@@ -444,10 +444,12 @@ proc install*(promptPackages: seq[string], root = "/", yes: bool = false,
                 basePackage = false): int =
   ## Install a package from a binary, from a repository or locally.
   if promptPackages.len == 0:
-    err("please enter a package name", false)
+    error("please enter a package name")
+    quit(1)
 
   if not isAdmin():
-    err("you have to be root for this action.", false)
+    error("you have to be root for this action.")
+    quit(1)
 
   var deps: seq[string]
   let init = getInit(root)
@@ -465,7 +467,8 @@ proc install*(promptPackages: seq[string], root = "/", yes: bool = false,
   try:
     deps = dephandler(packages, root = root)
   except CatchableError:
-    err("Dependency detection failed", false)
+    error("Dependency detection failed")
+    quit(1)
 
   printReplacesPrompt(deps, root, true)
   printReplacesPrompt(packages, root)

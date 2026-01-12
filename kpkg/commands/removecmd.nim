@@ -14,13 +14,15 @@ proc remove*(packages: seq[string], yes = false, root = "",
 
   # bail early if user isn't admin
   if not isAdmin():
-    err("you have to be root for this action.", false)
+    error("you have to be root for this action.")
+    quit(1)
 
   isKpkgRunning()
   checkLockfile()
 
   if packages.len == 0:
-    err("please enter a package name", false)
+    error("please enter a package name")
+    quit(1)
 
   var output: string
   var packagesFinal = packages
@@ -28,14 +30,16 @@ proc remove*(packages: seq[string], yes = false, root = "",
   if autoRemove:
     for package in packages:
       if not packageExists(package, root):
-        err("package "&package&" is not installed", false)
+        error("package "&package&" is not installed")
+        quit(1)
       packagesFinal = bloatDepends(package, root)&packagesFinal
 
   if not ignoreBasePackages:
     for package in packagesFinal:
       let basePackage = getPackage(package, root).basePackage
       if basePackage:
-        err("\""&package&"\" is a part of base system, cannot remove", false)
+        error("\""&package&"\" is a part of base system, cannot remove")
+        quit(1)
 
   if not yes:
     echo "Removing: "&packagesFinal.join(" ")
@@ -50,8 +54,10 @@ proc remove*(packages: seq[string], yes = false, root = "",
       removeInternal(i, root, force = force, depCheck = true,
               fullPkgList = packages, removeConfigs = configRemove,
               runPostRemove = true)
-      success("package "&i&" removed")
+      info("package "&i&" removed")
     removeLockfile()
-    success("done", true)
+    info("done")
+    quit(0)
 
-  info("exiting", true)
+  info("exiting")
+  quit(0)

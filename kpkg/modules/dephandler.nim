@@ -103,19 +103,19 @@ proc validatePackage(pkg: string, repo: string, root: string): bool =
     ## Validate package exists in repository
 
     if repo == "":
-        err("Package '"&pkg&"' doesn't exist in any configured repository", false)
-        return false
+        error("Package '"&pkg&"' doesn't exist in any configured repository")
+        quit(1)
     elif repo == "local":
         if not packageExists(pkg, root):
             debug "dephandler: Package '"&pkg&"' doesn't exist in local database at '"&root&"'"
             return false
         return true
     elif not dirExists(repo):
-        err("The repository '"&repo&"' doesn't exist at path: "&repo, false)
-        return false
+        error("The repository '"&repo&"' doesn't exist at path: "&repo)
+        quit(1)
     elif not fileExists(repo&"/"&pkg&"/run"):
-        err("The package '"&pkg&"' doesn't exist in repository "&repo&" (expected: "&repo&"/"&pkg&"/run)", false)
-        return false
+        error("The package '"&pkg&"' doesn't exist in repository "&repo&" (expected: "&repo&"/"&pkg&"/run)")
+        quit(1)
 
     return true
 
@@ -153,35 +153,40 @@ proc checkVersions(root: string, dependency: string, repo: string, split = @[
                             warn(warnName)
                             return @["upgrade", dSplit[0]]
                         else:
-                            err(errName, false)
+                            error(errName)
+                            quit(1)
                 of ">=":
                     if not (deprf >= dSplit[1]):
                         if packageExists(dSplit[0], root):
                             warn(warnName)
                             return @["upgrade", dSplit[0]]
                         else:
-                            err(errName, false)
+                            error(errName)
+                            quit(1)
                 of "<":
                     if not (deprf < dSplit[1]):
                         if packageExists(dSplit[0], root):
                             warn(warnName)
                             return @["upgrade", dSplit[0]]
                         else:
-                            err(errName, false)
+                            error(errName)
+                            quit(1)
                 of ">":
                     if not (deprf > dSplit[1]):
                         if packageExists(dSplit[0], root):
                             warn(warnName)
                             return @["upgrade", dSplit[0]]
                         else:
-                            err(errName, false)
+                            error(errName)
+                            quit(1)
                 of "=":
                     if deprf != dSplit[1]:
                         if packageExists(dSplit[0], root):
                             warn(warnName)
                             return @["upgrade", dSplit[0]]
                         else:
-                            err(errName, false)
+                            error(errName)
+                            quit(1)
 
             return @["noupgrade", dSplit[0]]
 
@@ -459,7 +464,7 @@ proc topologicalSort(graph: dependencyGraph,
         if ignoreCircularDeps:
             warn(cycleMsg)
         else:
-            err(cycleMsg)
+            fatal(cycleMsg)
 
     # Reverse: since we added dependents before dependencies in post-order,
     # reversing gives us dependencies before dependents

@@ -15,7 +15,7 @@ proc clean*(packages: seq[string] = @[], sources = false, binaries = false,
         let pkgSourcesDir = kpkgSourcesDir & "/" & packageName
         if dirExists(pkgSourcesDir):
           removeDir(pkgSourcesDir)
-          success("Source tarballs for package '" & packageName & "' removed from cache.")
+          info("Source tarballs for package '" & packageName & "' removed from cache.")
         else:
           info("No source tarballs found for package '" & packageName & "'.")
 
@@ -36,30 +36,31 @@ proc clean*(packages: seq[string] = @[], sources = false, binaries = false,
                   debug("Removed binary: " & file.path)
 
           if found:
-            success("Binary tarballs for package '" & packageName & "' removed from cache.")
+            info("Binary tarballs for package '" & packageName & "' removed from cache.")
           else:
             info("No binary tarballs found for package '" & packageName & "'.")
         else:
           info("No binary tarballs found for package '" & packageName & "'.")
 
-    info("done", true)
-    return
+    info("done")
+    quit(0)
 
   # If no package specified, clean everything (original behavior)
   if sources:
     removeDir(kpkgSourcesDir)
-    success("Source tarballs removed from cache.")
+    info("Source tarballs removed from cache.")
 
   if binaries:
     removeDir(kpkgArchivesDir)
-    success("Binary tarballs removed from cache.")
+    info("Binary tarballs removed from cache.")
 
   if cache:
     removeDir(kpkgCacheDir&"/ccache")
-    success("ccache directory removed.")
+    info("ccache directory removed.")
 
   if environment:
     removeDir(kpkgEnvPath)
-    success("Build environment directory removed.")
+    info("Build environment directory removed.")
 
-  info("done", true)
+  info("done")
+  quit(0)
