@@ -47,6 +47,13 @@ threadsUsed=\[dq]1\[dq]
 
 [Upgrade]
 buildByDefault=yes
+
+[Logging]
+level=info
+timestamp=false
+colors=true
+fileLogging=false
+logFile=/var/log/kpkg.log
 \f[R]
 .fi
 .SS OPTIONS
@@ -115,6 +122,30 @@ Is enabled by default.
 dontUpgrade: Optional.
 You can set packages that shouldn\[cq]t be upgraded.
 Seperate by space.
+.SS LOGGING
+.IP \[bu] 2
+level: Log level.
+Options: \f[V]trace\f[R], \f[V]debug\f[R], \f[V]info\f[R],
+\f[V]warn\f[R], \f[V]error\f[R], \f[V]fatal\f[R], \f[V]none\f[R].
+Defaults to \f[V]info\f[R] in release builds, \f[V]debug\f[R] otherwise.
+Can be overridden by \f[V]KPKG_LOG_LEVEL\f[R] environment variable.
+.IP \[bu] 2
+timestamp: Boolean to show timestamps in log messages.
+Defaults to \f[V]false\f[R].
+Can be overridden by \f[V]KPKG_LOG_TIMESTAMP\f[R] environment variable.
+.IP \[bu] 2
+colors: Boolean to enable colored output.
+Defaults to \f[V]true\f[R] when output is a terminal.
+Can be overridden by \f[V]KPKG_LOG_COLORS\f[R] environment variable.
+.IP \[bu] 2
+fileLogging: Boolean to enable file logging.
+Defaults to \f[V]false\f[R].
+When enabled, logs are written to the file specified by
+\f[V]logFile\f[R].
+.IP \[bu] 2
+logFile: Path to the log file.
+Defaults to \f[V]/var/log/kpkg.log\f[R].
+Only used when \f[V]fileLogging\f[R] is enabled.
 .SH AUTHOR
 .PP
 Written by Kreato.
