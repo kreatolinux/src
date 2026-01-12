@@ -42,7 +42,7 @@ proc createPackage*(actualPackage: string, pkg: runFile,
         pkg = getPackage(dep, kpkgOverlayPath&"/upperDir/")
       else:
         when defined(release):
-          err "Unknown error occured while generating binary package"
+          error "Unknown error occured while generating binary package"
         else:
           debug "Unknown error occured while generating binary package"
           raise getCurrentException()
@@ -73,7 +73,7 @@ proc createPackage*(actualPackage: string, pkg: runFile,
   dict.writeConfig(kpkgBuildRoot&"/pkgsums.ini")
 
   if execCmdKpkg("bsdtar -czf "&tarball&" -C "&kpkgBuildRoot&" .").exitCode != 0:
-    err "creating binary tarball failed"
+    error "creating binary tarball failed"
   #createArchive(tarball, kpkgBuildRoot)
 
   #writeFile(tarball&".sum.b2", getSum(tarball, "b2"))

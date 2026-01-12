@@ -18,7 +18,6 @@ import strutils
 import ../logger
 import ../config
 import ../runparser
-import ../processes
 import ../checksums
 import ../libarchive
 import ../downloader

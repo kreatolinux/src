@@ -1,6 +1,5 @@
 import parsecfg
 import os
-import logger
 import streams
 import strutils
 

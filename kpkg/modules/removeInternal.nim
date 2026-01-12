@@ -1,5 +1,4 @@
 import os
-import osproc
 import sqlite
 import logger
 import strutils
