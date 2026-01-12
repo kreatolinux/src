@@ -53,7 +53,8 @@ proc printResult(repo: string, package: string, colors = true): string =
 proc search*(keyword: seq[string], colors = true) =
   ## Search packages.
   if keyword.len == 0:
-    err("please enter a keyword", false)
+    error("please enter a keyword")
+    quit(1)
 
   let exactMatch = findPkgRepo(keyword[0])
 

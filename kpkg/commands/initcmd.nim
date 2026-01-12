@@ -42,7 +42,8 @@ proc override*(packages: seq[string], extraArguments = "", cflags = "",
   ## Initializes a new kpkg override.
   # runFile part of the overrides are not supported as that is too much work.
   if isEmptyOrWhitespace(packages.join("")):
-    err("please enter packages", false)
+    error("please enter packages")
+    quit(1)
 
   var dict = newConfig()
 

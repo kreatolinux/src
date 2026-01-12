@@ -42,7 +42,7 @@ proc download*(url: string, file: string, instantErrorIfFail = false,
         raise getCurrentException()
       else:
         debug $(getCurrentException().getStackTrace())
-        err "download failed"
+        fatal "download failed"
     warn "download failed, retrying"
     debug $(getCurrentException().getStackTrace())
     download(url, file, true, raiseWhenFail)

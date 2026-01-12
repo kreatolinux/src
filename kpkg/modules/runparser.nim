@@ -185,15 +185,25 @@ proc parseRunfile*(path: string, removeLockfileWhenErr = true): runFile =
       ret.functions.add((name: fnName, body: ""))
 
   except IOError:
-    err(path&" doesn't seem to have a run3 file. possibly a broken package?",
-        removeLockfileWhenErr, raiseExceptionInstead = false)
+    if removeLockfileWhenErr:
+      fatal(path&" doesn't seem to have a run3 file. possibly a broken package?")
+    else:
+      error(path&" doesn't seem to have a run3 file. possibly a broken package?")
+      quit(1)
   except ParseError as e:
-    err(path&"/run3 parse error at line "&($e.line)&", column "&(
-        $e.col)&": "&e.msg, removeLockfileWhenErr,
-        raiseExceptionInstead = false)
+    if removeLockfileWhenErr:
+      fatal(path&"/run3 parse error at line "&($e.line)&", column "&(
+          $e.col)&": "&e.msg)
+    else:
+      error(path&"/run3 parse error at line "&($e.line)&", column "&(
+          $e.col)&": "&e.msg)
+      quit(1)
   except CatchableError:
-    err(path&" error parsing run3 file: "&getCurrentExceptionMsg(),
-        removeLockfileWhenErr, raiseExceptionInstead = false)
+    if removeLockfileWhenErr:
+      fatal(path&" error parsing run3 file: "&getCurrentExceptionMsg())
+    else:
+      error(path&" error parsing run3 file: "&getCurrentExceptionMsg())
+      quit(1)
 
   # Calculate versionString
   if ret.epoch != "" and ret.epoch != "no":

@@ -58,7 +58,8 @@ proc builder*(package: string, destdir: string, offline = false,
   var path: string
 
   if not dirExists(package) and isInstallDir:
-    err("package directory doesn't exist", false)
+    error("package directory doesn't exist")
+    quit(1)
 
   if isInstallDir:
     debug "isInstallDir is turned on"
@@ -68,7 +69,8 @@ proc builder*(package: string, destdir: string, offline = false,
     path = repo&"/"&package
 
   if not fileExists(path&"/run") and not fileExists(path&"/run3"):
-    err("runFile/run3File doesn't exist, cannot continue", false)
+    error("runFile/run3File doesn't exist, cannot continue")
+    quit(1)
 
   var actualPackage: string
 
@@ -94,7 +96,8 @@ proc builder*(package: string, destdir: string, offline = false,
     debug "parseRunfile ran from buildcmd"
     pkg = runparser.parseRunfile(path)
   except CatchableError:
-    err("Unknown error while trying to parse package on repository, possibly broken repo?", false)
+    error("Unknown error while trying to parse package on repository, possibly broken repo?")
+    quit(1)
 
   var override: Config
 
@@ -196,7 +199,7 @@ proc builder*(package: string, destdir: string, offline = false,
       actualSrcDir = folder
     except Exception:
       when defined(release):
-        err("Unknown error occured while trying to enter the source directory")
+        fatal("Unknown error occured while trying to enter the source directory")
 
       debug $folder
       raise getCurrentException()
@@ -271,7 +274,7 @@ proc builder*(package: string, destdir: string, offline = false,
   # Execute "prepare"
   if exists.prepare:
     if executeRun3Function(ctx, pkg.run3Data.parsed, "prepare") != 0:
-      err("prepare failed", true)
+      fatal("prepare failed")
 
   # Determine "build" function name
   var buildFunc = "build"
@@ -285,22 +288,22 @@ proc builder*(package: string, destdir: string, offline = false,
   if exists.packageInstall:
     pkgFunc = "package_" & replace(actualPackage, '-', '_')
   elif not exists.package:
-    err "install stage of package doesn't exist, invalid runfile"
+    fatal "install stage of package doesn't exist, invalid runfile"
 
   # Execute build
   if buildFunc != "":
     if executeRun3Function(ctx, pkg.run3Data.parsed, buildFunc) != 0:
-      err("build failed", true)
+      fatal("build failed")
 
   # Execute check (tests)
   if tests and exists.check:
     if executeRun3Function(ctx, pkg.run3Data.parsed, "check") != 0:
       # checks usually fail build
-      err("check failed", true)
+      fatal("check failed")
 
   # Execute package (install)
   if executeRun3Function(ctx, pkg.run3Data.parsed, pkgFunc) != 0:
-    err("package install failed", true)
+    fatal("package install failed")
 
   discard createPackage(actualPackage, pkg, kTarget)
 
@@ -339,7 +342,8 @@ proc build*(no = false, yes = false, root = "/",
   var gD: seq[string]
 
   if packages.len == 0:
-    err("please enter a package name", false)
+    error("please enter a package name")
+    quit(1)
 
   var fullRootPath = expandFilename(root)
   var ignoreInit = false
@@ -536,12 +540,12 @@ proc build*(no = false, yes = false, root = "/",
               ignoreUseCacheIfAvailable = gD,
               isBootstrap = isBootstrapBuild)
 
-      success("built "&i&" successfully")
+      info("built "&i&" successfully")
     except CatchableError:
       when defined(release):
-        err("Undefined error occured", true)
+        fatal("Undefined error occured")
       else:
         raise getCurrentException()
 
-  success("built all packages successfully")
+  info("built all packages successfully")
   return 0

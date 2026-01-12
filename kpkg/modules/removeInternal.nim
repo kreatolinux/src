@@ -21,7 +21,7 @@ proc dependencyCheck(package: string, root: string, force: bool,
           if force:
             warn(i&" is dependent on "&package&", removing anyway")
           else:
-            err(i&" is dependent on "&package, true)
+            fatal(i&" is dependent on "&package)
         else:
           return false
   return true
@@ -70,7 +70,7 @@ proc removeInternal*(package: string, root = "",
     actualPackage = package
 
   if not packageExists(actualPackage, root):
-    err("package "&package&" is not installed")
+    fatal("package "&package&" is not installed")
 
   var pkg = getPackage(actualPackage, root)
   debug "removeInternal: getPackage completed for '"&actualPackage&"'"
@@ -145,7 +145,7 @@ proc removeInternal*(package: string, root = "",
         if postremoveFunc != "":
           if executeRun3Function(ctx, parsedPkg.run3Data.parsed,
               postremoveFunc) != 0:
-            err "postremove failed"
+            fatal "postremove failed"
       except:
         warn "Failed to execute Run3 postremove: " & getCurrentExceptionMsg()
 

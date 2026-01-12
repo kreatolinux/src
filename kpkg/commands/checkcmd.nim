@@ -21,8 +21,8 @@ proc checkInternal(package: Package, root: string, lines = getFilesPackage(
       let errorOutput = "'"&fullPath.relativePath(
               root)&"' doesn't exist, please reinstall '"&package.name&"'"
       debug errorOutput
-      if not isDebugMode():
-        err errorOutput
+      if not isEnabled(lvlDebug):
+        fatal errorOutput
       continue
 
     if line.blake2Checksum == "":
@@ -38,8 +38,8 @@ proc checkInternal(package: Package, root: string, lines = getFilesPackage(
       let errorOutput = "'"&fullPath.relativePath(
               root)&"' has an invalid checksum, please reinstall '"&package.name&"'"
       debug errorOutput
-      if not isDebugMode():
-        err errorOutput
+      if not isEnabled(lvlDebug):
+        fatal errorOutput
 
 proc check*(package = "", root = "/", silent = false, checkEtc = false) =
   ## Check packages in filesystem for errors.
@@ -53,11 +53,12 @@ proc check*(package = "", root = "/", silent = false, checkEtc = false) =
       checkInternal(pkg, root, getFilesPackage(pkg, root), checkEtc)
   else:
     if not packageExists(package, root):
-      err("package '"&package&"' doesn't exist", false)
+      error("package '"&package&"' doesn't exist")
+      quit(1)
     else:
       let pkg = getPackage(package, root)
       checkInternal(pkg, root, getFilesPackage(pkg, root), checkEtc)
 
   if not silent:
-    success("done")
+    info("done")
 

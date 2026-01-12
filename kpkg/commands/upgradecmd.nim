@@ -27,7 +27,7 @@ proc upgrade*(root = "/",
     try:
       localPkg = getPackage(i, root)
     except CatchableError:
-      err("Unknown error while reading installed package")
+      fatal("Unknown error while reading installed package")
 
     var isAReplacesPackage: bool
 
@@ -54,7 +54,7 @@ proc upgrade*(root = "/",
     try:
       upstreamPkg = parse_runfile(repo&"/"&pkg)
     except CatchableError:
-      err("Unknown error while reading package on repository, possibly broken repo?")
+      fatal("Unknown error while reading package on repository, possibly broken repo?")
 
     if localPkg.version < upstreamPkg.version or localPkg.release <
         upstreamPkg.release or (localPkg.epoch != "no" and
@@ -62,7 +62,8 @@ proc upgrade*(root = "/",
       packages = packages&pkg
 
   if packages.len == 0 and isEmptyOrWhitespace(packages.join("")):
-    success("done", true)
+    info("done")
+    quit(0)
 
   if parseBool(getConfigValue("Upgrade", "buildByDefault", "false")):
     discard build(yes = yes, no = no, packages = packages, root = root,

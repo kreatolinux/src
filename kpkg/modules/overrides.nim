@@ -20,7 +20,7 @@ proc getOverrideValue*(package: string, section: string, key: string,
   if fileExists(overridesPath&"/"&package&".conf"):
     override = loadConfig(overridesPath&"/"&package&".conf")
   else:
-    err "internal: override file not found."
+    fatal "internal: override file not found."
 
   return override.getSectionValue(section, key, defaultVal)
 
@@ -30,7 +30,7 @@ proc setOverrideValue*(package: string, section: string, key: string,
   if fileExists(overridesPath&"/"&package&".conf"):
     override = loadConfig(overridesPath&"/"&package&".conf")
   else:
-    err "override file not found. Create new file by running `kpkg init override`."
+    fatal "override file not found. Create new file by running `kpkg init override`."
 
   override.setSectionKey(section, key, value)
   override.writeConfig(overridesPath&"/"&package&".conf")
@@ -41,7 +41,7 @@ proc getOverrideSection*(package: string, section: string,
   if fileExists(overridesPath&"/"&package&".conf"):
     override = loadConfig(overridesPath&"/"&package&".conf")
   else:
-    err "internal: override file not found."
+    fatal "internal: override file not found."
 
   var fileStr = newFileStream(overridesPath&"/"&package&".conf", fmRead)
   var parser: CfgParser
@@ -73,6 +73,6 @@ proc returnOverride*(package: string): string =
   if fileExists(overridesPath&"/"&package&".conf"):
     override = loadConfig(overridesPath&"/"&package&".conf")
   else:
-    err "internal: override file not found."
+    fatal "internal: override file not found."
 
   echo ($override).strip()

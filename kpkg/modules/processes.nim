@@ -27,7 +27,7 @@ proc execCmdKpkg*(command: string, error = "none", silentMode = false): tuple[
   let res = waitForExit(process)
 
   if error != "none" and res != 0:
-    err error&" failed"
+    fatal error&" failed"
 
   return (output.strip(), res)
 
@@ -59,7 +59,8 @@ proc isRunningFromName(name: string): bool =
 
 proc isKpkgRunning*() =
   if isRunningFromName("kpkg"):
-    err("another instance of kpkg is running, will not proceed", false)
+    error("another instance of kpkg is running, will not proceed")
+    quit(1)
 
 proc runLdconfig*(root: string, silentMode = false): int =
   ## Refresh the dynamic linker cache for the given root.
@@ -97,7 +98,7 @@ proc execEnv*(command: string, error = "none", passthrough = false,
   else:
     debug "execEnv: checking if path exists: " & path
     if not dirExists(path):
-      err("internal: you have to use mountOverlay() before running execEnv")
+      fatal("internal: you have to use mountOverlay() before running execEnv")
 
     if remount and path == kpkgMergedPath:
       discard execCmdKpkg("mount -o remount "&path,
