@@ -57,7 +57,7 @@ proc archiveReadNextHeader*(a: ptr structArchive,
 proc archiveReadNextHeader2*(a: ptr structArchive,
     entry: ptr structArchiveEntry): cint {.importc: "archive_read_next_header2",
     header: "<archive.h>".}
-proc archiveReadDataBlock*(a: ptr structArchive, buff: ptr pointer,
+proc archiveReadDataBlock*(a: ptr structArchive, buff: pointer,
     size: ptr csize_t,
     offset: ptr int64): cint {.importc: "archive_read_data_block",
     header: "<archive.h>".}
@@ -149,7 +149,7 @@ proc copyData(ar: ptr structArchive, aw: ptr structArchive): cint =
 
   var offset: int64
   while true:
-    r = archiveReadDataBlock(ar, addr(buff), addr(size), addr(offset))
+    r = archiveReadDataBlock(ar, cast[pointer](addr(buff)), addr(size), addr(offset))
     if r == ARCHIVE_EOF:
       return ARCHIVE_OK
     if r != ARCHIVE_OK:
