@@ -11,7 +11,6 @@ import context
 import lexer
 import variables
 import utils
-import ../commonPaths
 import ../processes
 import ../logger
 

@@ -19,10 +19,6 @@ type
         ## Runtime execution error
         line*: int
 
-proc newExecutionError(msg: string, line: int): ref ExecutionError =
-    result = newException(ExecutionError, msg)
-    result.line = line
-
 proc executeFunction*(ctx: ExecutionContext, funcBody: seq[AstNode]): int
 
 proc executeNode*(ctx: ExecutionContext, node: AstNode): int =
