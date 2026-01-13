@@ -58,6 +58,13 @@ type
     line*: int
     col*: int
 
+proc raiseParseError(msg: string, line, col: int) {.noreturn.} =
+  ## Raise a ParseError with line and column information
+  var err = newException(ParseError, msg)
+  err.line = line
+  err.col = col
+  raise err
+
 proc initParser*(tokens: seq[Token]): Parser =
   ## Initialize a new parser
   result.tokens = tokens
@@ -81,10 +88,7 @@ proc expect(p: var Parser, kind: TokenKind): Token =
   ## Expect a specific token kind, raise error if not found
   let tok = p.advance()
   if tok.kind != kind:
-    var err = newException(ParseError, "Expected " & $kind & " but got " & $tok.kind)
-    err.line = tok.line
-    err.col = tok.col
-    raise err
+    raiseParseError("Expected " & $kind & " but got " & $tok.kind, tok.line, tok.col)
   return tok
 
 proc skipNewlines(p: var Parser) =
@@ -107,10 +111,7 @@ proc parseString(p: var Parser): string =
     discard p.advance()
     return tok.value
   else:
-    var err = newException(ParseError, "Expected string but got " & $tok.kind)
-    err.line = tok.line
-    err.col = tok.col
-    raise err
+    raiseParseError("Expected string but got " & $tok.kind, tok.line, tok.col)
 
 proc parseStringValue(p: var Parser): string =
   ## Parse a string value, concatenating multiple unquoted tokens
@@ -147,10 +148,8 @@ proc parseListItems(p: var Parser): seq[string] =
   while p.peek().kind == tkDash:
     itemCount += 1
     if itemCount > maxItems:
-      var err = newException(ParseError, "List exceeded maximum items - possible infinite loop")
-      err.line = p.peek().line
-      err.col = p.peek().col
-      raise err
+      raiseParseError("List exceeded maximum items - possible infinite loop",
+          p.peek().line, p.peek().col)
     discard p.advance() # Skip -
     p.skipNewlines()
     result.add(p.parseStringValue())
@@ -172,10 +171,7 @@ proc parseVariableDeclaration(p: var Parser): AstNode =
     op = opRemove
     discard p.advance()
   else:
-    var err = newException(ParseError, "Expected :, +: or -: but got " & $opTok.kind)
-    err.line = opTok.line
-    err.col = opTok.col
-    raise err
+    raiseParseError("Expected :, +: or -: but got " & $opTok.kind, opTok.line, opTok.col)
 
   p.skipNewlines()
 
@@ -235,10 +231,8 @@ proc parseExecCommand(p: var Parser): string =
     discard p.advance()
     return tok.value
   else:
-    var err = newException(ParseError, "Expected string for exec command but got " & $tok.kind)
-    err.line = tok.line
-    err.col = tok.col
-    raise err
+    raiseParseError("Expected string for exec command but got " & $tok.kind,
+        tok.line, tok.col)
 
 proc parseExpression(p: var Parser): string =
   ## Parse an expression (for conditions, arguments, etc.)
@@ -249,10 +243,8 @@ proc parseExpression(p: var Parser): string =
   while true:
     iterations += 1
     if iterations > maxIterations:
-      var err = newException(ParseError, "Expression parsing exceeded maximum iterations - possible infinite loop")
-      err.line = p.peek().line
-      err.col = p.peek().col
-      raise err
+      raiseParseError("Expression parsing exceeded maximum iterations - possible infinite loop",
+          p.peek().line, p.peek().col)
 
     let tok = p.peek()
     case tok.kind
@@ -287,10 +279,8 @@ proc parseExpression(p: var Parser): string =
           while p.peek().kind != tkRBrace and p.peek().kind != tkEof:
             manipIterations += 1
             if manipIterations > maxIterations:
-              var err = newException(ParseError, "Variable manipulation parsing exceeded maximum iterations")
-              err.line = p.peek().line
-              err.col = p.peek().col
-              raise err
+              raiseParseError("Variable manipulation parsing exceeded maximum iterations",
+                  p.peek().line, p.peek().col)
             parts.add(p.advance().value)
         else:
           parts.add("${" & baseExpr)
@@ -347,10 +337,8 @@ proc parseCondition(p: var Parser): string =
   while true:
     iterations += 1
     if iterations > maxIterations:
-      var err = newException(ParseError, "Condition parsing exceeded maximum iterations")
-      err.line = p.peek().line
-      err.col = p.peek().col
-      raise err
+      raiseParseError("Condition parsing exceeded maximum iterations",
+          p.peek().line, p.peek().col)
 
     let tok = p.peek()
     case tok.kind
@@ -381,10 +369,8 @@ proc parseCondition(p: var Parser): string =
           while p.peek().kind != tkRBrace and p.peek().kind != tkEof:
             manipIterations += 1
             if manipIterations > maxIterations:
-              var err = newException(ParseError, "Variable manipulation parsing exceeded maximum iterations")
-              err.line = p.peek().line
-              err.col = p.peek().col
-              raise err
+              raiseParseError("Variable manipulation parsing exceeded maximum iterations",
+                  p.peek().line, p.peek().col)
             parts.add(p.advance().value)
         else:
           parts.add("${" & baseExpr)
@@ -436,10 +422,8 @@ proc parseMacroArgValue(p: var Parser): string =
   while p.peek().kind notin {tkNewline, tkRBrace, tkEof}:
     iterations += 1
     if iterations > maxIterations:
-      var err = newException(ParseError, "Macro argument value parsing exceeded maximum iterations")
-      err.line = p.peek().line
-      err.col = p.peek().col
-      raise err
+      raiseParseError("Macro argument value parsing exceeded maximum iterations",
+          p.peek().line, p.peek().col)
 
     let tok = p.peek()
 
@@ -534,10 +518,8 @@ proc parseSingleTokenOrVar(p: var Parser): string =
         while p.peek().kind != tkRBrace and p.peek().kind != tkEof:
           iterations += 1
           if iterations > maxIterations:
-            var err = newException(ParseError, "Variable manipulation exceeded maximum iterations")
-            err.line = p.peek().line
-            err.col = p.peek().col
-            raise err
+            raiseParseError("Variable manipulation exceeded maximum iterations",
+                p.peek().line, p.peek().col)
           res.add(p.advance().value)
       discard p.expect(tkRBrace)
       res.add("}")
@@ -546,11 +528,146 @@ proc parseSingleTokenOrVar(p: var Parser): string =
       let varName = p.expect(tkIdentifier).value
       return "$" & varName
   else:
-    var err = newException(ParseError, "Expected string, identifier or variable, got " &
-        $tok.kind & " '" & tok.value & "'")
-    err.line = tok.line
-    err.col = tok.col
-    raise err
+    raiseParseError("Expected string, identifier or variable, got " &
+        $tok.kind & " '" & tok.value & "'", tok.line, tok.col)
+
+# Forward declaration for mutual recursion
+proc parseStatement(p: var Parser): AstNode
+
+proc parseStatementBlock(p: var Parser, blockName: string): seq[AstNode] =
+  ## Parse a block of statements until }
+  ## Used by if, for, and function body parsing
+  result = @[]
+  var stmtCount = 0
+  while p.peek().kind != tkRBrace and p.peek().kind != tkEof:
+    stmtCount += 1
+    if stmtCount > maxStatements:
+      raiseParseError(blockName & " exceeded maximum statements - possible infinite loop",
+          p.peek().line, p.peek().col)
+    result.add(p.parseStatement())
+    p.skipCommentsAndNewlines()
+
+proc parseMacroStatement(p: var Parser, line: int): AstNode =
+  ## Parse a macro statement: macro name --flag1 --flag2=value arg1
+  let macroName = p.expect(tkIdentifier).value
+  var args: seq[string] = @[]
+
+  # Parse macro arguments until newline or }
+  # Supports: positional args, variable refs (${var}), -flag and --flag style args
+  var argCount = 0
+  while p.peek().kind notin {tkNewline, tkRBrace, tkEof}:
+    argCount += 1
+    if argCount > maxArgs:
+      raiseParseError("Macro exceeded maximum arguments", p.peek().line, p.peek().col)
+
+    let currentTok = p.peek()
+
+    # Handle --flag and --flag=value style arguments
+    if currentTok.kind == tkDash and p.peek(1).kind == tkDash:
+      discard p.advance() # First -
+      discard p.advance() # Second -
+      let argName = p.parseMacroFlagName()
+      var argValue = argName
+      if p.peek().kind == tkEquals:
+        discard p.advance()
+        argValue = argName & "=" & p.parseMacroArgValue()
+      args.add("--" & argValue)
+    # Handle -flag and -flag=value or -flagVALUE style arguments (single dash)
+    elif currentTok.kind == tkDash:
+      discard p.advance() # Single -
+      # Read the flag and any attached value (like -j4 or -O2)
+      let flagArg = p.parseMacroArgValue()
+      args.add("-" & flagArg)
+    # Handle variable references and other expressions (including compound args like install.prefix=/usr)
+    elif currentTok.kind in {tkDollar, tkString, tkIdentifier, tkNumber}:
+      # Use parseMacroArgValue to handle compound expressions with dots, equals, etc.
+      args.add(p.parseMacroArgValue())
+    # Handle dots at start of path (like ../foo or ./bar)
+    elif currentTok.kind == tkDot:
+      args.add(p.parseMacroArgValue())
+    else:
+      # Unknown token type in macro args - skip it to avoid infinite loop
+      raiseParseError("Unexpected token in macro arguments: " &
+          $currentTok.kind & " '" &currentTok.value & "'", currentTok.line,
+              currentTok.col)
+
+  return newMacroNode(macroName, args, line)
+
+proc parseIfStatement(p: var Parser, line: int): AstNode =
+  ## Parse an if statement: if condition { } else { }
+  let condition = p.parseCondition()
+  discard p.expect(tkLBrace)
+  p.skipNewlines()
+
+  let thenBranch = p.parseStatementBlock("If body")
+  discard p.expect(tkRBrace)
+
+  var elseBranch: seq[AstNode] = @[]
+  p.skipNewlines()
+  if p.peek().kind == tkElse:
+    discard p.advance()
+    discard p.expect(tkLBrace)
+    p.skipNewlines()
+    elseBranch = p.parseStatementBlock("Else body")
+    discard p.expect(tkRBrace)
+
+  return newIfNode(condition, thenBranch, elseBranch, line)
+
+proc parseForStatement(p: var Parser, line: int): AstNode =
+  ## Parse a for loop: for var in list { }
+  let iterVar = p.expect(tkIdentifier).value
+  discard p.expect(tkIn)
+
+  # Check if it's an inline list literal, variable expression, or variable name
+  var listVar = ""
+  var listLiteral: seq[string] = @[]
+
+  if p.peek().kind == tkLBracket:
+    # Inline list literal: ["item1", "item2", ...]
+    discard p.advance() # Skip [
+    p.skipNewlines()
+    while p.peek().kind != tkRBracket and p.peek().kind != tkEof:
+      listLiteral.add(p.parseString())
+      p.skipNewlines()
+      if p.peek().kind == tkComma:
+        discard p.advance() # Skip comma
+        p.skipNewlines()
+    discard p.expect(tkRBracket)
+  elif p.peek().kind == tkDollar or p.peek().kind == tkString:
+    # Variable expression: ${expr} or "$expr" - store as listVar for runtime resolution
+    listVar = p.parseSingleTokenOrVar()
+  else:
+    # Plain variable name
+    listVar = p.expect(tkIdentifier).value
+
+  discard p.expect(tkLBrace)
+  p.skipNewlines()
+
+  let body = p.parseStatementBlock("For body")
+  discard p.expect(tkRBrace)
+
+  return newForNode(iterVar, listVar, body, line, listLiteral)
+
+proc parseFuncCallStatement(p: var Parser, name: string, line: int): AstNode =
+  ## Parse a function call: funcname arg1 arg2
+  var args: seq[string] = @[]
+  var argCount = 0
+  while p.peek().kind notin {tkNewline, tkRBrace, tkEof}:
+    argCount += 1
+    if argCount > maxArgs:
+      raiseParseError("Function call exceeded maximum arguments - possible parse error at token: " &
+          $p.peek().kind, p.peek().line, p.peek().col)
+    let startPos = p.pos
+    let expr = p.parseExpression()
+    # If parseExpression didn't consume anything and returned empty, we're stuck
+    if p.pos == startPos and expr.len == 0:
+      raiseParseError("Unexpected token in function call arguments: " & $p.peek(
+          ).kind &" '" & p.peek().value & "'", p.peek().line, p.peek().col)
+    if expr.len > 0:
+      args.add(expr)
+    if p.peek().kind == tkNewline or p.peek().kind == tkRBrace:
+      break
+  return newFuncCallNode(name, args, line)
 
 proc parseStatement(p: var Parser): AstNode =
   ## Parse a single statement inside a function
@@ -560,187 +677,55 @@ proc parseStatement(p: var Parser): AstNode =
   case tok.kind
   of tkExec:
     discard p.advance()
-    let cmd = p.parseExecCommand()
-    return newExecNode(cmd, tok.line)
+    return newExecNode(p.parseExecCommand(), tok.line)
 
   of tkMacro:
     discard p.advance()
-    let macroName = p.expect(tkIdentifier).value
-    var args: seq[string] = @[]
-
-    # Parse macro arguments until newline or }
-    # Supports: positional args, variable refs (${var}), -flag and --flag style args
-    var argCount = 0
-    while p.peek().kind notin {tkNewline, tkRBrace, tkEof}:
-      argCount += 1
-      if argCount > maxArgs:
-        var err = newException(ParseError, "Macro exceeded maximum arguments")
-        err.line = p.peek().line
-        err.col = p.peek().col
-        raise err
-
-      let currentTok = p.peek()
-
-      # Handle --flag and --flag=value style arguments
-      if currentTok.kind == tkDash and p.peek(1).kind == tkDash:
-        discard p.advance() # First -
-        discard p.advance() # Second -
-        let argName = p.parseMacroFlagName()
-        var argValue = argName
-        if p.peek().kind == tkEquals:
-          discard p.advance()
-          argValue = argName & "=" & p.parseMacroArgValue()
-        args.add("--" & argValue)
-      # Handle -flag and -flag=value or -flagVALUE style arguments (single dash)
-      elif currentTok.kind == tkDash:
-        discard p.advance() # Single -
-        # Read the flag and any attached value (like -j4 or -O2)
-        let flagArg = p.parseMacroArgValue()
-        args.add("-" & flagArg)
-      # Handle variable references and other expressions (including compound args like install.prefix=/usr)
-      elif currentTok.kind in {tkDollar, tkString, tkIdentifier, tkNumber}:
-        # Use parseMacroArgValue to handle compound expressions with dots, equals, etc.
-        args.add(p.parseMacroArgValue())
-      # Handle dots at start of path (like ../foo or ./bar)
-      elif currentTok.kind == tkDot:
-        args.add(p.parseMacroArgValue())
-      else:
-        # Unknown token type in macro args - skip it to avoid infinite loop
-        var err = newException(ParseError,
-            "Unexpected token in macro arguments: " & $currentTok.kind & " '" &
-            currentTok.value & "'")
-        err.line = currentTok.line
-        err.col = currentTok.col
-        raise err
-
-    return newMacroNode(macroName, args, tok.line)
+    return p.parseMacroStatement(tok.line)
 
   of tkPrint, tkEcho:
     discard p.advance()
-    let text = p.parseExpression()
-    return newPrintNode(text, tok.line)
+    return newPrintNode(p.parseExpression(), tok.line)
 
   of tkCd:
     discard p.advance()
-    let path = p.parseExpression()
-    return newCdNode(path, tok.line)
+    return newCdNode(p.parseExpression(), tok.line)
 
   of tkEnv:
     discard p.advance()
     let varName = p.expect(tkIdentifier).value
     discard p.expect(tkEquals)
-    let value = p.parseExpression()
-    return newEnvNode(varName, value, tok.line)
+    return newEnvNode(varName, p.parseExpression(), tok.line)
 
   of tkLocal:
     discard p.advance()
     let varName = p.expect(tkIdentifier).value
     discard p.expect(tkEquals)
-    let value = p.parseExpression()
-    return newLocalNode(varName, value, tok.line)
+    return newLocalNode(varName, p.parseExpression(), tok.line)
 
   of tkGlobal:
     discard p.advance()
     let varName = p.expect(tkIdentifier).value
     discard p.expect(tkEquals)
-    let value = p.parseExpression()
-    return newGlobalNode(varName, value, tok.line)
+    return newGlobalNode(varName, p.parseExpression(), tok.line)
 
   of tkWrite:
     discard p.advance()
     let path = p.parseSingleTokenOrVar()
-    let content = p.parseExpression()
-    return newWriteNode(path, content, tok.line)
+    return newWriteNode(path, p.parseExpression(), tok.line)
 
   of tkAppend:
     discard p.advance()
     let path = p.parseSingleTokenOrVar()
-    let content = p.parseExpression()
-    return newAppendNode(path, content, tok.line)
+    return newAppendNode(path, p.parseExpression(), tok.line)
 
   of tkIf:
     discard p.advance()
-    let condition = p.parseCondition()
-    discard p.expect(tkLBrace)
-    p.skipNewlines()
-
-    var thenBranch: seq[AstNode] = @[]
-    var stmtCount = 0
-    while p.peek().kind != tkRBrace and p.peek().kind != tkEof:
-      stmtCount += 1
-      if stmtCount > maxStatements:
-        var err = newException(ParseError, "If body exceeded maximum statements - possible infinite loop")
-        err.line = p.peek().line
-        err.col = p.peek().col
-        raise err
-      thenBranch.add(p.parseStatement())
-      p.skipCommentsAndNewlines()
-    discard p.expect(tkRBrace)
-
-    var elseBranch: seq[AstNode] = @[]
-    p.skipNewlines()
-    if p.peek().kind == tkElse:
-      discard p.advance()
-      discard p.expect(tkLBrace)
-      p.skipNewlines()
-      stmtCount = 0
-      while p.peek().kind != tkRBrace and p.peek().kind != tkEof:
-        stmtCount += 1
-        if stmtCount > maxStatements:
-          var err = newException(ParseError, "Else body exceeded maximum statements - possible infinite loop")
-          err.line = p.peek().line
-          err.col = p.peek().col
-          raise err
-        elseBranch.add(p.parseStatement())
-        p.skipCommentsAndNewlines()
-      discard p.expect(tkRBrace)
-
-    return newIfNode(condition, thenBranch, elseBranch, tok.line)
+    return p.parseIfStatement(tok.line)
 
   of tkFor:
     discard p.advance()
-    let iterVar = p.expect(tkIdentifier).value
-    discard p.expect(tkIn)
-
-    # Check if it's an inline list literal, variable expression, or variable name
-    var listVar = ""
-    var listLiteral: seq[string] = @[]
-
-    if p.peek().kind == tkLBracket:
-      # Inline list literal: ["item1", "item2", ...]
-      discard p.advance() # Skip [
-      p.skipNewlines()
-      while p.peek().kind != tkRBracket and p.peek().kind != tkEof:
-        listLiteral.add(p.parseString())
-        p.skipNewlines()
-        if p.peek().kind == tkComma:
-          discard p.advance() # Skip comma
-          p.skipNewlines()
-      discard p.expect(tkRBracket)
-    elif p.peek().kind == tkDollar or p.peek().kind == tkString:
-      # Variable expression: ${expr} or "$expr" - store as listVar for runtime resolution
-      listVar = p.parseSingleTokenOrVar()
-    else:
-      # Plain variable name
-      listVar = p.expect(tkIdentifier).value
-
-    discard p.expect(tkLBrace)
-    p.skipNewlines()
-
-    var body: seq[AstNode] = @[]
-    var forStmtCount = 0
-    while p.peek().kind != tkRBrace and p.peek().kind != tkEof:
-      forStmtCount += 1
-      if forStmtCount > maxStatements:
-        var err = newException(ParseError, "For body exceeded maximum statements - possible infinite loop")
-        err.line = p.peek().line
-        err.col = p.peek().col
-        raise err
-      body.add(p.parseStatement())
-      p.skipCommentsAndNewlines()
-    discard p.expect(tkRBrace)
-
-    return newForNode(iterVar, listVar, body, tok.line, listLiteral)
+    return p.parseForStatement(tok.line)
 
   of tkContinue:
     discard p.advance()
@@ -753,60 +738,18 @@ proc parseStatement(p: var Parser): AstNode =
   of tkIdentifier:
     # Could be a custom function call
     let name = p.advance().value
-    var args: seq[string] = @[]
-    # Parse arguments until newline or }
-    var argCount = 0
-    while p.peek().kind notin {tkNewline, tkRBrace, tkEof}:
-      argCount += 1
-      if argCount > maxArgs:
-        var err = newException(ParseError,
-            "Function call exceeded maximum arguments - possible parse error at token: " &
-            $p.peek().kind)
-        err.line = p.peek().line
-        err.col = p.peek().col
-        raise err
-      let startPos = p.pos
-      let expr = p.parseExpression()
-      # If parseExpression didn't consume anything and returned empty, we're stuck
-      if p.pos == startPos and expr.len == 0:
-        var err = newException(ParseError,
-            "Unexpected token in function call arguments: " & $p.peek().kind &
-            " '" & p.peek().value & "'")
-        err.line = p.peek().line
-        err.col = p.peek().col
-        raise err
-      if expr.len > 0:
-        args.add(expr)
-      if p.peek().kind == tkNewline or p.peek().kind == tkRBrace:
-        break
-    return newFuncCallNode(name, args, tok.line)
+    return p.parseFuncCallStatement(name, tok.line)
 
   else:
     # Unknown token - report error with location
-    var err = newException(ParseError, "Unexpected token at start of statement: " &
-        $tok.kind & " '" & tok.value & "'")
-    err.line = tok.line
-    err.col = tok.col
-    raise err
+    raiseParseError("Unexpected token at start of statement: " &
+        $tok.kind & " '" & tok.value & "'", tok.line, tok.col)
 
 proc parseFunctionBody(p: var Parser): seq[AstNode] =
   ## Parse a function body (statements between { })
-  result = @[]
   discard p.expect(tkLBrace)
   p.skipNewlines()
-
-  var stmtCount = 0
-
-  while p.peek().kind != tkRBrace and p.peek().kind != tkEof:
-    stmtCount += 1
-    if stmtCount > maxStatements:
-      var err = newException(ParseError, "Function body exceeded maximum statements - possible infinite loop")
-      err.line = p.peek().line
-      err.col = p.peek().col
-      raise err
-    result.add(p.parseStatement())
-    p.skipCommentsAndNewlines()
-
+  result = p.parseStatementBlock("Function body")
   discard p.expect(tkRBrace)
 
 proc parseFunction(p: var Parser, isCustom: bool = false): AstNode =

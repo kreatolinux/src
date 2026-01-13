@@ -162,16 +162,9 @@ proc resolveManipulationWithTable(vars: Table[string, VarValue], expr: string): 
 
     return val.toString()
 
-proc resolveManipulation(rf: Run3File, expr: string): string =
-    ## Resolve a complex variable manipulation expression
-    resolveManipulationWithTable(rf.getAllVariablesRaw(), expr)
-
-proc substituteVariables*(rf: Run3File, value: string): string =
-    ## Substitute $variable and ${variable} references in a string
-    ## Substitutes all variables defined in the runfile
-    ## Handles complex expressions like ${version.split('.')[0:2].join('.')}
-    let allVars = rf.getAllVariablesRaw()
-
+proc substituteVariablesWithTable(rf: Run3File, vars: Table[string, VarValue], value: string): string =
+    ## Core variable substitution logic using a provided variables table
+    ## Handles complex ${...} expressions and simple $variable references
     result = value
 
     # First, handle complex ${...} expressions that contain method calls or indexing
@@ -192,7 +185,7 @@ proc substituteVariables*(rf: Run3File, value: string): string =
                 let varExpr = result[i+2..<j-1]
                 # Check if it contains method calls or indexing
                 if '.' in varExpr or '[' in varExpr:
-                    let resolvedValue = rf.resolveManipulation(varExpr)
+                    let resolvedValue = resolveManipulationWithTable(vars, varExpr)
                     result = result[0..<i] & resolvedValue & result[j..^1]
                     i += resolvedValue.len
                 else:
@@ -204,13 +197,13 @@ proc substituteVariables*(rf: Run3File, value: string): string =
             i += 1
 
     # Replace ${variable} style references (simple ones remaining)
-    for varName, varValue in allVars:
+    for varName, varValue in vars:
         let valStr = varValue.toString()
         result = result.replace("${" & varName & "}", valStr)
         result = result.replace("${" & varName.toUpperAscii() & "}", valStr)
 
     # Replace $variable style references (case variations)
-    for varName, varValue in allVars:
+    for varName, varValue in vars:
         let valStr = varValue.toString()
         result = result.replace("$" & varName, valStr)
         result = result.replace("$" & varName.toUpperAscii(), valStr)
@@ -218,6 +211,16 @@ proc substituteVariables*(rf: Run3File, value: string): string =
         if varName.len > 0:
             let capitalized = varName[0].toUpperAscii() & varName[1..^1]
             result = result.replace("$" & capitalized, valStr)
+
+proc resolveManipulation(rf: Run3File, expr: string): string =
+    ## Resolve a complex variable manipulation expression
+    resolveManipulationWithTable(rf.getAllVariablesRaw(), expr)
+
+proc substituteVariables*(rf: Run3File, value: string): string =
+    ## Substitute $variable and ${variable} references in a string
+    ## Substitutes all variables defined in the runfile
+    ## Handles complex expressions like ${version.split('.')[0:2].join('.')}
+    rf.substituteVariablesWithTable(rf.getAllVariablesRaw(), value)
 
 proc getVariable*(rf: Run3File, name: string): string =
     ## Get a variable value from the parsed runfile (with substitution)
@@ -338,62 +341,9 @@ proc getSourcesRaw*(rf: Run3File): seq[string] =
 proc substituteVariablesWithVersion*(rf: Run3File, value: string, newVersion: string): string =
     ## Substitute variables in a string, but override the version variable with newVersion
     ## This is useful for autoupdating source URLs with a new version
-    let allVars = rf.getAllVariablesRaw()
-    
-    # Create a modified copy with the new version
-    var modifiedVars = initTable[string, VarValue]()
-    for varName, varValue in allVars:
-        if varName == "version":
-            modifiedVars[varName] = newStringValue(newVersion)
-        else:
-            modifiedVars[varName] = varValue
-    
-    result = value
-    
-    # First, handle complex ${...} expressions that contain method calls or indexing
-    var i = 0
-    while i < result.len:
-        if i < result.len - 1 and result[i] == '$' and result[i+1] == '{':
-            # Find the closing }
-            var j = i + 2
-            var braceCount = 1
-            while j < result.len and braceCount > 0:
-                if result[j] == '{':
-                    braceCount += 1
-                elif result[j] == '}':
-                    braceCount -= 1
-                j += 1
-            
-            if braceCount == 0:
-                let varExpr = result[i+2..<j-1]
-                # Check if it contains method calls or indexing
-                if '.' in varExpr or '[' in varExpr:
-                    let resolvedValue = resolveManipulationWithTable(modifiedVars, varExpr)
-                    result = result[0..<i] & resolvedValue & result[j..^1]
-                    i += resolvedValue.len
-                else:
-                    # Simple variable reference, handle below
-                    i += 1
-            else:
-                i += 1
-        else:
-            i += 1
-    
-    # Replace ${variable} style references (simple ones remaining)
-    for varName, varValue in modifiedVars:
-        let valStr = varValue.toString()
-        result = result.replace("${" & varName & "}", valStr)
-        result = result.replace("${" & varName.toUpperAscii() & "}", valStr)
-    
-    # Replace $variable style references (case variations)
-    for varName, varValue in modifiedVars:
-        let valStr = varValue.toString()
-        result = result.replace("$" & varName, valStr)
-        result = result.replace("$" & varName.toUpperAscii(), valStr)
-        # Also handle capitalized version
-        if varName.len > 0:
-            let capitalized = varName[0].toUpperAscii() & varName[1..^1]
-            result = result.replace("$" & capitalized, valStr)
+    var modifiedVars = rf.getAllVariablesRaw()
+    modifiedVars["version"] = newStringValue(newVersion)
+    rf.substituteVariablesWithTable(modifiedVars, value)
 
 proc getSourcesWithVersion*(rf: Run3File, newVersion: string): seq[string] =
     ## Get the package sources with a different version substituted
@@ -428,7 +378,7 @@ proc getExtract*(rf: Run3File): bool =
     let extract = rf.getVariable("extract")
     if extract == "":
         return true # Default
-    return extract.toLowerAscii() in ["true", "1", "yes", "y", "on"]
+    return isTrueBoolean(extract)
 
 proc getAutocd*(rf: Run3File): bool =
     ## Get the autocd flag
@@ -440,10 +390,10 @@ proc getAutocd*(rf: Run3File): bool =
     if autocd == "":
         # If autocd not set, default based on extract setting
         # If extract is explicitly false, autocd defaults to false
-        if extract != "" and extract.toLowerAscii() notin ["true", "1", "yes", "y", "on"]:
+        if extract != "" and not isTrueBoolean(extract):
             return false
         return true # Default
-    return autocd.toLowerAscii() in ["true", "1", "yes", "y", "on"]
+    return isTrueBoolean(autocd)
 
 proc getVersionString*(rf: Run3File): string =
     ## Get the full version string (version-release or version-release-epoch)

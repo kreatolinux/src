@@ -4,6 +4,7 @@
 import os
 import strutils
 import builtins
+import utils
 
 const run3NoLibArchive* = defined(run3NoLibArchive)
 
@@ -46,7 +47,7 @@ proc parseMacroArgs*(args: seq[string]): tuple[buildSystem: BuildSystem,
             of "autotools", "configure":
                 result.buildSystem = bsAutotools
             of "autocd":
-                result.autocd = argValue.toLowerAscii() in ["true", "1", "yes", "y"]
+                result.autocd = isTrueBoolean(argValue)
             of "prefix":
                 result.prefix = argValue
             else:
