@@ -212,10 +212,6 @@ proc substituteVariablesWithTable(rf: Run3File, vars: Table[string, VarValue], v
             let capitalized = varName[0].toUpperAscii() & varName[1..^1]
             result = result.replace("$" & capitalized, valStr)
 
-proc resolveManipulation(rf: Run3File, expr: string): string =
-    ## Resolve a complex variable manipulation expression
-    resolveManipulationWithTable(rf.getAllVariablesRaw(), expr)
-
 proc substituteVariables*(rf: Run3File, value: string): string =
     ## Substitute $variable and ${variable} references in a string
     ## Substitutes all variables defined in the runfile
