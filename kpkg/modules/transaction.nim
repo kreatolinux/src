@@ -192,7 +192,15 @@ proc backupFile*(tx: Transaction, originalPath: string): string =
     return ""
 
   let backupPath = tx.getBackupPath(originalPath)
-  let backupDir = parentDir(backupPath)
+
+  # For symlinks, use a .symlink suffix to avoid conflicts with directories
+  # This can happen when a package contains both a symlink (e.g., /usr/sbin -> /sbin)
+  # and files inside that path (e.g., /usr/sbin/unix_chkpwd)
+  var actualBackupPath = backupPath
+  if symlinkExists(originalPath):
+    actualBackupPath = backupPath & ".symlink"
+
+  let backupDir = parentDir(actualBackupPath)
 
   if not dirExists(backupDir):
     createDir(backupDir)
@@ -201,19 +209,19 @@ proc backupFile*(tx: Transaction, originalPath: string): string =
   # The original will be overwritten/removed later
 
   # Remove existing backup if it exists (handles re-runs or conflicts)
-  if fileExists(backupPath) or symlinkExists(backupPath):
-    removeFile(backupPath)
+  if fileExists(actualBackupPath) or symlinkExists(actualBackupPath):
+    removeFile(actualBackupPath)
 
   if symlinkExists(originalPath):
     let target = expandSymlink(originalPath)
-    createSymlink(target, backupPath)
+    createSymlink(target, actualBackupPath)
   else:
-    copyFile(originalPath, backupPath)
+    copyFile(originalPath, actualBackupPath)
     # Preserve permissions
-    setFilePermissions(backupPath, getFilePermissions(originalPath))
+    setFilePermissions(actualBackupPath, getFilePermissions(originalPath))
 
-  debug "Backed up: " & originalPath & " -> " & backupPath
-  return backupPath
+  debug "Backed up: " & originalPath & " -> " & actualBackupPath
+  return actualBackupPath
 
 proc isEmptyDir(path: string): bool =
   ## Check if a directory is empty
@@ -249,8 +257,9 @@ proc rollback*(tx: Transaction) =
 
       of opFileReplaced:
         # Restore from backup
-        if op.backupPath != "" and fileExists(op.backupPath):
-          if fileExists(op.path):
+        if op.backupPath != "" and (fileExists(op.backupPath) or symlinkExists(
+            op.backupPath)):
+          if fileExists(op.path) or symlinkExists(op.path):
             removeFile(op.path)
           let destDir = parentDir(op.path)
           if not dirExists(destDir):
@@ -260,7 +269,10 @@ proc rollback*(tx: Transaction) =
 
       of opFileDeleted:
         # Restore from backup
-        if op.backupPath != "" and fileExists(op.backupPath):
+        if op.backupPath != "" and (fileExists(op.backupPath) or symlinkExists(
+            op.backupPath)):
+          if fileExists(op.path) or symlinkExists(op.path):
+            removeFile(op.path)
           let destDir = parentDir(op.path)
           if not dirExists(destDir):
             createDir(destDir)
