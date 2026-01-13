@@ -199,6 +199,11 @@ proc backupFile*(tx: Transaction, originalPath: string): string =
 
   # Use copy instead of move to preserve the original during installation
   # The original will be overwritten/removed later
+
+  # Remove existing backup if it exists (handles re-runs or conflicts)
+  if fileExists(backupPath) or symlinkExists(backupPath):
+    removeFile(backupPath)
+
   if symlinkExists(originalPath):
     let target = expandSymlink(originalPath)
     createSymlink(target, backupPath)
