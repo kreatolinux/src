@@ -83,7 +83,7 @@ proc installFromRootInternal(package, root, destdir: string,
 
     if not (fileExists(root&"/"&listFilesSplitted) or dirExists(
             root&"/"&listFilesSplitted)):
-      debug "file: \""&listFilesSplitted&"\", package: \""&package&"\""
+      #debug "file: \""&listFilesSplitted&"\", package: \""&package&"\""
       when defined(release):
         info "removing unfinished environment"
         removeDir(destdir)
@@ -93,7 +93,7 @@ proc installFromRootInternal(package, root, destdir: string,
     if dirExists(root&"/"&listFilesSplitted) and not symlinkExists(
             root&"/"&listFilesSplitted):
       let dirPath = destdir&"/"&relativePath(root&"/"&listFilesSplitted, root)
-      debug "Installing directory: "&listFilesSplitted
+      #debug "Installing directory: "&listFilesSplitted
       createDirWithPermissionsAndOwnership(root&"/"&listFilesSplitted, dirPath)
       continue
 
@@ -107,7 +107,7 @@ proc installFromRootInternal(package, root, destdir: string,
         createDirWithPermissionsAndOwnership(
                 root&"/"&listFilesSplitted.parentDir(), dirPath)
 
-      debug "Installing file: "&listFilesSplitted
+      #debug "Installing file: "&listFilesSplitted
       copyFileWithPermissionsAndOwnership(root&"/"&listFilesSplitted,
               destdir&"/"&relativePath(listFilesSplitted, root))
   newPackageFromRoot(root, package, destdir)
