@@ -77,6 +77,14 @@ proc rootCheck(root: string) =
 
   if firstTime:
     kpkgDb.createTables(newFileInternal())
+  else:
+    # Handle schema migrations for existing databases
+    # Check if license column exists, if not add it
+    try:
+      kpkgDb.exec(sql"SELECT license FROM Package LIMIT 1")
+    except DbError:
+      debug "Adding missing 'license' column to Package table"
+      kpkgDb.exec(sql"ALTER TABLE Package ADD COLUMN license TEXT NOT NULL DEFAULT ''")
 
 
 proc beginTransaction*(root: string) =
