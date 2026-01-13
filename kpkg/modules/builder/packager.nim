@@ -77,6 +77,4 @@ proc createPackage*(actualPackage: string, pkg: runFile,
   except LibarchiveError as e:
     error "creating binary tarball failed: " & e.msg
 
-  #writeFile(tarball&".sum.b2", getSum(tarball, "b2"))
-
   return tarball

@@ -1,135 +1,84 @@
 import os
-import posix
-import sets
 import tables
 import strutils
 import sequtils
-import parsecfg
 import installcmd
 import ../modules/sqlite
 import ../modules/logger
 import ../modules/config
 import ../modules/lockfile
-import ../modules/isolation
 import ../modules/runparser
-import ../modules/processes
 import ../modules/dephandler
 import ../modules/commonTasks
 import ../modules/commonPaths
 import ../modules/builder/main
+import ../modules/builder/types
+import ../modules/builder/cache
 import ../modules/builder/sources
+import ../modules/builder/context
 import ../modules/builder/packager
-import ../modules/run3/executor
-import ../modules/run3/run3
+import ../modules/builder/executor
+import ../modules/builder/environment
+import ../modules/builder/sandbox
 
-#import ../modules/crossCompilation
+proc builder*(cfg: BuildConfig): bool =
+  ## Builds a package using the provided configuration.
+  ##
+  ## This is the main entry point for building a single package.
+  ## It handles: path resolution, runfile parsing, cache checking,
+  ## source downloading, environment setup, build execution, and packaging.
 
-# proc fakerootWrap removed - replaced by run3 executor
+  var cfg = cfg # Make mutable copy
 
-proc builder*(package: string, destdir: string, offline = false,
-            dontInstall = false, useCacheIfAvailable = false,
-                    tests = false, manualInstallList: seq[string],
-                            customRepo = "", isInstallDir = false,
-                            isUpgrade = false, target = "default",
-                            actualRoot = "default", ignorePostInstall = false,
-                            noSandbox = false, ignoreTarget = false,
-                            ignoreUseCacheIfAvailable = @[""],
-                            isBootstrap = false): bool =
-  ## Builds the packages.
+  debug "builder ran, package: '" & cfg.package & "', destdir: '" & cfg.destdir & "' root: '" & kpkgSrcDir & "', useCacheIfAvailable: '" & (
+          $cfg.useCacheIfAvailable) & "'"
 
-  debug "builder ran, package: '"&package&"', destdir: '"&destdir&"' root: '"&kpkgSrcDir&"', useCacheIfAvailable: '"&(
-          $useCacheIfAvailable)&"'"
+  preliminaryChecks(cfg.target, cfg.actualRoot)
 
-
-  preliminaryChecks(target, actualRoot)
-
-  # Actual building start here
-
-  var repo: string
-
-  if not isEmptyOrWhitespace(customRepo):
-    debug "customRepo set to: '"&customRepo&"'"
-    repo = "/etc/kpkg/repos/"&customRepo
-  else:
-    debug "customRepo not set"
-    repo = findPkgRepo(package)
-
-  var path: string
-
-  if not dirExists(package) and isInstallDir:
-    error("package directory doesn't exist")
-    quit(1)
-
-  if isInstallDir:
-    debug "isInstallDir is turned on"
-    path = absolutePath(package)
-    repo = path.parentDir()
-  else:
-    path = repo&"/"&package
-
-  if not fileExists(path&"/run") and not fileExists(path&"/run3"):
-    error("runFile/run3File doesn't exist, cannot continue")
-    quit(1)
-
-  var actualPackage: string
-
-  if isInstallDir:
-    actualPackage = lastPathPart(package)
-  else:
-    actualPackage = package
+  # Resolve paths (repo, path, actualPackage)
+  resolvePaths(cfg, cfg.customRepo)
 
   # Remove directories if they exist
   removeDir(kpkgBuildRoot)
   removeDir(kpkgSrcDir)
 
-  let arch = getArch(target)
-  let kTarget = getKtarget(target, destdir)
+  cfg.arch = getArch(cfg.target)
+  cfg.kTarget = getKtarget(cfg.target, cfg.destdir)
 
-  initEnv(actualPackage, kTarget)
+  initEnv(cfg.actualPackage, cfg.kTarget)
 
   # Enter into the source directory
   setCurrentDir(kpkgSrcDir)
 
-  var pkg: runFile
-  try:
-    debug "parseRunfile ran from buildcmd"
-    pkg = runparser.parseRunfile(path)
-  except CatchableError:
-    error("Unknown error while trying to parse package on repository, possibly broken repo?")
-    quit(1)
+  # Initialize build state (parse runfile)
+  var state = initBuildState(cfg)
 
-  var override: Config
+  # Load override config
+  cfg.override = loadOverrideConfig(cfg.package)
 
-  if fileExists("/etc/kpkg/override/"&package&".conf"):
-    override = loadConfig("/etc/kpkg/override/"&package&".conf")
-  else:
-    override = newConfig() # So we don't get storage access errors
-
-  if fileExists(kpkgArchivesDir&"/system/"&kTarget&"/"&actualPackage&"-"&pkg.versionString&".kpkg") and
-          useCacheIfAvailable == true and dontInstall == false and not (
-          actualPackage in ignoreUseCacheIfAvailable):
-
+  # Check cache and install from it if available
+  if shouldInstallFromCache(cfg.toCacheConfig(), state.pkg):
     debug "Tarball (and the sum) already exists, going to install"
-    if destdir != "/" and target == "default":
-      installPkg(repo, actualPackage, "/", pkg, manualInstallList,
-              ignorePostInstall = ignorePostInstall) # Install package on root too
+    if cfg.destdir != "/" and cfg.target == "default":
+      installPkg(cfg.repo, cfg.actualPackage, "/", state.pkg, cfg.manualInstallList,
+              ignorePostInstall = cfg.ignorePostInstall)
 
-    if kTarget == kpkgTarget(destDir):
-      installPkg(repo, actualPackage, destdir, pkg, manualInstallList,
-              ignorePostInstall = ignorePostInstall)
+    if cfg.kTarget == kpkgTarget(cfg.destdir):
+      installPkg(cfg.repo, cfg.actualPackage, cfg.destdir, state.pkg, cfg.manualInstallList,
+              ignorePostInstall = cfg.ignorePostInstall)
     else:
-      info "the package target doesn't match the one on '"&destDir&"', skipping installation"
-    removeDir(kpkgBuildRoot)
-    removeDir(kpkgSrcDir)
-    removeLockfile()
+      info "the package target doesn't match the one on '" & cfg.destdir & "', skipping installation"
+
+    cleanupAfterCacheInstall()
     return true
 
   debug "Tarball (and the sum) doesn't exist, going to continue"
 
-  if pkg.isGroup:
+  # Handle group packages
+  if state.pkg.isGroup:
     debug "Package is a group package"
-    installPkg(repo, actualPackage, destdir, pkg, manualInstallList,
-            ignorePostInstall = ignorePostInstall)
+    installPkg(cfg.repo, cfg.actualPackage, cfg.destdir, state.pkg, cfg.manualInstallList,
+            ignorePostInstall = cfg.ignorePostInstall)
     removeDir(kpkgBuildRoot)
     removeDir(kpkgSrcDir)
     removeLockfile()
@@ -137,187 +86,43 @@ proc builder*(package: string, destdir: string, offline = false,
 
   createDir(kpkgTempDir2)
 
-  var exists = (
-          prepare: false,
-          package: false,
-          check: false,
-          packageInstall: false,
-          packageBuild: false,
-          build: false
-    )
+  # Detect which build functions exist
+  state.exists = detectBuildFunctions(state.pkg, cfg.actualPackage)
 
-  for i in pkg.functions:
-    debug "now checking out '"&i.name&"'"
-    case i.name
-    of "prepare":
-      exists.prepare = true
-    of "package":
-      exists.package = true
-    of "check":
-      exists.check = true
-    of "build":
-      exists.build = true
+  # Download and extract sources
+  sourceDownloader(state.pkg, cfg.actualPackage, kpkgSrcDir, cfg.path)
 
-    if "package_"&replace(actualPackage, '-', '_') == i.name:
-      exists.packageInstall = true
+  # Set ownership and count folders
+  (state.amountOfFolders, state.folder) = countAndFindSourceFolders(kpkgSrcDir)
+  setSourceOwnership(kpkgSrcDir)
 
-    if "build_"&replace(actualPackage, '-', '_') == i.name:
-      exists.packageBuild = true
+  # Resolve source directory (handle autocd)
+  cfg.srcDir = resolveSourceDir(state.pkg, kpkgSrcDir, state.folder,
+      state.amountOfFolders)
 
+  # Initialize environment variables
+  state.envVars = initBuildEnvVars(cfg)
 
-  var folder: string
+  # Initialize Run3 context
+  let ctx = initBuildContext(cfg, state)
 
-  sourceDownloader(pkg, actualPackage, kpkgSrcDir, path)
+  # Execute build steps
+  executeBuildSteps(ctx, state, cfg.actualPackage, cfg.tests)
 
-  setFilePermissions(kpkgSrcDir, {fpUserExec, fpUserWrite, fpUserRead,
-          fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
-  discard posix.chown(cstring(kpkgSrcDir), 999, 999)
+  discard createPackage(cfg.actualPackage, state.pkg, cfg.kTarget)
 
-  var amountOfFolders: int
-
-  for i in toSeq(walkDir(".")):
-    debug i.path
-    if dirExists(i.path):
-      folder = absolutePath(i.path)
-      amountOfFolders = amountOfFolders + 1
-      setFilePermissions(folder, {fpUserExec, fpUserWrite, fpUserRead,
-              fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
-    discard posix.chown(cstring(folder), 999, 999)
-    for i in toSeq(walkDirRec(folder, {pcFile, pcLinkToFile, pcDir,
-            pcLinkToDir})):
-      discard posix.chown(cstring(i), 999, 999)
-
-  # Track the actual source directory for run3 context
-  # Default to kpkgSrcDir, update to autocd folder if applicable
-  var actualSrcDir = kpkgSrcDir
-
-  if pkg.autocd and amountOfFolders == 1 and (not isEmptyOrWhitespace(folder)):
-    try:
-      # autocd
-      setCurrentDir(folder)
-      actualSrcDir = folder
-    except Exception:
-      when defined(release):
-        fatal("Unknown error occured while trying to enter the source directory")
-
-      debug $folder
-      raise getCurrentException()
-
-  # Determine environment variables for Run3 context
-  var envVars = initTable[string, string]()
-  var cc = getConfigValue("Options", "cc", "cc")
-  var cxx = getConfigValue("Options", "cxx", "c++")
-
-  var actTarget: string
-  let tSplit = target.split("-")
-  if tSplit.len >= 4:
-    actTarget = tSplit[0]&"-"&tSplit[1]&"-"&tSplit[2]
-  else:
-    actTarget = target
-
-  if isBootstrap:
-    envVars["KPKG_BOOTSTRAP"] = "1"
-
-  envVars["KPKG_ARCH"] = arch
-  envVars["KPKG_TARGET"] = actTarget
-  envVars["KPKG_HOST_TARGET"] = systemTarget(actualRoot)
-
-  if not (actTarget != "default" and actTarget != systemTarget("/")):
-    envVars.del("KPKG_HOST_TARGET") # Unset if default
-
-  if parseBool(override.getSectionValue("Other", "ccache", getConfigValue(
-          "Options", "ccache", "false"))) and packageExists("ccache"):
-    if not dirExists(kpkgCacheDir&"/ccache"):
-      createDir(kpkgCacheDir&"/ccache")
-    setFilePermissions(kpkgCacheDir&"/ccache", {fpUserExec, fpUserWrite,
-            fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
-    discard posix.chown(cstring(kpkgCacheDir&"/ccache"), 999, 999)
-
-    envVars["CCACHE_DIR"] = kpkgCacheDir&"/ccache"
-    envVars["PATH"] = "/usr/lib/ccache:" & getEnv("PATH")
-
-  if actTarget == "default" or actTarget == systemTarget("/"):
-    envVars["CC"] = cc
-    envVars["CXX"] = cxx
-
-  if not isEmptyOrWhitespace(override.getSectionValue("Flags",
-          "extraArguments")):
-    envVars["KPKG_EXTRA_ARGUMENTS"] = override.getSectionValue("Flags", "extraArguments")
-
-  envVars["SRCDIR"] = kpkgSrcDir
-  envVars["PACKAGENAME"] = actualPackage
-
-  let cxxflags = override.getSectionValue("Flags", "cxxflags", getConfigValue(
-          "Options", "cxxflags"))
-  if not isEmptyOrWhitespace(cxxflags):
-    envVars["CXXFLAGS"] = cxxflags
-
-  let cflags = override.getSectionValue("Flags", "cflags", getConfigValue(
-          "Options", "cflags"))
-  if not isEmptyOrWhitespace(cflags):
-    envVars["CFLAGS"] = cflags
-
-  # Prepare Context
-  # We use kpkgBuildRoot as destDir for build steps
-  # We use actualSrcDir (autocd folder or kpkgSrcDir) as srcDir
-  # We use kpkgBuildRoot as buildRoot
-  let ctx = initFromRunfile(pkg.run3Data.parsed, destDir = kpkgBuildRoot,
-          srcDir = actualSrcDir, buildRoot = kpkgBuildRoot)
-
-  # Apply environment variables
-  for k, v in envVars:
-    ctx.envVars[k] = v
-
-  ctx.passthrough = noSandbox
-
-  # Execute "prepare"
-  if exists.prepare:
-    if executeRun3Function(ctx, pkg.run3Data.parsed, "prepare") != 0:
-      fatal("prepare failed")
-
-  # Determine "build" function name
-  var buildFunc = "build"
-  if exists.packageBuild:
-    buildFunc = "build_" & replace(actualPackage, '-', '_')
-  elif not exists.build:
-    buildFunc = "" # true
-    
-    # Determine "package" function name
-  var pkgFunc = "package"
-  if exists.packageInstall:
-    pkgFunc = "package_" & replace(actualPackage, '-', '_')
-  elif not exists.package:
-    fatal "install stage of package doesn't exist, invalid runfile"
-
-  # Execute build
-  if buildFunc != "":
-    if executeRun3Function(ctx, pkg.run3Data.parsed, buildFunc) != 0:
-      fatal("build failed")
-
-  # Execute check (tests)
-  if tests and exists.check:
-    if executeRun3Function(ctx, pkg.run3Data.parsed, "check") != 0:
-      # checks usually fail build
-      fatal("check failed")
-
-  # Execute package (install)
-  if executeRun3Function(ctx, pkg.run3Data.parsed, pkgFunc) != 0:
-    fatal("package install failed")
-
-  discard createPackage(actualPackage, pkg, kTarget)
-
-  # Install package to root aswell so dependency errors doesnt happen
+  # Install package to root as well so dependency errors don't happen
   # because the dep is installed to destdir but not root.
-  if destdir != "/" and not packageExists(actualPackage) and (
-          not dontInstall) and target == "default":
-    installPkg(repo, actualPackage, "/", pkg, manualInstallList,
-            isUpgrade = isUpgrade, ignorePostInstall = ignorePostInstall)
+  if cfg.destdir != "/" and not packageExists(cfg.actualPackage) and (
+          not cfg.dontInstall) and cfg.target == "default":
+    installPkg(cfg.repo, cfg.actualPackage, "/", state.pkg, cfg.manualInstallList,
+            isUpgrade = cfg.isUpgrade, ignorePostInstall = cfg.ignorePostInstall)
 
-  if (not dontInstall) and (kTarget == kpkgTarget(destDir)):
-    installPkg(repo, actualPackage, destdir, pkg, manualInstallList,
-            isUpgrade = isUpgrade, ignorePostInstall = ignorePostInstall)
+  if (not cfg.dontInstall) and (cfg.kTarget == kpkgTarget(cfg.destdir)):
+    installPkg(cfg.repo, cfg.actualPackage, cfg.destdir, state.pkg, cfg.manualInstallList,
+            isUpgrade = cfg.isUpgrade, ignorePostInstall = cfg.ignorePostInstall)
   else:
-    info "the package target doesn't match the one on '"&destDir&"', skipping installation"
+    info "the package target doesn't match the one on '" & cfg.destdir & "', skipping installation"
 
   removeLockfile()
 
@@ -326,6 +131,20 @@ proc builder*(package: string, destdir: string, offline = false,
     removeDir(kpkgTempDir2)
 
   return false
+
+
+# Wrapper procs for sandbox callbacks
+proc builderWrapper(cfg: BuildConfig): bool =
+  ## Wrapper for builder() to match BuilderProc signature.
+  builder(cfg)
+
+proc installPkgWrapper(cfg: InstallConfig) =
+  ## Wrapper for installPkg() to match InstallPkgProc signature.
+  installPkg(cfg.repo, cfg.package, cfg.root,
+             isUpgrade = cfg.isUpgrade, kTarget = cfg.kTarget,
+             manualInstallList = cfg.manualInstallList,
+             umount = cfg.umount, disablePkgInfo = cfg.disablePkgInfo)
+
 
 proc build*(no = false, yes = false, root = "/",
     packages: seq[string],
@@ -346,13 +165,6 @@ proc build*(no = false, yes = false, root = "/",
 
   var fullRootPath = expandFilename(root)
   var ignoreInit = false
-
-  #if target != "default":
-  #    if not crossCompilerExists(target):
-  #        err "cross-compiler for '"&target&"' doesn't exist, please build or install it (see handbook/cross-compilation)"
-
-  #    fullRootPath = root&"/usr/"&target
-  #    ignoreInit = true
 
   var allDependents: seq[string]
 
@@ -438,113 +250,28 @@ proc build*(no = false, yes = false, root = "/",
 
   var pkgPaths = initTable[string, string]()
   if isInstallDir:
-    for p in packages:
-      pkgPaths[lastPathPart(p)] = absolutePath(p)
+    for pkg in packages:
+      pkgPaths[lastPathPart(pkg)] = absolutePath(pkg)
 
-  for i in deps:
-    try:
-      createOrUpgradeEnv(root)
+  # Create sandbox configuration
+  let sandboxCfg = initSandboxConfig(
+    fullRootPath = fullRootPath,
+    target = target,
+    bootstrap = bootstrap,
+    forceInstallAll = forceInstallAll,
+    isInstallDir = isInstallDir,
+    ignoreInit = ignoreInit,
+    dontInstall = dontInstall,
+    useCacheIfAvailable = useCacheIfAvailable,
+    tests = tests,
+    isUpgrade = isUpgrade,
+    ignorePostInstall = ignorePostInstall,
+    manualInstallList = p,
+    ignoreUseCacheIfAvailable = gD,
+    root = root,
+    pkgPaths = pkgPaths
+  )
 
-      let pkgTmp = parsePkgInfo(i)
-
-      # Extract sandbox dependencies from the graph we already built
-      # This avoids re-parsing runfiles and recalculating dependencies
-      let sandboxDeps = getSandboxDepsFromGraph(pkgTmp.name, depGraph,
-              bootstrap, fullRootPath, forceInstallAll, isInstallDir, ignoreInit)
-
-      debug "sandboxDeps for "&pkgTmp.name&" = \""&sandboxDeps.join(" ")&"\""
-      var allInstalledDeps: seq[string]
-
-      # Prepare overlay directories first (mount tmpfs and create directory structure)
-      discard prepareOverlayDirs(error = "preparing overlay directories")
-
-      if target != "default" and target != kpkgTarget("/"):
-        for d in sandboxDeps:
-          if isEmptyOrWhitespace(d):
-            continue
-
-          debug "build: installPkg ran for '"&d&"'"
-          installPkg(findPkgRepo(d), d, kpkgOverlayPath&"/upperDir",
-                  isUpgrade = false, kTarget = target,
-                  manualInstallList = @[], umount = false,
-                  disablePkgInfo = true)
-      else:
-        # Collect all transitive runtime dependencies from the graph for postinstall
-        var visited = initHashSet[string]()
-        allInstalledDeps = deduplicate(collectRuntimeDepsFromGraph(
-                sandboxDeps, depGraph, visited))
-
-        # Install build dependencies to upperDir (now on tmpfs, before overlay mount)
-        for d in sandboxDeps:
-          discard installFromRoot(d, root,
-                  kpkgOverlayPath&"/upperDir",
-                  ignorePostInstall = true)
-
-      # Now mount the overlayfs after build dependencies are installed
-      discard mountOverlayFilesystem(
-              error = "mounting overlay filesystem")
-
-      # Now run postinstall scripts for all build dependencies (including transitive) in the merged overlay
-      # Only for native builds (cross-compilation uses different mechanism)
-      if target == "default" or target == kpkgTarget("/"):
-        debug "builder-ng: postinstall is running"
-        for d in deduplicate(allInstalledDeps):
-          if not isEmptyOrWhitespace(d):
-            runPostInstall(d)
-
-        # Refresh linker cache in the merged overlay so runtime tools in the sandbox
-        # (e.g. gettext's msgfmt) can resolve shared libraries installed as deps.
-        discard runLdconfig(kpkgMergedPath, silentMode = true)
-      else:
-        # Cross/alt target builds still execute inside the merged overlay; refresh cache anyway.
-        discard runLdconfig(kpkgMergedPath, silentMode = true)
-
-      let packageSplit = parsePkgInfo(i)
-
-      # Determine if this is a bootstrap build from the graph
-      let isBootstrapBuild = bootstrap and depGraph.nodes.hasKey(
-              pkgTmp.name) and depGraph.nodes[
-              pkgTmp.name].metadata.bsdeps.len > 0
-
-      var customRepo = ""
-      var isInstallDirFinal: bool
-      var pkgName: string
-
-      # Try to get repo from graph first
-      if depGraph.nodes.hasKey(pkgTmp.name):
-        let r = depGraph.nodes[pkgTmp.name].repo
-        if r != "local" and r.startsWith("/etc/kpkg/repos/"):
-          customRepo = lastPathPart(r)
-
-      if isInstallDir and pkgPaths.hasKey(pkgTmp.name):
-        pkgName = pkgPaths[pkgTmp.name]
-        isInstallDirFinal = true
-      else:
-        if "/" in packageSplit.nameWithRepo:
-          customRepo = lastPathPart(packageSplit.repo)
-          pkgName = packageSplit.name
-        else:
-          pkgName = packageSplit.name
-
-      if isBootstrapBuild:
-        info("Performing bootstrap build for "&i)
-
-      discard builder(pkgName, fullRootPath, offline = false,
-              dontInstall = dontInstall,
-              useCacheIfAvailable = useCacheIfAvailable, tests = tests,
-              manualInstallList = p, customRepo = customRepo,
-              isInstallDir = isInstallDirFinal, isUpgrade = isUpgrade,
-              target = target, actualRoot = root,
-              ignorePostInstall = ignorePostInstall,
-              ignoreUseCacheIfAvailable = gD,
-              isBootstrap = isBootstrapBuild)
-
-      info("built "&i&" successfully")
-    except CatchableError:
-      when defined(release):
-        fatal("Undefined error occured")
-      else:
-        raise getCurrentException()
-
-  info("built all packages successfully")
-  return 0
+  # Build all packages in sandbox
+  return buildAllPackagesInSandbox(deps, depGraph, sandboxCfg,
+          builderWrapper, installPkgWrapper)

@@ -168,3 +168,55 @@ proc sourceDownloader*(runf: runFile, pkgName: string, sourceDir: string,
         # And also skip localfiles
         if runf.extract and not (source.startsWith("git::") or isLocalFile):
             extractSources(sourcePath, sourceDir)
+
+
+proc setSourceOwnership*(sourceDir: string) =
+    ## Sets permissions and ownership (uid/gid 999) for source directory
+    ## and all contents recursively.
+    ##
+    ## This prepares the source directory for building with proper
+    ## permissions for the build user.
+
+    setFilePermissions(sourceDir, {fpUserExec, fpUserWrite, fpUserRead,
+            fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
+    discard posix.chown(cstring(sourceDir), 999, 999)
+
+    for path in toSeq(walkDir(sourceDir)):
+        if dirExists(path.path):
+            setFilePermissions(path.path, {fpUserExec, fpUserWrite, fpUserRead,
+                    fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
+        discard posix.chown(cstring(path.path), 999, 999)
+
+        if dirExists(path.path):
+            for subPath in toSeq(walkDirRec(path.path, {pcFile, pcLinkToFile,
+                    pcDir, pcLinkToDir})):
+                discard posix.chown(cstring(subPath), 999, 999)
+
+
+proc countAndFindSourceFolders*(baseDir: string): tuple[count: int,
+        folder: string] =
+    ## Walks baseDir, counts directories, returns count and last folder path.
+    ##
+    ## Used for autocd logic - if exactly one folder exists, autocd will
+    ## change into it.
+    ##
+    ## Returns:
+    ##   count: Number of directories found
+    ##   folder: Absolute path to the last directory found (or empty if none)
+
+    result.count = 0
+    result.folder = ""
+
+    for item in toSeq(walkDir(baseDir)):
+        debug "countAndFindSourceFolders: " & item.path
+        if dirExists(item.path):
+            result.folder = absolutePath(item.path)
+            result.count = result.count + 1
+            setFilePermissions(result.folder, {fpUserExec, fpUserWrite,
+                    fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
+        discard posix.chown(cstring(result.folder), 999, 999)
+
+        if dirExists(result.folder):
+            for subPath in toSeq(walkDirRec(result.folder, {pcFile,
+                    pcLinkToFile, pcDir, pcLinkToDir})):
+                discard posix.chown(cstring(subPath), 999, 999)
