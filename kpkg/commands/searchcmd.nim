@@ -1,11 +1,11 @@
 import os
-import fuzzy
 import strutils
 import ../modules/config
 import ../modules/sqlite
 import ../modules/logger
 import ../modules/colors
 import ../modules/runparser
+import ../modules/fuzzyFinder
 
 proc printResult(repo: string, package: string, colors = true): string =
   ## Prints results for searches.
@@ -68,9 +68,9 @@ proc search*(keyword: seq[string], colors = true) =
   for r in getConfigValue("Repositories", "repoDirs").split(" "):
     setCurrentDir(r)
     for i in walkDirs("*"):
-      if (fuzzyMatchSmart(i, keyword[0]) >= 0.6 or
+      if (fuzzyMatch(keyword[0], i) >= 0.6 or
               (parseRunfile(r&"/"&i).desc != "" and
-              fuzzyMatchSmart(parseRunfile(r&"/"&i).desc, keyword.join(
-                      " ")) >= 0.8)) and
+              fuzzyMatch(keyword.join(" "), parseRunfile(r&"/"&i).desc) >=
+                  0.8)) and
               i != keyword[0]:
           echo printResult(lastPathPart(r), i, colors)

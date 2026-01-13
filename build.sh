@@ -135,7 +135,7 @@ while [ "$#" -gt 0 ]; do
 done
 
 if [ "$installDeps" = "1" ]; then
-	nimble install fuzzy futhark@0.12.5 cligen nimcrypto norm fusion regex -y \
+	nimble install futhark@0.12.5 cligen nimcrypto norm fusion regex -y \
 		|| err "Installing dependencies failed"
 fi
 
