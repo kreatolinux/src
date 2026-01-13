@@ -553,8 +553,9 @@ proc parseMacroStatement(p: var Parser, line: int): AstNode =
     else:
       # Unknown token type in macro args - skip it to avoid infinite loop
       raiseParseError("Unexpected token in macro arguments: " &
-          $currentTok.kind &" '" & currentTok.value & "'", currentTok.line,
-              currentTok.col)
+          $currentTok.kind & " '" & currentTok.value & "'",
+
+currentTok.line, currentTok.col)
 
   return newMacroNode(macroName, args, line)
 
@@ -627,7 +628,7 @@ proc parseFuncCallStatement(p: var Parser, name: string, line: int): AstNode =
     # If parseExpression didn't consume anything and returned empty, we're stuck
     if p.pos == startPos and expr.len == 0:
       raiseParseError("Unexpected token in function call arguments: " & $p.peek(
-          ).kind &" '" & p.peek().value & "'", p.peek().line, p.peek().col)
+          ).kind & " '" & p.peek().value & "'", p.peek().line, p.peek().col)
     if expr.len > 0:
       args.add(expr)
     if p.peek().kind == tkNewline or p.peek().kind == tkRBrace:
