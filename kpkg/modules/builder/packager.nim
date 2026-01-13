@@ -6,7 +6,7 @@ import ../logger
 import ../sqlite
 import ../runparser
 import ../checksums
-import ../processes
+import ../libarchive
 import ../commonPaths
 import ../../../common/version
 
@@ -72,9 +72,10 @@ proc createPackage*(actualPackage: string, pkg: runFile,
 
   dict.writeConfig(kpkgBuildRoot&"/pkgsums.ini")
 
-  if execCmdKpkg("bsdtar -czf "&tarball&" -C "&kpkgBuildRoot&" .").exitCode != 0:
-    error "creating binary tarball failed"
-  #createArchive(tarball, kpkgBuildRoot)
+  try:
+    createArchive(tarball, kpkgBuildRoot, format = "gnutar", filter = "gzip")
+  except LibarchiveError as e:
+    error "creating binary tarball failed: " & e.msg
 
   #writeFile(tarball&".sum.b2", getSum(tarball, "b2"))
 

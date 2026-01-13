@@ -91,6 +91,14 @@ proc archiveWriteOpenFilename*(a: ptr structArchive,
 proc archiveWriteSetFormatFilterByExt*(a: ptr structArchive,
     filename: cstring): cint {.importc: "archive_write_set_format_filter_by_ext",
     header: "<archive.h>".}
+proc archiveWriteSetFormatGnutar*(a: ptr structArchive): cint {.importc: "archive_write_set_format_gnutar",
+    header: "<archive.h>".}
+proc archiveWriteAddFilterGzip*(a: ptr structArchive): cint {.importc: "archive_write_add_filter_gzip",
+    header: "<archive.h>".}
+proc archiveWriteAddFilterXz*(a: ptr structArchive): cint {.importc: "archive_write_add_filter_xz",
+    header: "<archive.h>".}
+proc archiveWriteAddFilterZstd*(a: ptr structArchive): cint {.importc: "archive_write_add_filter_zstd",
+    header: "<archive.h>".}
 proc archiveWriteHeader*(a: ptr structArchive,
     entry: ptr structArchiveEntry): cint {.importc: "archive_write_header",
     header: "<archive.h>".}
@@ -106,6 +114,9 @@ proc archiveWriteClose*(a: ptr structArchive): cint {.importc: "archive_write_cl
     header: "<archive.h>".}
 proc archiveWriteFree*(a: ptr structArchive): cint {.importc: "archive_write_free",
     header: "<archive.h>".}
+
+# libc getcwd for saving working directory
+proc getcwd*(buf: cstring, size: csize_t): cstring {.importc, header: "<unistd.h>".}
 
 # Entry operations
 proc archiveEntryNew*(): ptr structArchiveEntry {.importc: "archive_entry_new",
@@ -218,9 +229,16 @@ proc extract*(fileName: string, path = getCurrentDir(), ignoreFiles = @[""],
   discard archiveWriteFree(ext)
   return resultStr
 
-proc createArchive*(fileName: string, path = getCurrentDir()) =
-  # Creates an archive in the desired directory.
-  # Based on minitar.c
+proc createArchive*(fileName: string, path = getCurrentDir(), format = "auto",
+    filter = "gzip") =
+  ## Creates an archive from the contents of a directory.
+  ## Based on minitar.c
+  ##
+  ## Parameters:
+  ##   fileName: Output archive path
+  ##   path: Directory to archive (contents will be archived, not the directory itself)
+  ##   format: Archive format - "auto" (detect from extension), "gnutar"
+  ##   filter: Compression filter - "gzip" (default), "xz", "zstd", "auto" (detect from extension)
 
   if not dirExists(path):
     raise newException(OSError, '`'&path&"` doesn't exist")
@@ -232,57 +250,104 @@ proc createArchive*(fileName: string, path = getCurrentDir()) =
   var length: csize_t
   var buffer: pointer = alloc(16384)
 
+  # Save current working directory
+  var savedCwd: array[4096, char]
+  if getcwd(cast[cstring](addr savedCwd[0]), 4096) == nil:
+    dealloc(buffer)
+    raise newException(OSError, "Failed to get current working directory")
+
   archive = archiveWriteNew()
 
-  if archiveWriteSetFormatFilterByExt(archive, fileName) != ARCHIVE_OK:
-    raise newException(OSError, "Couldn't guess file format by extension")
+  try:
+    # Set format and filter
+    if format == "auto" and filter == "auto":
+      # Detect both from extension
+      if archiveWriteSetFormatFilterByExt(archive, fileName) != ARCHIVE_OK:
+        raise newException(LibarchiveError, "Couldn't guess file format by extension")
+    else:
+      # Set format
+      if format == "auto" or format == "gnutar":
+        if archiveWriteSetFormatGnutar(archive) != ARCHIVE_OK:
+          raise newException(LibarchiveError, "Failed to set gnutar format")
+      else:
+        raise newException(LibarchiveError, "Unsupported format: " & format)
 
-  discard archiveWriteOpenFilename(archive, filename)
+      # Set filter
+      case filter
+      of "gzip":
+        if archiveWriteAddFilterGzip(archive) != ARCHIVE_OK:
+          raise newException(LibarchiveError, "Failed to add gzip filter")
+      of "xz":
+        if archiveWriteAddFilterXz(archive) != ARCHIVE_OK:
+          raise newException(LibarchiveError, "Failed to add xz filter")
+      of "zstd":
+        if archiveWriteAddFilterZstd(archive) != ARCHIVE_OK:
+          raise newException(LibarchiveError, "Failed to add zstd filter")
+      else:
+        raise newException(LibarchiveError, "Unsupported filter: " & filter)
 
-  discard chdir(path)
+    if archiveWriteOpenFilename(archive, filename) != ARCHIVE_OK:
+      raise newException(LibarchiveError, "Failed to open archive for writing: " &
+          $archiveErrorString(archive))
 
-  for i in toSeq(walkDirRec(path, {pcFile, pcLinkToFile, pcDir, pcLinkToDir})):
+    discard chdir(path)
 
-    var disk = archiveReadDiskNew()
+    for i in toSeq(walkDirRec(path, {pcFile, pcLinkToFile, pcDir, pcLinkToDir})):
 
-    discard archiveReadDiskSetStandardLookup(disk)
+      var disk = archiveReadDiskNew()
 
-    r = archiveReadDiskOpen(disk, cstring(relativePath(i, getCurrentDir())))
+      discard archiveReadDiskSetStandardLookup(disk)
 
-    if r != ARCHIVE_OK:
-      raise newException(LibarchiveError, $archiveErrorString(disk))
-
-    discard archiveReadDiskSetSymlinkPhysical(disk)
-
-    while true:
-      entry = archiveEntryNew()
-      r = archiveReadNextHeader2(disk, entry)
-
-      if r == ARCHIVE_EOF:
-        break
+      r = archiveReadDiskOpen(disk, cstring(relativePath(i, getCurrentDir())))
 
       if r != ARCHIVE_OK:
+        discard archiveReadFree(disk)
         raise newException(LibarchiveError, $archiveErrorString(disk))
 
-      discard archiveReadDiskDescend(disk)
+      discard archiveReadDiskSetSymlinkPhysical(disk)
 
-      r = archiveWriteHeader(archive, entry)
+      while true:
+        entry = archiveEntryNew()
+        r = archiveReadNextHeader2(disk, entry)
 
-      if r < ARCHIVE_OK:
-        debugWarn("", $archiveErrorString(archive))
+        if r == ARCHIVE_EOF:
+          archiveEntryFree(entry)
+          break
 
-      if r == ARCHIVE_FATAL:
-        quit(1)
+        if r != ARCHIVE_OK:
+          archiveEntryFree(entry)
+          discard archiveReadClose(disk)
+          discard archiveReadFree(disk)
+          raise newException(LibarchiveError, $archiveErrorString(disk))
 
-      if r > ARCHIVE_FAILED and fileExists(i):
-        file = open($archiveEntrySourcepath(entry))
-        length = csize_t(readBuffer(file, buffer, sizeof(buffer)))
-        while length > 0:
-          discard archiveWriteData(archive, buffer, length)
+        discard archiveReadDiskDescend(disk)
+
+        r = archiveWriteHeader(archive, entry)
+
+        if r == ARCHIVE_FATAL:
+          archiveEntryFree(entry)
+          discard archiveReadClose(disk)
+          discard archiveReadFree(disk)
+          raise newException(LibarchiveError, "Fatal error writing archive header: " &
+              $archiveErrorString(archive))
+
+        if r < ARCHIVE_OK:
+          debugWarn("archiveWriteHeader", $archiveErrorString(archive))
+
+        if r > ARCHIVE_FAILED and fileExists(i):
+          file = open($archiveEntrySourcepath(entry))
           length = csize_t(readBuffer(file, buffer, sizeof(buffer)))
-        close(file)
-      archiveEntryFree(entry)
-    discard archiveReadClose(disk)
-    discard archiveReadFree(disk)
-  discard archiveWriteClose(archive)
-  discard archiveWriteFree(archive)
+          while length > 0:
+            discard archiveWriteData(archive, buffer, length)
+            length = csize_t(readBuffer(file, buffer, sizeof(buffer)))
+          close(file)
+        archiveEntryFree(entry)
+      discard archiveReadClose(disk)
+      discard archiveReadFree(disk)
+
+  finally:
+    discard archiveWriteClose(archive)
+    discard archiveWriteFree(archive)
+    dealloc(buffer)
+    # Restore working directory
+    discard chdir(cast[cstring](addr savedCwd[0]))
