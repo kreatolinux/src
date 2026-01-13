@@ -185,41 +185,6 @@ proc parseVariableDeclaration(p: var Parser): AstNode =
     let value = p.parseString()
     return newVariableNode(name, value, op, nameToken.line)
 
-proc parseVarManipulation(p: var Parser, baseVar: string): AstNode =
-  ## Parse variable manipulation: ${var.method().method()[index]}
-  var methods: seq[VarManipMethod] = @[]
-  var indexExpr = ""
-
-  # Parse method chain
-  while p.peek().kind == tkDot:
-    discard p.advance() # Skip .
-    let methodName = p.expect(tkIdentifier).value
-
-    # Check for arguments
-    var args: seq[string] = @[]
-    if p.peek().kind == tkLParen:
-      discard p.advance() # Skip (
-      while p.peek().kind != tkRParen and p.peek().kind != tkEof:
-        args.add(p.parseString())
-        if p.peek().kind == tkComma:
-          discard p.advance()
-      discard p.expect(tkRParen)
-
-    methods.add(VarManipMethod(name: methodName, args: args))
-
-  # Check for indexing
-  if p.peek().kind == tkLBracket:
-    discard p.advance() # Skip [
-        # Read everything until ]
-    var indexParts: seq[string] = @[]
-    while p.peek().kind != tkRBracket and p.peek().kind != tkEof:
-      let tok = p.advance()
-      indexParts.add(tok.value)
-    discard p.expect(tkRBracket)
-    indexExpr = indexParts.join("")
-
-  return newVarManipNode(baseVar, methods, indexExpr)
-
 proc parseExecCommand(p: var Parser): string =
   ## Parse an exec command - returns raw string value without re-quoting
   ## This preserves the original quoting for shell commands
@@ -588,7 +553,7 @@ proc parseMacroStatement(p: var Parser, line: int): AstNode =
     else:
       # Unknown token type in macro args - skip it to avoid infinite loop
       raiseParseError("Unexpected token in macro arguments: " &
-          $currentTok.kind & " '" &currentTok.value & "'", currentTok.line,
+          $currentTok.kind &" '" & currentTok.value & "'", currentTok.line,
               currentTok.col)
 
   return newMacroNode(macroName, args, line)
