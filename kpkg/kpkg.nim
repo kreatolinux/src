@@ -19,7 +19,7 @@
 import cligen
 import os
 import commands/getsetcmd
-import commands/infocmd
+import commands/infocmd as infocmdModule
 import commands/buildcmd
 import commands/updatecmd
 import commands/removecmd
@@ -144,7 +144,7 @@ dispatchMulti(
   ],
 
   [
-  info, help = {
+  infocmdModule.info, help = {
   "testing": "Don't error if package isn't installed"
   }
   ],
