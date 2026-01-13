@@ -162,8 +162,9 @@ proc executeNode*(ctx: ExecutionContext, node: AstNode): int =
 
             return res
         else:
-            echo "Warning: Unknown function: " & node.callName
-            return 0
+            var err = newException(ExecutionError, "Unknown function: " & node.callName)
+            err.line = node.line
+            raise err
 
     of nkComment:
         # Comments do nothing
@@ -240,11 +241,15 @@ proc loadVariablesFromParsed*(ctx: ExecutionContext, parsed: ParsedRunfile) =
         else:
             discard
 
-proc loadCustomFunctions*(ctx: ExecutionContext, parsed: ParsedRunfile) =
-    ## Load custom functions from parsed runfile
+proc loadAllFunctions*(ctx: ExecutionContext, parsed: ParsedRunfile) =
+    ## Load all callable functions (both regular and custom) from parsed runfile
+    # Load regular functions (e.g., package_foo, build_foo)
+    for funcNode in parsed.functions:
+        if funcNode.kind == nkFunction:
+            ctx.customFuncs[funcNode.funcName] = funcNode.funcBody
+    # Load custom functions (defined with 'func' keyword)
     for funcNode in parsed.customFuncs:
         if funcNode.kind == nkCustomFunc:
-            # Store function name and body nodes
             ctx.customFuncs[funcNode.customFuncName] = funcNode.customFuncBody
 
 proc getFunctionByName*(parsed: ParsedRunfile, name: string): seq[AstNode] =
@@ -296,7 +301,7 @@ proc initFromRunfile*(parsed: ParsedRunfile, destDir: string = "",
     ## Initialize execution context from a parsed runfile
     result = initExecutionContext(destDir, srcDir, buildRoot, "")
     result.loadVariablesFromParsed(parsed)
-    result.loadCustomFunctions(parsed)
+    result.loadAllFunctions(parsed)
 
     # Set package name if available
     if result.variables.hasKey("name"):
