@@ -44,7 +44,6 @@ case $1 in
                 #kpkg build python -y || exit 1
 
 		        #kpkg build ninja -y
-                kpkg install llvm -y # Required by futhark
                 #kpkg build perl -uy
 
 

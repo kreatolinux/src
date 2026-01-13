@@ -8,6 +8,7 @@ branch="master"
 installDeps="0"
 target=""
 args=""
+platform=""
 
 err() {
 	echo "error: $@"
@@ -22,6 +23,17 @@ buildFlags() {
 	[ -n "$LDFLAGS" ] && passL="--passL:$LDFLAGS"
 }
 
+# Set up platform-specific library paths
+setupPlatform() {
+	if [ "$platform" = "darwin" ]; then
+		opensslPrefix=$(brew --prefix openssl)
+		libarchivePrefix=$(brew --prefix libarchive)
+		export LDFLAGS="-L$opensslPrefix/lib -L$libarchivePrefix/lib"
+		export CFLAGS="-I$opensslPrefix/include -I$libarchivePrefix/include"
+		export PKG_CONFIG_PATH="$opensslPrefix/lib/pkgconfig:$libarchivePrefix/lib/pkgconfig"
+	fi
+}
+
 # Unified build function
 # $1: project name
 # $2: source file (relative to project dir or full path)
@@ -29,8 +41,7 @@ buildFlags() {
 # $4: threads setting (on/off)
 # $5: extra flags (optional)
 # $6: use deepcopy (1 or empty)
-# $7: use archive (1 or empty)
-# $8: use branch/ssl (1 or empty)
+# $7: use branch/ssl (1 or empty)
 buildNim() {
 	cd "$srcdir" || err "Failed to change to source directory"
 	buildFlags
@@ -41,8 +52,7 @@ buildNim() {
 	threads="$4"
 	extraFlags="$5"
 	useDeepcopy="$6"
-	useArchive="$7"
-	useBranchSsl="$8"
+	useBranchSsl="$7"
 
 	# Determine source path
 	case "$sourceFile" in
@@ -61,7 +71,6 @@ buildNim() {
 	[ -n "$passC" ] && set -- "$@" $passC
 	[ -n "$passL" ] && set -- "$@" $passL
 	[ -n "$useDeepcopy" ] && set -- "$@" --deepcopy:on
-	[ -n "$useArchive" ] && set -- "$@" --passL:-larchive
 	[ -n "$useBranchSsl" ] && set -- "$@" -d:branch=$branch -d:ssl
 	set -- "$@" --threads:$threads -o:"$outputPath"
 	[ -n "$extraFlags" ] && set -- "$@" $extraFlags
@@ -78,6 +87,7 @@ Options:
 	-d, --debug: Enable debug on built projects
 	-t, --target [ARCHITECTURE]: Set architecture for built binary
 	-p, --projects [PROJECTS]: Enable projects, separate by comma
+	-P, --platform [PLATFORM]: Set platform for library paths (e.g., darwin for macOS)
 	-i, --installDeps: Install dependencies before continuing
 	-c, --clean: Clean binaries
 	-b, --branch [BRANCH]: Set default branch for repositories. 'master' by default.
@@ -107,6 +117,11 @@ while [ "$#" -gt 0 ]; do
 			[ -z "$1" ] && err "--projects requires an argument"
 			projects="$1"
 			;;
+		-P|--platform)
+			shift
+			[ -z "$1" ] && err "--platform requires an argument"
+			platform="$1"
+			;;
 		-i|--installDeps)
 			installDeps="1"
 			;;
@@ -135,36 +150,38 @@ while [ "$#" -gt 0 ]; do
 done
 
 if [ "$installDeps" = "1" ]; then
-	nimble install futhark@0.12.5 cligen nimcrypto norm fusion regex -y \
+	nimble install cligen nimcrypto norm fusion regex -y \
 		|| err "Installing dependencies failed"
 fi
 
 [ -z "$projects" ] && exit 0
+
+setupPlatform
 
 IFS=","
 for v in $projects; do
 	echo "building $v"
 	case $v in
 		kpkg)
-			buildNim "$v" "$v.nim" "$prefix/$v" "on" "" "1" "1" "1"
+			buildNim "$v" "$v.nim" "$prefix/$v" "on" "" "1" "1"
 			;;
 		chkupd)
-			buildNim "$v" "$v.nim" "$prefix/$v" "on" "-d:run3NoLibArchive" "" "" "1"
+			buildNim "$v" "$v.nim" "$prefix/$v" "on" "-d:run3NoLibArchive" "" "1"
 			;;
 		jumpstart)
-			buildNim "jumpstart" "jumpstart.nim" "$prefix/jumpstart" "on" "--mm:refc" "1" "" ""
-			buildNim "jumpstart" "jumpctl.nim" "$prefix/jumpctl" "off" "" "1" "" ""
+			buildNim "jumpstart" "jumpstart.nim" "$prefix/jumpstart" "on" "--mm:refc" "1" ""
+			buildNim "jumpstart" "jumpctl.nim" "$prefix/jumpctl" "off" "" "1" ""
 			;;
 		run3tools)
-			buildNim "run3tools" "main.nim" "$prefix/run3tools" "off" "-d:run3Standalone" "1" "" ""
+			buildNim "run3tools" "main.nim" "$prefix/run3tools" "off" "-d:run3Standalone" "1" ""
 			;;
 		kreastrap)
 			buildNim "kreastrap" "kreastrap.nim" "$srcdir/kreastrap/kreastrap" \
-				"on" "" "1" "1" "1"
+				"on" "" "1" "1"
 			;;
 		kreaiso)
 			buildNim "kreaiso" "kreaiso.nim" "$srcdir/kreaiso/kreaiso" \
-				"on" "" "1" "1" "1"
+				"on" "" "1" "1"
 			;;
 		install_klinstaller)
 			[ ! -d "$DESTDIR" ] && mkdir -p "$DESTDIR"

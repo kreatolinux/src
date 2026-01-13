@@ -3,17 +3,123 @@ import logger
 import strutils
 import sequtils
 
-when not defined(useDist):
-  import futhark
+# libarchive bindings
+{.passL: "-larchive".}
 
-  importc:
-    outputPath currentSourcePath.parentDir / "generated.nim"
-    "archive.h"
-    "archive_entry.h"
-    "unistd.h"
-    "locale.h"
+type
+  structArchive* {.importc: "struct archive", header: "<archive.h>".} = object
+  structArchiveEntry* {.importc: "struct archive_entry",
+      header: "<archive_entry.h>".} = object
+
+const
+  ARCHIVE_EOF* = 1
+  ARCHIVE_OK* = 0
+  ARCHIVE_FAILED* = -25
+  ARCHIVE_FATAL* = -30
+  ARCHIVE_EXTRACT_TIME* = 0x0004
+  ARCHIVE_EXTRACT_PERM* = 0x0002
+  ARCHIVE_EXTRACT_ACL* = 0x0020
+  ARCHIVE_EXTRACT_FFLAGS* = 0x0040
+  ARCHIVE_EXTRACT_OWNER* = 0x0001
+
+# LC_ALL varies by platform
+when defined(macosx):
+  const LC_ALL* = 0
 else:
-  include "generated.nim"
+  const LC_ALL* = 6
+
+# libc functions
+proc setlocale*(category: cint, locale: cstring): cstring {.importc,
+    header: "<locale.h>".}
+proc chdir*(path: cstring): cint {.importc, header: "<unistd.h>".}
+
+# Archive core
+proc archiveReadNew*(): ptr structArchive {.importc: "archive_read_new",
+    header: "<archive.h>".}
+proc archiveWriteNew*(): ptr structArchive {.importc: "archive_write_new",
+    header: "<archive.h>".}
+proc archiveWriteDiskNew*(): ptr structArchive {.importc: "archive_write_disk_new",
+    header: "<archive.h>".}
+proc archiveReadDiskNew*(): ptr structArchive {.importc: "archive_read_disk_new",
+    header: "<archive.h>".}
+
+# Read operations
+proc archiveReadSupportFormatAll*(a: ptr structArchive): cint {.importc: "archive_read_support_format_all",
+    header: "<archive.h>".}
+proc archiveReadSupportFilterAll*(a: ptr structArchive): cint {.importc: "archive_read_support_filter_all",
+    header: "<archive.h>".}
+proc archiveReadOpenFilename*(a: ptr structArchive, filename: cstring,
+    blocksize: csize_t): cint {.importc: "archive_read_open_filename",
+    header: "<archive.h>".}
+proc archiveReadNextHeader*(a: ptr structArchive,
+    entry: ptr ptr structArchiveEntry): cint {.importc: "archive_read_next_header",
+    header: "<archive.h>".}
+proc archiveReadNextHeader2*(a: ptr structArchive,
+    entry: ptr structArchiveEntry): cint {.importc: "archive_read_next_header2",
+    header: "<archive.h>".}
+proc archiveReadDataBlock*(a: ptr structArchive, buff: ptr pointer,
+    size: ptr csize_t,
+    offset: ptr int64): cint {.importc: "archive_read_data_block",
+    header: "<archive.h>".}
+proc archiveReadClose*(a: ptr structArchive): cint {.importc: "archive_read_close",
+    header: "<archive.h>".}
+proc archiveReadFree*(a: ptr structArchive): cint {.importc: "archive_read_free",
+    header: "<archive.h>".}
+
+# Read disk operations
+proc archiveReadDiskSetStandardLookup*(a: ptr structArchive): cint {.importc: "archive_read_disk_set_standard_lookup",
+    header: "<archive.h>".}
+proc archiveReadDiskOpen*(a: ptr structArchive,
+    path: cstring): cint {.importc: "archive_read_disk_open",
+    header: "<archive.h>".}
+proc archiveReadDiskDescend*(a: ptr structArchive): cint {.importc: "archive_read_disk_descend",
+    header: "<archive.h>".}
+proc archiveReadDiskSetSymlinkPhysical*(
+  a: ptr structArchive): cint {.importc: "archive_read_disk_set_symlink_physical",
+    header: "<archive.h>".}
+
+# Write operations
+proc archiveWriteDiskSetOptions*(a: ptr structArchive,
+    flags: cint): cint {.importc: "archive_write_disk_set_options",
+    header: "<archive.h>".}
+proc archiveWriteDiskSetStandardLookup*(
+  a: ptr structArchive): cint {.importc: "archive_write_disk_set_standard_lookup",
+    header: "<archive.h>".}
+proc archiveWriteOpenFilename*(a: ptr structArchive,
+    filename: cstring): cint {.importc: "archive_write_open_filename",
+    header: "<archive.h>".}
+proc archiveWriteSetFormatFilterByExt*(a: ptr structArchive,
+    filename: cstring): cint {.importc: "archive_write_set_format_filter_by_ext",
+    header: "<archive.h>".}
+proc archiveWriteHeader*(a: ptr structArchive,
+    entry: ptr structArchiveEntry): cint {.importc: "archive_write_header",
+    header: "<archive.h>".}
+proc archiveWriteData*(a: ptr structArchive, buff: pointer,
+    len: csize_t): csize_t {.importc: "archive_write_data",
+    header: "<archive.h>".}
+proc archiveWriteDataBlock*(a: ptr structArchive, buff: pointer, size: csize_t,
+    offset: int64): cint {.importc: "archive_write_data_block",
+    header: "<archive.h>".}
+proc archiveWriteFinishEntry*(a: ptr structArchive): cint {.importc: "archive_write_finish_entry",
+    header: "<archive.h>".}
+proc archiveWriteClose*(a: ptr structArchive): cint {.importc: "archive_write_close",
+    header: "<archive.h>".}
+proc archiveWriteFree*(a: ptr structArchive): cint {.importc: "archive_write_free",
+    header: "<archive.h>".}
+
+# Entry operations
+proc archiveEntryNew*(): ptr structArchiveEntry {.importc: "archive_entry_new",
+    header: "<archive_entry.h>".}
+proc archiveEntryFree*(entry: ptr structArchiveEntry) {.importc: "archive_entry_free",
+    header: "<archive_entry.h>".}
+proc archiveEntryPathname*(entry: ptr structArchiveEntry): cstring {.importc: "archive_entry_pathname",
+    header: "<archive_entry.h>".}
+proc archiveEntrySourcepath*(entry: ptr structArchiveEntry): cstring {.importc: "archive_entry_sourcepath",
+    header: "<archive_entry.h>".}
+
+# Error handling
+proc archiveErrorString*(a: ptr structArchive): cstring {.importc: "archive_error_string",
+    header: "<archive.h>".}
 
 type
   LibarchiveError* = object of CatchableError
@@ -22,15 +128,15 @@ proc debugWarn(f: string, err: string) =
   when not defined(release):
     echo f&" failed: "&err
 
-proc copyData(ar: ptr structarchive, aw: ptr structarchive): int =
+proc copyData(ar: ptr structArchive, aw: ptr structArchive): cint =
   # Function copy_data(), gotten from untar.c
-  var r: int
-  var size: culong
+  var r: cint
+  var size: csize_t
 
   # Is a const in the original untar.c, but idk how to do immutable pointers, lmk if there is a way
   var buff: pointer
 
-  var offset: laint64t
+  var offset: int64
   while true:
     r = archiveReadDataBlock(ar, addr(buff), addr(size), addr(offset))
     if r == ARCHIVE_EOF:
@@ -39,7 +145,7 @@ proc copyData(ar: ptr structarchive, aw: ptr structarchive): int =
       return r
     r = archiveWriteDataBlock(aw, buff, size, offset)
     if r != ARCHIVE_OK:
-      debugWarn("archive_write_data_block()", $archive_error_string(aw))
+      debugWarn("archiveWriteDataBlock()", $archiveErrorString(aw))
       return r
 
 if setlocale(LC_ALL, "") == nil:
@@ -60,10 +166,10 @@ proc extract*(fileName: string, path = getCurrentDir(), ignoreFiles = @[""],
     raise newException(OSError, '`'&fileName&"` doesn't exist")
 
   var resultStr: seq[string]
-  var a: ptr structarchive
-  var ext: ptr structarchive
-  var entry: ptr structarchiveentry
-  var r: int
+  var a: ptr structArchive
+  var ext: ptr structArchive
+  var entry: ptr structArchiveEntry
+  var r: cint
 
   a = archiveReadNew()
   ext = archiveWriteDiskNew()
@@ -100,9 +206,9 @@ proc extract*(fileName: string, path = getCurrentDir(), ignoreFiles = @[""],
 
     r = archiveWriteHeader(ext, entry)
     if r != ARCHIVE_OK:
-      debugWarn("archive_write_header()", $archiveErrorString(ext))
-    discard copy_data(a, ext)
-    r = archive_write_finish_entry(ext)
+      debugWarn("archiveWriteHeader()", $archiveErrorString(ext))
+    discard copyData(a, ext)
+    r = archiveWriteFinishEntry(ext)
     if r != ARCHIVE_OK:
       raise newException(LibarchiveError, $archiveErrorString(ext))
 
@@ -119,11 +225,11 @@ proc createArchive*(fileName: string, path = getCurrentDir()) =
   if not dirExists(path):
     raise newException(OSError, '`'&path&"` doesn't exist")
 
-  var archive: ptr structarchive
-  var entry: ptr structarchiveentry
-  var r: int
+  var archive: ptr structArchive
+  var entry: ptr structArchiveEntry
+  var r: cint
   var file: File
-  var length: culong
+  var length: csize_t
   var buffer: pointer = alloc(16384)
 
   archive = archiveWriteNew()
@@ -144,19 +250,19 @@ proc createArchive*(fileName: string, path = getCurrentDir()) =
     r = archiveReadDiskOpen(disk, cstring(relativePath(i, getCurrentDir())))
 
     if r != ARCHIVE_OK:
-      raise newException(LibarchiveError, $archive_error_string(disk))
+      raise newException(LibarchiveError, $archiveErrorString(disk))
 
     discard archiveReadDiskSetSymlinkPhysical(disk)
 
     while true:
-      entry = archive_entry_new()
+      entry = archiveEntryNew()
       r = archiveReadNextHeader2(disk, entry)
 
       if r == ARCHIVE_EOF:
         break
 
       if r != ARCHIVE_OK:
-        raise newException(LibarchiveError, $archive_error_string(disk))
+        raise newException(LibarchiveError, $archiveErrorString(disk))
 
       discard archiveReadDiskDescend(disk)
 
@@ -170,10 +276,10 @@ proc createArchive*(fileName: string, path = getCurrentDir()) =
 
       if r > ARCHIVE_FAILED and fileExists(i):
         file = open($archiveEntrySourcepath(entry))
-        length = culong(readBuffer(file, buffer, sizeof(buffer)))
+        length = csize_t(readBuffer(file, buffer, sizeof(buffer)))
         while length > 0:
           discard archiveWriteData(archive, buffer, length)
-          length = culong(readBuffer(file, buffer, sizeof(buffer)))
+          length = csize_t(readBuffer(file, buffer, sizeof(buffer)))
         close(file)
       archiveEntryFree(entry)
     discard archiveReadClose(disk)
