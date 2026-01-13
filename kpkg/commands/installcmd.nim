@@ -380,7 +380,8 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
       try:
         var pkgType = newPackage(package, pkgVersion, pkg.release, pkg.epoch,
                 pkg.deps.join("!!k!!"), pkg.bdeps.join("!!k!!"),
-                pkg.backup.join("!!k!!"), pkg.replaces.join("!!k!!"), pkg.desc,
+                pkg.backup.join("!!k!!"), pkg.replaces.join("!!k!!"),
+                pkg.license.join("!!k!!"), pkg.desc,
                 mI, pkg.isGroup, basePackage, root)
 
         # Add file entries to database
@@ -403,7 +404,8 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
       try:
         discard newPackage(package, pkgVersion, pkg.release, pkg.epoch,
                 pkg.deps.join("!!k!!"), pkg.bdeps.join("!!k!!"),
-                pkg.backup.join("!!k!!"), pkg.replaces.join("!!k!!"), pkg.desc,
+                pkg.backup.join("!!k!!"), pkg.replaces.join("!!k!!"),
+                pkg.license.join("!!k!!"), pkg.desc,
                 mI, pkg.isGroup, basePackage, root)
         commitTransaction(root)
       except:

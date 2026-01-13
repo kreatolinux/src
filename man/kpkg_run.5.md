@@ -51,6 +51,8 @@ b2sum:
     - "786a02f742015903c6c6fd852552d272912f4740e15847618a86e217f71f5419d25e1031afee585313896444934eb04b903a685b1448b755d56f701afe9be2ce"
     - "SKIP" 
     - "64fed8bce19ef14ed2d8434229dc2ec5307e06205610b1859b81b8090ae5ba7001988de896ff4878a15a7b7334e4a06e5889270b2e755fe130f7c80960e66ba2"
+license:
+    - "GPL-3.0-or-later"
 description: "Test package"
 
 func custom_func {
@@ -466,6 +468,7 @@ Do mind that Git repositories don't have the checksum ability. You can use `SKIP
 * **conflicts**: Specifies packages that conflict with this package.
 * **is_group**: Indicates if the package is a group package. Default is `false`.
 * **backup**: Preserves files (such as configuration files) during upgrades. Don't include leading slash (use `etc/bluetooth/main.conf` instead of `/etc/bluetooth/main.conf`).
+* **license**: List of SPDX license identifiers for the package (e.g., "MIT", "GPL-3.0-or-later", "Apache-2.0").
 
 ## OPTIONAL FUNCTIONS
 * **build**: Main build function. Only optional for packages that don't need to be built (e.g., binary-only packages).

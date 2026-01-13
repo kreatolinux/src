@@ -1,4 +1,5 @@
 import os
+import strutils
 import ../modules/sqlite
 import ../modules/logger
 import ../modules/config
@@ -26,6 +27,8 @@ proc info*(package: seq[string], testing = false): string =
   echo "package name: "&pkg.pkg
   echo "package version: "&pkg.version
   echo "package release: "&pkg.release
+  if pkg.license.len > 0:
+    echo "license: "&pkg.license.join(" ")
   when declared(pkg.epoch):
     echo "package epoch: "&pkg.epoch
   if packageExists(package[0]):

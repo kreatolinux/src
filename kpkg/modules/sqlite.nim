@@ -16,6 +16,7 @@ type
     isGroup*: bool
     backup*: string
     replaces*: string
+    license*: string
     desc*: string
     basePackage*: bool
 
@@ -32,13 +33,15 @@ var inTransaction = false
 
 
 func newPackageInternal(name = "", version = "", deps = "", bdeps = "",
-        backup = "", replaces = "", desc = "", release = "", epoch = "",
+        backup = "", replaces = "", license = "", desc = "", release = "",
+            epoch = "",
         manualInstall = false, isGroup = false, basePackage = false): Package =
   # Initializes a new Package.
   Package(name: name, version: version, release: release, epoch: epoch,
           deps: deps, bdeps: bdeps, manualInstall: manualInstall,
-          isGroup: isGroup, backup: backup, replaces: replaces, desc: desc,
-          basePackage: basePackage)
+          isGroup: isGroup, backup: backup, replaces: replaces,
+          license: license,
+          desc: desc, basePackage: basePackage)
 
 func newFileInternal(path = "", checksum = "", package = newPackageInternal()): File =
   # Initializes a new Package.
@@ -154,13 +157,13 @@ proc getFileByValueAll*(root: string, field = "") =
     echo getFileByValue(f, field)&"\n"
 
 proc newPackage*(name, version, release, epoch, deps, bdeps, backup, replaces,
-        desc: string, manualInstall, isGroup, basePackage: bool,
+        license, desc: string, manualInstall, isGroup, basePackage: bool,
         root: string): Package =
   # Initialize a new Package (wrapper)
   rootCheck(root)
   debug "newPackage ran"
   var res = newPackageInternal(name, version, deps, bdeps, backup, replaces,
-          desc, release, epoch, manualInstall, isGroup, basePackage)
+          license, desc, release, epoch, manualInstall, isGroup, basePackage)
   kpkgDb.insert(res)
   return res
 
@@ -304,7 +307,7 @@ proc newPackageFromRoot*(root, package, destdir: string) =
   rootCheck(destdir)
 
   var res = newPackageInternal(og.name, og.version, og.deps, og.bdeps,
-          og.backup, og.replaces, og.desc, og.release, og.epoch,
+          og.backup, og.replaces, og.license, og.desc, og.release, og.epoch,
           og.manualInstall, og.isGroup)
 
   kpkgDb.insert(res)

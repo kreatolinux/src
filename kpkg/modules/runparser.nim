@@ -32,6 +32,7 @@ type runFile* = object
   backup*: seq[string]
   optdeps*: seq[string]
   replaces*: seq[string]
+  license*: seq[string]
   noChkupd*: bool
   isGroup*: bool
   isParsed*: bool
@@ -159,6 +160,8 @@ proc parseRunfile*(path: string, removeLockfileWhenErr = true): runFile =
       ret.autocd = ret.extract
 
     ret.replaces = rf.getListVariable("replaces", override, "runFile", "replaces")
+
+    ret.license = rf.getListVariable("license", override, "runFile", "license")
 
     # Handle depends_package logic
     let p = replace(package, '-', '_')
