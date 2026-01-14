@@ -9,6 +9,7 @@ installDeps="0"
 target=""
 args=""
 platform=""
+testProject=""
 
 err() {
 	echo "error: $@"
@@ -81,6 +82,75 @@ buildNim() {
 	cd - > /dev/null
 }
 
+# Run tests for a project
+# $1: project name
+runTests() {
+	cd "$srcdir" || err "Failed to change to source directory"
+	buildFlags
+
+	project="$1"
+	testDir="$srcdir/tests/$project"
+
+	if [ ! -d "$testDir" ]; then
+		err "Test directory not found: $testDir"
+	fi
+
+	# Find all test files
+	testFiles=$(find "$testDir" -name 'test_*.nim' -type f 2>/dev/null)
+	if [ -z "$testFiles" ]; then
+		err "No test files found in $testDir"
+	fi
+
+	echo "Running tests for $project"
+	echo "================================"
+
+	testCount=0
+	failCount=0
+
+	for testFile in $testFiles; do
+		testName=$(basename "$testFile" .nim)
+		testBinary="$srcdir/out/tests/$project/$testName"
+
+		echo ""
+		echo "--- $testName ---"
+
+		# Ensure output directory exists
+		mkdir -p "$(dirname "$testBinary")"
+
+		# Build the test
+		set -- nim c -d:debug -d:run3NoLibArchive
+		[ -n "$passC" ] && set -- "$@" $passC
+		[ -n "$passL" ] && set -- "$@" $passL
+		set -- "$@" --threads:on --deepcopy:on -o:"$testBinary" "$testFile"
+
+		if ! "$@"; then
+			echo "FAIL: $testName (compilation failed)"
+			failCount=$((failCount + 1))
+			testCount=$((testCount + 1))
+			continue
+		fi
+
+		# Run the test
+		if "$testBinary"; then
+			echo "PASS: $testName"
+		else
+			echo "FAIL: $testName (execution failed)"
+			failCount=$((failCount + 1))
+		fi
+		testCount=$((testCount + 1))
+	done
+
+	echo ""
+	echo "================================"
+	echo "Tests: $testCount, Passed: $((testCount - failCount)), Failed: $failCount"
+
+	if [ "$failCount" -gt 0 ]; then
+		exit 1
+	fi
+
+	cd - > /dev/null
+}
+
 printHelp() {
 	printf "Usage: './build.sh [ARGUMENTS]'
 Options:
@@ -88,6 +158,7 @@ Options:
 	-t, --target [ARCHITECTURE]: Set architecture for built binary
 	-p, --projects [PROJECTS]: Enable projects, separate by comma
 	-P, --platform [PLATFORM]: Set platform for library paths (e.g., darwin for macOS)
+	-T, --test [PROJECT]: Run tests for a project (e.g., kpkg)
 	-i, --installDeps: Install dependencies before continuing
 	-c, --clean: Clean binaries
 	-b, --branch [BRANCH]: Set default branch for repositories. 'master' by default.
@@ -141,6 +212,11 @@ while [ "$#" -gt 0 ]; do
 			[ -z "$1" ] && err "--args requires an argument"
 			args="$1"
 			;;
+		-T|--test)
+			shift
+			[ -z "$1" ] && err "--test requires a project name"
+			testProject="$1"
+			;;
 		*)
 			printHelp
 			exit 1
@@ -152,6 +228,13 @@ done
 if [ "$installDeps" = "1" ]; then
 	nimble install cligen nimcrypto norm fusion regex -y \
 		|| err "Installing dependencies failed"
+fi
+
+# Run tests if requested
+if [ -n "$testProject" ]; then
+	setupPlatform
+	runTests "$testProject"
+	exit 0
 fi
 
 [ -z "$projects" ] && exit 0

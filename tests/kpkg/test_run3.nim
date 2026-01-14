@@ -1,19 +1,43 @@
 ## Test program for run3 module
-## Demonstrates basic functionality and can be used for testing
+## Uses unittest module for structured testing
 
+import unittest
 import os
 import times
-import run3
-import tables
 import strutils
-import sequtils
-import utils
 
-proc testParser() =
-  echo "=== Testing Parser ==="
+import ../../kpkg/modules/run3/run3
+import ../../kpkg/modules/run3/utils
 
-  # Create a simple test run3 file
-  let testContent = """
+suite "run3 lexer":
+  test "tokenizes basic input":
+    let testInput = "name: \"test\"\n" &
+                    "version: \"1.0\"\n" &
+                    "build {\n" &
+                    "    print \"Hello\"\n" &
+                    "    write \"file.txt\" \"\"\"\n" &
+                    "Multi-line\n" &
+                    "String\n" &
+                    "\"\"\"\n" &
+                    "}\n"
+
+    let tokens = tokenize(testInput)
+    check tokens.len > 0
+    # Verify first few tokens exist
+    check tokens.len >= 10
+
+suite "run3 parser":
+  var testDir: string
+
+  setup:
+    testDir = "/tmp/test-run3-parser-" & $getTime().toUnix()
+    createDir(testDir)
+
+  teardown:
+    removeDir(testDir)
+
+  test "parses run3 file correctly":
+    let testContent = """
 name: "test-pkg"
 version: "1.0.0"
 release: "1"
@@ -32,7 +56,7 @@ func helper {
 
 build {
         print "Building package"
-        exec echo "Test build"
+        exec "echo Test build"
         cd /tmp
 }
 
@@ -40,244 +64,161 @@ package {
         print "Installing package"
 }
 """
+    writeFile(testDir / "run3", testContent)
 
-  let testDir = "/tmp/test-run3-" & $getTime().toUnix()
-  createDir(testDir)
-  writeFile(testDir / "run3", testContent)
-
-  try:
     let rf = parseRun3(testDir)
 
-    echo "Name: ", rf.getName()
-    echo "Version: ", rf.getVersion()
-    echo "Release: ", rf.getRelease()
-    echo "Description: ", rf.getDescription()
-    echo "Sources: ", rf.getSources()
-    echo "Depends: ", rf.getDepends()
-    echo "Version String: ", rf.getVersionString()
-    echo "Functions: ", rf.getAllFunctions()
-    echo "Custom Functions: ", rf.getAllCustomFunctions()
+    check rf.getName() == "test-pkg"
+    check rf.getVersion() == "1.0.0"
+    check rf.getRelease() == "1"
+    check rf.getDescription() == "Test package"
+    check rf.getSources().len == 1
+    check rf.getSources()[0] == "https://example.com/test.tar.gz"
+    check rf.getDepends().len == 2
+    check "dep1" in rf.getDepends()
+    check "dep2" in rf.getDepends()
+    check rf.getVersionString() == "1.0.0-1"
+    check rf.getAllFunctions().len > 0
+    check "helper" in rf.getAllCustomFunctions()
 
-    echo "\n✓ Parser test passed"
-  except Exception as e:
-    echo "✗ Parser test failed: ", e.msg
-    echo getStackTrace(e)
-  finally:
-    removeDir(testDir)
-
-proc testLexer() =
-  echo "\n=== Testing Lexer ==="
-
-  let testInput = "name: \"test\"\n" &
-                                  "version: \"1.0\"\n" &
-                                  "build {\n" &
-                                  "    print \"Hello\"\n" &
-                                  "    write \"file.txt\" \"\"\"\n" &
-                                  "Multi-line\n" &
-                                  "String\n" &
-                                  "\"\"\"\n" &
-                                  "}\n"
-
-  try:
-    let tokens = tokenize(testInput)
-    echo "Tokens generated: ", tokens.len
-    for i, tok in tokens:
-      if i < 10: # Print first 10 tokens
-        echo "  ", tok.kind, ": '", tok.value, "' (line ", tok.line, ")"
-    echo "✓ Lexer test passed"
-  except Exception as e:
-    echo "✗ Lexer test failed: ", e.msg
-
-proc testVariables() =
-  echo "\n=== Testing Variable Manipulation ==="
-
-  try:
-    # Test split
+suite "run3 variables":
+  test "split method":
     let strVal = newStringValue("1.2.3")
     let splitResult = applyMethod(strVal, "split", @["."])
-    echo "split('1.2.3', '.'): ", splitResult.toList()
+    check splitResult.toList() == @["1", "2", "3"]
 
-    # Test join
+  test "join method":
     let listVal = newListValue(@["a", "b", "c"])
     let joinResult = applyMethod(listVal, "join", @["-"])
-    echo "join(['a','b','c'], '-'): ", joinResult.toString()
+    check joinResult.toString() == "a-b-c"
 
-    # Test cut
+  test "cut method":
+    let strVal = newStringValue("1.2.3")
     let cutResult = applyMethod(strVal, "cut", @["0", "3"])
-    echo "cut('1.2.3', 0, 3): ", cutResult.toString()
+    check cutResult.toString() == "1.2"
 
-    # Test replace
+  test "replace method":
+    let strVal = newStringValue("1.2.3")
     let replaceResult = applyMethod(strVal, "replace", @[".", "_"])
-    echo "replace('1.2.3', '.', '_'): ", replaceResult.toString()
+    check replaceResult.toString() == "1_2_3"
 
-    # Test indexing
+  test "indexing":
+    let strVal = newStringValue("1.2.3")
+    let splitResult = applyMethod(strVal, "split", @["."])
     let indexResult = applyIndex(splitResult, "0")
-    echo "split('1.2.3', '.')[0]: ", indexResult.toString()
+    check indexResult.toString() == "1"
 
-    # Test slicing
+  test "slicing":
+    let strVal = newStringValue("1.2.3")
+    let splitResult = applyMethod(strVal, "split", @["."])
     let sliceResult = applyIndex(splitResult, "0:2")
-    echo "split('1.2.3', '.')[0:2]: ", sliceResult.toList()
+    check sliceResult.toList() == @["1", "2"]
 
-    echo "✓ Variable manipulation test passed"
-  except Exception as e:
-    echo "✗ Variable test failed: ", e.msg
-
-proc testBuiltins() =
-  echo "\n=== Testing Built-in Commands ==="
-
-  try:
+suite "run3 builtins":
+  test "variable set/get":
     let ctx = initExecutionContext()
     ctx.silent = true
     ctx.passthrough = true
 
-    # Test variable setting/getting
     ctx.setVariable("test_var", "hello")
-    let val = ctx.getVariable("test_var")
-    echo "Variable set/get: ", val
+    check ctx.getVariable("test_var") == "hello"
 
-    # Test list variable
-    ctx.setListVariable("test_list", @["a", "b", "c"])
-    let listVal = ctx.getListVariable("test_list")
-    echo "List variable: ", listVal
-
-    # Test variable resolution
-    ctx.setVariable("name", "world")
-    let resolved = ctx.resolveVariables("Hello $name and ${name}!")
-    echo "Variable resolution: ", resolved
-
-    # Test cd
-    let originalDir = getCurrentDir()
-    discard ctx.builtinCd("/tmp")
-    echo "Changed directory to: ", ctx.currentDir
-    setCurrentDir(originalDir)
-
-    # Test write/append
-    let testFile = "test_write.txt"
-    let writeContent = "Line 1"
-    let appendContent = "\nLine 2"
-
-    # Write
-    ctx.builtinWrite(testFile, writeContent)
-    if readFile(ctx.currentDir / testFile) == writeContent:
-      echo "Write test: Passed"
-    else:
-      echo "Write test: Failed"
-
-    # Append
-    ctx.builtinAppend(testFile, appendContent)
-    if readFile(ctx.currentDir / testFile) == writeContent & appendContent:
-      echo "Append test: Passed"
-    else:
-      echo "Append test: Failed"
-
-    # Clean up
-    removeFile(ctx.currentDir / testFile)
-
-    echo "✓ Built-in commands test passed"
-  except Exception as e:
-    echo "✗ Built-in test failed: ", e.msg
-
-proc testMacros() =
-  echo "\n=== Testing Macros ==="
-
-  try:
+  test "list variable":
     let ctx = initExecutionContext()
     ctx.silent = true
 
-    # Test macro argument parsing - internal args only
-    let args1 = parseMacroArgs(@["--meson", "--autocd=true",
-            "--prefix=/usr/local"])
-    echo "Build system: ", args1.buildSystem
-    echo "Autocd: ", args1.autocd
-    echo "Prefix: ", args1.prefix
-    echo "Passthrough: '", args1.passthroughArgs, "'"
+    ctx.setListVariable("test_list", @["a", "b", "c"])
+    check ctx.getListVariable("test_list") == @["a", "b", "c"]
 
-    if args1.buildSystem == bsMeson and args1.autocd == true and
-       args1.prefix == "/usr/local" and args1.passthroughArgs == "":
-      echo "Internal args only: Passed"
-    else:
-      echo "Internal args only: Failed"
+  test "variable resolution":
+    let ctx = initExecutionContext()
+    ctx.silent = true
 
-    echo "✓ Macro test passed"
-  except Exception as e:
-    echo "✗ Macro test failed: ", e.msg
+    ctx.setVariable("name", "world")
+    let resolved = ctx.resolveVariables("Hello $name and ${name}!")
+    check resolved == "Hello world and world!"
 
-proc testMacroArgParsing() =
-  echo "\n=== Testing Macro Argument Parsing ==="
+  test "cd builtin":
+    let ctx = initExecutionContext()
+    ctx.silent = true
+    ctx.passthrough = true
 
-  try:
-    # Test mixed args - internal + passthrough
+    let originalDir = getCurrentDir()
+    discard ctx.builtinCd("/tmp")
+    check ctx.currentDir == "/tmp"
+    setCurrentDir(originalDir)
+
+  test "write builtin":
+    let ctx = initExecutionContext()
+    ctx.silent = true
+    ctx.passthrough = true
+
+    let testFile = "test_write_unittest.txt"
+    let writeContent = "Line 1"
+
+    ctx.builtinWrite(testFile, writeContent)
+    check readFile(ctx.currentDir / testFile) == writeContent
+
+    removeFile(ctx.currentDir / testFile)
+
+  test "append builtin":
+    let ctx = initExecutionContext()
+    ctx.silent = true
+    ctx.passthrough = true
+
+    let testFile = "test_append_unittest.txt"
+    let writeContent = "Line 1"
+    let appendContent = "\nLine 2"
+
+    ctx.builtinWrite(testFile, writeContent)
+    ctx.builtinAppend(testFile, appendContent)
+    check readFile(ctx.currentDir / testFile) == writeContent & appendContent
+
+    removeFile(ctx.currentDir / testFile)
+
+suite "run3 macros":
+  test "macro argument parsing - internal args only":
+    let ctx = initExecutionContext()
+    ctx.silent = true
+
+    let args = parseMacroArgs(@["--meson", "--autocd=true",
+        "--prefix=/usr/local"])
+    check args.buildSystem == bsMeson
+    check args.autocd == true
+    check args.prefix == "/usr/local"
+    check args.passthroughArgs == ""
+
+  test "macro argument parsing - mixed args":
     let args = parseMacroArgs(@["--ninja", "-Dplatforms=wayland,x11",
         "-Dgallium-drivers=auto", "--enable-foo", "install.prefix=/usr"])
 
-    echo "Build system: ", args.buildSystem
-    echo "Passthrough: '", args.passthroughArgs, "'"
+    check args.buildSystem == bsNinja
+    check "-Dplatforms=wayland,x11" in args.passthroughArgs
+    check "-Dgallium-drivers=auto" in args.passthroughArgs
+    check "--enable-foo" in args.passthroughArgs
+    check "install.prefix=/usr" in args.passthroughArgs
+    check "--ninja" notin args.passthroughArgs
 
-    # Verify internal args are recognized
-    if args.buildSystem != bsNinja:
-      echo "✗ Failed: --ninja not recognized as build system"
-      return
-    echo "  --ninja recognized: Passed"
-
-    # Verify passthrough args are collected
-    if "-Dplatforms=wayland,x11" notin args.passthroughArgs:
-      echo "✗ Failed: -Dplatforms=wayland,x11 not in passthrough"
-      return
-    echo "  -Dplatforms in passthrough: Passed"
-
-    if "-Dgallium-drivers=auto" notin args.passthroughArgs:
-      echo "✗ Failed: -Dgallium-drivers=auto not in passthrough"
-      return
-    echo "  -Dgallium-drivers in passthrough: Passed"
-
-    if "--enable-foo" notin args.passthroughArgs:
-      echo "✗ Failed: --enable-foo not in passthrough"
-      return
-    echo "  --enable-foo in passthrough: Passed"
-
-    if "install.prefix=/usr" notin args.passthroughArgs:
-      echo "✗ Failed: install.prefix=/usr not in passthrough"
-      return
-    echo "  install.prefix=/usr in passthrough: Passed"
-
-    # Test that internal args are NOT in passthrough
-    if "--ninja" in args.passthroughArgs:
-      echo "✗ Failed: --ninja should not be in passthrough"
-      return
-    echo "  --ninja not in passthrough: Passed"
-
-    # Test --set style args (flag followed by value)
-    let args2 = parseMacroArgs(@["--set", "install.prefix=/usr", "--set",
+  test "macro argument parsing - set style args":
+    let args = parseMacroArgs(@["--set", "install.prefix=/usr", "--set",
         "llvm.link-shared=true", "--llvm-config=/usr/bin/llvm-config"])
 
-    echo "\nTest --set style args:"
-    echo "Passthrough: '", args2.passthroughArgs, "'"
+    check "--set" in args.passthroughArgs
+    check "install.prefix=/usr" in args.passthroughArgs
+    check "--llvm-config=/usr/bin/llvm-config" in args.passthroughArgs
 
-    # --set is not a recognized internal arg, so it should pass through
-    if "--set" notin args2.passthroughArgs:
-      echo "✗ Failed: --set not in passthrough"
-      return
-    echo "  --set in passthrough: Passed"
+suite "run3 variable operations":
+  var testDir: string
 
-    if "install.prefix=/usr" notin args2.passthroughArgs:
-      echo "✗ Failed: install.prefix=/usr not in passthrough"
-      return
-    echo "  install.prefix=/usr in passthrough: Passed"
+  setup:
+    testDir = "/tmp/test-run3-ops-" & $getTime().toUnix()
+    createDir(testDir)
 
-    if "--llvm-config=/usr/bin/llvm-config" notin args2.passthroughArgs:
-      echo "✗ Failed: --llvm-config not in passthrough"
-      return
-    echo "  --llvm-config in passthrough: Passed"
+  teardown:
+    removeDir(testDir)
 
-    echo "✓ Macro argument parsing test passed"
-  except Exception as e:
-    echo "✗ Macro argument parsing test failed: ", e.msg
-    echo getStackTrace(e)
-
-proc testVariableOps() =
-  echo "\n=== Testing Variable Operations (+:, -:) ==="
-
-  let testContent = """
+  test "list append and remove operators":
+    let testContent = """
 name: "test-pkg"
 depends:
     - "dep1"
@@ -292,200 +233,146 @@ depends-:
 cflags: "-O2"
 cflags+: "-g"
 """
+    writeFile(testDir / "run3", testContent)
 
-  let testDir = "/tmp/test-run3-ops-" & $getTime().toUnix()
-  createDir(testDir)
-  writeFile(testDir / "run3", testContent)
-
-  try:
     let rf = parseRun3(testDir)
     let ctx = initFromRunfile(rf.parsed)
 
-    # Check depends list
     let depends = ctx.getListVariable("depends")
-    echo "Depends: ", depends
+    check "dep3" in depends
+    check "dep1" notin depends
 
-    if "dep3" in depends and "dep1" notin depends:
-      echo "List operations: Passed"
-    else:
-      echo "List operations: Failed"
-
-    # Check cflags
     let cflags = ctx.getVariable("cflags")
-    echo "CFLAGS: ", cflags
-    if cflags == "-O2 -g":
-      echo "String operations: Passed"
-    else:
-      echo "String operations: Failed (Expected '-O2 -g', got '", cflags, "')"
+    check cflags == "-O2 -g"
 
-    echo "✓ Variable operations test passed"
-  except Exception as e:
-    echo "✗ Variable operations test failed: ", e.msg
-    echo getStackTrace(e)
-  finally:
-    removeDir(testDir)
+suite "run3 exec manipulation":
+  test "exec output":
+    let ctx = initExecutionContext()
+    ctx.silent = true
+    ctx.passthrough = true
 
-proc testExecManipulation() =
-  echo "\n=== Testing Exec Manipulation ==="
-
-  let ctx = initExecutionContext()
-  ctx.silent = true
-  ctx.passthrough = true
-
-  try:
-    # Mock exec by echoing
     let output = ctx.resolveVariables("Hello ${exec(\"echo world\").output()}!")
-    echo "Exec output: ", output
+    check output == "Hello world!"
 
-    if output == "Hello world!":
-      echo "Exec output test: Passed"
-    else:
-      echo "Exec output test: Failed"
+  test "exec exit code":
+    let ctx = initExecutionContext()
+    ctx.silent = true
+    ctx.passthrough = true
 
     let exitCode = ctx.resolveVariables("Exit code: ${exec(\"true\").exit()}")
-    echo "Exec exit: ", exitCode
+    check exitCode == "Exit code: 0"
 
-    if exitCode == "Exit code: 0":
-      echo "Exec exit code test: Passed"
-    else:
-      echo "Exec exit code test: Failed"
+  test "exec chaining with strip":
+    let ctx = initExecutionContext()
+    ctx.silent = true
+    ctx.passthrough = true
 
-    echo "✓ Exec manipulation test passed"
-  except Exception as e:
-    echo "✗ Exec manipulation test failed: ", e.msg
-
-proc testConditions() =
-  echo "\n=== Testing Conditions ==="
-
-  let ctx = initExecutionContext()
-  ctx.silent = true
-
-  try:
-    ctx.setVariable("enabled", "true")
-    ctx.setVariable("disabled", "false")
-    ctx.setVariable("version", "1.0.0")
-    ctx.setVariable("name", "pkg")
-
-    # Test basic boolean
-    if ctx.evaluateCondition("$enabled"):
-      echo "Boolean check (true): Passed"
-    else:
-      echo "Boolean check (true): Failed"
-
-    if not ctx.evaluateCondition("$disabled"):
-      echo "Boolean check (false): Passed"
-    else:
-      echo "Boolean check (false): Failed"
-
-    # Test equality
-    if ctx.evaluateCondition("$version == \"1.0.0\""):
-      echo "Equality check: Passed"
-    else:
-      echo "Equality check: Failed"
-
-    if ctx.evaluateCondition("$name != \"other\""):
-      echo "Inequality check: Passed"
-    else:
-      echo "Inequality check: Failed"
-
-    echo "✓ Condition test passed"
-  except Exception as e:
-    echo "✗ Condition test failed: ", e.msg
-
-proc testExecChaining() =
-  echo "\n=== Testing Exec Chaining ==="
-
-  let ctx = initExecutionContext()
-  ctx.silent = true
-  ctx.passthrough = true
-
-  try:
-    # Test .strip() on exec output
-    # " echo  test " -> " test " -> strip -> "test"
     let output = ctx.resolveVariables("${exec(\"echo ' test '\").strip()}")
-    echo "Exec chaining output: '", output, "'"
+    check output == "test"
 
-    if output == "test":
-      echo "Exec chaining test: Passed"
-    else:
-      echo "Exec chaining test: Failed"
+suite "run3 conditions":
+  test "basic boolean true":
+    let ctx = initExecutionContext()
+    ctx.silent = true
 
-    echo "✓ Exec chaining test passed"
-  except Exception as e:
-    echo "✗ Exec chaining test failed: ", e.msg
+    ctx.setVariable("enabled", "true")
+    check ctx.evaluateCondition("$enabled")
 
-proc testNewConditionOperators() =
-  echo "\n=== Testing New Condition Operators (||, &&, =~) ==="
+  test "basic boolean false":
+    let ctx = initExecutionContext()
+    ctx.silent = true
 
-  let ctx = initExecutionContext()
-  ctx.silent = true
-  ctx.passthrough = true
+    ctx.setVariable("disabled", "false")
+    check not ctx.evaluateCondition("$disabled")
 
-  # Set up test variables
-  ctx.setVariable("name", "grep")
-  ctx.setVariable("arch", "x86_64")
-  ctx.setVariable("debug", "true")
-  ctx.setVariable("verbose", "true")
+  test "equality check":
+    let ctx = initExecutionContext()
+    ctx.silent = true
 
-  try:
-    # Test || (OR) operator
-    if ctx.evaluateCondition("\"$name\" == \"grep\" || \"$name\" == \"tar\""):
-      echo "OR operator (first true): Passed"
-    else:
-      echo "OR operator (first true): Failed"
+    ctx.setVariable("version", "1.0.0")
+    check ctx.evaluateCondition("$version == \"1.0.0\"")
 
-    ctx.setVariable("name", "tar")
-    if ctx.evaluateCondition("\"$name\" == \"grep\" || \"$name\" == \"tar\""):
-      echo "OR operator (second true): Passed"
-    else:
-      echo "OR operator (second true): Failed"
+  test "inequality check":
+    let ctx = initExecutionContext()
+    ctx.silent = true
 
-    ctx.setVariable("name", "other")
-    if not ctx.evaluateCondition("\"$name\" == \"grep\" || \"$name\" == \"tar\""):
-      echo "OR operator (both false): Passed"
-    else:
-      echo "OR operator (both false): Failed"
+    ctx.setVariable("name", "pkg")
+    check ctx.evaluateCondition("$name != \"other\"")
 
-    # Test && (AND) operator
-    if ctx.evaluateCondition("\"$debug\" == \"true\" && \"$verbose\" == \"true\""):
-      echo "AND operator (both true): Passed"
-    else:
-      echo "AND operator (both true): Failed"
+suite "run3 condition operators":
+  test "OR operator - first true":
+    let ctx = initExecutionContext()
+    ctx.silent = true
+    ctx.passthrough = true
 
-    ctx.setVariable("verbose", "false")
-    if not ctx.evaluateCondition("\"$debug\" == \"true\" && \"$verbose\" == \"true\""):
-      echo "AND operator (one false): Passed"
-    else:
-      echo "AND operator (one false): Failed"
-
-    # Test =~ (regex match) operator
     ctx.setVariable("name", "grep")
-    if ctx.evaluateCondition("\"$name\" =~ e\"grep|tar|bzip2\""):
-      echo "Regex match (grep matches): Passed"
-    else:
-      echo "Regex match (grep matches): Failed"
+    check ctx.evaluateCondition("\"$name\" == \"grep\" || \"$name\" == \"tar\"")
+
+  test "OR operator - second true":
+    let ctx = initExecutionContext()
+    ctx.silent = true
+    ctx.passthrough = true
 
     ctx.setVariable("name", "tar")
-    if ctx.evaluateCondition("\"$name\" =~ e\"grep|tar|bzip2\""):
-      echo "Regex match (tar matches): Passed"
-    else:
-      echo "Regex match (tar matches): Failed"
+    check ctx.evaluateCondition("\"$name\" == \"grep\" || \"$name\" == \"tar\"")
+
+  test "OR operator - both false":
+    let ctx = initExecutionContext()
+    ctx.silent = true
+    ctx.passthrough = true
 
     ctx.setVariable("name", "other")
-    if not ctx.evaluateCondition("\"$name\" =~ e\"grep|tar|bzip2\""):
-      echo "Regex match (no match): Passed"
-    else:
-      echo "Regex match (no match): Failed"
+    check not ctx.evaluateCondition("\"$name\" == \"grep\" || \"$name\" == \"tar\"")
 
-    echo "✓ New condition operators test passed"
-  except Exception as e:
-    echo "✗ New condition operators test failed: ", e.msg
-    echo getStackTrace(e)
+  test "AND operator - both true":
+    let ctx = initExecutionContext()
+    ctx.silent = true
+    ctx.passthrough = true
 
-proc testContinueBreak() =
-  echo "\n=== Testing Continue and Break ==="
+    ctx.setVariable("debug", "true")
+    ctx.setVariable("verbose", "true")
+    check ctx.evaluateCondition("\"$debug\" == \"true\" && \"$verbose\" == \"true\"")
 
-  let testContent = """
+  test "AND operator - one false":
+    let ctx = initExecutionContext()
+    ctx.silent = true
+    ctx.passthrough = true
+
+    ctx.setVariable("debug", "true")
+    ctx.setVariable("verbose", "false")
+    check not ctx.evaluateCondition("\"$debug\" == \"true\" && \"$verbose\" == \"true\"")
+
+  test "regex match operator - matches":
+    let ctx = initExecutionContext()
+    ctx.silent = true
+    ctx.passthrough = true
+
+    ctx.setVariable("name", "grep")
+    check ctx.evaluateCondition("\"$name\" =~ e\"grep|tar|bzip2\"")
+
+    ctx.setVariable("name", "tar")
+    check ctx.evaluateCondition("\"$name\" =~ e\"grep|tar|bzip2\"")
+
+  test "regex match operator - no match":
+    let ctx = initExecutionContext()
+    ctx.silent = true
+    ctx.passthrough = true
+
+    ctx.setVariable("name", "other")
+    check not ctx.evaluateCondition("\"$name\" =~ e\"grep|tar|bzip2\"")
+
+suite "run3 control flow":
+  var testDir: string
+
+  setup:
+    testDir = "/tmp/test-run3-control-" & $getTime().toUnix()
+    createDir(testDir)
+
+  teardown:
+    removeDir(testDir)
+
+  test "continue and break":
+    let testContent = """
 name: "test-pkg"
 version: "1.0.0"
 release: "1"
@@ -514,179 +401,127 @@ package {
     print "Result: $result"
 }
 """
+    writeFile(testDir / "run3", testContent)
 
-  let testDir = "/tmp/test-run3-control-" & $getTime().toUnix()
-  createDir(testDir)
-  writeFile(testDir / "run3", testContent)
-
-  try:
     let rf = parseRun3(testDir)
     let ctx = initFromRunfile(rf.parsed)
     ctx.silent = false
     ctx.passthrough = true
 
-    # The test passes if it parses and executes without error
-    # Expected output: Processing: a, Processing: b (SKIP skipped, STOP breaks before c,d)
     discard ctx.executeRun3Function(rf.parsed, "package")
 
-    # After execution, result should be "a b " (SKIP skipped, STOP broke before c and d)
     let result = ctx.getVariable("result").strip()
-    if result == "a b":
-      echo "Continue/Break test: Passed"
-      echo "String concatenation result: Passed (got '" & result & "')"
-    else:
-      echo "Continue/Break test: Failed (expected 'a b', got '" & result & "')"
+    check result == "a b"
 
-    echo "✓ Continue/Break test passed"
-  except Exception as e:
-    echo "✗ Continue/Break test failed: ", e.msg
-    echo getStackTrace(e)
-  finally:
-    removeDir(testDir)
+suite "run3 utils helpers":
+  test "stripQuotes":
+    check stripQuotes("\"hello\"") == "hello"
+    check stripQuotes("'world'") == "world"
+    check stripQuotes("noquotes") == "noquotes"
+    check stripQuotes("\"\"") == ""
+    check stripQuotes("''") == ""
+    check stripQuotes("\"only start") == "\"only start"
+    check stripQuotes("only end\"") == "only end\""
 
-proc testUtilsHelpers() =
-  echo "\n=== Testing Utils Helpers ==="
+  test "extractBraceExpr":
+    let (expr1, end1) = extractBraceExpr("${foo}", 0)
+    check expr1 == "foo"
+    check end1 == 6
 
-  try:
-    # Test stripQuotes
-    block:
-      doAssert stripQuotes("\"hello\"") == "hello"
-      doAssert stripQuotes("'world'") == "world"
-      doAssert stripQuotes("noquotes") == "noquotes"
-      doAssert stripQuotes("\"\"") == ""
-      doAssert stripQuotes("''") == ""
-      doAssert stripQuotes("\"only start") == "\"only start"
-      doAssert stripQuotes("only end\"") == "only end\""
-      echo "stripQuotes: Passed"
+    let (expr2, end2) = extractBraceExpr("prefix${bar}suffix", 6)
+    check expr2 == "bar"
+    check end2 == 12
 
-    # Test extractBraceExpr
-    block:
-      let (expr1, end1) = extractBraceExpr("${foo}", 0)
-      doAssert expr1 == "foo"
-      doAssert end1 == 6
+    let (expr3, end3) = extractBraceExpr("${nested.method()}", 0)
+    check expr3 == "nested.method()"
+    check end3 == 18
 
-      let (expr2, end2) = extractBraceExpr("prefix${bar}suffix", 6)
-      doAssert expr2 == "bar"
-      doAssert end2 == 12
+    let (expr4, end4) = extractBraceExpr("nope", 0)
+    check expr4 == ""
+    check end4 == 0
 
-      let (expr3, end3) = extractBraceExpr("${nested.method()}", 0)
-      doAssert expr3 == "nested.method()"
-      doAssert end3 == 18 # len("${nested.method()}") == 18
+  test "parseConditionOperator":
+    let cp1 = parseConditionOperator("left == right")
+    check cp1.valid
+    check cp1.left == "left"
+    check cp1.op == "=="
+    check cp1.right == "right"
 
-      # Not a brace expr
-      let (expr4, end4) = extractBraceExpr("nope", 0)
-      doAssert expr4 == ""
-      doAssert end4 == 0
+    let cp2 = parseConditionOperator("foo != bar")
+    check cp2.valid
+    check cp2.left == "foo"
+    check cp2.op == "!="
+    check cp2.right == "bar"
 
-      echo "extractBraceExpr: Passed"
+    let cp3 = parseConditionOperator("value =~ e\"pattern\"")
+    check cp3.valid
+    check cp3.left == "value"
+    check cp3.op == "=~"
+    check cp3.right == "e\"pattern\""
 
-    # Test parseConditionOperator
-    block:
-      let cp1 = parseConditionOperator("left == right")
-      doAssert cp1.valid
-      doAssert cp1.left == "left"
-      doAssert cp1.op == "=="
-      doAssert cp1.right == "right"
+    let cp4 = parseConditionOperator("no operator here")
+    check not cp4.valid
 
-      let cp2 = parseConditionOperator("foo != bar")
-      doAssert cp2.valid
-      doAssert cp2.left == "foo"
-      doAssert cp2.op == "!="
-      doAssert cp2.right == "bar"
+  test "stripPatternWrapper":
+    check stripPatternWrapper("e\"pattern\"") == "pattern"
+    check stripPatternWrapper("e'pattern'") == "pattern"
+    check stripPatternWrapper("\"quoted\"") == "quoted"
+    check stripPatternWrapper("'single'") == "single"
+    check stripPatternWrapper("plain") == "plain"
 
-      let cp3 = parseConditionOperator("value =~ e\"pattern\"")
-      doAssert cp3.valid
-      doAssert cp3.left == "value"
-      doAssert cp3.op == "=~"
-      doAssert cp3.right == "e\"pattern\""
+  test "isTrueBoolean and isFalseBoolean":
+    check isTrueBoolean("true")
+    check isTrueBoolean("TRUE")
+    check isTrueBoolean("1")
+    check isTrueBoolean("yes")
+    check isTrueBoolean("on")
+    check not isTrueBoolean("false")
+    check not isTrueBoolean("maybe")
 
-      let cp4 = parseConditionOperator("no operator here")
-      doAssert not cp4.valid
+    check isFalseBoolean("false")
+    check isFalseBoolean("FALSE")
+    check isFalseBoolean("0")
+    check isFalseBoolean("no")
+    check isFalseBoolean("off")
+    check isFalseBoolean("")
+    check not isFalseBoolean("true")
+    check not isFalseBoolean("maybe")
 
-      echo "parseConditionOperator: Passed"
+  test "splitLogicalOr and splitLogicalAnd":
+    let orParts = splitLogicalOr("a || b || c")
+    check orParts == @["a", "b", "c"]
 
-    # Test stripPatternWrapper
-    block:
-      doAssert stripPatternWrapper("e\"pattern\"") == "pattern"
-      doAssert stripPatternWrapper("e'pattern'") == "pattern"
-      doAssert stripPatternWrapper("\"quoted\"") == "quoted"
-      doAssert stripPatternWrapper("'single'") == "single"
-      doAssert stripPatternWrapper("plain") == "plain"
-      echo "stripPatternWrapper: Passed"
+    let andParts = splitLogicalAnd("x && y && z")
+    check andParts == @["x", "y", "z"]
 
-    # Test isTrueBoolean/isFalseBoolean
-    block:
-      doAssert isTrueBoolean("true")
-      doAssert isTrueBoolean("TRUE")
-      doAssert isTrueBoolean("1")
-      doAssert isTrueBoolean("yes")
-      doAssert isTrueBoolean("on")
-      doAssert not isTrueBoolean("false")
-      doAssert not isTrueBoolean("maybe")
+    let single = splitLogicalOr("single")
+    check single == @["single"]
 
-      doAssert isFalseBoolean("false")
-      doAssert isFalseBoolean("FALSE")
-      doAssert isFalseBoolean("0")
-      doAssert isFalseBoolean("no")
-      doAssert isFalseBoolean("off")
-      doAssert isFalseBoolean("")
-      doAssert not isFalseBoolean("true")
-      doAssert not isFalseBoolean("maybe")
+  test "isSimpleVarName":
+    check isSimpleVarName("foo")
+    check isSimpleVarName("_bar")
+    check isSimpleVarName("test123")
+    check isSimpleVarName("my-var")
+    check isSimpleVarName("my_var")
+    check not isSimpleVarName("")
+    check not isSimpleVarName("123abc")
+    check not isSimpleVarName("has.dot")
+    check not isSimpleVarName("has space")
+    check not isSimpleVarName("has(paren)")
 
-      echo "isTrueBoolean/isFalseBoolean: Passed"
+  test "findMatchingBrace":
+    check findMatchingBrace("${foo}", 1) == 5
+    check findMatchingBrace("${a{b}c}", 1) == 7
+    check findMatchingBrace("${unclosed", 1) == -1
 
-    # Test splitLogicalOr/splitLogicalAnd
-    block:
-      let orParts = splitLogicalOr("a || b || c")
-      doAssert orParts == @["a", "b", "c"]
+suite "run3 for loop":
+  test "for loop with variable expression":
+    let ctx = initExecutionContext()
+    ctx.silent = true
+    ctx.passthrough = true
 
-      let andParts = splitLogicalAnd("x && y && z")
-      doAssert andParts == @["x", "y", "z"]
+    ctx.setVariable("items", "apple\nbanana\ncherry")
 
-      # No operators
-      let single = splitLogicalOr("single")
-      doAssert single == @["single"]
-
-      echo "splitLogicalOr/splitLogicalAnd: Passed"
-
-    # Test isSimpleVarName
-    block:
-      doAssert isSimpleVarName("foo")
-      doAssert isSimpleVarName("_bar")
-      doAssert isSimpleVarName("test123")
-      doAssert isSimpleVarName("my-var")
-      doAssert isSimpleVarName("my_var")
-      doAssert not isSimpleVarName("")
-      doAssert not isSimpleVarName("123abc")
-      doAssert not isSimpleVarName("has.dot")
-      doAssert not isSimpleVarName("has space")
-      doAssert not isSimpleVarName("has(paren)")
-      echo "isSimpleVarName: Passed"
-
-    # Test findMatchingBrace
-    block:
-      doAssert findMatchingBrace("${foo}", 1) == 5
-      doAssert findMatchingBrace("${a{b}c}", 1) == 7
-      doAssert findMatchingBrace("${unclosed", 1) == -1
-      echo "findMatchingBrace: Passed"
-
-    echo "✓ Utils helpers test passed"
-  except Exception as e:
-    echo "✗ Utils helpers test failed: ", e.msg
-    echo getStackTrace(e)
-
-proc testForLoopWithExpression() =
-  echo "\n=== Testing For Loop with Variable Expression ==="
-
-  let ctx = initExecutionContext()
-  ctx.silent = true
-  ctx.passthrough = true
-
-  # Set a variable with newline-separated values
-  ctx.setVariable("items", "apple\nbanana\ncherry")
-
-  try:
-    # Test iterating over a string variable that gets split
     var collected: seq[string] = @[]
     let itemsStr = ctx.getVariable("items")
     let items = itemsStr.splitLines()
@@ -695,31 +530,4 @@ proc testForLoopWithExpression() =
       if item.strip().len > 0:
         collected.add(item)
 
-    if collected == @["apple", "banana", "cherry"]:
-      echo "For loop expression parsing: Passed"
-    else:
-      echo "For loop expression parsing: Failed (got " & $collected & ")"
-
-    echo "✓ For loop with expression test passed"
-  except Exception as e:
-    echo "✗ For loop with expression test failed: ", e.msg
-
-when isMainModule:
-  echo "Running run3 module tests\n"
-
-  testLexer()
-  testParser()
-  testVariables()
-  testBuiltins()
-  testMacros()
-  testMacroArgParsing()
-  testVariableOps()
-  testExecManipulation()
-  testConditions()
-  testExecChaining()
-  testNewConditionOperators()
-  testContinueBreak()
-  testUtilsHelpers()
-  testForLoopWithExpression()
-
-  echo "\n=== All Tests Complete ==="
+    check collected == @["apple", "banana", "cherry"]

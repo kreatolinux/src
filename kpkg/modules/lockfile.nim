@@ -1,19 +1,13 @@
 import os
 import strutils
+import posix
 import logger
 
 const lockfilePath* = "/tmp/kpkg.lock"
 
 proc getCurrentPid(): int =
-  ## Get current process ID via /proc/self
-  when defined(linux):
-    try:
-      let selfLink = expandSymlink("/proc/self")
-      result = parseInt(lastPathPart(selfLink))
-    except:
-      result = 0
-  else:
-    result = 0
+  ## Get current process ID using POSIX getpid()
+  result = int(getpid())
 
 proc isProcessRunning(pid: int): bool =
   ## Check if process with given PID is still running
@@ -21,8 +15,9 @@ proc isProcessRunning(pid: int): bool =
     # Check if /proc/{pid} exists
     return dirExists("/proc/" & $pid)
   else:
-    # On non-Linux, can't check - assume running (conservative)
-    return true
+    # On non-Linux (macOS, BSD), use kill with signal 0 to check
+    # Signal 0 doesn't send anything but checks if process exists
+    return kill(Pid(pid), 0) == 0 or errno == EPERM
 
 proc removeLockfile*() =
   ## Remove the lockfile if it exists
