@@ -11,6 +11,8 @@ import runparser
 import commonTasks
 import commonPaths
 import algorithm
+import versioncmp
+import gitutils
 
 type
     repoInfo = tuple[repo: string, name: string, version: string]
@@ -24,6 +26,10 @@ type
         forceInstallAll*: bool
         useCacheIfAvailable*: bool
         init*: string
+        # Commit-based build fields
+        commit*: string     ## Commit hash for commit-based builds
+        commitRepo*: string ## The repo that was checked out to the commit
+        headRunfileCache*: Table[string, runFile] ## Cached runfiles at HEAD (before checkout)
 
     resolvedPackage* = object
         name*: string
@@ -88,6 +94,53 @@ proc loadPackageMetadata(name: string, repo: string, root: string): runFile =
     else:
         debug "dephandler: parseRunfile ran, loadPackageMetadata, repo: '"&repo&"', pkg: '"&name&"'"
         return parseRunfile(repo&"/"&name)
+
+proc loadPackageMetadataCommitAware*(name: string, repo: string,
+                                      ctx: dependencyContext): runFile =
+    ## Load package metadata considering commit context.
+    ##
+    ## For packages in the same repo as the commit:
+    ## - Compare version at commit vs HEAD
+    ## - Use whichever is newer
+    ##
+    ## For packages in different repos:
+    ## - Use HEAD version (current state)
+
+    if repo == "local":
+        debug "dephandler: packageToRunFile ran, loadPackageMetadataCommitAware, pkg: '"&name&"' root: '"&ctx.root&"'"
+        return packageToRunFile(getPackage(name, ctx.root))
+
+    # If no commit context, use normal loading
+    if ctx.commit == "" or ctx.commitRepo == "":
+        debug "dephandler: No commit context, using normal loadPackageMetadata"
+        return parseRunfile(repo&"/"&name)
+
+    # If package is in a different repo than the commit repo, use HEAD version
+    if repo != ctx.commitRepo:
+        debug "dephandler: Package '"&name&"' is in different repo ('"&repo&"' vs commit repo '"&ctx.commitRepo&"'), using HEAD"
+        return parseRunfile(repo&"/"&name)
+
+    # Package is in the commit repo - compare versions
+    # Current state is at commit (repo is checked out)
+    let commitRf = parseRunfile(repo&"/"&name)
+    let commitVersion = commitRf.versionString
+
+    # Get HEAD version from cache
+    if name in ctx.headRunfileCache:
+        let headRf = ctx.headRunfileCache[name]
+        let headVersion = headRf.versionString
+
+        if isNewer(headVersion, commitVersion):
+            info "Using '"&name&"' version "&headVersion&" (HEAD) instead of "&commitVersion&" (commit)"
+            return headRf
+        else:
+            if headVersion != commitVersion:
+                info "Using '"&name&"' version "&commitVersion&" (commit) instead of "&headVersion&" (HEAD)"
+            return commitRf
+    else:
+        # Package doesn't exist at HEAD (new package at commit, or was deleted)
+        debug "dephandler: Package '"&name&"' not in HEAD cache, using commit version"
+        return commitRf
 
 proc selectDependencyList(pkgrf: runFile, bdeps: bool, useBootstrap: bool): seq[string] =
     ## Select appropriate dependency list based on flags
@@ -250,7 +303,7 @@ proc buildDependencyGraph*(pkgs: seq[string], ctx: dependencyContext,
             debug "dephandler: Package '"&pkg&"' validation failed (repo: '"&repo&"'), not skipping"
             #continue
 
-        let pkgrf = loadPackageMetadata(pkg, repo, ctx.root)
+        let pkgrf = loadPackageMetadataCommitAware(pkg, repo, ctx)
 
         # Create resolved package node
         let resolvedPkg = resolvedPackage(
@@ -526,9 +579,16 @@ proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "],
                 forceInstallAll = false, chkInstalledDirInstead = false,
                         isInstallDir = false, ignoreInit = false,
                         useBootstrap = false, ignoreCircularDeps = false,
-                        useCacheIfAvailable = false): seq[string] =
+                        useCacheIfAvailable = false,
+                        commit = "", commitRepo = "",
+                        headRunfileCache = initTable[string, runFile]()): seq[string] =
     ## Takes packages and returns what to install in correct dependency order
     ## When isBuild = true, returns both build dependencies and runtime dependencies in correct order
+    ##
+    ## Commit-based build parameters:
+    ## - commit: The commit hash being built from
+    ## - commitRepo: The repo path that was checked out to the commit
+    ## - headRunfileCache: Cached runfiles from HEAD (before checkout)
 
     # Build dependency context
     var init = ""
@@ -543,7 +603,10 @@ proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "],
         ignoreCircularDeps: ignoreCircularDeps,
         forceInstallAll: forceInstallAll,
         useCacheIfAvailable: useCacheIfAvailable,
-        init: init
+        init: init,
+        commit: commit,
+        commitRepo: commitRepo,
+        headRunfileCache: headRunfileCache
     )
 
     # Build the dependency graph
@@ -573,10 +636,18 @@ proc dephandlerWithGraph*(pkgs: seq[string], ignoreDeps = @["  "],
                 forceInstallAll = false, chkInstalledDirInstead = false,
                         isInstallDir = false, ignoreInit = false,
                         useBootstrap = false, ignoreCircularDeps = false,
-                        useCacheIfAvailable = false): (seq[string],
+                        useCacheIfAvailable = false,
+                        commit = "", commitRepo = "",
+                        headRunfileCache = initTable[string, runFile]()): (seq[
+                                string],
                         dependencyGraph) =
     ## Takes packages and returns what to install in correct dependency order PLUS the dependency graph
     ## This allows reusing the graph structure instead of recalculating dependencies
+    ##
+    ## Commit-based build parameters:
+    ## - commit: The commit hash being built from
+    ## - commitRepo: The repo path that was checked out to the commit
+    ## - headRunfileCache: Cached runfiles from HEAD (before checkout)
 
     # Build dependency context
     var init = ""
@@ -591,7 +662,10 @@ proc dephandlerWithGraph*(pkgs: seq[string], ignoreDeps = @["  "],
         ignoreCircularDeps: ignoreCircularDeps,
         forceInstallAll: forceInstallAll,
         useCacheIfAvailable: useCacheIfAvailable,
-        init: init
+        init: init,
+        commit: commit,
+        commitRepo: commitRepo,
+        headRunfileCache: headRunfileCache
     )
 
     # Build the dependency graph

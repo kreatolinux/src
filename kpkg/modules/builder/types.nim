@@ -50,6 +50,11 @@ type
     # Override configuration
     override*: Config ## Per-package override config
 
+    # Commit-based build options
+    commit*: string ## Commit hash for commit-based builds (e.g., "e24958")
+    commitRepo*: string ## The repo that was checked out to the commit
+    headRunfileCache*: Table[string, runFile] ## Cached runfiles at HEAD (before checkout)
+
   BuildState* = object
     ## Runtime state during a build operation.
     ## Tracks parsed data and computed values.
@@ -95,6 +100,10 @@ type
     ignoreUseCacheIfAvailable*: seq[string] ## Packages to skip cache for
     root*: string ## Root path
     pkgPaths*: Table[string, string] ## Map of package names to local paths
+    # Commit-based build options
+    commit*: string ## Commit hash for commit-based builds
+    commitRepo*: string ## The repo that was checked out to the commit
+    headRunfileCache*: Table[string, runFile] ## Cached runfiles at HEAD
 
   InstallConfig* = object
     ## Configuration for package installation to overlay.
@@ -119,7 +128,9 @@ proc initBuildConfig*(package: string, destdir: string, offline = false,
                       actualRoot = "default", ignorePostInstall = false,
                       noSandbox = false, ignoreTarget = false,
                       ignoreUseCacheIfAvailable: seq[string] = @[""],
-                      isBootstrap = false): BuildConfig =
+                      isBootstrap = false,
+                      commit = "", commitRepo = "",
+                      headRunfileCache = initTable[string, runFile]()): BuildConfig =
   ## Creates a BuildConfig from individual parameters.
   ## Useful for backwards compatibility with existing call sites.
 
@@ -140,7 +151,10 @@ proc initBuildConfig*(package: string, destdir: string, offline = false,
     noSandbox: noSandbox,
     ignoreTarget: ignoreTarget,
     ignoreUseCacheIfAvailable: ignoreUseCacheIfAvailable,
-    isBootstrap: isBootstrap
+    isBootstrap: isBootstrap,
+    commit: commit,
+    commitRepo: commitRepo,
+    headRunfileCache: headRunfileCache
   )
 
   # These get resolved later
@@ -161,7 +175,9 @@ proc initSandboxConfig*(fullRootPath: string, target: string,
                         manualInstallList: seq[string],
                         ignoreUseCacheIfAvailable: seq[string],
                         root: string,
-                        pkgPaths: Table[string, string]): SandboxConfig =
+                        pkgPaths: Table[string, string],
+                        commit = "", commitRepo = "",
+                        headRunfileCache = initTable[string, runFile]()): SandboxConfig =
   ## Creates a SandboxConfig from individual parameters.
   SandboxConfig(
     fullRootPath: fullRootPath,
@@ -178,7 +194,10 @@ proc initSandboxConfig*(fullRootPath: string, target: string,
     manualInstallList: manualInstallList,
     ignoreUseCacheIfAvailable: ignoreUseCacheIfAvailable,
     root: root,
-    pkgPaths: pkgPaths
+    pkgPaths: pkgPaths,
+    commit: commit,
+    commitRepo: commitRepo,
+    headRunfileCache: headRunfileCache
   )
 
 proc toCacheConfig*(cfg: BuildConfig): CacheConfig =

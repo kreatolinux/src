@@ -8,6 +8,7 @@ import sequtils
 import parsecfg
 import runparser
 import posix_utils
+import gitutils
 
 proc isEmptyDir(dir: string): bool =
   # Checks if a directory is empty or not.
@@ -167,18 +168,35 @@ proc appendInternal(f: string, t: string): string =
     return t&" "&f
 
 proc parsePkgInfo*(pkg: string): tuple[name: string, repo: string,
-        version: string, nameWithRepo: string] =
-  # Returns the package name, repo and version. Version is empty when not specified.
-  # nameWithRepo outputs something like main/kpkg if the pkg includes the repo. It outputs the name if it doesn't.
+        version: string, commit: string, nameWithRepo: string] =
+  ## Returns the package name, repo, version, commit and nameWithRepo.
+  ## Version is empty when not specified.
+  ## Commit is empty when not specified, or when the suffix is a version (not a commit hash).
+  ## nameWithRepo outputs something like main/kpkg if the pkg includes the repo. It outputs the name if it doesn't.
+  ##
+  ## The '#' suffix is interpreted as:
+  ## - A commit hash if it's a 4-40 character hex string (e.g., "e24958", "abc123def")
+  ## - A version string otherwise (e.g., "v7.0.0-alpha2", "1.2.3")
   var name: string
   var repo: string
   var version: string
+  var commit: string
   var nameWithRepo: string
 
   let pkgSplitVer = pkg.split("#")
   let pkgSplit = pkg.split("/")
 
   if pkgSplitVer.len > 1:
+    let suffix = pkgSplitVer[1]
+
+    # Determine if suffix is a commit hash or a version
+    # Commit hashes are 4-40 character hex strings
+    if isCommitHash(suffix):
+      commit = suffix
+      version = ""
+    else:
+      version = suffix
+      commit = ""
 
     if pkgSplit.len > 1:
       name = pkgSplitVer[0].split("/")[1]
@@ -188,13 +206,12 @@ proc parsePkgInfo*(pkg: string): tuple[name: string, repo: string,
       name = pkgSplitVer[0]
       repo = findPkgRepo(pkgSplitVer[0])
 
-    version = pkgSplitVer[1]
-
   else:
     version = ""
+    commit = ""
 
 
-  if pkgSplit.len > 1 and version == "":
+  if pkgSplit.len > 1 and version == "" and commit == "":
     repo = "/etc/kpkg/repos/"&pkgSplit[0]
     name = pkgSplit[1]
     nameWithRepo = pkgSplitVer[0]
@@ -206,8 +223,8 @@ proc parsePkgInfo*(pkg: string): tuple[name: string, repo: string,
   if nameWithRepo == "":
     nameWithRepo = name
 
-  debug "parsePkgInfo ran, name: '"&name&"', repo: '"&repo&"', version: '"&version&"', nameWithRepo: '"&nameWithRepo&"'"
-  return (name: name, repo: repo, version: version,
+  debug "parsePkgInfo ran, name: '"&name&"', repo: '"&repo&"', version: '"&version&"', commit: '"&commit&"', nameWithRepo: '"&nameWithRepo&"'"
+  return (name: name, repo: repo, version: version, commit: commit,
           nameWithRepo: nameWithRepo)
 
 
