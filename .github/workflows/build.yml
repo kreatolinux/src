@@ -37,6 +37,7 @@ jobs:
           IS_ACTIONS=y sh $GITHUB_WORKSPACE/scripts/build-ci.sh init
           export PATH=$PATH:$HOME/.nimble/bin
           make deps
+          ./build.sh -T kpkg
           ./build.sh -p kpkg
           ./build.sh -p chkupd
           mv out out-release
