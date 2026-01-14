@@ -32,6 +32,7 @@ import commands/providescmd
 import commands/checkcmd
 import commands/listcmd
 import commands/initcmd
+import commands/clearlockcmd
 import modules/transaction
 import modules/logger
 import ../common/version
@@ -156,6 +157,9 @@ dispatchMulti(
   ],
   [
   list
+  ],
+  [
+  clearLock, doc = "Force clear the kpkg lockfile if it's stale"
   ],
   [
   init, doc = "Initialize multiple types of files", usage = "$doc\n",

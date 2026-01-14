@@ -1,31 +1,91 @@
 import os
+import strutils
 import logger
 
 const lockfilePath* = "/tmp/kpkg.lock"
 
+proc getCurrentPid(): int =
+  ## Get current process ID via /proc/self
+  when defined(linux):
+    try:
+      let selfLink = expandSymlink("/proc/self")
+      result = parseInt(lastPathPart(selfLink))
+    except:
+      result = 0
+  else:
+    result = 0
+
+proc isProcessRunning(pid: int): bool =
+  ## Check if process with given PID is still running
+  when defined(linux):
+    # Check if /proc/{pid} exists
+    return dirExists("/proc/" & $pid)
+  else:
+    # On non-Linux, can't check - assume running (conservative)
+    return true
+
 proc removeLockfile*() =
-  ## Remove the lockfile if it exists.
+  ## Remove the lockfile if it exists
   if fileExists(lockfilePath):
     removeFile(lockfilePath)
 
 proc lockfileErrorCallback(msg: string) =
-  ## Error callback that removes the lockfile on fatal errors.
+  ## Error callback that removes lockfile on fatal errors
   info("lockfile", "removing lockfile due to error")
   removeLockfile()
 
 proc createLockfile*() =
-  ## Create the lockfile and set up the error callback for cleanup.
-  writeFile(lockfilePath, "")
-  # Register the error callback so lockfile is cleaned up on fatal errors
+  ## Create lockfile with PID and set up error callback
+  let pid = getCurrentPid()
+  writeFile(lockfilePath, $pid)
   setErrorCallback(lockfileErrorCallback)
 
 proc checkLockfile*() =
-  ## Check if lockfile exists and error if it does.
+  ## Check if lockfile exists. Auto-removes stale locks from dead processes.
   if fileExists(lockfilePath):
-    # Don't remove lockfile on this error since we didn't create it
-    error("lockfile exists, will not proceed")
-    quit(1)
+    try:
+      let content = readFile(lockfilePath).strip()
+      if content != "":
+        let pid = parseInt(content)
+        if isProcessRunning(pid):
+          error("lockfile exists (PID " & $pid & " is running), will not proceed")
+          quit(1)
+        else:
+          # Process is dead - stale lock, auto-remove
+          warn("lockfile", "removing stale lockfile from dead process " & $pid)
+          removeLockfile()
+      else:
+        # Empty lockfile (old format) - treat as stale
+        warn("lockfile", "removing stale lockfile (empty, old format)")
+        removeLockfile()
+    except ValueError:
+      # Invalid PID in lockfile - treat as stale
+      warn("lockfile", "removing stale lockfile (invalid content)")
+      removeLockfile()
+    except IOError:
+      # Can't read lockfile - treat as stale
+      warn("lockfile", "removing stale lockfile (unreadable)")
+      removeLockfile()
+
+proc forceClearLockfile*() =
+  ## Force clear the lockfile regardless of state (for manual unlock)
+  if fileExists(lockfilePath):
+    try:
+      let content = readFile(lockfilePath).strip()
+      if content != "":
+        let pid = try: parseInt(content) except ValueError: 0
+        if pid > 0:
+          info("lockfile", "force clearing lockfile (was owned by PID " & $pid & ")")
+        else:
+          info("lockfile", "force clearing lockfile")
+      else:
+        info("lockfile", "force clearing lockfile (empty)")
+    except IOError:
+      info("lockfile", "force clearing lockfile")
+    removeLockfile()
+  else:
+    info("lockfile", "no lockfile exists")
 
 proc clearErrorCallback*() =
-  ## Clear the error callback (call after successful operation).
+  ## Clear the error callback (call after successful operation)
   setErrorCallback(nil)
