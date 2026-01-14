@@ -121,11 +121,11 @@ proc newTransaction*(packageName: string, root: string): Transaction =
     root: root
   )
 
-  # Create necessary directories
-  discard existsOrCreateDir(kpkgLibDir)
-  discard existsOrCreateDir(kpkgJournalDir)
-  discard existsOrCreateDir(kpkgBackupDir)
-  discard existsOrCreateDir(kpkgBackupDir & "/" & id)
+  # Create necessary directories (createDir creates parent directories as needed)
+  createDir(kpkgLibDir)
+  createDir(kpkgJournalDir)
+  createDir(kpkgBackupDir)
+  createDir(kpkgBackupDir & "/" & id)
 
   # Write initial journal
   result.writeJournal()
