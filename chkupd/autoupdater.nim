@@ -55,6 +55,17 @@ proc autoUpdater*(pkg: Run3File, packageDir: string, newVersion: string,
     source = newSources[c]
     filename = extractFilename(source).strip()
 
+    # Check if this is a local file (not a URL)
+    # Local files don't have a URI scheme and exist in the package directory
+    let localPath = packageDir & "/" & source
+    let isLocalFile = not source.contains("://") and (fileExists(localPath) or
+        dirExists(localPath))
+
+    if isLocalFile:
+      # Skip local files - they don't change with version updates
+      c = c+1
+      continue
+
     # Download the source
     try:
       download(source, filename, raiseWhenFail = true)
