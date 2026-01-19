@@ -35,7 +35,7 @@ case $1 in
                     kpkg install gnu-core -y
                 fi
 
-                kpkg upgrade -y
+                #kpkg upgrade -y
                 kpkg install meson -y
                 #kpkg build kpkg -y
 
