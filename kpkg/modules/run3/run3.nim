@@ -16,7 +16,7 @@ when not defined(run3Standalone):
   import builtins
   import executor
   import macros as run3macros
-  import ../logger
+  import ../../../common/logging
   export executor, builtins, run3macros
 else:
   proc debug(msg: string) = discard

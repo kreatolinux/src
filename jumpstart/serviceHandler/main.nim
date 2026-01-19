@@ -8,19 +8,22 @@ import ../../common/logging
 import jumpmount/main
 import jumpmount/umount
 
+# Initialize logging for jumpstart serviceHandler
+initLogger("jumpstart", "/etc/jumpstart/main.conf", "/var/log/jumpstart.log")
+
 proc execLoggedCmd(cmd: string, err: string) =
   ## execShellCmd with simple if statement
   discard existsOrCreateDir(err)
   if err != "/proc" and execCmdEx("mountpoint "&err).exitCode == 0:
-    info_msg err&" already mounted, skipping"
+    info err&" already mounted, skipping"
     return
 
   if execShellCmd(cmd) != 0:
-    error "Couldn't mount "&err
+    fatal "Couldn't mount "&err
 
 proc initSystem() =
   ## Initialize system such as mounting /proc, /dev, putting the hostname, etc.
-  info_msg "Mounting filesystems..."
+  info "Mounting filesystems..."
   if fileExists("/etc/fstab"):
     execLoggedCmd("mount -a", "fstab")
   execLoggedCmd("mount -t proc proc /proc", "/proc")
@@ -34,7 +37,7 @@ proc initSystem() =
 
   try:
     if fileExists("/etc/jumpstart/main.conf"):
-      info_msg "Loading configuration..."
+      info "Loading configuration..."
       let conf = loadConfig("/etc/jumpstart/main.conf")
       writeFile("/proc/sys/kernel/hostname", conf.getSectionValue(
               "System", "hostname", defaultHostname))

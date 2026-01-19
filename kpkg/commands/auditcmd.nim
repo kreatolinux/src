@@ -6,7 +6,7 @@ import ../modules/sqlite
 import ../modules/downloader
 import ../modules/libarchive
 import norm/sqlite
-import ../modules/logger as kpkgLogger
+import ../../common/logging as kpkgLogger
 
 proc verChecker*(ver1, ver2: string): bool =
   # Check version, and return true if ver1 >= ver2.

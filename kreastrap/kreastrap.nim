@@ -16,6 +16,9 @@ import ../kpkg/modules/commonTasks
 
 ## Kreato Linux's build tools.
 
+# Initialize logging for kreastrap
+initLogger("kreastrap", "", "/var/log/kreastrap.log")
+
 clCfg.version = "kreastrap, built with commit "&commitVer
 
 
@@ -53,7 +56,7 @@ proc initKrelease(conf: Config) =
 proc kreastrapInstall(package: string, installWithBinaries: bool,
         buildDir: string, useCacheIfPossible = true, target = kpkgTarget(buildDir)) =
   # Install a package.
-  info_msg "Installing package '"&package&"'"
+  info "Installing package '"&package&"'"
 
   var targetFin = target
 
@@ -90,7 +93,7 @@ proc kreastrap(buildType = "builder", arch = "amd64",
   ## Build a Kreato Linux rootfs.
 
   if not isAdmin():
-    error "You have to be root to continue."
+    fatal "You have to be root to continue."
 
   var conf: Config
   var target = "default"
@@ -98,9 +101,9 @@ proc kreastrap(buildType = "builder", arch = "amd64",
   if fileExists(getAppDir()&"/arch/"&arch&"/configs/"&buildType&".conf"):
     conf = loadConfig(getAppDir()&"/arch/"&arch&"/configs/"&buildType&".conf")
   else:
-    error("Config "&buildType&" does not exist!")
+    fatal("Config "&buildType&" does not exist!")
 
-  info_msg "kreastrap, built with commit "&commitVer
+  info "kreastrap, built with commit "&commitVer
 
   discard update()
 
@@ -108,7 +111,7 @@ proc kreastrap(buildType = "builder", arch = "amd64",
   debug "Build type is "&buildType
 
   if converterArch(arch) != uname().machine:
-    info_msg "cross-compiling to '"&arch&"'"
+    info "cross-compiling to '"&arch&"'"
     target = converterArch(arch)&"-linux-"
     case conf.getSectionValue("Core", "Libc").normalize():
       of "glibc":
@@ -116,7 +119,7 @@ proc kreastrap(buildType = "builder", arch = "amd64",
       of "musl":
         target = target&"musl"
       else:
-        error conf.getSectionValue("Core",
+        fatal conf.getSectionValue("Core",
                 "Libc")&" is not available as a Libc option."
 
   let buildDir = conf.getSectionValue("General", "BuildDirectory")
@@ -125,7 +128,7 @@ proc kreastrap(buildType = "builder", arch = "amd64",
 
   if conf.getSectionValue("General", "useOverlay") != "false" and dirExists(
           getAppDir()&"/overlay"):
-    info_msg "Overlay found, installing contents"
+    info "Overlay found, installing contents"
 
     setCurrentDir(getAppDir()&"/overlay")
 
@@ -166,28 +169,28 @@ proc kreastrap(buildType = "builder", arch = "amd64",
   # Installation of TLS library
   case conf.getSectionValue("Core", "TlsLibrary").normalize():
     of "openssl":
-      info_msg "Installing OpenSSL as TLS Library"
+      info "Installing OpenSSL as TLS Library"
       kreastrapInstall("openssl", installWithBinaries, buildDir,
               useCacheIfPossible, target)
     of "libressl":
-      info_msg "Installing LibreSSL as TLS library"
+      info "Installing LibreSSL as TLS library"
       kreastrapInstall("libressl", installWithBinaries, buildDir,
               useCacheIfPossible, target)
     else:
-      error conf.getSectionValue("Core",
+      fatal conf.getSectionValue("Core",
               "TlsLibrary")&" is not available as a TLS library option."
 
   # Installation of a Compiler
   case conf.getSectionValue("Core", "Compiler").normalize():
     of "gcc":
-      info_msg "Installing GCC as Compiler"
+      info "Installing GCC as Compiler"
       kreastrapInstall("gcc", installWithBinaries, buildDir,
               useCacheIfPossible, target)
       set_default_cc(buildDir, "gcc")
       kreastrapInstall("gmake", installWithBinaries, buildDir,
               useCacheIfPossible, target)
     of "clang":
-      info_msg "Installing clang as Compiler"
+      info "Installing clang as Compiler"
       kreastrapInstall("llvm", installWithBinaries, buildDir,
               useCacheIfPossible, target)
       set_default_cc(buildDir, "clang")
@@ -196,7 +199,7 @@ proc kreastrap(buildType = "builder", arch = "amd64",
     of "no":
       warn "Skipping compiler installation"
     else:
-      error conf.getSectionValue("Core",
+      fatal conf.getSectionValue("Core",
               "Compiler")&" is not available as a Compiler option."
 
   # Installation of Libc
@@ -206,54 +209,54 @@ proc kreastrap(buildType = "builder", arch = "amd64",
       if conf.getSectionValue("Core", "Compiler").normalize() == "clang":
         warn "Combination of glibc with clang is currently not supported, please don't make an issue about it."
 
-      info_msg "Installing glibc as libc"
+      info "Installing glibc as libc"
       kreastrapInstall("glibc", installWithBinaries, buildDir,
               useCacheIfPossible, target)
     of "musl":
-      info_msg "Installing musl as libc"
+      info "Installing musl as libc"
       kreastrapInstall("musl", installWithBinaries, buildDir,
               useCacheIfPossible, target)
     else:
-      error conf.getSectionValue("Core",
+      fatal conf.getSectionValue("Core",
               "Libc")&" is not available as a Libc option."
 
   # Installation of Core utilities
   case conf.getSectionValue("Core", "Coreutils").normalize():
     of "busybox":
-      info_msg "Installing BusyBox as Coreutils"
+      info "Installing BusyBox as Coreutils"
       kreastrapInstall("busybox", installWithBinaries, buildDir,
               useCacheIfPossible, target)
     of "gnu":
-      info_msg "Installing GNU Coreutils as Coreutils"
+      info "Installing GNU Coreutils as Coreutils"
 
       kreastrapInstall("gnu-core", installWithBinaries, buildDir,
               useCacheIfPossible, target)
 
       createSymlink("/bin/bash", buildDir&"/bin/sh")
     else:
-      error conf.getSectionValue("Core",
+      fatal conf.getSectionValue("Core",
               "Coreutils")&" is not available as a Coreutils option."
 
   case conf.getSectionValue("Core", "Init").normalize():
     of "busybox":
       if conf.getSectionValue("Core", "Coreutils").normalize() != "busybox":
-        error "You have to use busybox as coreutils to use it as the init system for now."
+        fatal "You have to use busybox as coreutils to use it as the init system for now."
       else:
-        info_msg "Init system chosen as busybox init"
+        info "Init system chosen as busybox init"
     of "jumpstart":
-      info_msg "Installing Jumpstart as the init system"
+      info "Installing Jumpstart as the init system"
       kreastrapInstall("jumpstart", installWithBinaries, buildDir,
               useCacheIfPossible, target)
       removeFile(buildDir&"/sbin/init")
       createSymlink("/bin/jumpstart", buildDir&"/sbin/init")
     of "openrc":
-      info_msg "Installing OpenRC as the init system"
+      info "Installing OpenRC as the init system"
       kreastrapInstall("openrc", installWithBinaries, buildDir,
               useCacheIfPossible, target)
       removeFile(buildDir&"/sbin/init")
       createSymlink("/usr/bin/openrc-init", buildDir&"/sbin/init")
     of "systemd":
-      info_msg "Installing systemd as the init system"
+      info "Installing systemd as the init system"
       kreastrapInstall("systemd", installWithBinaries, buildDir,
               useCacheIfPossible, target)
       kreastrapInstall("dbus", installWithBinaries, buildDir,
@@ -268,7 +271,7 @@ proc kreastrap(buildType = "builder", arch = "amd64",
   let enableShadowedPw = execCmdEx("chroot "&buildDir&" /usr/sbin/pwconv")
   if enableShadowedPw.exitcode != 0:
     debug enableShadowedPw.output
-    error "Enabling shadow failed"
+    fatal "Enabling shadow failed"
 
   # Install kpkg, p11-kit and ca-certificates here
   kreastrapInstall("kpkg", installWithBinaries, buildDir, useCacheIfPossible, target)
@@ -281,26 +284,26 @@ proc kreastrap(buildType = "builder", arch = "amd64",
   kreastrapInstall("tzdb", installWithBinaries, buildDir, useCacheIfPossible, target)
 
   # Generate certdata here
-  info_msg "Generating CA certificates"
+  info "Generating CA certificates"
 
   let caCertCmd = execCmdEx("chroot "&buildDir&" /bin/sh -c 'update-ca-trust'")
 
   if caCertCmd.exitcode != 0:
     debug "CA certification generation output: "&caCertCmd.output
-    error "Generating CA certificates failed"
+    fatal "Generating CA certificates failed"
   else:
     ok "Generated CA certificates"
 
   removeFile(buildDir&"/certdata.txt")
 
-  info_msg "Installing Python (and pip)"
+  info "Installing Python (and pip)"
   kreastrapInstall("python", installWithBinaries, buildDir,
           useCacheIfPossible, target)
   kreastrapInstall("python-pip", installWithBinaries, buildDir,
           useCacheIfPossible, target)
 
   if conf.getSectionValue("Extras", "ExtraPackages") != "":
-    info_msg "Installing extra packages"
+    info "Installing extra packages"
     for i in conf.getSectionValue("Extras", "ExtraPackages").split(" "):
       kreastrapInstall(i, installWithBinaries, buildDir,
               useCacheIfPossible, target)

@@ -9,7 +9,7 @@ import json
 import times
 import strutils
 import commonPaths
-import logger
+import ../../common/logging
 
 type
   OperationType* = enum

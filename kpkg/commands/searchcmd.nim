@@ -2,7 +2,7 @@ import os
 import strutils
 import ../modules/config
 import ../modules/sqlite
-import ../modules/logger
+import ../../common/logging
 import ../modules/colors
 import ../modules/runparser
 import ../modules/fuzzyFinder

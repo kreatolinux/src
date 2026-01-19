@@ -1,6 +1,6 @@
 import os
 import strutils
-import ../modules/logger
+import ../../common/logging
 import ../modules/commonPaths
 
 proc clean*(packages: seq[string] = @[], sources = false, binaries = false,

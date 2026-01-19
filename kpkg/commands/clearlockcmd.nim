@@ -1,6 +1,6 @@
 import os
 import ../modules/lockfile
-import ../modules/logger
+import ../../common/logging
 import ../modules/gitutils
 
 proc clearLock*() =

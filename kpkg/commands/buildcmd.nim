@@ -4,7 +4,7 @@ import strutils
 import sequtils
 import installcmd
 import ../modules/sqlite
-import ../modules/logger
+import ../../common/logging
 import ../modules/config
 import ../modules/lockfile
 import ../modules/runparser

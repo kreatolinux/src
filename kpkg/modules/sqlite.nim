@@ -1,6 +1,6 @@
 import std/os
 import commonPaths
-import logger
+import ../../common/logging
 import std/strutils
 import norm/[model, sqlite]
 
@@ -226,7 +226,7 @@ proc getPackage*(name: string, root: string): Package =
   debug "getPackage ran, name: '"&name&"', root: '"&root&"'"
 
   if not packageExists(name, root):
-    logger.error("internal: package '"&name&"' doesn't exist at '"&root&"', but attempted to getPackage anyway")
+    logging.error("internal: package '"&name&"' doesn't exist at '"&root&"', but attempted to getPackage anyway")
     quit(1)
 
   var package = newPackageInternal()

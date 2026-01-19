@@ -4,7 +4,7 @@ import sets
 import config
 import tables
 import sqlite
-import logger
+import ../../common/logging
 import sequtils
 import strutils
 import runparser

@@ -1,7 +1,7 @@
 import os
 import strutils
 import posix
-import logger
+import ../../common/logging
 
 const lockfilePath* = "/tmp/kpkg.lock"
 

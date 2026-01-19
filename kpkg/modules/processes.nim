@@ -1,5 +1,5 @@
 import os
-import logger
+import ../../common/logging
 import osproc
 import streams
 import strutils

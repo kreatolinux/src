@@ -1,7 +1,7 @@
 import os
 import strutils
 import ../modules/sqlite
-import ../modules/logger
+import ../../common/logging
 import ../modules/checksums
 
 proc checkInternal(package: Package, root: string, lines = getFilesPackage(

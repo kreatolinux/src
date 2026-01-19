@@ -1,5 +1,5 @@
 import os
-import logger
+import ../../common/logging
 import parsecfg
 import sequtils
 import strutils

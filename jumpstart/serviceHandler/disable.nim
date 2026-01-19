@@ -16,4 +16,4 @@ proc disableService*(service: string, isMount: bool) =
     removeFile(srvmntPath&"/enabled/"&service)
     ok "Disabled service/mount "&service
   else:
-    info_msg "Service/Mount "&service&" is already disabled"
+    info "Service/Mount "&service&" is already disabled"

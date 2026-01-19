@@ -1,6 +1,6 @@
 import os
 import sqlite
-import logger
+import ../../common/logging
 import strutils
 import sequtils
 import dephandler

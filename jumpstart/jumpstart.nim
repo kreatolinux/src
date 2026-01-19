@@ -16,9 +16,9 @@ if getCurrentProcessId() != 1 and not userMode:
   error "jumpstart needs to be ran as PID 1 (init) to function correctly"
 
 if userMode:
-  info_msg "running in user mode"
+  info "running in user mode"
 else:
-  info_msg "running in PID1 mode"
+  info "running in PID1 mode"
   ## Initialize the entire system, such as mounting /proc etc.
   initSystem()
 
@@ -32,14 +32,14 @@ except CatchableError:
 
 socket.listen()
 
-info_msg "Initializing "&jumpstartVersion
+info "Initializing "&jumpstartVersion
 
 
 proc ctrlc() {.noconv.} =
-  info_msg "removing socket"
+  info "removing socket"
   removeFile(sockPath)
   removeDir(serviceHandlerPath)
-  info_msg "exiting"
+  info "exiting"
   quit(0)
 
 setControlCHook(ctrlc)

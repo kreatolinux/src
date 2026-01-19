@@ -2,7 +2,7 @@ import os
 import posix
 import sqlite
 import config
-import logger
+import ../../common/logging
 import strutils
 import sequtils
 import parsecfg

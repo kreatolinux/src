@@ -1,6 +1,6 @@
 import os
 import strutils
-import ../modules/logger
+import ../../common/logging
 import ../modules/config
 import ../modules/sqlite
 import ../modules/overrides

@@ -12,7 +12,7 @@ import lexer
 import variables
 import utils
 import ../processes
-import ../logger
+import ../../../common/logging
 
 export context
 export utils.stripQuotes

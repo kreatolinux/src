@@ -11,7 +11,7 @@ import tables
 import strutils
 import sequtils
 import ./types
-import ../logger
+import ../../../common/logging
 import ../config
 import ../isolation
 import ../dephandler

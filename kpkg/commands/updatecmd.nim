@@ -2,7 +2,7 @@ import os
 import osproc
 import sequtils
 import strutils
-import ../modules/logger
+import ../../common/logging
 import ../modules/config
 
 proc update*(repo = "",

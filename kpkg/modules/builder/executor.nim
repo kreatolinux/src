@@ -8,7 +8,7 @@
 import strutils
 import ./types
 import ../runparser
-import ../logger
+import ../../../common/logging
 import ../run3/run3
 import ../run3/executor
 

@@ -1,6 +1,6 @@
 # Module for isolating kpkg builds as much as possible
 import std/os
-import logger
+import ../../common/logging
 import sqlite
 import std/times
 import processes

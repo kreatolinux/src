@@ -142,4 +142,4 @@ proc initDirectories*(buildDirectory: string, arch: string, silent = false) =
   createSymlink("usr/lib", buildDirectory&"/lib")
 
   if not silent:
-    info_msg "Root directory structure created."
+    info "Root directory structure created."

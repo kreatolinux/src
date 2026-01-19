@@ -34,8 +34,11 @@ import commands/listcmd
 import commands/initcmd
 import commands/clearlockcmd
 import modules/transaction
-import modules/logger
+import ../common/logging
 import ../common/version
+
+# Initialize logging for kpkg
+initLogger("kpkg", "/etc/kpkg/kpkg.conf", "/var/log/kpkg.log")
 
 # Check for and recover from any incomplete transactions from previous runs
 # This must happen early, before any other operations

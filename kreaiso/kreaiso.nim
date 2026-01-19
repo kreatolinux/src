@@ -13,12 +13,15 @@ import ../common/version
 import ../kpkg/commands/buildcmd
 import ../kpkg/commands/updatecmd
 
+# Initialize logging for kreaiso
+initLogger("kreaiso", "", "/var/log/kreaiso.log")
+
 const tmpDir = "/tmp/kreaiso-tmp"
 
 proc pkgExists(packageName: string) =
   # Checks if a package exists or not, and installs it if it doesn't.
   if not dirExists("/var/cache/kpkg/installed/"&packageName):
-    info_msg(packageName&" couldn't be found, installing")
+    info(packageName&" couldn't be found, installing")
     discard build(yes = true, root = "/", packages = toSeq([packageName]),
             useCacheIfAvailable = true)
 
@@ -29,16 +32,16 @@ proc attemptExec(command: string, errorString: string) =
 
   if step.exitCode != 0:
     debug(step.output)
-    error(errorString)
+    fatal(errorString)
 
 proc kreaiso(rootfs: string, output: string) =
-  info_msg("kreaiso, built with commit "&commitVer)
+  info("kreaiso, built with commit "&commitVer)
 
   if dirExists(tmpDir):
-    info_msg("tmpDir exists, removing")
+    info("tmpDir exists, removing")
     removeDir(tmpDir)
 
-  info_msg("Initializing directories")
+  info("Initializing directories")
 
   createDir(tmpDir)
   createDir(tmpDir&"/mnt")
@@ -51,7 +54,7 @@ proc kreaiso(rootfs: string, output: string) =
   attemptExec("tar --same-owner -xvf "&rootfs&" -C "&tmpDir&"/temp-rootfs", "An error occured while trying to extract the tarball")
 
   if not fileExists(tmpDir&"/temp-rootfs/etc/kreato-release"):
-    error("kreato-release doesn't exist on the rootfs")
+    fatal("kreato-release doesn't exist on the rootfs")
 
   var krelease: Config
 
@@ -59,12 +62,12 @@ proc kreaiso(rootfs: string, output: string) =
     krelease = loadConfig(tmpDir&"/temp-rootfs/etc/kreato-release")
 
     if krelease.getSectionValue("Core", "init") != "systemd":
-      error("kreaiso currently only support systemd-based systems")
+      fatal("kreaiso currently only support systemd-based systems")
   except Exception:
-    error("Invalid kreato-release, possibly broken rootfs")
+    fatal("Invalid kreato-release, possibly broken rootfs")
 
   if dirExists(getAppDir()&"/overlay"):
-    info_msg("Overlay found, installing contents")
+    info("Overlay found, installing contents")
 
     setCurrentDir(getAppDir()&"/overlay")
 
@@ -106,13 +109,13 @@ proc kreaiso(rootfs: string, output: string) =
   pkgExists("xorriso")
 
 
-  info_msg("Removing password of root on rootfs")
+  info("Removing password of root on rootfs")
   attemptExec("chroot "&tmpDir&"/temp-rootfs /bin/sh -c \"passwd -d root\"", "Removing password failed")
 
-  info_msg("Remove systemd-firstboot")
+  info("Remove systemd-firstboot")
   removeFile(tmpDir&"/temp-rootfs/usr/lib/systemd/system/systemd-firstboot.service")
 
-  info_msg("Creating rootfs image")
+  info("Creating rootfs image")
 
   let loopdev = splitWhitespace(execCmdEx("losetup -f").output)[0]
 
@@ -127,15 +130,15 @@ proc kreaiso(rootfs: string, output: string) =
 
   attemptExec("mksquashfs "&tmpDir&"/squashfs-root "&tmpDir&"/out/LiveOS/squashfs.img", "Creating squashfs image failed")
 
-  info_msg("Generating initramfs")
+  info("Generating initramfs")
   attemptExec("dracut -f --tmpdir /tmp -N --kver 6.4.9 -m dmsquash-live", "Creating initramfs failed")
   attemptExec("cp -r /boot/ "&tmpDir&"/out", "Copying /boot to out directory failed")
   createDir(tmpDir&"/out/boot/grub")
 
-  info_msg("Initializing GRUB configuration")
+  info("Initializing GRUB configuration")
   copyFile(getAppDir()&"/grub.cfg", tmpDir&"/out/boot/grub/grub.cfg")
 
-  info_msg("Generating final image...")
+  info("Generating final image...")
   attemptExec("grub-mkrescue -o "&output&"/kreatolinux-"&krelease.getSectionValue(
           "General", "dateBuilt")&"-"&krelease.getSectionValue("General",
           "klinuxVersion")&".iso "&tmpDir&"/out/", "Generating final image failed")

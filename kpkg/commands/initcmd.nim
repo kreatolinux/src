@@ -3,7 +3,7 @@ import strutils
 import parsecfg
 import ../modules/isolation
 import ../modules/commonPaths
-import ../modules/logger
+import ../../common/logging
 
 proc sandbox*() =
   ## Initializes a sandbox.

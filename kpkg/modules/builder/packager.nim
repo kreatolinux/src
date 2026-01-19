@@ -2,7 +2,7 @@ import os
 import strutils
 import sequtils
 import parsecfg
-import ../logger
+import ../../../common/logging
 import ../sqlite
 import ../runparser
 import ../checksums

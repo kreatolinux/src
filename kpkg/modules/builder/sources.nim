@@ -15,7 +15,7 @@ import posix
 import osproc
 import sequtils
 import strutils
-import ../logger
+import ../../../common/logging
 import ../config
 import ../runparser
 import ../checksums

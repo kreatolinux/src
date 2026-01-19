@@ -7,7 +7,7 @@ import lexer
 import utils
 
 when not defined(run3Standalone):
-  import ../logger
+  import ../../../common/logging
 else:
   proc debug(msg: string) = discard
 
@@ -628,7 +628,7 @@ proc parseFuncCallStatement(p: var Parser, name: string, line: int): AstNode =
     # If parseExpression didn't consume anything and returned empty, we're stuck
     if p.pos == startPos and expr.len == 0:
       raiseParseError("Unexpected token in function call arguments: " & $p.peek(
-          ).kind & " '" & p.peek().value & "'", p.peek().line, p.peek().col)
+        ).kind & " '" & p.peek().value & "'", p.peek().line, p.peek().col)
     if expr.len > 0:
       args.add(expr)
     if p.peek().kind == tkNewline or p.peek().kind == tkRBrace:

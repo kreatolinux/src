@@ -4,7 +4,7 @@ import buildcmd
 import installcmd
 import ../modules/config
 import ../modules/sqlite
-import ../modules/logger
+import ../../common/logging
 import ../modules/lockfile
 import ../modules/runparser
 import ../modules/processes

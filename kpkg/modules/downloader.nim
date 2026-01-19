@@ -1,5 +1,5 @@
 import std/httpclient
-import terminal, math, strutils, os, logger
+import terminal, math, strutils, os, ../../common/logging
 
 proc onProgressChanged(total, progress, speed: BiggestInt) =
   stdout.eraseLine

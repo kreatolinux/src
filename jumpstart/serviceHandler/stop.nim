@@ -7,7 +7,7 @@ import ../commonImports
 proc stopService*(serviceName: string) =
 
   if not dirExists(serviceHandlerPath&"/"&serviceName):
-    info_msg "Service "&serviceName&" is already not running, not trying to stop"
+    info "Service "&serviceName&" is already not running, not trying to stop"
     return
 
   var service: Service
@@ -15,8 +15,8 @@ proc stopService*(serviceName: string) =
   for i in 0 .. services.len:
     if services[i].serviceName == serviceName:
       service = services[i]
-      info_msg "Stopping service "&serviceName
-      info_msg "PID: "&($processID(service.process))
+      info "Stopping service "&serviceName
+      info "PID: "&($processID(service.process))
       debug "Terminating process"
       terminate(service.process)
       var val = 0
@@ -41,5 +41,5 @@ proc stopService*(serviceName: string) =
 
       return
 
-  info_msg "Service "&serviceName&" stopped"
+  info "Service "&serviceName&" stopped"
 

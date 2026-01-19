@@ -13,7 +13,7 @@ proc enableService*(service: string, isMount: bool) =
     srvmntPath = servicePath
 
   if dirExists(srvmntPath&"/enabled/"&service):
-    info_msg "Service/Mount "&service&" is already enabled, no need to re-enable"
+    info "Service/Mount "&service&" is already enabled, no need to re-enable"
     return
 
   try:

@@ -6,7 +6,7 @@ import strutils
 import parsecfg
 import ./types
 import ../config
-import ../logger
+import ../../../common/logging
 import ../lockfile
 import posix_utils
 import ../processes

@@ -5,7 +5,7 @@ import sequtils
 import parsecfg
 import ../modules/sqlite
 import ../modules/config
-import ../modules/logger
+import ../../common/logging
 import ../modules/lockfile
 import ../modules/isolation
 import ../modules/checksums

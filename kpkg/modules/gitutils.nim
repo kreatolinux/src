@@ -11,7 +11,7 @@ import osproc
 import tables
 import strutils
 import parsecfg
-import logger
+import ../../common/logging
 import config
 import runparser
 
