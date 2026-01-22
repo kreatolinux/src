@@ -14,15 +14,11 @@ proc info*(package: seq[string], testing = false): string =
 
   let repo = findPkgRepo(package[0])
 
-  if not dirExists(repo&"/"&package[0]):
+  if repo == "":
     error("Package "&package[0]&" doesn't exist")
     quit(1)
 
-  var pkg: runFile
-  try:
-    pkg = parseRunfile(repo&"/"&package[0])
-  except CatchableError:
-    raise
+  let pkg = parseRunfile(repo&"/"&package[0])
 
   echo "package name: "&pkg.pkg
   echo "package version: "&pkg.version

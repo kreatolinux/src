@@ -5,6 +5,11 @@ import ../modules/isolation
 import ../modules/commonPaths
 import ../../common/logging
 
+proc setIfNotEmpty(dict: var Config, section, key, value: string) =
+  ## Set a config key only if value is not empty or whitespace.
+  if not isEmptyOrWhitespace(value):
+    dict.setSectionKey(section, key, value)
+
 proc sandbox*() =
   ## Initializes a sandbox.
   if dirExists(kpkgEnvPath):
@@ -47,21 +52,11 @@ proc override*(packages: seq[string], extraArguments = "", cflags = "",
 
   var dict = newConfig()
 
-  if not isEmptyOrWhitespace(extraArguments):
-    dict.setSectionKey("Flags", "extraArguments", extraArguments)
-
-  if not isEmptyOrWhitespace(cflags):
-    dict.setSectionKey("Flags", "cflags", cflags)
-
-  if not isEmptyOrWhitespace(cxxflags):
-    dict.setSectionKey("Flags", "cxxflags", cxxflags)
-
-  if not isEmptyOrWhitespace(sourceMirror):
-    dict.setSectionKey("Mirror", "sourceMirror", sourceMirror)
-
-  if not isEmptyOrWhitespace(binaryMirrors):
-    dict.setSectionKey("Mirror", "binaryMirrors", binaryMirrors)
-
+  dict.setIfNotEmpty("Flags", "extraArguments", extraArguments)
+  dict.setIfNotEmpty("Flags", "cflags", cflags)
+  dict.setIfNotEmpty("Flags", "cxxflags", cxxflags)
+  dict.setIfNotEmpty("Mirror", "sourceMirror", sourceMirror)
+  dict.setIfNotEmpty("Mirror", "binaryMirrors", binaryMirrors)
   dict.setSectionKey("Other", "ccache", $ccache)
 
   createDir("/etc/kpkg/override")

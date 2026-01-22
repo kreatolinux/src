@@ -28,27 +28,19 @@ proc printResult(repo: string, package: string, colors = true): string =
     desc = pkg.desc
 
   if isGroup:
-
-    if colors:
-      r = cyanColor&"g"&resetColor&r
-    else:
-      r = "g"&r
+    r = cyan("g", colors) & r
   else:
-    r = r&" "
+    r = r & " "
 
-  if colors:
-    r = r&cyanColor&repo&resetColor&"/"&package&"-"&version
-  else:
-    r = r&repo&"/"&package&"-"&version
-
+  r = r & cyan(repo, colors) & "/" & package & "-" & version
 
   for i in 1 .. 40 - (package.len + 1 + repo.len + version.len):
-    r = r&" "
+    r = r & " "
 
   if isEmptyOrWhitespace(desc):
-    return r&"No description available"
+    return r & "No description available"
   else:
-    return r&desc
+    return r & desc
 
 proc search*(keyword: seq[string], colors = true) =
   ## Search packages.
@@ -68,9 +60,15 @@ proc search*(keyword: seq[string], colors = true) =
   for r in getConfigValue("Repositories", "repoDirs").split(" "):
     setCurrentDir(r)
     for i in walkDirs("*"):
-      if (fuzzyMatch(keyword[0], i) >= 0.6 or
-              (parseRunfile(r&"/"&i).desc != "" and
-              fuzzyMatch(keyword.join(" "), parseRunfile(r&"/"&i).desc) >=
-                  0.8)) and
-              i != keyword[0]:
-          echo printResult(lastPathPart(r), i, colors)
+      if i == keyword[0]:
+        continue
+
+      let nameScore = fuzzyMatch(keyword[0], i)
+      if nameScore >= 0.6:
+        echo printResult(lastPathPart(r), i, colors)
+        continue
+
+      # Only parse runfile if name didn't match well enough
+      let pkg = parseRunfile(r&"/"&i)
+      if pkg.desc != "" and fuzzyMatch(keyword.join(" "), pkg.desc) >= 0.8:
+        echo printResult(lastPathPart(r), i, colors)

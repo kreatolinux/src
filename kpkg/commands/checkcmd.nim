@@ -4,6 +4,12 @@ import ../modules/sqlite
 import ../../common/logging
 import ../modules/checksums
 
+proc reportCheckError(msg: string) =
+  ## Report a check error - debug if debug mode, fatal otherwise.
+  debug msg
+  if not isEnabled(lvlDebug):
+    fatal msg
+
 proc checkInternal(package: Package, root: string, lines = getFilesPackage(
         package, root), checkEtc: bool) =
   for line in lines:
@@ -18,11 +24,8 @@ proc checkInternal(package: Package, root: string, lines = getFilesPackage(
       continue
 
     if not fileExists(fullPath):
-      let errorOutput = "'"&fullPath.relativePath(
-              root)&"' doesn't exist, please reinstall '"&package.name&"'"
-      debug errorOutput
-      if not isEnabled(lvlDebug):
-        fatal errorOutput
+      reportCheckError("'" & fullPath.relativePath(root) &
+          "' doesn't exist, please reinstall '" & package.name & "'")
       continue
 
     if line.blake2Checksum == "":
@@ -35,11 +38,8 @@ proc checkInternal(package: Package, root: string, lines = getFilesPackage(
     #debug "checking '"&fullPath.relativePath(root)&"' with checksum '"&sum&"' and actual checksum '"&actualSum&"'"
 
     if actualSum != sum:
-      let errorOutput = "'"&fullPath.relativePath(
-              root)&"' has an invalid checksum, please reinstall '"&package.name&"'"
-      debug errorOutput
-      if not isEnabled(lvlDebug):
-        fatal errorOutput
+      reportCheckError("'" & fullPath.relativePath(root) &
+          "' has an invalid checksum, please reinstall '" & package.name & "'")
 
 proc check*(package = "", root = "/", silent = false, checkEtc = false) =
   ## Check packages in filesystem for errors.

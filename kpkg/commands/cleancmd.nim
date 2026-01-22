@@ -3,6 +3,24 @@ import strutils
 import ../../common/logging
 import ../modules/commonPaths
 
+proc cleanPackageBinaries(packageName: string): bool =
+  ## Remove all binary tarballs for a package across all targets.
+  ## Returns true if any files were removed.
+  result = false
+  let archivesSystemDir = kpkgArchivesDir & "/system"
+  if not dirExists(archivesSystemDir):
+    return false
+
+  for targetDir in walkDir(archivesSystemDir):
+    if targetDir.kind != pcDir:
+      continue
+    for file in walkDir(targetDir.path):
+      let filename = extractFilename(file.path)
+      if filename.startsWith(packageName & "-") and filename.endsWith(".kpkg"):
+        removeFile(file.path)
+        result = true
+        debug("Removed binary: " & file.path)
+
 proc clean*(packages: seq[string] = @[], sources = false, binaries = false,
     cache = false, environment = false) =
   ## Cleanup kpkg cache.
@@ -19,25 +37,8 @@ proc clean*(packages: seq[string] = @[], sources = false, binaries = false,
           info("No source tarballs found for package '" & packageName & "'.")
 
       if binaries:
-        # Binary tarballs are stored in kpkgArchivesDir/system/{target}/{packagename}-{version}.kpkg
-        # We need to search through all target directories
-        var found = false
-        let archivesSystemDir = kpkgArchivesDir & "/system"
-        if dirExists(archivesSystemDir):
-          for targetDir in walkDir(archivesSystemDir):
-            if targetDir.kind == pcDir:
-              for file in walkDir(targetDir.path):
-                let filename = extractFilename(file.path)
-                # Check if the filename starts with packagename-
-                if filename.startsWith(packageName & "-") and filename.endsWith(".kpkg"):
-                  removeFile(file.path)
-                  found = true
-                  debug("Removed binary: " & file.path)
-
-          if found:
-            info("Binary tarballs for package '" & packageName & "' removed from cache.")
-          else:
-            info("No binary tarballs found for package '" & packageName & "'.")
+        if cleanPackageBinaries(packageName):
+          info("Binary tarballs for package '" & packageName & "' removed from cache.")
         else:
           info("No binary tarballs found for package '" & packageName & "'.")
 
