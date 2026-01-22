@@ -182,24 +182,14 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
 
   # Run preupgrade hook (before any changes)
   if isUpgradeActual:
-    var preupgradeFunc = ""
-    if pkg.run3Data.parsed.hasFunction("preupgrade_"&replace(package, '-', '_')):
-      preupgradeFunc = "preupgrade_"&replace(package, '-', '_')
-    elif pkg.run3Data.parsed.hasFunction("preupgrade"):
-      preupgradeFunc = "preupgrade"
-
+    let preupgradeFunc = resolveHookFunction(pkg.run3Data.parsed, "preupgrade", package)
     if preupgradeFunc != "":
       if executeRun3Function(ctx, pkg.run3Data.parsed, preupgradeFunc) != 0:
         fatal("preupgrade failed")
 
   # Run preinstall hook (before any changes)
   if not packageExists(package, root):
-    var preinstallFunc = ""
-    if pkg.run3Data.parsed.hasFunction("preinstall_"&replace(package, '-', '_')):
-      preinstallFunc = "preinstall_"&replace(package, '-', '_')
-    elif pkg.run3Data.parsed.hasFunction("preinstall"):
-      preinstallFunc = "preinstall"
-
+    let preinstallFunc = resolveHookFunction(pkg.run3Data.parsed, "preinstall", package)
     if preinstallFunc != "":
       if executeRun3Function(ctx, pkg.run3Data.parsed, preinstallFunc) != 0:
         if ignorePreInstall:
@@ -421,12 +411,8 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
       discard umountOverlay(error = "unmounting overlays")
 
     # Phase 7: Run postinstall (BEFORE cleanup so rollback is possible)
-    var postinstallFunc = ""
-    if pkg.run3Data.parsed.hasFunction("postinstall_"&replace(package, '-', '_')):
-      postinstallFunc = "postinstall_"&replace(package, '-', '_')
-    elif pkg.run3Data.parsed.hasFunction("postinstall"):
-      postinstallFunc = "postinstall"
-
+    let postinstallFunc = resolveHookFunction(pkg.run3Data.parsed,
+        "postinstall", package)
     if postinstallFunc != "":
       if executeRun3Function(ctx, pkg.run3Data.parsed, postinstallFunc) != 0:
         if ignorePostInstall:
@@ -438,12 +424,8 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
 
     # Phase 8: Run postupgrade
     if isUpgradeActual:
-      var postupgradeFunc = ""
-      if pkg.run3Data.parsed.hasFunction("postupgrade_"&replace(package, '-', '_')):
-        postupgradeFunc = "postupgrade_"&replace(package, '-', '_')
-      elif pkg.run3Data.parsed.hasFunction("postupgrade"):
-        postupgradeFunc = "postupgrade"
-
+      let postupgradeFunc = resolveHookFunction(pkg.run3Data.parsed,
+          "postupgrade", package)
       if postupgradeFunc != "":
         if executeRun3Function(ctx, pkg.run3Data.parsed, postupgradeFunc) != 0:
           tx.rollback()

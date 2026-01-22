@@ -274,6 +274,25 @@ proc executeRun3Function*(ctx: ExecutionContext, parsed: ParsedRunfile,
 
     return ctx.executeFunction(funcBody)
 
+proc resolveHookFunction*(parsed: ParsedRunfile, hookName: string,
+        packageName: string): string =
+    ## Resolve a hook function name, checking package-specific variant first.
+    ## Returns the function name if found, or empty string if not.
+    ##
+    ## Checks in order:
+    ## 1. hookName_packagename (with dashes replaced by underscores)
+    ## 2. hookName (generic)
+    ##
+    ## Example: resolveHookFunction(parsed, "postinstall", "my-pkg")
+    ##   checks "postinstall_my_pkg" first, then "postinstall"
+    let pkgSpecific = hookName & "_" & replace(packageName, '-', '_')
+    if parsed.hasFunction(pkgSpecific):
+        return pkgSpecific
+    elif parsed.hasFunction(hookName):
+        return hookName
+    else:
+        return ""
+
 proc resolveVarManipulation*(ctx: ExecutionContext, node: AstNode): string =
     ## Resolve a variable manipulation expression to its final value
     if node.kind != nkVarManip:
