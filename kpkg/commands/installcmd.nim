@@ -560,28 +560,23 @@ proc install_bin(packages: seq[string], binrepos: seq[string], root: string,
                 basePackage = false) =
   ## Downloads and installs binaries.
 
-  isKpkgRunning()
-  checkLockfile()
-  createLockfile()
-
-  for i in packages:
-    let pkgParsed = parsePkgInfo(i)
-    var fdownload = false
-    if i in forceDownloadPackages or forceDownload:
-      fdownload = true
-    down_bin(pkgParsed.name, binrepos, root, offline, fdownload,
-            ignoreDownloadErrors = ignoreDownloadErrors, kTarget = kTarget,
-            version = pkgParsed.version)
-
-  if not downloadOnly:
+  withLockfile:
     for i in packages:
       let pkgParsed = parsePkgInfo(i)
-      installPkg(pkgParsed.repo, pkgParsed.name, root,
-              manualInstallList = manualInstallList, kTarget = kTarget,
-              basePackage = basePackage, version = pkgParsed.version)
-      info "Installation for "&i&" complete"
+      var fdownload = false
+      if i in forceDownloadPackages or forceDownload:
+        fdownload = true
+      down_bin(pkgParsed.name, binrepos, root, offline, fdownload,
+              ignoreDownloadErrors = ignoreDownloadErrors, kTarget = kTarget,
+              version = pkgParsed.version)
 
-  removeLockfile()
+    if not downloadOnly:
+      for i in packages:
+        let pkgParsed = parsePkgInfo(i)
+        installPkg(pkgParsed.repo, pkgParsed.name, root,
+                manualInstallList = manualInstallList, kTarget = kTarget,
+                basePackage = basePackage, version = pkgParsed.version)
+        info "Installation for "&i&" complete"
 
 proc install*(promptPackages: seq[string], root = "/", yes: bool = false,
         no: bool = false, forceDownload = false, offline = false,

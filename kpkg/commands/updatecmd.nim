@@ -1,9 +1,9 @@
 import os
-import osproc
 import sequtils
 import strutils
 import ../../common/logging
 import ../modules/config
+import ../modules/gitutils
 
 proc update*(repo = "",
     path = "", branch = "master"): int =
@@ -20,27 +20,20 @@ proc update*(repo = "",
           " "), repolinks.split(" "))
 
   for i in repoList:
-    if dirExists(i.dir):
-      if execShellCmd("git -C "&i.dir&" pull") != 0:
-        error("failed to update repositories!")
-        quit(1)
-    else:
-      if "::" in i.link:
-        info "repository on "&i.dir&" not found, cloning them now..."
-        discard execProcess("git clone "&i.link.split("::")[0]&" "&i.dir)
-        setCurrentDir(i.dir)
-        discard execProcess("git checkout "&i.link.split("::")[1])
-      else:
-        info "repository on "&i.dir&" not found, cloning them now..."
-        discard execProcess("git clone "&i.link&" "&i.dir)
+    if not updateOrCloneRepo(i.dir, i.link):
+      error("failed to update repositories!")
+      quit(1)
 
   if path != "" and repo != "":
     info "cloning "&path&" from "&repo&"::"&branch
-    discard execProcess("git clone "&repo&" "&path)
+
+    let repoUrl = if branch != "master": repo & "::" & branch else: repo
+    if not cloneRepo(repo, path, branch):
+      error("failed to clone repository!")
+      quit(1)
+
     if not (repo in repolinks and path in repodirs):
       if branch != "master":
-        setCurrentDir(path)
-        discard execProcess("git checkout "&branch)
         setConfigValue("Repositories", "repoLinks",
                 repolinks&" "&repo&"::"&branch)
         setConfigValue("Repositories", "repoDirs", repodirs&" "&path)

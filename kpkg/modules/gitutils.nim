@@ -245,3 +245,58 @@ proc packageExistsAtHead*(pkgName: string, headCache: Table[string,
     runFile]): bool =
   ## Check if a package exists in the HEAD cache
   return pkgName in headCache
+
+proc pullRepo*(repoPath: string): bool =
+  ## Pull latest changes for a git repository.
+  ## Returns true on success.
+
+  debug "gitutils: Pulling " & repoPath
+  let exitCode = execCmd("git -C " & quoteShell(repoPath) & " pull")
+  if exitCode == 0:
+    debug "gitutils: Pull successful for " & repoPath
+    return true
+  else:
+    error "gitutils: Failed to pull " & repoPath
+    return false
+
+proc cloneRepo*(url: string, destPath: string, branch = ""): bool =
+  ## Clone a git repository to the specified path.
+  ## If branch is specified (and not empty), checkout that branch after cloning.
+  ## Returns true on success.
+
+  debug "gitutils: Cloning " & url & " to " & destPath
+
+  let cloneExitCode = execCmd("git clone " & quoteShell(url) & " " & quoteShell(destPath))
+  if cloneExitCode != 0:
+    error "gitutils: Failed to clone " & url
+    return false
+
+  if branch != "" and branch != "master" and branch != "main":
+    debug "gitutils: Checking out branch " & branch
+    let checkoutExitCode = execCmd("git -C " & quoteShell(destPath) &
+        " checkout " & quoteShell(branch))
+    if checkoutExitCode != 0:
+      error "gitutils: Failed to checkout branch " & branch
+      return false
+
+  debug "gitutils: Clone successful"
+  return true
+
+proc updateOrCloneRepo*(repoPath: string, repoUrl: string, branch = ""): bool =
+  ## Update an existing repo or clone it if it doesn't exist.
+  ## Handles url::branch format in repoUrl.
+  ## Returns true on success.
+
+  if dirExists(repoPath):
+    return pullRepo(repoPath)
+  else:
+    # Parse url::branch format if present
+    var url = repoUrl
+    var branchToUse = branch
+    if "::" in repoUrl:
+      let parts = repoUrl.split("::")
+      url = parts[0]
+      branchToUse = parts[1]
+
+    info "Repository at " & repoPath & " not found, cloning..."
+    return cloneRepo(url, repoPath, branchToUse)

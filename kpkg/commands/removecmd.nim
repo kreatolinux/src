@@ -16,6 +16,7 @@ proc remove*(packages: seq[string], yes = false, root = "",
     error("you have to be root for this action.")
     quit(1)
 
+  # Check for other instances before prompting user
   isKpkgRunning()
   checkLockfile()
 
@@ -49,12 +50,14 @@ proc remove*(packages: seq[string], yes = false, root = "",
 
   if output.toLower() == "y":
     createLockfile()
-    for i in packagesFinal:
-      removeInternal(i, root, force = force, depCheck = true,
-              fullPkgList = packages, removeConfigs = configRemove,
-              runPostRemove = true)
-      info("package "&i&" removed")
-    removeLockfile()
+    try:
+      for i in packagesFinal:
+        removeInternal(i, root, force = force, depCheck = true,
+                fullPkgList = packages, removeConfigs = configRemove,
+                runPostRemove = true)
+        info("package "&i&" removed")
+    finally:
+      removeLockfile()
     info("done")
     quit(0)
 

@@ -2,6 +2,7 @@ import os
 import strutils
 import posix
 import ../../common/logging
+import processes
 
 const lockfilePath* = "/tmp/kpkg.lock"
 
@@ -84,3 +85,26 @@ proc forceClearLockfile*() =
 proc clearErrorCallback*() =
   ## Clear the error callback (call after successful operation)
   setErrorCallback(nil)
+
+template withLockfile*(body: untyped) =
+  ## Context manager for lockfile-protected operations.
+  ##
+  ## Handles:
+  ## - Checking if another kpkg instance is running
+  ## - Checking for existing lockfile (removes stale ones)
+  ## - Creating lockfile before operation
+  ## - Removing lockfile after operation (success or failure)
+  ##
+  ## Usage:
+  ##   withLockfile:
+  ##     # your protected code here
+  ##     installPackage(...)
+
+  # Import is needed for isKpkgRunning - caller must have it imported
+  isKpkgRunning()
+  checkLockfile()
+  createLockfile()
+  try:
+    body
+  finally:
+    removeLockfile()
