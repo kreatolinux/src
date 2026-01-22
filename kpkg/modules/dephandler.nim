@@ -705,6 +705,77 @@ proc collectRuntimeDepsFromGraph*(pkgs: seq[string], graph: dependencyGraph,
         let transitiveDeps = collectRuntimeDepsFromGraph(runtimeDeps, graph, visited)
         result = result & transitiveDeps
 
+proc resolveBuildOrder*(packages: seq[string], ctx: dependencyContext,
+                        bootstrap: bool, isInstallDir: bool): (seq[string],
+                                dependencyGraph, seq[string]) =
+    ## Resolve the complete build order for packages.
+    ##
+    ## This handles:
+    ## - Building the initial dependency graph
+    ## - Finding packages that depend on what we're building (dependents)
+    ## - Rebuilding graph with dependents included
+    ## - Flattening to correct build order
+    ## - Moving bootstrap deps to end when not in bootstrap mode
+    ##
+    ## Returns: (orderedDeps, graph, allDependents)
+
+    # Build the initial dependency graph
+    var deps: seq[string]
+    var depGraph: dependencyGraph
+    (deps, depGraph) = dephandlerWithGraph(packages, isBuild = ctx.isBuild,
+            root = ctx.root, forceInstallAll = ctx.forceInstallAll,
+            isInstallDir = isInstallDir, ignoreInit = ctx.ignoreInit,
+            useBootstrap = ctx.useBootstrap,
+            useCacheIfAvailable = ctx.useCacheIfAvailable,
+            commit = ctx.commit, commitRepo = ctx.commitRepo,
+            headRunfileCache = ctx.headRunfileCache)
+
+    # Get packages that depend on what we're building (build dependents)
+    let gD = getDependents(deps)
+
+    # Get runtime dependents
+    var runtimeDependents: seq[string]
+    for pkg in packages:
+        let pkgSplit = parsePkgInfo(pkg)
+        runtimeDependents = runtimeDependents & getRuntimeDependents(@[
+                pkgSplit.name], ctx.root)
+
+    # Remove duplicates and packages already in build dependents
+    runtimeDependents = deduplicate(runtimeDependents).filterIt(it notin gD)
+
+    # Combine all dependents
+    let allDependents = deduplicate(gD & runtimeDependents)
+
+    # If we have dependents, rebuild the graph with them included
+    if not isEmptyOrWhitespace(allDependents.join("")):
+        let allPackages = deduplicate(packages & allDependents)
+        (deps, depGraph) = dephandlerWithGraph(allPackages,
+                isBuild = ctx.isBuild, root = ctx.root, forceInstallAll = ctx.forceInstallAll,
+                isInstallDir = isInstallDir, ignoreInit = ctx.ignoreInit,
+                useBootstrap = ctx.useBootstrap,
+                useCacheIfAvailable = ctx.useCacheIfAvailable,
+                commit = ctx.commit, commitRepo = ctx.commitRepo,
+                headRunfileCache = ctx.headRunfileCache)
+
+    # Flatten the graph to get correct build order
+    deps = flattenDependencyOrder(depGraph).filterIt(it.len != 0)
+
+    # For packages with bootstrap deps in non-bootstrap mode,
+    # move them to the end to ensure full BUILD_DEPENDS are available
+    if not bootstrap:
+        var p: seq[string]
+        for currentPackage in packages:
+            p = p & currentPackage
+            # Note: init handling would need to be passed in or handled elsewhere
+
+        for pkg in p:
+            let pkgInfo = parsePkgInfo(pkg)
+            if depGraph.nodes.hasKey(pkgInfo.name) and depGraph.nodes[
+                    pkgInfo.name].metadata.bsdeps.len > 0:
+                deps = deps.filterIt(it != pkg) & pkg
+
+    return (deps, depGraph, allDependents)
+
 proc getSandboxDepsFromGraph*(pkg: string, graph: dependencyGraph,
         bootstrap: bool, root: string, forceInstallAll: bool,
         isInstallDir: bool, ignoreInit: bool): seq[string] =

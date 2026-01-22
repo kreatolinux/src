@@ -21,6 +21,7 @@ import ../modules/builder/packager
 import ../modules/builder/executor
 import ../modules/builder/environment
 import ../modules/builder/sandbox
+import ../modules/builder/commitctx
 
 proc builder*(cfg: BuildConfig): bool =
   ## Builds a package using the provided configuration.
@@ -159,136 +160,45 @@ proc build*(no = false, yes = false, root = "/",
   ## Supports commit-based builds with syntax: package#commit
   ## When a commit hash is specified, the repo containing that commit
   ## is checked out to that commit for the build, then restored.
-  let init = getInit(root)
-  var deps: seq[string]
-  var depGraph: dependencyGraph
-  var gD: seq[string]
 
   if packages.len == 0:
     error("please enter a package name")
     quit(1)
 
-  var fullRootPath = expandFilename(root)
-  var ignoreInit = false
+  let init = getInit(root)
+  let fullRootPath = expandFilename(root)
+  let ignoreInit = false
 
-  var allDependents: seq[string]
-
-  # Check for commit-based builds - all packages with commits must use the same commit
-  var commit = ""
-  var commitRepo = ""
-  var headRunfileCache = initTable[string, runFile]()
-  var originalRef = ""
-  var packagesWithCommit: seq[string] = @[]
-
-  for pkg in packages:
-    let pkgInfo = parsePkgInfo(pkg)
-    if pkgInfo.commit != "":
-      if commit == "":
-        commit = pkgInfo.commit
-      elif commit != pkgInfo.commit:
-        error("All packages must use the same commit hash. Found '" & commit &
-            "' and '" & pkgInfo.commit & "'")
-        quit(1)
-      packagesWithCommit.add(pkgInfo.name)
-
-  # Handle commit-based build setup
-  if commit != "":
-    info "Building " & packagesWithCommit.join(", ") & " from commit " & commit
-
-    # Find which repo contains this commit
-    commitRepo = findRepoWithCommit(commit)
-    if commitRepo == "":
-      error("Commit '" & commit & "' not found in any configured repository")
-      quit(1)
-
-    info "Found commit in repo: " & commitRepo
-
-    # Cache all runfiles from HEAD before checkout
-    headRunfileCache = cacheRepoRunfiles(commitRepo)
-    debug "Cached " & $headRunfileCache.len & " runfiles from HEAD"
-
-    # Save original ref for restoration
-    originalRef = getCurrentRef(commitRepo)
-
-    # Save commit build state for crash recovery
-    let buildState = CommitBuildState(
-      repoPath: commitRepo,
-      originalRef: originalRef,
-      commit: commit
+  withCommitContext(packages):
+    # Build dependency context for resolveBuildOrder
+    let depCtx = dependencyContext(
+      root: fullRootPath,
+      isBuild: true,
+      useBootstrap: bootstrap,
+      ignoreInit: ignoreInit,
+      ignoreCircularDeps: false,
+      forceInstallAll: forceInstallAll,
+      useCacheIfAvailable: useCacheIfAvailable,
+      init: init,
+      commit: commitCtx.commit,
+      commitRepo: commitCtx.commitRepo,
+      headRunfileCache: commitCtx.headRunfileCache
     )
-    saveCommitBuildState(buildState)
 
-    # Checkout the commit
-    if not checkoutCommit(commitRepo, commit):
-      error("Failed to checkout commit '" & commit & "'")
-      quit(1)
-    info "Checked out commit " & commit
+    # Resolve complete build order (handles dependents, graph rebuild, bootstrap reordering)
+    let (deps, depGraph, allDependents) = resolveBuildOrder(
+      packages, depCtx, bootstrap, isInstallDir
+    )
 
-  # Use try/finally to ensure repo is restored on success or failure
-  try:
-    try:
-      # Build the dependency graph once
-      (deps, depGraph) = dephandlerWithGraph(packages, isBuild = true,
-              root = fullRootPath, forceInstallAll = forceInstallAll,
-              isInstallDir = isInstallDir, ignoreInit = ignoreInit,
-              useBootstrap = bootstrap,
-              useCacheIfAvailable = useCacheIfAvailable,
-              commit = commit, commitRepo = commitRepo,
-              headRunfileCache = headRunfileCache)
-
-      printReplacesPrompt(deps, fullRootPath, true)
-
-      # Check for packages that depend on what we're building
-      gD = getDependents(deps)
-
-      # Get packages that have runtime dependencies on the packages being built
-      var runtimeDependents: seq[string]
-      for pkg in packages:
-        let pkgSplit = parsePkgInfo(pkg)
-        runtimeDependents = runtimeDependents & getRuntimeDependents(@[
-                pkgSplit.name], fullRootPath)
-
-      # Remove duplicates and packages already in dependents
-      runtimeDependents = deduplicate(runtimeDependents).filterIt(it notin gD)
-
-      # Combine all dependents
-      allDependents = deduplicate(gD & runtimeDependents)
-
-      # If we have dependents, rebuild the graph with them included
-      if not isEmptyOrWhitespace(allDependents.join("")):
-        let allPackages = deduplicate(packages&allDependents)
-        (deps, depGraph) = dephandlerWithGraph(allPackages, isBuild = true,
-                root = fullRootPath, forceInstallAll = forceInstallAll,
-                isInstallDir = isInstallDir, ignoreInit = ignoreInit,
-                useBootstrap = bootstrap,
-                useCacheIfAvailable = useCacheIfAvailable,
-                commit = commit, commitRepo = commitRepo,
-                headRunfileCache = headRunfileCache)
-    except CatchableError:
-      raise getCurrentException()
-
+    # Build package list with init variants
     var p: seq[string]
-
     for currentPackage in packages:
-      p = p&currentPackage
-      if findPkgRepo(currentPackage&"-"&init) != "":
-        p = p&(currentPackage&"-"&init)
+      p = p & currentPackage
+      if findPkgRepo(currentPackage & "-" & init) != "":
+        p = p & (currentPackage & "-" & init)
 
-    # Use the graph to get the correct build order for ALL packages (dependencies + targets)
-    deps = flattenDependencyOrder(depGraph).filterIt(it.len != 0)
-
-    # If building a package that has bootstrap deps but we're not in bootstrap mode,
-    # ensure it's rebuilt AFTER its full BUILD_DEPENDS by moving it to the end
-    if not bootstrap:
-      for pkg in p:
-        let pkgInfo = parsePkgInfo(pkg)
-        # Check if package has bootstrap deps by looking at the graph
-        if depGraph.nodes.hasKey(pkgInfo.name) and depGraph.nodes[
-                pkgInfo.name].metadata.bsdeps.len > 0:
-          # This package has bootstrap deps - move it to the end to ensure
-          # it's rebuilt after all its full BUILD_DEPENDS are available
-          deps = deps.filterIt(it != pkg)&pkg
-
+    # UI prompts
+    printReplacesPrompt(deps, fullRootPath, true)
     printReplacesPrompt(p, fullRootPath, isInstallDir = isInstallDir)
 
     if isInstallDir:
@@ -298,24 +208,24 @@ proc build*(no = false, yes = false, root = "/",
       printPackagesPrompt(deps.join(" "), yes, no, @[""],
               dependents = allDependents)
 
+    # Normalize package names (strip repo prefix if not isInstallDir)
     let pBackup = p
-
     p = @[]
-
     if not isInstallDir:
       for i in pBackup:
         let packageSplit = parsePkgInfo(i)
-        if "/" in packageSplit.nameWithRepo:
-          p = p&packageSplit.name
-        else:
-          p = p&packageSplit.name
+        p = p & packageSplit.name
 
+    # Build package paths table for isInstallDir mode
     var pkgPaths = initTable[string, string]()
     if isInstallDir:
       for pkg in packages:
         pkgPaths[lastPathPart(pkg)] = absolutePath(pkg)
 
-    # Create sandbox configuration with commit context
+    # Get build dependents for cache invalidation
+    let gD = getDependents(deps)
+
+    # Create sandbox configuration
     let sandboxCfg = initSandboxConfig(
       fullRootPath = fullRootPath,
       target = target,
@@ -332,17 +242,11 @@ proc build*(no = false, yes = false, root = "/",
       ignoreUseCacheIfAvailable = gD,
       root = root,
       pkgPaths = pkgPaths,
-      commit = commit,
-      commitRepo = commitRepo,
-      headRunfileCache = headRunfileCache
+      commit = commitCtx.commit,
+      commitRepo = commitCtx.commitRepo,
+      headRunfileCache = commitCtx.headRunfileCache
     )
 
     # Build all packages in sandbox
     result = buildAllPackagesInSandbox(deps, depGraph, sandboxCfg,
             builderWrapper, installPkgWrapper)
-  finally:
-    # Restore repo to original state if we checked out a commit
-    if commit != "" and commitRepo != "" and originalRef != "":
-      info "Restoring repo to " & originalRef
-      discard restoreRepo(commitRepo, originalRef)
-      clearCommitBuildState()
