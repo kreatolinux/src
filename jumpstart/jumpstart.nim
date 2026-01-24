@@ -1,6 +1,7 @@
 import std/net
 import json
 include serviceHandler/main
+import types
 
 var userMode = false
 
@@ -44,41 +45,56 @@ proc ctrlc() {.noconv.} =
 
 setControlCHook(ctrlc)
 
+proc getUnitKind(name: string): UnitKind {.gcsafe.} =
+  case splitFile(name).ext:
+    of ".mount": ukMount
+    of ".timer": ukTimer
+    else: ukService
+
 var client: Socket
 var address = ""
 serviceHandlerInit()
 while true:
   socket.acceptAddr(client, address)
   var json = parseJson(client.recvLine())
-  #echo pretty(json)
-  var isMount: bool
-  if splitFile(json["service"]["name"].getStr).ext == ".mount":
-    isMount = true
+  let unitKind = getUnitKind(getStr(json["service"]["name"], ""))
 
-  case json["service"]["action"].getStr:
+  case getStr(json["service"]["action"], ""):
     of "stop":
-      if isMount:
-        stopMount(json["service"]["name"].getStr)
-      else:
-        stopService(json["service"]["name"].getStr)
+      case unitKind:
+        of ukMount:
+          stopMount(getStr(json["service"]["name"], ""))
+        of ukTimer:
+          stopTimer(getStr(json["service"]["name"], ""))
+        of ukService:
+          stopService(getStr(json["service"]["name"], ""))
     of "start":
-      if isMount:
-        startMount(json["service"]["name"].getStr)
-      else:
-        startService(json["service"]["name"].getStr)
+      case unitKind:
+        of ukMount:
+          startMount(getStr(json["service"]["name"], ""))
+        of ukTimer:
+          startTimer(getStr(json["service"]["name"], ""))
+        of ukService:
+          startService(getStr(json["service"]["name"], ""))
     of "enable":
-      enableService(json["service"]["name"].getStr, isMount)
-      if json["service"]["now"].getStr == "true":
-        if isMount:
-          startMount(json["service"]["name"].getStr)
-        else:
-          startService(json["service"]["name"].getStr)
+      enableUnit(getStr(json["service"]["name"], ""), unitKind)
+      if getStr(json["service"]["now"], "") == "true":
+        case unitKind:
+          of ukMount:
+            startMount(getStr(json["service"]["name"], ""))
+          of ukTimer:
+            startTimer(getStr(json["service"]["name"], ""))
+          of ukService:
+            startService(getStr(json["service"]["name"], ""))
     of "disable":
-      disableService(json["service"]["name"].getStr, isMount)
-      if json["service"]["now"].getStr == "true":
-        if isMount:
-          stopMount(json["service"]["name"].getStr)
-        else:
-          stopService(json["service"]["name"].getStr)
+      disableUnit(getStr(json["service"]["name"], ""), unitKind)
+      if getStr(json["service"]["now"], "") == "true":
+        case unitKind:
+          of ukMount:
+            stopMount(getStr(json["service"]["name"], ""))
+          of ukTimer:
+            stopTimer(getStr(json["service"]["name"], ""))
+          of ukService:
+            stopService(getStr(json["service"]["name"], ""))
 
 

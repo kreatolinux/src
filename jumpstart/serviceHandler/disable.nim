@@ -1,19 +1,23 @@
 import os
 include ../commonImports
+import ../types
 import ../../common/logging
 
-proc disableService*(service: string, isMount: bool) =
-  ## Disables an service.
+proc disableUnit*(unit: string, kind: UnitKind) =
+  ## Disables an unit (service, mount, or timer).
 
-  var srvmntPath: string
+  var unitPath: string
 
-  if isMount:
-    srvmntPath = mountPath
+  case kind:
+    of ukService:
+      unitPath = servicePath
+    of ukMount:
+      unitPath = mountPath
+    of ukTimer:
+      unitPath = timerPath
+
+  if fileExists(unitPath&"/enabled/"&unit):
+    removeFile(unitPath&"/enabled/"&unit)
+    ok "Disabled unit "&unit
   else:
-    srvmntPath = servicePath
-
-  if fileExists(srvmntPath&"/enabled/"&service):
-    removeFile(srvmntPath&"/enabled/"&service)
-    ok "Disabled service/mount "&service
-  else:
-    info "Service/Mount "&service&" is already disabled"
+    info "Unit "&unit&" is already disabled"

@@ -1,12 +1,16 @@
 # serviceHandler
 # JumpStart's service handler
 include ../commonImports
+import ../types
 import enable, disable, start, stop
-import os, osproc
+import osproc
+import os
 import parsecfg
 import ../../common/logging
 import jumpmount/main
 import jumpmount/umount
+import jumptimer/main
+import jumptimer/stop
 
 # Initialize logging for jumpstart serviceHandler
 initLogger("jumpstart", "/etc/jumpstart/main.conf", "/var/log/jumpstart.log")
@@ -56,4 +60,7 @@ proc serviceHandlerInit() =
 
   for i in walkFiles(servicePath&"/enabled/*.service"):
     startService(extractFilename(i))
+
+  for i in walkFiles(timerPath&"/enabled/*.timer"):
+    startTimer(extractFilename(i))
 

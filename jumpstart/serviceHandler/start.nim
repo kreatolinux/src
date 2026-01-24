@@ -1,5 +1,6 @@
 import parsecfg
-import os, osproc
+import osproc
+import os
 import std/threadpool
 import status
 import ../../common/logging

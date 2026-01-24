@@ -1,24 +1,28 @@
 import os
 include ../commonImports
+import ../types
 import ../../common/logging
 
-proc enableService*(service: string, isMount: bool) =
-  ## Enables an service.
+proc enableUnit*(unit: string, kind: UnitKind) =
+  ## Enables an unit (service, mount, or timer).
 
-  var srvmntPath: string
+  var unitPath: string
 
-  if isMount:
-    srvmntPath = mountPath
-  else:
-    srvmntPath = servicePath
+  case kind:
+    of ukService:
+      unitPath = servicePath
+    of ukMount:
+      unitPath = mountPath
+    of ukTimer:
+      unitPath = timerPath
 
-  if dirExists(srvmntPath&"/enabled/"&service):
-    info "Service/Mount "&service&" is already enabled, no need to re-enable"
+  if dirExists(unitPath&"/enabled/"&unit):
+    info "Unit "&unit&" is already enabled, no need to re-enable"
     return
 
   try:
-    discard existsOrCreateDir(srvmntPath&"/enabled")
-    createSymlink(srvmntPath&"/"&service, srvmntPath&"/enabled/"&service)
-    ok "Enabled "&service
+    discard existsOrCreateDir(unitPath&"/enabled")
+    createSymlink(unitPath&"/"&unit, unitPath&"/enabled/"&unit)
+    ok "Enabled "&unit
   except CatchableError:
-    warn "Couldn't enable "&service&", what is going on?"
+    warn "Couldn't enable "&unit&", what is going on?"
