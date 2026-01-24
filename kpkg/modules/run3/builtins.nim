@@ -278,14 +278,38 @@ proc builtinPrint*(ctx: ExecutionContext, text: string) =
 
 proc builtinCd*(ctx: ExecutionContext, path: string): bool =
   ## Change current directory
+  ## Supports: - (previous directory), ~ (home directory), relative and absolute paths
   let resolvedPath = stripQuotes(ctx.resolveVariables(path))
 
-  # Handle relative paths
-  var fullPath = resolvedPath
-  if not isAbsolute(resolvedPath):
+  var fullPath: string
+
+  # Handle special cases
+  if resolvedPath == "-":
+    # Go to previous directory
+    if ctx.previousDir == "":
+      echo "Error: No previous directory"
+      return false
+    fullPath = ctx.previousDir
+  elif resolvedPath.startsWith("~"):
+    # Home directory expansion
+    let homeDir = getHomeDir()
+    if resolvedPath == "~":
+      fullPath = homeDir
+    else:
+      # ~/path or ~/ case
+      fullPath = homeDir / resolvedPath[2..^1]
+  elif not isAbsolute(resolvedPath):
+    # Handle relative paths
     fullPath = ctx.currentDir / resolvedPath
+  else:
+    fullPath = resolvedPath
+
+  # Normalize the path to resolve .. and .
+  fullPath = normalizedPath(fullPath)
 
   if dirExists(fullPath):
+    # Save current directory as previous before changing
+    ctx.previousDir = ctx.currentDir
     ctx.currentDir = fullPath
     return true
   else:

@@ -15,6 +15,7 @@ type
     envVars*: Table[string, string]            ## Environment variable overrides
     customFuncs*: Table[string, seq[AstNode]]  ## Custom function bodies
     currentDir*: string                        ## Current working directory
+    previousDir*: string                       ## Previous directory (for cd -)
     destDir*: string                           ## DESTDIR for installation
     srcDir*: string                            ## Source directory
     buildRoot*: string                         ## Build root directory
@@ -39,6 +40,7 @@ proc initExecutionContext*(destDir: string = "", srcDir: string = "",
     result.currentDir = srcDir
   else:
     result.currentDir = getCurrentDir()
+  result.previousDir = result.currentDir
   result.destDir = destDir
   result.srcDir = srcDir
   result.buildRoot = buildRoot
