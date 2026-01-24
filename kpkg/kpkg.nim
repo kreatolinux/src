@@ -33,6 +33,7 @@ import commands/checkcmd
 import commands/listcmd
 import commands/initcmd
 import commands/clearlockcmd
+import commands/stalecmd
 import modules/transaction
 import ../common/logging
 import ../common/version
@@ -179,5 +180,8 @@ dispatchMulti(
     "file": "URL/Path to the file with invocations",
     "append": "Append to the value instead of replacing it"
     }
+  ],
+  [
+  stale, help = {}
   ]
 )

@@ -8,6 +8,7 @@ import ../../common/logging
 import ../modules/lockfile
 import ../modules/runparser
 import ../modules/processes
+import ../modules/staleprocs
 
 proc upgrade*(root = "/",
         builddir = "/tmp/kpkg/build", srcdir = "/tmp/kpkg/srcdir", yes = false,
@@ -70,5 +71,7 @@ proc upgrade*(root = "/",
             isUpgrade = true)
   else:
     discard install(packages, root, yes = yes, no = no, isUpgrade = true)
+
+  staleprocs.printStaleWarning()
 
   info("done")

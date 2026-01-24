@@ -20,6 +20,7 @@ import ../modules/removeInternal
 import ../modules/transaction
 import ../modules/run3/executor
 import ../modules/run3/run3
+import ../modules/staleprocs
 
 setControlCHook(ctrlc)
 
@@ -617,6 +618,8 @@ proc install*(promptPackages: seq[string], root = "/", yes: bool = false,
             kTarget = kTarget, forceDownload = forceDownload,
             ignoreDownloadErrors = ignoreDownloadErrors,
             basePackage = basePackage)
+
+  staleprocs.printStaleWarning()
 
   info("done")
   return 0
