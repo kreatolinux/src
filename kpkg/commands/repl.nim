@@ -1,11 +1,19 @@
 import os
 import strutils
+import terminal
+import tables
 import ../../common/logging
 import ../modules/config
 import ../modules/sqlite
 import ../modules/overrides
 import ../modules/downloader
 import ../modules/dephandler
+import ../modules/run3/context
+import ../modules/run3/parser
+import ../modules/run3/executor
+import ../modules/run3/lexer
+import ../modules/run3/ast
+import rdstdin
 
 # base functions
 #
@@ -19,13 +27,13 @@ import ../modules/dephandler
 # Can also get all variables
 # `kpkg get config` # prints all config variables
 
-proc get*(invocations: seq[string]) =
+proc get(args: seq[string]) =
   ## Gets a kpkg value. See kpkg_get(5) for more information.
-  if invocations.len < 1:
-    error("No invocation provided. See kpkg_get(5) for more information.")
-    quit(1)
+  if args.len < 1:
+    echo "Usage: get [invocation]"
+    return
 
-  for invoc in invocations:
+  for invoc in args:
     let invocSplit = invoc.split(".")
     case invocSplit[0]:
       of "db":
@@ -45,7 +53,6 @@ proc get*(invocations: seq[string]) =
                         "/"), invocSplit[3])
               else:
                 error("'"&invoc&"': invalid invocation")
-                quit(1)
           of "file":
             case invocSplit.len:
               of 2:
@@ -57,7 +64,6 @@ proc get*(invocations: seq[string]) =
                         invocSplit[3])
               else:
                 error("'"&invoc&"': invalid invocation")
-                quit(1)
       of "config":
         case invocSplit.len:
           of 1:
@@ -68,7 +74,6 @@ proc get*(invocations: seq[string]) =
             echo getConfigValue(invocSplit[1], invocSplit[2])
           else:
             error("'"&invoc&"': invalid invocation")
-            quit(1)
       of "overrides":
         case invocSplit.len:
           of 1:
@@ -83,7 +88,6 @@ proc get*(invocations: seq[string]) =
                     invocSplit[3])
           else:
             error("'"&invoc&"': invalid invocation")
-            quit(1)
       of "depends":
         case invocSplit.len:
           of 3:
@@ -94,7 +98,7 @@ proc get*(invocations: seq[string]) =
             let repo = findPkgRepo(packageName)
             if repo == "":
               error("'"&packageName&"': package not found")
-              quit(1)
+              return
 
             var deps: seq[string]
             try:
@@ -115,14 +119,13 @@ proc get*(invocations: seq[string]) =
                           ignoreCircularDeps = true)
                 else:
                   error("'"&depType&"': invalid dependency type. Use 'build' or 'install'")
-                  quit(1)
+                  return
 
               # Output the dependencies
               for dep in deps:
                 echo dep
             except CatchableError:
               error("failed to resolve dependencies for '"&packageName&"'")
-              quit(1)
           of 4:
             let packageName = invocSplit[1]
             let depType = invocSplit[2]
@@ -131,13 +134,13 @@ proc get*(invocations: seq[string]) =
             # Only support .graph output format
             if outputFormat != "graph":
               error("'"&outputFormat&"': invalid output format. Use 'graph'")
-              quit(1)
+              return
 
             # Check if package exists in repos
             let repo = findPkgRepo(packageName)
             if repo == "":
               error("'"&packageName&"': package not found")
-              quit(1)
+              return
 
             try:
               # Build the dependency graph
@@ -163,94 +166,172 @@ proc get*(invocations: seq[string]) =
                           ctx, @["  "], false, false, packageName)
                 else:
                   error("'"&depType&"': invalid dependency type. Use 'build' or 'install'")
-                  quit(1)
+                  return
 
               # Generate and output Mermaid chart
               echo generateMermaidChart(graph, @[packageName])
             except CatchableError:
               error("failed to generate dependency graph for '"&packageName&"'")
-              quit(1)
           else:
             error("'"&invoc&"': invalid invocation. Usage: depends.packageName.build[.graph] or depends.packageName.install[.graph]")
-            quit(1)
       else:
         error("'"&invoc&"': invalid invocation. Available invocations: db, config, overrides, depends. See kpkg_get(5) for more information.")
-        quit(1)
 
-proc set*(file = "", append = false, invocation: seq[string]) =
+proc set(args: seq[string]) =
   ## Sets a kpkg value. See kpkg_set(5) for more information.
-
-  if not isEmptyOrWhitespace(file):
-    var fileToRead = file
-    if file.startsWith("https://") or file.startsWith("http://"):
-      createDir("/tmp/kpkg")
-      download(file, "/tmp/kpkg/"&lastPathPart(file))
-      fileToRead = lastPathPart(file)
-    else:
-      if not fileExists(file):
-        error("'"&file&"': file does not exist.")
-        quit(1)
-
-    for line in lines fileToRead:
-
-      # Check for comments and whitespace
-      if line.startsWith("#") or isEmptyOrWhitespace(line):
-        continue
-
-      let lineSplit = line.split(" ")
-
-      debug "lineSplit: '"&($lineSplit)&"'"
-
-      try:
-        case lineSplit[1]:
-          of "=", "==":
-            set(append = false, invocation = @[lineSplit[0],
-                    lineSplit[2]])
-          of "+=":
-            set(append = true, invocation = @[lineSplit[0],
-                    lineSplit[2]])
-          else:
-            error("'"&line&"': invalid invocation.")
-            quit(1)
-      except:
-        when not defined(release):
-          raise getCurrentException()
-        else:
-          error("'"&line&"': invalid invocation.")
-          quit(1)
-
+  if args.len < 2:
+    echo "Usage: set [invocation] [value]"
     return
 
-  if invocation.len < 2:
-    error("No invocation provided. See kpkg_set(5) for more information.")
-    quit(1)
+  try:
+    let key = args[0]
+    let val = args[1..^1].join(" ")
+    let invocSplit = key.split(".")
 
-  let invocSplit = invocation[0].split(".")
+    case invocSplit[0]:
+      of "config":
+        if invocSplit.len < 3:
+          error("'"&key&"': invalid invocation.")
+          return
+        setConfigValue(invocSplit[1], invocSplit[2], val)
+        echo getConfigValue(invocSplit[1], invocSplit[2])
+      of "overrides":
+        if invocSplit.len < 4:
+          error("'"&key&"': invalid invocation.")
+          return
+        setOverrideValue(invocSplit[1], invocSplit[2], invocSplit[3], val)
+        echo getOverrideValue(invocSplit[1], invocSplit[2], invocSplit[3])
+  except CatchableError as e:
+    error(e.msg)
 
-  case invocSplit[0]:
-    of "config":
-      if invocSplit.len < 3:
-        error("'"&invocation[0]&"': invalid invocation.")
-        quit(1)
+proc handleRun3Statement(ctx: ExecutionContext, line: string) =
+  ## Parses and executes a run3 statement or function definition.
+  try:
+    let tokens = tokenize(line)
+    var parser = initParser(tokens)
+    
+    # Check if this is a function definition
+    let firstTok = parser.peek()
+    if firstTok.kind == tkFunc or (firstTok.kind == tkIdentifier and parser.peek(1).kind == tkLBrace):
+      let isCustom = firstTok.kind == tkFunc
+      let funcNode = parser.parseFunction(isCustom)
+      
+      # Load into context
+      if funcNode.kind == nkFunction:
+        ctx.customFuncs[funcNode.funcName] = funcNode.funcBody
+        debug "Defined regular function: " & funcNode.funcName
+      elif funcNode.kind == nkCustomFunc:
+        ctx.customFuncs[funcNode.customFuncName] = funcNode.customFuncBody
+        debug "Defined custom function: " & funcNode.customFuncName
+    else:
+      # Regular statement
+      let node = parser.parseStatement()
+      let res = executor.executeNode(ctx, node)
+      if res != 0:
+        debug "Command returned non-zero exit code: " & $res
+  except ParseError as e:
+    error("Parse error at line " & $e.line & ", col " & $e.col & ": " & e.msg)
+  except ExecutionError as e:
+    error("Execution error at line " & $e.line & ": " & e.msg)
+  except CatchableError as e:
+    error("Error: " & e.msg)
 
-      if append:
-        setConfigValue(invocSplit[1], invocSplit[2], getConfigValue(
-                invocSplit[1], invocSplit[2])&" "&invocation[1])
-      else:
-        setConfigValue(invocSplit[1], invocSplit[2], invocation[1])
+proc dispatchCommand(ctx: ExecutionContext, input: string) =
+  ## Dispatches a command (get, set, or run3 statement).
+  let inputTrimmed = input.strip()
+  if inputTrimmed == "": return
+  
+  let parts = inputTrimmed.split(" ", 1)
+  let cmd = parts[0]
+  let args = if parts.len > 1: parts[1].split(" ") else: @[]
+  
+  case cmd
+  of "get":
+    get(args)
+  of "set":
+    set(args)
+  else:
+    handleRun3Statement(ctx, inputTrimmed)
 
-      echo getConfigValue(invocSplit[1], invocSplit[2])
-    of "overrides":
-      if invocSplit.len < 3:
-        error("'"&invocation[0]&"': invalid invocation.")
-        quit(1)
+proc repl*(args: seq[string] = @[]) =
+  ## Starts the kpkg REPL with history support.
+  let ctx = initExecutionContext()
+  let historyPath = getCacheDir() / "kpkg"
+  let historyFile = historyPath / "history"
+  
+  # Ensure config dir exists
+  try:
+    if not dirExists(historyPath):
+      createDir(historyPath)
+  except:
+    discard
+    
+  if args.len > 0:
+    # Process commands from arguments
+    dispatchCommand(ctx, args.join(" "))
+    return
 
-      if append:
-        setOverrideValue(invocSplit[1], invocSplit[2], invocSplit[3],
-                getOverrideValue(invocSplit[1], invocSplit[2],
-                invocSplit[3])&" "&invocation[1])
-      else:
-        setOverrideValue(invocSplit[1], invocSplit[2], invocSplit[3],
-                invocation[1])
+  echo "kpkg REPL (run3)"
+  echo "Type 'exit' or 'quit' to leave."
+  
+  var buffer = ""
+  var braceCount = 0
+  
+  while true:
+    var line: string
+    let prompt = if braceCount > 0: "      " else: "kpkg> "
+    let ok = readLineFromStdin(prompt, line)
+    
+    if not ok: # EOF
+      break
 
-      echo getOverrideValue(invocSplit[1], invocSplit[2], invocSplit[3])
+    let trimmed = line.strip()
+    if trimmed == "" and buffer == "":
+      continue
+      
+    if (trimmed == "exit" or trimmed == "quit") and buffer == "":
+      break
+    
+    if buffer != "":
+      buffer.add("\n")
+    buffer.add(line)
+    
+    # Simple brace counting to handle multi-line blocks
+    for c in line:
+      if c == '{': braceCount += 1
+      elif c == '}': braceCount -= 1
+    
+    if braceCount > 0:
+      continue
+    
+    let fullInput = buffer.strip()
+    buffer = ""
+    braceCount = 0 # Reset just in case it went negative
+    
+    if fullInput == "":
+      continue
+
+    # Save to history file (skip exit commands and very short single-word commands that might be typos)
+    if fullInput notin ["exit", "quit", "help", "history", "clear"]:
+      try:
+        let f = open(historyFile, fmAppend)
+        f.writeLine(fullInput)
+        f.close()
+      except:
+        discard
+
+    if fullInput == "history":
+      try:
+         echo readFile(historyFile)
+      except:
+         error("Could not read history file")
+      continue
+
+    if fullInput == "clear":
+      eraseScreen()
+      setCursorPos(0, 0)
+      flushFile(stdout)
+      continue
+
+    # Dispatch commands
+    dispatchCommand(ctx, fullInput)

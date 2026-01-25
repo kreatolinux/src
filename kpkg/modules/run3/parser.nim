@@ -70,14 +70,14 @@ proc initParser*(tokens: seq[Token]): Parser =
   result.tokens = tokens
   result.pos = 0
 
-proc peek(p: Parser, offset: int = 0): Token =
+proc peek*(p: Parser, offset: int = 0): Token =
   ## Peek at a token without consuming it
   let pos = p.pos + offset
   if pos >= p.tokens.len:
     return Token(kind: tkEof, value: "", line: 0, col: 0)
   return p.tokens[pos]
 
-proc advance(p: var Parser): Token =
+proc advance*(p: var Parser): Token =
   ## Consume and return the current token
   if p.pos >= p.tokens.len:
     return Token(kind: tkEof, value: "", line: 0, col: 0)
@@ -497,7 +497,7 @@ proc parseSingleTokenOrVar(p: var Parser): string =
         $tok.kind & " '" & tok.value & "'", tok.line, tok.col)
 
 # Forward declaration for mutual recursion
-proc parseStatement(p: var Parser): AstNode
+proc parseStatement*(p: var Parser): AstNode
 
 proc parseStatementBlock(p: var Parser, blockName: string): seq[AstNode] =
   ## Parse a block of statements until }
@@ -635,7 +635,7 @@ proc parseFuncCallStatement(p: var Parser, name: string, line: int): AstNode =
       break
   return newFuncCallNode(name, args, line)
 
-proc parseStatement(p: var Parser): AstNode =
+proc parseStatement*(p: var Parser): AstNode =
   ## Parse a single statement inside a function
   p.skipCommentsAndNewlines()
   let tok = p.peek()
@@ -718,7 +718,7 @@ proc parseFunctionBody(p: var Parser): seq[AstNode] =
   result = p.parseStatementBlock("Function body")
   discard p.expect(tkRBrace)
 
-proc parseFunction(p: var Parser, isCustom: bool = false): AstNode =
+proc parseFunction*(p: var Parser, isCustom: bool = false): AstNode =
   ## Parse a function definition
   let tok = p.peek()
 

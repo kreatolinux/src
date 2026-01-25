@@ -18,7 +18,7 @@
 
 import cligen
 import os
-import commands/getsetcmd
+import commands/repl
 import commands/infocmd as infocmdModule
 import commands/buildcmd
 import commands/updatecmd
@@ -170,18 +170,9 @@ dispatchMulti(
   stopWords = @["sandbox", "package", "override", "hook"]
   ],
   [
-  get, help = {
-    "invocations": "The invocation(s) to read"
-    }
-  ],
-  [
-  getsetcmd.set, help = {
-    "invocation": "The invocation to write",
-    "file": "URL/Path to the file with invocations",
-    "append": "Append to the value instead of replacing it"
-    }
-  ],
-  [
   stale, help = {}
+  ],
+  [
+  repl.repl, help = {}
   ]
 )
