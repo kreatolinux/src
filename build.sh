@@ -67,6 +67,7 @@ buildNim() {
 
 	# Build command arguments
 	set -- nim c -d:$buildType
+	[ -n "$CC" ] && set -- "$@" --cc:$CC
 	[ -n "$args" ] && set -- "$@" $args
 	[ -n "$target" ] && set -- "$@" $target
 	[ -n "$passC" ] && set -- "$@" $passC
