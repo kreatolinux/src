@@ -7,7 +7,7 @@ type Service* = tuple
 
 type TimerData* = tuple
   timerName: string
-  thread: Thread[pointer]
+  thread: ptr Thread[pointer]
   stopFlag: ptr bool
 
 var services*: seq[Service]

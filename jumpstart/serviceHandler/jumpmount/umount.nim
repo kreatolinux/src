@@ -1,6 +1,5 @@
 import parsecfg
 import osproc
-import os
 import strutils
 import ../../../common/logging
 include ../../commonImports

@@ -2,7 +2,6 @@ import parsecfg
 import std/times
 import std/net
 import ../../../common/logging
-import os
 import strutils
 include ../../commonImports
 import ../globalVariables
@@ -133,8 +132,8 @@ proc startTimer*(timerName: string) =
     stopFlag: stopFlag
   )
 
-  var thread: Thread[pointer]
-  createThread(thread, timerThread, cast[pointer](args))
+  var thread = cast[ptr Thread[pointer]](allocShared0(sizeof(Thread[pointer])))
+  createThread(thread[], timerThread, cast[pointer](args))
 
-  timers = timers&(timerName: timerName, thread: thread, stopFlag: stopFlag)
+  timers.add((timerName: timerName, thread: thread, stopFlag: stopFlag))
   ok "Started timer "&timerName

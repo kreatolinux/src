@@ -1,6 +1,5 @@
 import parsecfg
 import ../../../common/logging
-import os
 import strutils
 import osproc
 import fusion/filepermissions

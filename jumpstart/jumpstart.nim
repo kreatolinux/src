@@ -1,7 +1,6 @@
 import std/net
 import json
 include serviceHandler/main
-import types
 
 var userMode = false
 

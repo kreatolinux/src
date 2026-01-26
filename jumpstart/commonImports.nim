@@ -6,7 +6,7 @@ proc getuid(): cint {.importc, header: "<unistd.h>", sideEffect, raises: [],
                      tags: [], forbids: [].}
 
 # Jumpstart version
-const jumpstartVersion = "jumpstart v1.1.0"
+const jumpstartVersion* {.used.} = "jumpstart v1.1.0"
 
 # Jumpstart paths
 var sockPath {.threadvar.}: string

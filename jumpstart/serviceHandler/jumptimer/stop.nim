@@ -1,9 +1,7 @@
 import ../../../common/logging
-import os
 import strutils
 include ../../commonImports
 import ../globalVariables
-import std/times
 
 proc loadCurrentRemaining(timerName: string): int =
   let timerStatePath = serviceHandlerPath&"/timers/"&timerName
@@ -19,21 +17,21 @@ proc stopTimer*(timerName: string) =
     info "Timer "&timerName&" is already not running"
     return
 
-  var timerData: TimerData
+  var timerIndex = -1
 
   for i in 0 ..< timers.len:
     if timers[i].timerName == timerName:
-      timerData = timers[i]
+      timerIndex = i
       break
 
-  if isEmptyOrWhitespace(timerData.timerName):
+  if timerIndex == -1:
     warn "Timer "&timerName&" not found in running timers"
     return
 
   info "Stopping timer "&timerName
 
-  timerData.stopFlag[] = true
-  joinThread(timerData.thread)
+  timers[timerIndex].stopFlag[] = true
+  joinThread(timers[timerIndex].thread[])
 
   let remaining = loadCurrentRemaining(timerName)
   let timerStatePath = serviceHandlerPath&"/timers/"&timerName
@@ -44,12 +42,8 @@ proc stopTimer*(timerName: string) =
   except CatchableError:
     warn "Failed to persist state for stopped timer "&timerName
 
-  deallocShared(timerData.stopFlag)
-
-  var newTimers: seq[TimerData]
-  for t in timers:
-    if t.timerName != timerName:
-      newTimers = newTimers & t
-  timers = newTimers
+  deallocShared(timers[timerIndex].stopFlag)
+  deallocShared(timers[timerIndex].thread)
+  timers.del(timerIndex)
 
   ok "Stopped timer "&timerName
