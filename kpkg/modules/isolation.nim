@@ -82,7 +82,8 @@ proc installFromRootInternal(package, root, destdir: string,
     let listFilesSplitted = line.split("=")[0].replace("\"", "")
 
     if not (fileExists(root&"/"&listFilesSplitted) or dirExists(
-            root&"/"&listFilesSplitted)):
+            root&"/"&listFilesSplitted) or symlinkExists(
+                root&"/"&listFilesSplitted)):
       #debug "file: \""&listFilesSplitted&"\", package: \""&package&"\""
       when defined(release):
         info "removing unfinished environment"
@@ -99,7 +100,8 @@ proc installFromRootInternal(package, root, destdir: string,
 
     discard existsOrCreateDir(destdir)
 
-    if fileExists(root&"/"&listFilesSplitted):
+    if fileExists(root&"/"&listFilesSplitted) or symlinkExists(
+        root&"/"&listFilesSplitted):
       let dirPath = destdir&"/"&relativePath(
               root&"/"&listFilesSplitted.parentDir(), root)
 

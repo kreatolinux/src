@@ -73,9 +73,8 @@ proc copyFileWithPermissionsAndOwnership*(source, dest: string, options = {
     return
 
   # Return early if dest is a dir
-  if dirExists(dest):
-    #debug "\""&dest&"\" is a directory, cant use copyFileWithPermissionsAndOwnership"
-    return
+  if dirExists(dest) and not symlinkExists(dest):
+    fatal("\""&dest&"\" is a directory, cannot overwrite with a file")
 
   #debug "removing \""&dest&"\""
   removeFile(dest)
@@ -100,8 +99,7 @@ proc createDirWithPermissionsAndOwnership*(source, dest: string,
         followSymlinks = true) =
 
   if fileExists(dest) or symlinkExists(dest):
-    #debug "\""&dest&"\" is a file/symlink, returning early"
-    return
+    fatal("\""&dest&"\" is a file/symlink, cannot overwrite with a directory")
 
   if isEmptyDir(dest):
     #debug "\""&dest&"\" is empty, just going to overwrite"
