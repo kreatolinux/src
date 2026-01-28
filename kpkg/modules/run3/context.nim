@@ -79,7 +79,8 @@ proc getVariable*(ctx: ExecutionContext, name: string): string =
   of "PACKAGENAME":
     return ctx.packageName
   else:
-    return ""
+    # Fallback to system environment variables
+    return getEnv(name)
 
 proc getListVariable*(ctx: ExecutionContext, name: string): seq[string] =
   ## Get a list variable
@@ -97,7 +98,7 @@ proc hasVariable*(ctx: ExecutionContext, name: string): bool =
   of "ROOT", "DESTDIR", "SRCDIR", "PACKAGENAME":
     return true
   else:
-    return false
+    return existsEnv(name)
 
 proc hasListVariable*(ctx: ExecutionContext, name: string): bool =
   ## Check if a list variable exists
