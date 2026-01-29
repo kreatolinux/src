@@ -87,13 +87,16 @@ proc execEnv*(command: string, error = "none", passthrough = false,
         output: string, exitCode: int] =
   ## Wrapper of execCmdKpkg and Bubblewrap that runs a command in the sandbox and captures output.
   ## If asRoot is false (default), sets FORCE_UNSAFE_CONFIGURE=1 for build scripts.
-  const localeEnvPrefix = "LC_ALL=C.UTF-8 LC_CTYPE=C.UTF-8 LANG=C.UTF-8 "
+  var envPrefix = "LC_ALL=C.UTF-8 LC_CTYPE=C.UTF-8 LANG=C.UTF-8 "
+  let pathEnv = getEnv("PATH")
+  if pathEnv != "":
+    envPrefix = envPrefix & "PATH=" & quoteShell(pathEnv) & " "
   debug "execEnv: entered with path=" & path & ", passthrough=" & $passthrough &
       ", asRoot=" & $asRoot
   if passthrough:
     # Use single quotes for the sh -c argument to avoid escaping issues
     let escapedCmd = command.replace("'", "'\\''")
-    return execCmdKpkg(localeEnvPrefix&"/bin/sh -c '"&escapedCmd&"'", error,
+    return execCmdKpkg(envPrefix&"/bin/sh -c '"&escapedCmd&"'", error,
             silentMode = silentMode)
   else:
     debug "execEnv: checking if path exists: " & path
@@ -153,6 +156,6 @@ proc execEnv*(command: string, error = "none", passthrough = false,
       "/bin/sh -c '" & escapedCmd & "'"
     ]
     let bwrapCmd = "bwrap " & bwrapArgs.join(" ")
-    return execCmdKpkg(localeEnvPrefix & forceUnsafeConfigure & bwrapCmd,
+    return execCmdKpkg(envPrefix & forceUnsafeConfigure & bwrapCmd,
             error, silentMode = silentMode)
 
