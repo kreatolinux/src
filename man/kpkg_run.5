@@ -44,7 +44,7 @@ depends:
     - \[dq]testpackage1\[dq] 
     - \[dq]testpackage3\[dq] 
     - \[dq]testpackage4\[dq]
-depends_test2: 
+depends test2: 
     - \[dq]testpackage5\[dq] 
     - \[dq]testpackage6\[dq]
 no_chkupd: false
@@ -112,7 +112,7 @@ package {
     macro package --meson
 }
 
-package_test2 {
+package test2 {
     cd testfile
     exec make install_test2 # External commands require exec
 }
@@ -215,18 +215,21 @@ Supports version specifications like:
 .IP \[bu] 2
 \f[B]build_depends\f[R]: Build-time dependencies of your package.
 .IP \[bu] 2
-\f[B]depends_packagename\f[R]: Specify dependencies for a specific
+\f[B]depends packagename\f[R]: Specify dependencies for a specific
 sub-package.
+The space-separated syntax is preferred, but the legacy underscore
+syntax (\f[V]depends_packagename:\f[R]) is also supported for backward
+compatibility.
 Can be modified using:
 .RS 2
 .IP \[bu] 2
-\f[V]depends_packagename+: \[dq]packagename\[dq]\f[R] to add a
+\f[V]depends packagename+: \[dq]packagename\[dq]\f[R] to add a
 dependency
 .IP \[bu] 2
-\f[V]depends_packagename-: \[dq]packagename\[dq]\f[R] to remove a
+\f[V]depends packagename-: \[dq]packagename\[dq]\f[R] to remove a
 dependency
 .IP \[bu] 2
-\f[V]depends_packagename: \[dq]packagename\[dq]\f[R] to replaces
+\f[V]depends packagename: \[dq]packagename\[dq]\f[R] to replace
 dependencies completely
 .RE
 .SS CHECKSUM VARIABLES
@@ -302,8 +305,11 @@ time (not during upgrades).
 .IP \[bu] 2
 \f[B]postremove\f[R]: Runs after the package is removed.
 .IP \[bu] 2
-\f[B]package_packagename\f[R]: Installation function for a sub-package.
+\f[B]package packagename\f[R]: Installation function for a sub-package.
 Allows packaging multiple components in the same runfile.
+The space-separated syntax is preferred, but the legacy underscore
+syntax (\f[V]package_packagename {}\f[R]) is also supported for backward
+compatibility.
 .SH AUTHOR
 .PP
 Written by Kreato.

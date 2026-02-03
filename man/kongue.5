@@ -510,6 +510,34 @@ snake_case is recommended for most scripts.
 .PP
 \f[B]Important\f[R]: Functions are case-sensitive and do not support
 this flexibility.
+.SS QUALIFIED NAMES
+.PP
+Variables and functions can have qualifiers to create variants.
+The space-separated syntax is preferred:
+.IP
+.nf
+\f[C]
+# Variables with qualifiers
+depends:
+    - \[dq]base-dep\[dq]
+
+depends subpkg:
+    - \[dq]subpkg-dep\[dq]
+
+# Functions with qualifiers
+build {
+    exec \[dq]make\[dq]
+}
+
+build subpkg {
+    exec \[dq]make subpkg\[dq]
+}
+\f[R]
+.fi
+.PP
+The legacy underscore syntax (\f[V]depends_subpkg:\f[R],
+\f[V]build_subpkg {}\f[R]) is also supported for backward compatibility.
+Both syntaxes are equivalent internally.
 .SH AUTHOR
 .PP
 Written by Kreato.
