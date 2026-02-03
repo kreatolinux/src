@@ -9,22 +9,16 @@ proc getuid(): cint {.importc, header: "<unistd.h>", sideEffect, raises: [],
 const jumpstartVersion* {.used.} = "jumpstart v1.1.0"
 
 # Jumpstart paths
-var sockPath {.threadvar.}: string
-var servicePath {.threadvar.}: string
-var mountPath {.threadvar.}: string
-var timerPath {.threadvar.}: string
+var sockPath* {.threadvar.}: string
+var configPath* {.threadvar.}: string # Config path for .kg unit files
 var serviceHandlerPath* {.threadvar.}: string
 
 if getuid() != 0:
   # User mode
   sockPath = getEnv("HOME")&"/.local/share/jumpstart.sock"
-  servicePath = getEnv("HOME")&"/.config/jumpstart/services"
-  mountPath = getEnv("HOME")&"/.config/jumpstart/mounts"
-  timerPath = getEnv("HOME")&"/.config/jumpstart/timers"
+  configPath = getEnv("HOME")&"/.config/jumpstart"
   serviceHandlerPath = getEnv("HOME")&"/.local/share/serviceHandler"
 else:
   sockPath = "/run/jumpstart.sock"
-  servicePath = "/etc/jumpstart/services"
-  mountPath = "/etc/jumpstart/mounts"
-  timerPath = "/etc/jumpstart/timers"
+  configPath = "/etc/jumpstart"
   serviceHandlerPath = "/run/serviceHandler"

@@ -1,10 +1,10 @@
-import parsecfg
 import std/times
 import std/net
 import ../../../common/logging
 import strutils
 include ../../commonImports
 import ../globalVariables
+import ../../configParser
 
 type TimerArgs = ref object
   timerName: string
@@ -93,42 +93,78 @@ proc timerThread(argsPtr: pointer) {.thread.} =
       counter = 0
 
 proc startTimer*(timerName: string) =
-  var timer: Config
+  ## Start a timer.
+  ## timerName can be either:
+  ##   - A simple name like "cleanup" (looks for cleanup.kg with type: timer)
+  ##   - A qualified name like "example::cleanup" (looks for example.kg, timer "cleanup")
 
+  var unitName = timerName
+  var subTimerName = "main"
+
+  # Check for qualified name (unit::subunit)
+  if "::" in timerName:
+    let parts = timerName.split("::", 1)
+    unitName = parts[0]
+    subTimerName = parts[1]
+
+  # Check if already running
+  if dirExists(serviceHandlerPath&"/timers/"&timerName):
+    warn "Timer "&timerName&" is already running"
+    return
+
+  # Load and parse the unit configuration
+  var config: UnitConfig
   try:
-    if dirExists(serviceHandlerPath&"/timers/"&timerName):
-      warn "Timer "&timerName&" is already running"
+    config = parseUnit(configPath, unitName)
+  except CatchableError as e:
+    warn "Timer "&timerName&" couldn't be started: "&e.msg
+    return
+
+  # Validate unit type for non-multi units
+  if config.unitType notin {utTimer, utMulti}:
+    warn "Timer "&timerName&" has an incorrect type: "&($config.unitType)
+    return
+
+  # Find the matching timer config
+  var timerConfig: TimerConfig
+  var found = false
+  for tmr in config.timers:
+    if tmr.name == subTimerName:
+      timerConfig = tmr
+      found = true
+      break
+
+  if not found:
+    # For timer type units, there should be a single unnamed timer
+    if config.timers.len == 1:
+      timerConfig = config.timers[0]
+      found = true
+    else:
+      warn "Timer "&timerName&" not found in unit configuration"
       return
 
-    createDir(serviceHandlerPath&"/timers/"&timerName)
-    timer = loadConfig(timerPath&"/"&timerName)
-  except CatchableError:
-    warn "Timer "&timerName&" couldn't be started, possibly broken configuration?"
+  # Validate configuration
+  if timerConfig.interval <= 0:
+    warn "Timer "&timerName&" has invalid interval: "&($(timerConfig.interval))
     return
 
-  if timer.getSectionValue("Info", "Type") != "timer":
-    warn "Timer "&timerName&" has an incorrect type"
-    return
-
-  let interval = parseInt(timer.getSectionValue("Timer", "Interval"))
-  let serviceName = timer.getSectionValue("Timer", "Service")
-  let onMissed = timer.getSectionValue("Timer", "OnMissed", "skip")
-
-  if interval <= 0:
-    warn "Timer "&timerName&" has invalid interval: "&($(interval))
-    return
-
-  if isEmptyOrWhitespace(serviceName):
+  if isEmptyOrWhitespace(timerConfig.service):
     warn "Timer "&timerName&" has no Service specified"
     return
 
+  createDir(serviceHandlerPath&"/timers/"&timerName)
+
   let stopFlag = cast[ptr bool](allocShared0(sizeof(bool)))
+
+  let onMissedStr = case timerConfig.onMissed
+    of omRun: "run"
+    of omSkip: "skip"
 
   let args = TimerArgs(
     timerName: timerName,
-    interval: interval,
-    serviceName: serviceName,
-    onMissed: onMissed,
+    interval: timerConfig.interval,
+    serviceName: timerConfig.service,
+    onMissed: onMissedStr,
     stopFlag: stopFlag
   )
 
