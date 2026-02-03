@@ -6,7 +6,6 @@ import sequtils
 import dephandler
 import commonTasks
 import runparser
-import run3/executor
 import run3/run3
 
 proc dependencyCheck(package: string, root: string, force: bool,
@@ -128,8 +127,9 @@ proc removeInternal*(package: string, root = "",
         let parsedPkg = runparser.parseRunfile(installedDir&"/"&actualPackage)
 
         # Init context
-        let ctx = initFromRunfile(parsedPkg.run3Data.parsed, destDir = root,
-            srcDir = installedDir&"/"&actualPackage, buildRoot = root)
+        let ctx = initRun3ContextFromParsed(parsedPkg.run3Data.parsed,
+            destDir = root, srcDir = installedDir&"/"&actualPackage,
+                buildRoot = root)
         ctx.builtinEnv("ROOT", root)
         ctx.builtinEnv("DESTDIR", root)
         ctx.passthrough = true
@@ -142,7 +142,7 @@ proc removeInternal*(package: string, root = "",
           postremoveFunc = "postremove"
 
         if postremoveFunc != "":
-          if executeRun3Function(ctx, parsedPkg.run3Data.parsed,
+          if executeFunctionByName(ctx, parsedPkg.run3Data.parsed,
               postremoveFunc) != 0:
             fatal "postremove failed"
       except:

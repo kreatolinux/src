@@ -10,7 +10,6 @@ import ./types
 import ../runparser
 import ../../../common/logging
 import ../run3/run3
-import ../run3/executor
 
 proc detectBuildFunctions*(pkg: runFile,
     actualPackage: string): BuildFunctions =
@@ -94,18 +93,18 @@ proc executeBuildSteps*(ctx: ExecutionContext, state: BuildState,
 
   # Execute "prepare"
   if state.exists.prepare:
-    if executeRun3Function(ctx, state.pkg.run3Data.parsed, "prepare") != 0:
+    if executeFunctionByName(ctx, state.pkg.run3Data.parsed, "prepare") != 0:
       fatal("prepare failed")
 
   # Determine and execute "build"
   let buildFunc = getBuildFuncName(state.exists, actualPackage)
   if buildFunc != "":
-    if executeRun3Function(ctx, state.pkg.run3Data.parsed, buildFunc) != 0:
+    if executeFunctionByName(ctx, state.pkg.run3Data.parsed, buildFunc) != 0:
       fatal("build failed")
 
   # Execute "check" (tests) if requested
   if tests and state.exists.check:
-    if executeRun3Function(ctx, state.pkg.run3Data.parsed, "check") != 0:
+    if executeFunctionByName(ctx, state.pkg.run3Data.parsed, "check") != 0:
       fatal("check failed")
 
   # Determine and execute "package"
@@ -113,5 +112,5 @@ proc executeBuildSteps*(ctx: ExecutionContext, state: BuildState,
   if pkgFunc == "":
     fatal("install stage of package doesn't exist, invalid runfile")
 
-  if executeRun3Function(ctx, state.pkg.run3Data.parsed, pkgFunc) != 0:
+  if executeFunctionByName(ctx, state.pkg.run3Data.parsed, pkgFunc) != 0:
     fatal("package install failed")

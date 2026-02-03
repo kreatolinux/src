@@ -1,14 +1,18 @@
-## Execution context for run3 format
+## Execution context for Kongue scripting language
 ## Contains the ExecutionContext type and variable management procs
 
 import os
 import tables
 import ast
-import ../commonPaths
 
 type
-  ExecutionContext* = ref object
-    ## Context for executing run3 code
+  ## Hook types for extensibility - allows consumers to customize execution behavior
+  ExecHook* = proc(ctx: ExecutionContext, command: string, silent: bool): tuple[output: string, exitCode: int] {.nimcall.}
+  MacroHook* = proc(ctx: ExecutionContext, name: string, args: seq[string]): int {.nimcall.}
+
+  ExecutionContext* = ref object of RootObj
+    ## Context for executing Kongue code
+    ## Inherit from RootObj to allow subclassing for extended contexts
     variables*: Table[string, string]          ## Global variables from header
     listVariables*: Table[string, seq[string]] ## List variables
     localVars*: Table[string, string]          ## Function-local variables
@@ -21,10 +25,9 @@ type
     buildRoot*: string                         ## Build root directory
     packageName*: string                       ## Package name
     silent*: bool                              ## Suppress output
-    passthrough*: bool                         ## Passthrough execution (no sandbox)
-    sandboxPath*: string                       ## Sandbox root path
-    remount*: bool                             ## Remount sandbox
-    asRoot*: bool                              ## Run as root in sandbox (for postinstall)
+    # Hooks for extensibility
+    execHook*: ExecHook                        ## Custom command execution hook
+    macroHook*: MacroHook                      ## Custom macro execution hook
 
 proc initExecutionContext*(destDir: string = "", srcDir: string = "",
         buildRoot: string = "", packageName: string = ""): ExecutionContext =
@@ -46,10 +49,8 @@ proc initExecutionContext*(destDir: string = "", srcDir: string = "",
   result.buildRoot = buildRoot
   result.packageName = packageName
   result.silent = false
-  result.passthrough = false
-  result.sandboxPath = kpkgMergedPath
-  result.remount = false
-  result.asRoot = false
+  result.execHook = nil
+  result.macroHook = nil
 
 proc setVariable*(ctx: ExecutionContext, name: string, value: string) =
   ## Set a global variable

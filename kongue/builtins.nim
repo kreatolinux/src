@@ -1,5 +1,5 @@
-## Built-in commands for run3 format
-## Implements: exec, print, cd, env, local, global
+## Built-in commands for Kongue scripting language
+## Implements: exec, print, cd, env, local, global, write, append
 
 import os
 import osproc
@@ -11,14 +11,21 @@ import context
 import lexer
 import variables
 import utils
-import ../processes
-import ../../../common/logging
 
 export context
 export utils.stripQuotes
 
 proc resolveVariables*(ctx: ExecutionContext, text: string,
     depth: int = 0): string
+
+proc defaultExec(ctx: ExecutionContext, command: string, silent: bool): tuple[output: string, exitCode: int] =
+  ## Default command execution using osproc
+  ## This is used when no execHook is set
+  try:
+    let (output, exitCode) = execCmdEx(command)
+    return (output.strip(), exitCode)
+  except OSError as e:
+    return ("Error: " & e.msg, 1)
 
 proc execCapture(ctx: ExecutionContext, command: string, depth: int = 0): tuple[output: string,
         exitCode: int] =
@@ -30,8 +37,6 @@ proc execCapture(ctx: ExecutionContext, command: string, depth: int = 0): tuple[
   let resolvedCmd = ctx.resolveVariables(command, depth + 1)
   if not ctx.silent:
     echo "[exec capture] " & resolvedCmd
-
-  # Use execEnvCapture for sandboxed execution
 
   # Build environment variable exports for the command
   var cmdParts: seq[string] = @[]
@@ -59,8 +64,11 @@ proc execCapture(ctx: ExecutionContext, command: string, depth: int = 0): tuple[
   # Combine environment setup with the actual command using &&
   let fullCmd = cmdParts.join(" && ")
 
-  return execEnv(fullCmd, "none", ctx.passthrough, ctx.silent,
-          ctx.sandboxPath, ctx.remount, ctx.asRoot)
+  # Use hook if available, otherwise use default execution
+  if ctx.execHook != nil:
+    return ctx.execHook(ctx, fullCmd, ctx.silent)
+  else:
+    return defaultExec(ctx, fullCmd, ctx.silent)
 
 
 proc resolveManipulation(ctx: ExecutionContext, expr: string,
@@ -216,9 +224,6 @@ proc builtinExec*(ctx: ExecutionContext, command: string): int =
   if not ctx.silent:
     echo "[exec] " & resolvedCmd
 
-  # Determine execution function to use
-  let executor = execEnv
-
   # Build environment variable exports for the command
   var cmdParts: seq[string] = @[]
 
@@ -260,14 +265,15 @@ proc builtinExec*(ctx: ExecutionContext, command: string): int =
   # Combine environment setup with the actual command using &&
   let fullCmd = cmdParts.join(" && ")
 
-  debug "builtinExec: sandboxPath=" & ctx.sandboxPath & ", passthrough=" &
-      $ctx.passthrough & ", asRoot=" & $ctx.asRoot
-  debug "builtinExec: fullCmd=" & fullCmd
+  debug("builtinExec: fullCmd=" & fullCmd)
 
-  let execResult = executor(fullCmd, "none", ctx.passthrough, ctx.silent,
-          ctx.sandboxPath, ctx.remount, ctx.asRoot)
+  # Use hook if available, otherwise use default execution
+  let execResult = if ctx.execHook != nil:
+    ctx.execHook(ctx, fullCmd, ctx.silent)
+  else:
+    defaultExec(ctx, fullCmd, ctx.silent)
 
-  debug "builtinExec: exitCode=" & $execResult.exitCode
+  debug("builtinExec: exitCode=" & $execResult.exitCode)
   result = execResult.exitCode
 
 proc builtinPrint*(ctx: ExecutionContext, text: string) =

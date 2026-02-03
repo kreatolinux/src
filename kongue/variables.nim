@@ -1,4 +1,4 @@
-## Variable manipulation methods for run3 format
+## Variable manipulation methods for Kongue format
 ## Implements string and list manipulation methods used in ${variable.method()} syntax
 
 import strutils

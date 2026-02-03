@@ -1,15 +1,10 @@
-## Parser for run3 format
+## Parser for Kongue scripting language
 ## Converts tokens into an AST
 
 import strutils
 import ast
 import lexer
 import utils
-
-when not defined(run3Standalone):
-  import ../../../common/logging
-else:
-  proc debug(msg: string) = discard
 
 when not declared(readFile):
   import os
@@ -733,8 +728,8 @@ proc parseFunction*(p: var Parser, isCustom: bool = false): AstNode =
   else:
     return newFunctionNode(funcName, body, tok.line)
 
-proc parse*(p: var Parser): ParsedRunfile =
-  ## Parse a complete run3 file
+proc parse*(p: var Parser): ParsedScript =
+  ## Parse a complete Kongue script
   result.variables = @[]
   result.functions = @[]
   result.customFuncs = @[]
@@ -789,15 +784,15 @@ proc parse*(p: var Parser): ParsedRunfile =
   debug "parse: completed, "&($result.functions.len)&" functions, "&(
       $result.customFuncs.len)&" custom functions"
 
-proc parseRun3File*(path: string): ParsedRunfile =
-  ## Parse a run3 file from disk
-  debug "parseRun3File: reading file '"&path&"'"
+proc parseFile*(path: string): ParsedScript =
+  ## Parse a Kongue script file from disk
+  debug "parseFile: reading file '"&path&"'"
   let content = readFile(path)
-  debug "parseRun3File: file read, size: "&($content.len)&" bytes"
-  debug "parseRun3File: tokenizing"
+  debug "parseFile: file read, size: "&($content.len)&" bytes"
+  debug "parseFile: tokenizing"
   let tokens = tokenize(content)
-  debug "parseRun3File: tokenized, "&($tokens.len)&" tokens"
+  debug "parseFile: tokenized, "&($tokens.len)&" tokens"
   var parser = initParser(tokens)
-  debug "parseRun3File: parsing"
+  debug "parseFile: parsing"
   result = parser.parse()
-  debug "parseRun3File: parsing completed"
+  debug "parseFile: parsing completed"

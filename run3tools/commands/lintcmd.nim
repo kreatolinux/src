@@ -1,9 +1,9 @@
 import os
 import strutils
 import terminal
-import ../../kpkg/modules/run3/lexer
-import ../../kpkg/modules/run3/parser
-import ../../kpkg/modules/run3/ast
+import ../../kongue/lexer
+import ../../kongue/parser
+import ../../kongue/ast
 
 type
   LintSeverity = enum
@@ -22,7 +22,7 @@ proc addIssue(issues: var seq[LintIssue], severity: LintSeverity, line: int,
   issues.add(LintIssue(severity: severity, line: line, col: col,
       message: message))
 
-proc lintVariables(parsed: ParsedRunfile, issues: var seq[LintIssue]) =
+proc lintVariables(parsed: ParsedScript, issues: var seq[LintIssue]) =
   ## Lint variable declarations
   var hasName = false
   var hasVersion = false
@@ -179,7 +179,7 @@ proc lintStatement(node: AstNode, issues: var seq[LintIssue], funcName: string,
   else:
     discard
 
-proc lintFunctions(parsed: ParsedRunfile, issues: var seq[LintIssue]) =
+proc lintFunctions(parsed: ParsedScript, issues: var seq[LintIssue]) =
   ## Lint function definitions
   var hasBuild = false
 

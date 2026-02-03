@@ -1,4 +1,4 @@
-## Lexer (Tokenizer) for run3 format
+## Lexer (Tokenizer) for Kongue format
 ## Breaks input text into tokens for parsing
 
 import strutils

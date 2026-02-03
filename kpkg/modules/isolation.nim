@@ -14,7 +14,6 @@ import std/parsecfg
 import ../modules/config
 import ../commands/checkcmd
 import ../../kreastrap/commonProcs
-import ../modules/run3/executor
 import ../modules/run3/run3
 
 # execEnv is now in processes.nim to avoid circular imports
@@ -45,7 +44,7 @@ proc runPostInstall*(package: string, rootPath = kpkgMergedPath) =
     return
 
   debug "runPostInstall: initializing context"
-  let ctx = initFromRunfile(pkg.run3Data.parsed, destDir = rootPath,
+  let ctx = initRun3ContextFromParsed(pkg.run3Data.parsed, destDir = rootPath,
           srcDir = repo&"/"&package, buildRoot = rootPath)
   ctx.sandboxPath = rootPath
   ctx.remount = remountNeeded
@@ -62,7 +61,7 @@ proc runPostInstall*(package: string, rootPath = kpkgMergedPath) =
   debug "runPostInstall: "&package&": postinstallFunc: "&postinstallFunc
 
   if postinstallFunc != "":
-    if executeRun3Function(ctx, pkg.run3Data.parsed, postinstallFunc) != 0:
+    if executeFunctionByName(ctx, pkg.run3Data.parsed, postinstallFunc) != 0:
       fatal("postinstall failed on sandbox")
 
 

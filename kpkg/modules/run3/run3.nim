@@ -1,39 +1,95 @@
-## Main entry point for run3 module
+## Main entry point for run3 module (kpkg integration)
 ## Provides a unified interface for parsing and executing run3 runfiles
+## Uses Kongue as the underlying scripting language with kpkg-specific extensions
 
 import os
 import parsecfg
 import sequtils
 import strutils
 import tables
-import ast
-import lexer
-import parser
-import variables
-import utils
 
-when not defined(run3Standalone):
-  import builtins
-  import executor
-  import macros as run3macros
-  import ../../../common/logging
-  export executor, builtins, run3macros
-else:
-  proc debug(msg: string) = discard
+# Import Kongue modules
+import ../../../kongue/ast
+import ../../../kongue/lexer
+import ../../../kongue/parser
+import ../../../kongue/variables
+import ../../../kongue/utils as kongueUtils
+import ../../../kongue/context
+import ../../../kongue/builtins
+import ../../../kongue/executor
 
-export ast, lexer, parser, variables
+# Import kpkg-specific modules
+import macros as run3macros
+import ../processes
+import ../commonPaths
+import ../../../common/logging
+
+# Re-export kongue modules for backward compatibility (but not utils to avoid conflict)
+export ast, lexer, parser, variables, context, builtins, executor, run3macros
 
 type
+    Run3Context* = ref object of ExecutionContext
+        ## Extended execution context with kpkg-specific fields
+        passthrough*: bool   ## Passthrough execution (no sandbox)
+        sandboxPath*: string ## Sandbox root path
+        remount*: bool       ## Remount sandbox
+        asRoot*: bool        ## Run as root in sandbox (for postinstall)
+
     Run3File* = object
         ## Represents a parsed and ready-to-execute run3 file
-        parsed*: ParsedRunfile
+        parsed*: ParsedScript
         path*: string
         isParsed*: bool
+
+proc initRun3Context*(destDir: string = "", srcDir: string = "",
+        buildRoot: string = "", packageName: string = ""): Run3Context =
+    ## Initialize a new Run3 execution context with kpkg-specific defaults
+    result = Run3Context()
+    result.variables = initTable[string, string]()
+    result.listVariables = initTable[string, seq[string]]()
+    result.localVars = initTable[string, string]()
+    result.envVars = initTable[string, string]()
+    result.customFuncs = initTable[string, seq[AstNode]]()
+    # Use srcDir for currentDir if provided (supports autocd from buildcmd)
+    if srcDir != "":
+        result.currentDir = srcDir
+    else:
+        result.currentDir = getCurrentDir()
+    result.previousDir = result.currentDir
+    result.destDir = destDir
+    result.srcDir = srcDir
+    result.buildRoot = buildRoot
+    result.packageName = packageName
+    result.silent = false
+    # kpkg-specific fields
+    result.passthrough = false
+    result.sandboxPath = kpkgMergedPath
+    result.remount = false
+    result.asRoot = false
+
+    # Set up kpkg execution hook for sandboxed execution
+    result.execHook = proc(ctx: ExecutionContext, command: string,
+            silent: bool): tuple[output: string, exitCode: int] =
+        let run3ctx = Run3Context(ctx)
+        logging.debug "run3 execHook: sandboxPath=" & run3ctx.sandboxPath &
+                ", passthrough=" &
+            $run3ctx.passthrough & ", asRoot=" & $run3ctx.asRoot
+        return execEnv(command, "none", run3ctx.passthrough, silent,
+                run3ctx.sandboxPath, run3ctx.remount, run3ctx.asRoot)
+
+    # Set up macro hook for kpkg macros
+    result.macroHook = proc(ctx: ExecutionContext, name: string, args: seq[string]): int =
+        return run3macros.executeMacro(ctx, name, args)
+
+# Wire up Kongue logging to kpkg logging
+kongueUtils.debugProc = proc(msg: string) = logging.debug(msg)
+kongueUtils.warnProc = proc(msg: string) = logging.warn(msg)
+kongueUtils.errorProc = proc(msg: string) = logging.error(msg)
 
 proc parseRun3*(path: string): Run3File =
     ## Parse a run3 file from a package directory
     ## Expects path to be the package directory containing run3 file
-    debug "parseRun3: starting for path '"&path&"'"
+    logging.debug "parseRun3: starting for path '"&path&"'"
     result.path = path
     result.isParsed = true
     var run3Path = path / "run3"
@@ -44,9 +100,9 @@ proc parseRun3*(path: string): Run3File =
         else:
             raise newException(IOError, "run3 file not found at: " & run3Path)
 
-    debug "parseRun3: calling parseRun3File for '"&run3Path&"'"
-    result.parsed = parseRun3File(run3Path)
-    debug "parseRun3: parseRun3File completed"
+    logging.debug "parseRun3: calling parseFile for '"&run3Path&"'"
+    result.parsed = parseFile(run3Path)
+    logging.debug "parseRun3: parseFile completed"
 
 proc getVariableRaw(rf: Run3File, name: string): string =
     ## Get a raw variable value from the parsed runfile (no substitution)
@@ -85,7 +141,8 @@ proc getAllVariablesRaw(rf: Run3File): Table[string, VarValue] =
         else:
             discard
 
-proc resolveManipulationWithTable(vars: Table[string, VarValue], expr: string): string =
+proc resolveManipulationWithTable(vars: Table[string, VarValue],
+        expr: string): string =
     ## Resolve a complex variable manipulation expression using a variables table
     ## expr is the content inside ${...}
     ## Supports interleaved methods and indexing: ${version.split('.')[0:2].join('.')}
@@ -116,7 +173,7 @@ proc resolveManipulationWithTable(vars: Table[string, VarValue], expr: string): 
     # Parse and apply operations (methods and indexing interleaved)
     while peek().kind == tkDot or peek().kind == tkLBracket:
         iterations += 1
-        if iterations > maxIterations:
+        if iterations > kongueUtils.maxIterations:
             break
 
         if peek().kind == tkDot:
@@ -129,7 +186,7 @@ proc resolveManipulationWithTable(vars: Table[string, VarValue], expr: string): 
                 discard advance() # (
                 while peek().kind != tkRParen and peek().kind != tkEof:
                     iterations += 1
-                    if iterations > maxIterations:
+                    if iterations > kongueUtils.maxIterations:
                         break
                     if peek().kind == tkString or peek().kind == tkIdentifier or
                             peek().kind == tkNumber:
@@ -150,7 +207,7 @@ proc resolveManipulationWithTable(vars: Table[string, VarValue], expr: string): 
             var indexExpr = ""
             while peek().kind != tkRBracket and peek().kind != tkEof:
                 iterations += 1
-                if iterations > maxIterations:
+                if iterations > kongueUtils.maxIterations:
                     break
                 indexExpr.add(advance().value)
             discard advance() # ]
@@ -162,7 +219,8 @@ proc resolveManipulationWithTable(vars: Table[string, VarValue], expr: string): 
 
     return val.toString()
 
-proc substituteVariablesWithTable(rf: Run3File, vars: Table[string, VarValue], value: string): string =
+proc substituteVariablesWithTable(rf: Run3File, vars: Table[string, VarValue],
+        value: string): string =
     ## Core variable substitution logic using a provided variables table
     ## Handles complex ${...} expressions and simple $variable references
     result = value
@@ -283,12 +341,22 @@ proc hasFunction*(rf: Run3File, name: string): bool =
     ## Check if a function exists in the runfile
     return ast.hasFunction(rf.parsed, name)
 
-when not defined(run3Standalone):
-  proc executeFunction*(rf: Run3File, functionName: string, destDir: string = "",
-          srcDir: string = "", buildRoot: string = ""): int =
-      ## Execute a specific function from the run3 file
-      let ctx = initFromRunfile(rf.parsed, destDir, srcDir, buildRoot)
-      return executeRun3Function(ctx, rf.parsed, functionName)
+proc initRun3ContextFromParsed*(parsed: ParsedScript, destDir: string = "",
+        srcDir: string = "", buildRoot: string = ""): Run3Context =
+    ## Initialize Run3Context from a parsed script
+    result = initRun3Context(destDir, srcDir, buildRoot, "")
+    result.loadVariablesFromParsed(parsed)
+    result.loadAllFunctions(parsed)
+
+    # Set package name if available
+    if result.variables.hasKey("name"):
+        result.packageName = result.variables["name"]
+
+proc executeFunction*(rf: Run3File, functionName: string, destDir: string = "",
+        srcDir: string = "", buildRoot: string = ""): int =
+    ## Execute a specific function from the run3 file
+    let ctx = initRun3ContextFromParsed(rf.parsed, destDir, srcDir, buildRoot)
+    return executeFunctionByName(ctx, rf.parsed, functionName)
 
 proc getAllFunctions*(rf: Run3File): seq[string] =
     ## Get a list of all function names defined in the runfile
@@ -334,7 +402,8 @@ proc getSourcesRaw*(rf: Run3File): seq[string] =
     ## Get the raw package sources without variable substitution
     rf.getListVariableRaw("sources")
 
-proc substituteVariablesWithVersion*(rf: Run3File, value: string, newVersion: string): string =
+proc substituteVariablesWithVersion*(rf: Run3File, value: string,
+        newVersion: string): string =
     ## Substitute variables in a string, but override the version variable with newVersion
     ## This is useful for autoupdating source URLs with a new version
     var modifiedVars = rf.getAllVariablesRaw()
@@ -374,7 +443,7 @@ proc getExtract*(rf: Run3File): bool =
     let extract = rf.getVariable("extract")
     if extract == "":
         return true # Default
-    return isTrueBoolean(extract)
+    return kongueUtils.isTrueBoolean(extract)
 
 proc getAutocd*(rf: Run3File): bool =
     ## Get the autocd flag
@@ -382,14 +451,14 @@ proc getAutocd*(rf: Run3File): bool =
     ## autocd defaults to false
     let autocd = rf.getVariable("autocd")
     let extract = rf.getVariable("extract")
-    
+
     if autocd == "":
         # If autocd not set, default based on extract setting
         # If extract is explicitly false, autocd defaults to false
-        if extract != "" and not isTrueBoolean(extract):
+        if extract != "" and not kongueUtils.isTrueBoolean(extract):
             return false
         return true # Default
-    return isTrueBoolean(autocd)
+    return kongueUtils.isTrueBoolean(autocd)
 
 proc getVersionString*(rf: Run3File): string =
     ## Get the full version string (version-release or version-release-epoch)

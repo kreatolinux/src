@@ -5,8 +5,6 @@ import sequtils
 import strutils
 import tables
 import run3/run3
-import run3/parser
-import run3/variables
 
 type
   SourceEntry* = tuple

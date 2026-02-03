@@ -1,4 +1,4 @@
-## Executor/Interpreter for run3 format
+## Executor/Interpreter for Kongue scripting language
 ## Executes the parsed AST
 
 import sequtils
@@ -6,7 +6,6 @@ import strutils
 import tables
 import ast
 import builtins
-import macros as run3macros
 import variables
 
 const
@@ -30,7 +29,12 @@ proc executeNode*(ctx: ExecutionContext, node: AstNode): int =
         return ctx.builtinExec(node.execCmd)
 
     of nkMacro:
-        return executeMacro(ctx, node.macroName, node.macroArgs)
+        # Use macro hook if available, otherwise report error
+        if ctx.macroHook != nil:
+            return ctx.macroHook(ctx, node.macroName, node.macroArgs)
+        else:
+            echo "Error: Macro '" & node.macroName & "' not supported (no macro handler installed)"
+            return 1
 
     of nkPrint:
         ctx.builtinPrint(node.printText)
@@ -196,8 +200,8 @@ proc executeFunction*(ctx: ExecutionContext, funcBody: seq[AstNode]): int =
     # Clear local variables when exiting function
     ctx.clearLocalVars()
 
-proc loadVariablesFromParsed*(ctx: ExecutionContext, parsed: ParsedRunfile) =
-    ## Load variables from parsed runfile into execution context
+proc loadVariablesFromParsed*(ctx: ExecutionContext, parsed: ParsedScript) =
+    ## Load variables from parsed script into execution context
     for varNode in parsed.variables:
         case varNode.kind
         of nkVariable:
@@ -241,8 +245,8 @@ proc loadVariablesFromParsed*(ctx: ExecutionContext, parsed: ParsedRunfile) =
         else:
             discard
 
-proc loadAllFunctions*(ctx: ExecutionContext, parsed: ParsedRunfile) =
-    ## Load all callable functions (both regular and custom) from parsed runfile
+proc loadAllFunctions*(ctx: ExecutionContext, parsed: ParsedScript) =
+    ## Load all callable functions (both regular and custom) from parsed script
     # Load regular functions (e.g., package_foo, build_foo)
     for funcNode in parsed.functions:
         if funcNode.kind == nkFunction:
@@ -252,7 +256,7 @@ proc loadAllFunctions*(ctx: ExecutionContext, parsed: ParsedRunfile) =
         if funcNode.kind == nkCustomFunc:
             ctx.customFuncs[funcNode.customFuncName] = funcNode.customFuncBody
 
-proc getFunctionByName*(parsed: ParsedRunfile, name: string): seq[AstNode] =
+proc getFunctionByName*(parsed: ParsedScript, name: string): seq[AstNode] =
     ## Get a function's body by name (searches both regular and custom functions)
     # First check regular functions
     for funcNode in parsed.functions:
@@ -264,9 +268,9 @@ proc getFunctionByName*(parsed: ParsedRunfile, name: string): seq[AstNode] =
             return funcNode.customFuncBody
     return @[]
 
-proc executeRun3Function*(ctx: ExecutionContext, parsed: ParsedRunfile,
+proc executeFunctionByName*(ctx: ExecutionContext, parsed: ParsedScript,
         functionName: string): int =
-    ## Execute a specific function from a parsed run3 file
+    ## Execute a specific function from a parsed Kongue script
     let funcBody = getFunctionByName(parsed, functionName)
     if funcBody.len == 0:
         echo "Warning: Function '" & functionName & "' not found"
@@ -274,7 +278,7 @@ proc executeRun3Function*(ctx: ExecutionContext, parsed: ParsedRunfile,
 
     return ctx.executeFunction(funcBody)
 
-proc resolveHookFunction*(parsed: ParsedRunfile, hookName: string,
+proc resolveHookFunction*(parsed: ParsedScript, hookName: string,
         packageName: string): string =
     ## Resolve a hook function name, checking package-specific variant first.
     ## Returns the function name if found, or empty string if not.
@@ -315,9 +319,9 @@ proc resolveVarManipulation*(ctx: ExecutionContext, node: AstNode): string =
         echo "Error in variable manipulation: " & e.msg
         return ""
 
-proc initFromRunfile*(parsed: ParsedRunfile, destDir: string = "",
+proc initFromParsed*(parsed: ParsedScript, destDir: string = "",
         srcDir: string = "", buildRoot: string = ""): ExecutionContext =
-    ## Initialize execution context from a parsed runfile
+    ## Initialize execution context from a parsed script
     result = initExecutionContext(destDir, srcDir, buildRoot, "")
     result.loadVariablesFromParsed(parsed)
     result.loadAllFunctions(parsed)

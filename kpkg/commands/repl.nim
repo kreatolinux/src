@@ -8,11 +8,7 @@ import ../modules/sqlite
 import ../modules/overrides
 import ../modules/downloader
 import ../modules/dephandler
-import ../modules/run3/context
-import ../modules/run3/parser
-import ../modules/run3/executor
-import ../modules/run3/lexer
-import ../modules/run3/ast
+import ../modules/run3/run3
 import rdstdin
 
 # base functions
@@ -209,13 +205,14 @@ proc handleRun3Statement(ctx: ExecutionContext, line: string) =
   try:
     let tokens = tokenize(line)
     var parser = initParser(tokens)
-    
+
     # Check if this is a function definition
     let firstTok = parser.peek()
-    if firstTok.kind == tkFunc or (firstTok.kind == tkIdentifier and parser.peek(1).kind == tkLBrace):
+    if firstTok.kind == tkFunc or (firstTok.kind == tkIdentifier and
+        parser.peek(1).kind == tkLBrace):
       let isCustom = firstTok.kind == tkFunc
       let funcNode = parser.parseFunction(isCustom)
-      
+
       # Load into context
       if funcNode.kind == nkFunction:
         ctx.customFuncs[funcNode.funcName] = funcNode.funcBody
@@ -240,11 +237,11 @@ proc dispatchCommand(ctx: ExecutionContext, input: string) =
   ## Dispatches a command (get, set, or run3 statement).
   let inputTrimmed = input.strip()
   if inputTrimmed == "": return
-  
+
   let parts = inputTrimmed.split(" ", 1)
   let cmd = parts[0]
   let args = if parts.len > 1: parts[1].split(" ") else: @[]
-  
+
   case cmd
   of "get":
     get(args)
@@ -258,14 +255,14 @@ proc repl*(args: seq[string] = @[]) =
   let ctx = initExecutionContext()
   let historyPath = getCacheDir() / "kpkg"
   let historyFile = historyPath / "history"
-  
+
   # Ensure config dir exists
   try:
     if not dirExists(historyPath):
       createDir(historyPath)
   except:
     discard
-    
+
   if args.len > 0:
     # Process commands from arguments
     dispatchCommand(ctx, args.join(" "))
@@ -273,41 +270,41 @@ proc repl*(args: seq[string] = @[]) =
 
   echo "kpkg REPL (run3)"
   echo "Type 'exit' or 'quit' to leave."
-  
+
   var buffer = ""
   var braceCount = 0
-  
+
   while true:
     var line: string
     let prompt = if braceCount > 0: "      " else: "kpkg> "
     let ok = readLineFromStdin(prompt, line)
-    
+
     if not ok: # EOF
       break
 
     let trimmed = line.strip()
     if trimmed == "" and buffer == "":
       continue
-      
+
     if (trimmed == "exit" or trimmed == "quit") and buffer == "":
       break
-    
+
     if buffer != "":
       buffer.add("\n")
     buffer.add(line)
-    
+
     # Simple brace counting to handle multi-line blocks
     for c in line:
       if c == '{': braceCount += 1
       elif c == '}': braceCount -= 1
-    
+
     if braceCount > 0:
       continue
-    
+
     let fullInput = buffer.strip()
     buffer = ""
     braceCount = 0 # Reset just in case it went negative
-    
+
     if fullInput == "":
       continue
 
@@ -322,9 +319,9 @@ proc repl*(args: seq[string] = @[]) =
 
     if fullInput == "history":
       try:
-         echo readFile(historyFile)
+        echo readFile(historyFile)
       except:
-         error("Could not read history file")
+        error("Could not read history file")
       continue
 
     if fullInput == "clear":

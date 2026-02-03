@@ -2,9 +2,9 @@ import algorithm
 import os
 import strutils
 import terminal
-import ../../kpkg/modules/run3/lexer
-import ../../kpkg/modules/run3/parser
-import ../../kpkg/modules/run3/ast
+import ../../kongue/lexer
+import ../../kongue/parser
+import ../../kongue/ast
 
 const
   # Canonical order for variables
@@ -213,7 +213,7 @@ proc formatFunction(node: AstNode): string =
   else:
     return ""
 
-proc formatRunfile(parsed: ParsedRunfile, sortVars: bool): string =
+proc formatRunfile(parsed: ParsedScript, sortVars: bool): string =
   ## Format a complete runfile
   result = ""
 

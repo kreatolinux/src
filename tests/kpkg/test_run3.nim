@@ -7,7 +7,7 @@ import times
 import strutils
 
 import ../../kpkg/modules/run3/run3
-import ../../kpkg/modules/run3/utils
+import ../../kongue/utils
 
 suite "run3 lexer":
   test "tokenizes basic input":
@@ -116,7 +116,7 @@ suite "run3 variables":
 
 suite "run3 builtins":
   test "variable set/get":
-    let ctx = initExecutionContext()
+    let ctx = initRun3Context()
     ctx.silent = true
     ctx.passthrough = true
 
@@ -124,14 +124,14 @@ suite "run3 builtins":
     check ctx.getVariable("test_var") == "hello"
 
   test "list variable":
-    let ctx = initExecutionContext()
+    let ctx = initRun3Context()
     ctx.silent = true
 
     ctx.setListVariable("test_list", @["a", "b", "c"])
     check ctx.getListVariable("test_list") == @["a", "b", "c"]
 
   test "variable resolution":
-    let ctx = initExecutionContext()
+    let ctx = initRun3Context()
     ctx.silent = true
 
     ctx.setVariable("name", "world")
@@ -139,7 +139,7 @@ suite "run3 builtins":
     check resolved == "Hello world and world!"
 
   test "cd builtin":
-    let ctx = initExecutionContext()
+    let ctx = initRun3Context()
     ctx.silent = true
     ctx.passthrough = true
 
@@ -149,7 +149,7 @@ suite "run3 builtins":
     setCurrentDir(originalDir)
 
   test "write builtin":
-    let ctx = initExecutionContext()
+    let ctx = initRun3Context()
     ctx.silent = true
     ctx.passthrough = true
 
@@ -162,7 +162,7 @@ suite "run3 builtins":
     removeFile(ctx.currentDir / testFile)
 
   test "append builtin":
-    let ctx = initExecutionContext()
+    let ctx = initRun3Context()
     ctx.silent = true
     ctx.passthrough = true
 
@@ -178,7 +178,7 @@ suite "run3 builtins":
 
 suite "run3 macros":
   test "macro argument parsing - internal args only":
-    let ctx = initExecutionContext()
+    let ctx = initRun3Context()
     ctx.silent = true
 
     let args = parseMacroArgs(@["--meson", "--autocd=true",
@@ -236,7 +236,7 @@ cflags+: "-g"
     writeFile(testDir / "run3", testContent)
 
     let rf = parseRun3(testDir)
-    let ctx = initFromRunfile(rf.parsed)
+    let ctx = initRun3ContextFromParsed(rf.parsed)
 
     let depends = ctx.getListVariable("depends")
     check "dep3" in depends
@@ -247,7 +247,7 @@ cflags+: "-g"
 
 suite "run3 exec manipulation":
   test "exec output":
-    let ctx = initExecutionContext()
+    let ctx = initRun3Context()
     ctx.silent = true
     ctx.passthrough = true
 
@@ -255,7 +255,7 @@ suite "run3 exec manipulation":
     check output == "Hello world!"
 
   test "exec exit code":
-    let ctx = initExecutionContext()
+    let ctx = initRun3Context()
     ctx.silent = true
     ctx.passthrough = true
 
@@ -263,7 +263,7 @@ suite "run3 exec manipulation":
     check exitCode == "Exit code: 0"
 
   test "exec chaining with strip":
-    let ctx = initExecutionContext()
+    let ctx = initRun3Context()
     ctx.silent = true
     ctx.passthrough = true
 
@@ -272,28 +272,28 @@ suite "run3 exec manipulation":
 
 suite "run3 conditions":
   test "basic boolean true":
-    let ctx = initExecutionContext()
+    let ctx = initRun3Context()
     ctx.silent = true
 
     ctx.setVariable("enabled", "true")
     check ctx.evaluateCondition("$enabled")
 
   test "basic boolean false":
-    let ctx = initExecutionContext()
+    let ctx = initRun3Context()
     ctx.silent = true
 
     ctx.setVariable("disabled", "false")
     check not ctx.evaluateCondition("$disabled")
 
   test "equality check":
-    let ctx = initExecutionContext()
+    let ctx = initRun3Context()
     ctx.silent = true
 
     ctx.setVariable("version", "1.0.0")
     check ctx.evaluateCondition("$version == \"1.0.0\"")
 
   test "inequality check":
-    let ctx = initExecutionContext()
+    let ctx = initRun3Context()
     ctx.silent = true
 
     ctx.setVariable("name", "pkg")
@@ -301,7 +301,7 @@ suite "run3 conditions":
 
 suite "run3 condition operators":
   test "OR operator - first true":
-    let ctx = initExecutionContext()
+    let ctx = initRun3Context()
     ctx.silent = true
     ctx.passthrough = true
 
@@ -309,7 +309,7 @@ suite "run3 condition operators":
     check ctx.evaluateCondition("\"$name\" == \"grep\" || \"$name\" == \"tar\"")
 
   test "OR operator - second true":
-    let ctx = initExecutionContext()
+    let ctx = initRun3Context()
     ctx.silent = true
     ctx.passthrough = true
 
@@ -317,7 +317,7 @@ suite "run3 condition operators":
     check ctx.evaluateCondition("\"$name\" == \"grep\" || \"$name\" == \"tar\"")
 
   test "OR operator - both false":
-    let ctx = initExecutionContext()
+    let ctx = initRun3Context()
     ctx.silent = true
     ctx.passthrough = true
 
@@ -325,7 +325,7 @@ suite "run3 condition operators":
     check not ctx.evaluateCondition("\"$name\" == \"grep\" || \"$name\" == \"tar\"")
 
   test "AND operator - both true":
-    let ctx = initExecutionContext()
+    let ctx = initRun3Context()
     ctx.silent = true
     ctx.passthrough = true
 
@@ -334,7 +334,7 @@ suite "run3 condition operators":
     check ctx.evaluateCondition("\"$debug\" == \"true\" && \"$verbose\" == \"true\"")
 
   test "AND operator - one false":
-    let ctx = initExecutionContext()
+    let ctx = initRun3Context()
     ctx.silent = true
     ctx.passthrough = true
 
@@ -343,7 +343,7 @@ suite "run3 condition operators":
     check not ctx.evaluateCondition("\"$debug\" == \"true\" && \"$verbose\" == \"true\"")
 
   test "regex match operator - matches":
-    let ctx = initExecutionContext()
+    let ctx = initRun3Context()
     ctx.silent = true
     ctx.passthrough = true
 
@@ -354,7 +354,7 @@ suite "run3 condition operators":
     check ctx.evaluateCondition("\"$name\" =~ e\"grep|tar|bzip2\"")
 
   test "regex match operator - no match":
-    let ctx = initExecutionContext()
+    let ctx = initRun3Context()
     ctx.silent = true
     ctx.passthrough = true
 
@@ -404,11 +404,11 @@ package {
     writeFile(testDir / "run3", testContent)
 
     let rf = parseRun3(testDir)
-    let ctx = initFromRunfile(rf.parsed)
+    let ctx = initRun3ContextFromParsed(rf.parsed)
     ctx.silent = false
     ctx.passthrough = true
 
-    discard ctx.executeRun3Function(rf.parsed, "package")
+    discard ctx.executeFunctionByName(rf.parsed, "package")
 
     let result = ctx.getVariable("result").strip()
     check result == "a b"
@@ -516,7 +516,7 @@ suite "run3 utils helpers":
 
 suite "run3 for loop":
   test "for loop with variable expression":
-    let ctx = initExecutionContext()
+    let ctx = initRun3Context()
     ctx.silent = true
     ctx.passthrough = true
 

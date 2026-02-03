@@ -1,8 +1,34 @@
-## Shared utilities for run3 module
-## Contains common constants, regex patterns, and helper functions
+## Shared utilities for Kongue scripting language
+## Contains common constants, regex patterns, helper functions, and logging shims
 
 import regex
 import strutils
+
+# Logging shims for standalone Kongue
+# These can be overridden by setting custom procs at runtime
+var
+  debugProc*: proc(msg: string) {.nimcall.} = nil
+  warnProc*: proc(msg: string) {.nimcall.} = nil
+  errorProc*: proc(msg: string) {.nimcall.} = nil
+
+proc debug*(msg: string) =
+  ## Debug logging - no-op by default, can be enabled by setting debugProc
+  if debugProc != nil:
+    debugProc(msg)
+
+proc warn*(msg: string) =
+  ## Warning logging - prints to stderr by default
+  if warnProc != nil:
+    warnProc(msg)
+  else:
+    stderr.writeLine("[warn] " & msg)
+
+proc error*(msg: string) =
+  ## Error logging - prints to stderr by default
+  if errorProc != nil:
+    errorProc(msg)
+  else:
+    stderr.writeLine("[error] " & msg)
 
 # Safety limits for parsing/execution
 const

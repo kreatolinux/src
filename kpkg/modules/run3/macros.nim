@@ -1,10 +1,11 @@
-## Macro system for run3 format
-## Implements build system helpers: extract, package, test
+## Macro system for kpkg run3
+## Implements build system helpers: extract, package, test, build
+## This is kpkg-specific and NOT part of the core Kongue language
 
 import os
 import strutils
-import builtins
-import utils
+import ../../../kongue/builtins
+import ../../../kongue/utils
 
 const run3NoLibArchive* = defined(run3NoLibArchive)
 

@@ -1,5 +1,5 @@
-## AST (Abstract Syntax Tree) node definitions for run3 format
-## This module defines the structure of parsed run3 runfiles
+## AST (Abstract Syntax Tree) node definitions for Kongue format
+## This module defines the structure of parsed Kongue scripts
 
 type
   NodeKind* = enum
@@ -107,8 +107,8 @@ type
     of nkBreak:
       discard                       # No additional fields needed
 
-  ParsedRunfile* = object
-    ## Represents a complete parsed run3 file
+  ParsedScript* = object
+    ## Represents a complete parsed Kongue script
     variables*: seq[AstNode]   # Variable declarations (header)
     functions*: seq[AstNode]   # Function definitions
     customFuncs*: seq[AstNode] # Custom function definitions
@@ -210,8 +210,8 @@ proc newBreakNode*(line: int = 0): AstNode =
   ## Create a new break node
   AstNode(kind: nkBreak, line: line)
 
-proc hasFunction*(parsed: ParsedRunfile, name: string): bool =
-  ## Check if a function exists in the parsed runfile (searches both regular and custom functions)
+proc hasFunction*(parsed: ParsedScript, name: string): bool =
+  ## Check if a function exists in the parsed script (searches both regular and custom functions)
   for funcNode in parsed.functions:
     if funcNode.kind == nkFunction and funcNode.funcName == name:
       return true

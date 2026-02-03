@@ -9,19 +9,18 @@ import tables
 import ./types
 import ../runparser
 import ../run3/run3
-import ../run3/executor
 import ../commonPaths
 
-proc initBuildContext*(cfg: BuildConfig, state: BuildState): ExecutionContext =
+proc initBuildContext*(cfg: BuildConfig, state: BuildState): Run3Context =
   ## Creates and configures Run3 execution context for building.
   ##
   ## Parameters:
   ##   cfg: Build configuration
   ##   state: Build state with parsed runfile and environment
   ##
-  ## Returns configured ExecutionContext ready for build step execution.
+  ## Returns configured Run3Context ready for build step execution.
 
-  let ctx = initFromRunfile(state.pkg.run3Data.parsed, destDir = kpkgBuildRoot,
+  let ctx = initRun3ContextFromParsed(state.pkg.run3Data.parsed, destDir = kpkgBuildRoot,
           srcDir = cfg.srcDir, buildRoot = kpkgBuildRoot)
 
   # Apply environment variables

@@ -18,7 +18,6 @@ import ../modules/commonTasks
 import ../modules/commonPaths
 import ../modules/removeInternal
 import ../modules/transaction
-import ../modules/run3/executor
 import ../modules/run3/run3
 import ../modules/staleprocs
 
@@ -175,7 +174,7 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
           root).version != pkg.versionString) or isUpgrade
 
   # Prepare Context for run3 scripts
-  let ctx = initFromRunfile(pkg.run3Data.parsed, destDir = root,
+  let ctx = initRun3ContextFromParsed(pkg.run3Data.parsed, destDir = root,
           srcDir = repo&"/"&package, buildRoot = root)
   ctx.builtinEnv("ROOT", root)
   ctx.builtinEnv("DESTDIR", root)
@@ -185,14 +184,14 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
   if isUpgradeActual:
     let preupgradeFunc = resolveHookFunction(pkg.run3Data.parsed, "preupgrade", package)
     if preupgradeFunc != "":
-      if executeRun3Function(ctx, pkg.run3Data.parsed, preupgradeFunc) != 0:
+      if executeFunctionByName(ctx, pkg.run3Data.parsed, preupgradeFunc) != 0:
         fatal("preupgrade failed")
 
   # Run preinstall hook (before any changes)
   if not packageExists(package, root):
     let preinstallFunc = resolveHookFunction(pkg.run3Data.parsed, "preinstall", package)
     if preinstallFunc != "":
-      if executeRun3Function(ctx, pkg.run3Data.parsed, preinstallFunc) != 0:
+      if executeFunctionByName(ctx, pkg.run3Data.parsed, preinstallFunc) != 0:
         if ignorePreInstall:
           warn "preinstall failed"
         else:
@@ -415,7 +414,7 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
     let postinstallFunc = resolveHookFunction(pkg.run3Data.parsed,
         "postinstall", package)
     if postinstallFunc != "":
-      if executeRun3Function(ctx, pkg.run3Data.parsed, postinstallFunc) != 0:
+      if executeFunctionByName(ctx, pkg.run3Data.parsed, postinstallFunc) != 0:
         if ignorePostInstall:
           warn "postinstall failed"
         else:
@@ -428,7 +427,7 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
       let postupgradeFunc = resolveHookFunction(pkg.run3Data.parsed,
           "postupgrade", package)
       if postupgradeFunc != "":
-        if executeRun3Function(ctx, pkg.run3Data.parsed, postupgradeFunc) != 0:
+        if executeFunctionByName(ctx, pkg.run3Data.parsed, postupgradeFunc) != 0:
           tx.rollback()
           rollbackTransaction(root)
           fatal("postupgrade failed")
