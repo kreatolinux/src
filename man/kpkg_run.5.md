@@ -23,7 +23,7 @@ depends:
     - "testpackage1" 
     - "testpackage3" 
     - "testpackage4"
-depends_test2: 
+depends test2: 
     - "testpackage5" 
     - "testpackage6"
 no_chkupd: false
@@ -91,7 +91,7 @@ package {
     macro package --meson
 }
 
-package_test2 {
+package test2 {
     cd testfile
     exec make install_test2 # External commands require exec
 }
@@ -157,10 +157,10 @@ This is useful when you need to manually control the extraction process in the `
   - `test<1.8.1`: Less than version 1.8.1
   - `test>1.8.1`: Greater than version 1.8.1
 * **build_depends**: Build-time dependencies of your package.
-* **depends_packagename**: Specify dependencies for a specific sub-package. Can be modified using:
-  - `depends_packagename+: "packagename"` to add a dependency
-  - `depends_packagename-: "packagename"` to remove a dependency
-  - `depends_packagename: "packagename"` to replaces dependencies completely
+* **depends packagename**: Specify dependencies for a specific sub-package. The space-separated syntax is preferred, but the legacy underscore syntax (`depends_packagename:`) is also supported for backward compatibility. Can be modified using:
+  - `depends packagename+: "packagename"` to add a dependency
+  - `depends packagename-: "packagename"` to remove a dependency
+  - `depends packagename: "packagename"` to replace dependencies completely
 
 ## CHECKSUM VARIABLES
 * **sha256sum**: SHA-256 checksums of the sources. Should align with the sources in order.
@@ -190,7 +190,7 @@ Do mind that Git repositories don't have the checksum ability. You can use `SKIP
 * **preupgrade**: Runs before an upgrade occurs.
 * **postupgrade**: Runs after an upgrade completes.
 * **postremove**: Runs after the package is removed.
-* **package_packagename**: Installation function for a sub-package. Allows packaging multiple components in the same runfile.
+* **package packagename**: Installation function for a sub-package. Allows packaging multiple components in the same runfile. The space-separated syntax is preferred, but the legacy underscore syntax (`package_packagename {}`) is also supported for backward compatibility.
 
 # AUTHOR
 Written by Kreato.

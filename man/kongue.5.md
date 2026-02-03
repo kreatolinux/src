@@ -337,6 +337,29 @@ snake_case is recommended for most scripts.
 
 **Important**: Functions are case-sensitive and do not support this flexibility.
 
+## QUALIFIED NAMES
+Variables and functions can have qualifiers to create variants. The space-separated syntax is preferred:
+
+```bash
+# Variables with qualifiers
+depends:
+    - "base-dep"
+
+depends subpkg:
+    - "subpkg-dep"
+
+# Functions with qualifiers
+build {
+    exec "make"
+}
+
+build subpkg {
+    exec "make subpkg"
+}
+```
+
+The legacy underscore syntax (`depends_subpkg:`, `build_subpkg {}`) is also supported for backward compatibility. Both syntaxes are equivalent internally.
+
 # AUTHOR
 Written by Kreato.
 

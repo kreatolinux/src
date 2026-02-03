@@ -151,9 +151,18 @@ proc parseListItems(p: var Parser): seq[string] =
     p.skipNewlines()
 
 proc parseVariableDeclaration(p: var Parser): AstNode =
-  ## Parse a variable declaration (name: value or name:\n  - item)
+  ## Parse a variable declaration (name: value or name qualifier: value or name:\n  - item)
+  ## Supports space-separated qualifiers: "depends test2:" parses as name="depends", qualifier="test2"
   let nameToken = p.expect(tkIdentifier)
   let name = nameToken.value
+  var qualifier = ""
+
+  # Check if next token is an identifier (qualifier) before the colon
+  if p.peek().kind == tkIdentifier:
+    let nextTok = p.peek(1)
+    if nextTok.kind in {tkColon, tkPlusColon, tkMinusColon}:
+      # We have a qualifier: "name qualifier:"
+      qualifier = p.advance().value
 
   var op = opSet
   let opTok = p.peek()
@@ -174,11 +183,11 @@ proc parseVariableDeclaration(p: var Parser): AstNode =
   if p.peek().kind == tkDash:
     # List variable
     let items = p.parseListItems()
-    return newListVariableNode(name, items, op, nameToken.line)
+    return newListVariableNode(name, items, op, nameToken.line, qualifier)
   else:
     # Single value variable
     let value = p.parseString()
-    return newVariableNode(name, value, op, nameToken.line)
+    return newVariableNode(name, value, op, nameToken.line, qualifier)
 
 proc parseExecCommand(p: var Parser): string =
   ## Parse an exec command - returns raw string value without re-quoting
@@ -715,18 +724,64 @@ proc parseFunctionBody(p: var Parser): seq[AstNode] =
 
 proc parseFunction*(p: var Parser, isCustom: bool = false): AstNode =
   ## Parse a function definition
+  ## Supports space-separated qualifiers: "build test2 {}" parses as name="build", qualifier="test2"
   let tok = p.peek()
 
   if isCustom:
     discard p.expect(tkFunc)
 
   let funcName = p.expect(tkIdentifier).value
+  var qualifier = ""
+
+  # Check if next token is an identifier (qualifier) before the brace
+  if p.peek().kind == tkIdentifier and p.peek(1).kind == tkLBrace:
+    qualifier = p.advance().value
+
   let body = p.parseFunctionBody()
 
   if isCustom:
     return newCustomFuncNode(funcName, body, tok.line)
   else:
-    return newFunctionNode(funcName, body, tok.line)
+    return newFunctionNode(funcName, body, tok.line, qualifier)
+
+proc isVariableDeclarationStart(p: Parser): bool =
+  ## Check if current position starts a variable declaration
+  ## Matches: "identifier :" or "identifier identifier :" (with qualifier)
+  ## Also matches +: and -: variants
+  if p.peek().kind != tkIdentifier:
+    return false
+
+  let next = p.peek(1)
+  # Direct: "name:"
+  if next.kind in {tkColon, tkPlusColon, tkMinusColon}:
+    return true
+
+  # With qualifier: "name qualifier:"
+  if next.kind == tkIdentifier:
+    let afterQualifier = p.peek(2)
+    if afterQualifier.kind in {tkColon, tkPlusColon, tkMinusColon}:
+      return true
+
+  return false
+
+proc isFunctionDefinitionStart(p: Parser): bool =
+  ## Check if current position starts a function definition
+  ## Matches: "identifier {" or "identifier identifier {" (with qualifier)
+  if p.peek().kind != tkIdentifier:
+    return false
+
+  let next = p.peek(1)
+  # Direct: "name {"
+  if next.kind == tkLBrace:
+    return true
+
+  # With qualifier: "name qualifier {"
+  if next.kind == tkIdentifier:
+    let afterQualifier = p.peek(2)
+    if afterQualifier.kind == tkLBrace:
+      return true
+
+  return false
 
 proc parse*(p: var Parser): ParsedScript =
   ## Parse a complete Kongue script
@@ -740,24 +795,22 @@ proc parse*(p: var Parser): ParsedScript =
   # Parse variable declarations (header)
   while p.peek().kind notin {tkEof, tkFunc} and
               p.peek().kind != tkIdentifier or
-              (p.peek().kind == tkIdentifier and p.peek(1).kind in {tkColon,
-                      tkPlusColon, tkMinusColon}):
-      iterations += 1
-      if iterations > maxTokens:
-        raise newException(ParseError, "Parser exceeded maximum iterations - possible infinite loop")
+              p.isVariableDeclarationStart():
+    iterations += 1
+    if iterations > maxTokens:
+      raise newException(ParseError, "Parser exceeded maximum iterations - possible infinite loop")
 
-      p.skipCommentsAndNewlines()
+    p.skipCommentsAndNewlines()
 
-      if p.peek().kind == tkIdentifier and p.peek(1).kind in {tkColon,
-              tkPlusColon, tkMinusColon}:
-        result.variables.add(p.parseVariableDeclaration())
-        p.skipNewlines()
-      elif p.peek().kind in {tkFunc, tkIdentifier}:
-        break
-      elif p.peek().kind == tkEof:
-        break
-      else:
-        discard p.advance()
+    if p.isVariableDeclarationStart():
+      result.variables.add(p.parseVariableDeclaration())
+      p.skipNewlines()
+    elif p.peek().kind in {tkFunc, tkIdentifier}:
+      break
+    elif p.peek().kind == tkEof:
+      break
+    else:
+      discard p.advance()
 
   debug "parse: finished variable declarations, parsed "&(
       $result.variables.len)&" variables"
@@ -774,7 +827,7 @@ proc parse*(p: var Parser): ParsedScript =
     if p.peek().kind == tkFunc:
       debug "parse: parsing custom function"
       result.customFuncs.add(p.parseFunction(isCustom = true))
-    elif p.peek().kind == tkIdentifier and p.peek(1).kind == tkLBrace:
+    elif p.isFunctionDefinitionStart():
       debug "parse: parsing function '"&p.peek().value&"'"
       result.functions.add(p.parseFunction(isCustom = false))
     else:

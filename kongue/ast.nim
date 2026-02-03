@@ -44,14 +44,17 @@ type
     case kind*: NodeKind
     of nkVariable:
       varName*: string
+      varQualifier*: string         # Optional qualifier (e.g., "test2" in "depends test2:")
       varValue*: string
       varOp*: VarOp
     of nkListVariable:
       listName*: string
+      listQualifier*: string        # Optional qualifier (e.g., "test2" in "depends test2:")
       listItems*: seq[string]
       listOp*: VarOp
     of nkFunction:
       funcName*: string
+      funcQualifier*: string        # Optional qualifier (e.g., "test2" in "build test2 {}")
       funcBody*: seq[AstNode]
     of nkCustomFunc:
       customFuncName*: string
@@ -114,19 +117,25 @@ type
     customFuncs*: seq[AstNode] # Custom function definitions
 
 proc newVariableNode*(name, value: string, op: VarOp = opSet,
-        line: int = 0): AstNode =
+        line: int = 0, qualifier: string = ""): AstNode =
   ## Create a new variable node
-  AstNode(kind: nkVariable, varName: name, varValue: value, varOp: op, line: line)
+  ## qualifier is optional (e.g., "test2" in "depends test2:")
+  AstNode(kind: nkVariable, varName: name, varQualifier: qualifier,
+      varValue: value, varOp: op, line: line)
 
 proc newListVariableNode*(name: string, items: seq[string], op: VarOp = opSet,
-        line: int = 0): AstNode =
+        line: int = 0, qualifier: string = ""): AstNode =
   ## Create a new list variable node
-  AstNode(kind: nkListVariable, listName: name, listItems: items, listOp: op, line: line)
+  ## qualifier is optional (e.g., "test2" in "depends test2:")
+  AstNode(kind: nkListVariable, listName: name, listQualifier: qualifier,
+      listItems: items, listOp: op, line: line)
 
 proc newFunctionNode*(name: string, body: seq[AstNode],
-        line: int = 0): AstNode =
+        line: int = 0, qualifier: string = ""): AstNode =
   ## Create a new function node
-  AstNode(kind: nkFunction, funcName: name, funcBody: body, line: line)
+  ## qualifier is optional (e.g., "test2" in "build test2 {}")
+  AstNode(kind: nkFunction, funcName: name, funcQualifier: qualifier,
+      funcBody: body, line: line)
 
 proc newCustomFuncNode*(name: string, body: seq[AstNode],
         line: int = 0): AstNode =
@@ -210,11 +219,40 @@ proc newBreakNode*(line: int = 0): AstNode =
   ## Create a new break node
   AstNode(kind: nkBreak, line: line)
 
+proc getFullFuncName*(funcNode: AstNode): string =
+  ## Get the full function name including qualifier
+  ## e.g., "build" with qualifier "test2" returns "build_test2"
+  if funcNode.kind == nkFunction:
+    if funcNode.funcQualifier != "":
+      return funcNode.funcName & "_" & funcNode.funcQualifier
+    return funcNode.funcName
+  elif funcNode.kind == nkCustomFunc:
+    return funcNode.customFuncName
+  return ""
+
+proc getFullVarName*(varNode: AstNode): string =
+  ## Get the full variable name including qualifier
+  ## e.g., "depends" with qualifier "test2" returns "depends_test2"
+  case varNode.kind
+  of nkVariable:
+    if varNode.varQualifier != "":
+      return varNode.varName & "_" & varNode.varQualifier
+    return varNode.varName
+  of nkListVariable:
+    if varNode.listQualifier != "":
+      return varNode.listName & "_" & varNode.listQualifier
+    return varNode.listName
+  else:
+    return ""
+
 proc hasFunction*(parsed: ParsedScript, name: string): bool =
   ## Check if a function exists in the parsed script (searches both regular and custom functions)
+  ## Accepts both base name and full name with qualifier (e.g., "build" or "build_test2")
   for funcNode in parsed.functions:
-    if funcNode.kind == nkFunction and funcNode.funcName == name:
-      return true
+    if funcNode.kind == nkFunction:
+      let fullName = getFullFuncName(funcNode)
+      if fullName == name or funcNode.funcName == name:
+        return true
   for funcNode in parsed.customFuncs:
     if funcNode.kind == nkCustomFunc and funcNode.customFuncName == name:
       return true

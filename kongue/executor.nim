@@ -202,55 +202,60 @@ proc executeFunction*(ctx: ExecutionContext, funcBody: seq[AstNode]): int =
 
 proc loadVariablesFromParsed*(ctx: ExecutionContext, parsed: ParsedScript) =
     ## Load variables from parsed script into execution context
+    ## Variables with qualifiers are stored with combined names (e.g., "depends_test2")
     for varNode in parsed.variables:
         case varNode.kind
         of nkVariable:
+            let fullName = getFullVarName(varNode)
             case varNode.varOp
             of opSet:
-                ctx.setVariable(varNode.varName, varNode.varValue)
+                ctx.setVariable(fullName, varNode.varValue)
             of opAppend:
-                if ctx.hasListVariable(varNode.varName):
+                if ctx.hasListVariable(fullName):
                     # If it's a list variable, add to list
-                    let current = ctx.getListVariable(varNode.varName)
-                    ctx.setListVariable(varNode.varName, current & @[
+                    let current = ctx.getListVariable(fullName)
+                    ctx.setListVariable(fullName, current & @[
                             varNode.varValue])
                 else:
                     # Treat as string concatenation with space
-                    let current = ctx.getVariable(varNode.varName)
+                    let current = ctx.getVariable(fullName)
                     if current == "":
-                        ctx.setVariable(varNode.varName, varNode.varValue)
+                        ctx.setVariable(fullName, varNode.varValue)
                     else:
-                        ctx.setVariable(varNode.varName, current & " " &
+                        ctx.setVariable(fullName, current & " " &
                                 varNode.varValue)
             of opRemove:
                 # String remove?
-                let current = ctx.getVariable(varNode.varName)
-                ctx.setVariable(varNode.varName, current.replace(
+                let current = ctx.getVariable(fullName)
+                ctx.setVariable(fullName, current.replace(
                         varNode.varValue, "").strip())
 
         of nkListVariable:
+            let fullName = getFullVarName(varNode)
             case varNode.listOp
             of opSet:
-                ctx.setListVariable(varNode.listName, varNode.listItems)
+                ctx.setListVariable(fullName, varNode.listItems)
             of opAppend:
-                let current = ctx.getListVariable(varNode.listName)
-                ctx.setListVariable(varNode.listName, current &
+                let current = ctx.getListVariable(fullName)
+                ctx.setListVariable(fullName, current &
                         varNode.listItems)
             of opRemove:
-                var current = ctx.getListVariable(varNode.listName)
+                var current = ctx.getListVariable(fullName)
                 for itemToRemove in varNode.listItems:
                     current.keepItIf(it != itemToRemove)
-                ctx.setListVariable(varNode.listName, current)
+                ctx.setListVariable(fullName, current)
 
         else:
             discard
 
 proc loadAllFunctions*(ctx: ExecutionContext, parsed: ParsedScript) =
     ## Load all callable functions (both regular and custom) from parsed script
-    # Load regular functions (e.g., package_foo, build_foo)
+    ## Functions with qualifiers are stored with combined names (e.g., "package_foo", "build_foo")
+    # Load regular functions (e.g., package foo, build foo)
     for funcNode in parsed.functions:
         if funcNode.kind == nkFunction:
-            ctx.customFuncs[funcNode.funcName] = funcNode.funcBody
+            let fullName = getFullFuncName(funcNode)
+            ctx.customFuncs[fullName] = funcNode.funcBody
     # Load custom functions (defined with 'func' keyword)
     for funcNode in parsed.customFuncs:
         if funcNode.kind == nkCustomFunc:
@@ -258,10 +263,13 @@ proc loadAllFunctions*(ctx: ExecutionContext, parsed: ParsedScript) =
 
 proc getFunctionByName*(parsed: ParsedScript, name: string): seq[AstNode] =
     ## Get a function's body by name (searches both regular and custom functions)
+    ## Accepts both base name and full name with qualifier (e.g., "build" or "build_test2")
     # First check regular functions
     for funcNode in parsed.functions:
-        if funcNode.kind == nkFunction and funcNode.funcName == name:
-            return funcNode.funcBody
+        if funcNode.kind == nkFunction:
+            let fullName = getFullFuncName(funcNode)
+            if fullName == name:
+                return funcNode.funcBody
     # Then check custom functions
     for funcNode in parsed.customFuncs:
         if funcNode.kind == nkCustomFunc and funcNode.customFuncName == name:
@@ -284,7 +292,8 @@ proc resolveHookFunction*(parsed: ParsedScript, hookName: string,
     ## Returns the function name if found, or empty string if not.
     ##
     ## Checks in order:
-    ## 1. hookName_packagename (with dashes replaced by underscores)
+    ## 1. hookName_packagename (with dashes replaced by underscores) - supports both
+    ##    "build test2 {}" syntax (stored as "build_test2") and legacy "build_test2 {}" syntax
     ## 2. hookName (generic)
     ##
     ## Example: resolveHookFunction(parsed, "postinstall", "my-pkg")

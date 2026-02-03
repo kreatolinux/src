@@ -107,10 +107,12 @@ proc parseRun3*(path: string): Run3File =
 proc getVariableRaw(rf: Run3File, name: string): string =
     ## Get a raw variable value from the parsed runfile (no substitution)
     ## Internal use only - use getVariable for public API
+    ## Supports both qualified names (e.g., "depends_test2") and base names
     for varNode in rf.parsed.variables:
         case varNode.kind
         of nkVariable:
-            if varNode.varName == name:
+            let fullName = getFullVarName(varNode)
+            if fullName == name or varNode.varName == name:
                 return varNode.varValue
         else:
             discard
@@ -119,10 +121,12 @@ proc getVariableRaw(rf: Run3File, name: string): string =
 proc getListVariableRaw(rf: Run3File, name: string): seq[string] =
     ## Get a raw list variable value from the parsed runfile (no substitution)
     ## Internal use only - use getListVariable for public API
+    ## Supports both qualified names (e.g., "depends_test2") and base names
     for varNode in rf.parsed.variables:
         case varNode.kind
         of nkListVariable:
-            if varNode.listName == name:
+            let fullName = getFullVarName(varNode)
+            if fullName == name or varNode.listName == name:
                 return varNode.listItems
         else:
             discard
@@ -131,13 +135,16 @@ proc getListVariableRaw(rf: Run3File, name: string): seq[string] =
 proc getAllVariablesRaw(rf: Run3File): Table[string, VarValue] =
     ## Get all raw variables as a table (no substitution)
     ## Internal use only
+    ## Uses full variable names (with qualifier if present)
     result = initTable[string, VarValue]()
     for varNode in rf.parsed.variables:
         case varNode.kind
         of nkVariable:
-            result[varNode.varName] = newStringValue(varNode.varValue)
+            let fullName = getFullVarName(varNode)
+            result[fullName] = newStringValue(varNode.varValue)
         of nkListVariable:
-            result[varNode.listName] = newListValue(varNode.listItems)
+            let fullName = getFullVarName(varNode)
+            result[fullName] = newListValue(varNode.listItems)
         else:
             discard
 
@@ -360,10 +367,11 @@ proc executeFunction*(rf: Run3File, functionName: string, destDir: string = "",
 
 proc getAllFunctions*(rf: Run3File): seq[string] =
     ## Get a list of all function names defined in the runfile
+    ## Returns full names (with qualifier if present, e.g., "package_test2")
     result = @[]
     for funcNode in rf.parsed.functions:
         if funcNode.kind == nkFunction:
-            result.add(funcNode.funcName)
+            result.add(getFullFuncName(funcNode))
 
 proc getAllCustomFunctions*(rf: Run3File): seq[string] =
     ## Get a list of all custom function names defined in the runfile
