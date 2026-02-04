@@ -14,6 +14,7 @@ type
 const
   ARCHIVE_EOF* = 1
   ARCHIVE_OK* = 0
+  ARCHIVE_WARN* = -20
   ARCHIVE_FAILED* = -25
   ARCHIVE_FATAL* = -30
   ARCHIVE_EXTRACT_TIME* = 0x0004
@@ -64,6 +65,9 @@ proc archiveReadDataBlock*(a: ptr structArchive, buff: pointer,
 proc archiveReadClose*(a: ptr structArchive): cint {.importc: "archive_read_close",
     header: "<archive.h>".}
 proc archiveReadFree*(a: ptr structArchive): cint {.importc: "archive_read_free",
+    header: "<archive.h>".}
+proc archiveReadSetOptions*(a: ptr structArchive, 
+    opts: cstring): cint {.importc: "archive_read_set_options",
     header: "<archive.h>".}
 
 # Read disk operations
@@ -125,6 +129,8 @@ proc archiveEntryFree*(entry: ptr structArchiveEntry) {.importc: "archive_entry_
     header: "<archive_entry.h>".}
 proc archiveEntryPathname*(entry: ptr structArchiveEntry): cstring {.importc: "archive_entry_pathname",
     header: "<archive_entry.h>".}
+proc archiveEntryPathnameUtf8*(entry: ptr structArchiveEntry): cstring {.importc: "archive_entry_pathname_utf8",
+    header: "<archive_entry.h>".}
 proc archiveEntrySourcepath*(entry: ptr structArchiveEntry): cstring {.importc: "archive_entry_sourcepath",
     header: "<archive_entry.h>".}
 
@@ -138,6 +144,16 @@ type
 proc debugWarn(f: string, err: string) =
   when not defined(release):
     echo f&" failed: "&err
+
+proc getEntryPathname(entry: ptr structArchiveEntry): string =
+  ## Get pathname from archive entry, preferring UTF-8 version to avoid locale conversion issues
+  let utf8Path = archiveEntryPathnameUtf8(entry)
+  if utf8Path != nil and utf8Path[0] != '\0':
+    return $utf8Path
+  let regularPath = archiveEntryPathname(entry)
+  if regularPath != nil:
+    return $regularPath
+  return ""
 
 proc copyData(ar: ptr structArchive, aw: ptr structArchive): cint =
   # Function copy_data(), gotten from untar.c
@@ -159,8 +175,14 @@ proc copyData(ar: ptr structArchive, aw: ptr structArchive): cint =
       debugWarn("archiveWriteDataBlock()", $archiveErrorString(aw))
       return r
 
+# Try to set a UTF-8 locale for proper handling of international filenames
+# First try empty string (use environment), then explicit UTF-8 locales
 if setlocale(LC_ALL, "") == nil:
-  raise newException(OSError, "setlocale failed")
+  if setlocale(LC_ALL, "C.UTF-8") == nil:
+    if setlocale(LC_ALL, "en_US.UTF-8") == nil:
+      # Fall back to C locale as last resort (may have issues with non-ASCII filenames)
+      if setlocale(LC_ALL, "C") == nil:
+        raise newException(OSError, "setlocale failed")
 
 proc extract*(fileName: string, path = getCurrentDir(), ignoreFiles = @[""],
     getFiles = @[""]): seq[string] =
@@ -188,6 +210,8 @@ proc extract*(fileName: string, path = getCurrentDir(), ignoreFiles = @[""],
       ARCHIVE_EXTRACT_FFLAGS + ARCHIVE_EXTRACT_PERM + ARCHIVE_EXTRACT_ACL + ARCHIVE_EXTRACT_OWNER)
   discard archiveReadSupportFormatAll(a)
   discard archiveReadSupportFilterAll(a)
+  # Read filenames as raw bytes to avoid charset conversion issues with non-ASCII filenames
+  discard archiveReadSetOptions(a, "hdrcharset=binary")
   discard archiveWriteDiskSetStandardLookup(ext)
   r = archiveReadOpenFilename(a, filename, 10240)
 
@@ -200,19 +224,23 @@ proc extract*(fileName: string, path = getCurrentDir(), ignoreFiles = @[""],
     if r == ARCHIVE_EOF:
       break
 
-    if r != ARCHIVE_OK:
+    # Only fail on ARCHIVE_FAILED or ARCHIVE_FATAL, continue on ARCHIVE_WARN
+    if r < ARCHIVE_WARN:
       raise newException(LibarchiveError, $archiveErrorString(a))
+    
+    if r != ARCHIVE_OK:
+      debugWarn("archiveReadNextHeader()", $archiveErrorString(a))
 
-    if not ($archiveEntryPathname(entry) in resultStr):
-      resultStr = resultStr&($archiveEntryPathname(entry))
+    let entryPath = getEntryPathname(entry)
+    
+    if not (entryPath in resultStr):
+      resultStr = resultStr & entryPath
 
-    if not (isEmptyOrWhitespace(getFiles.join(""))) and not (
-        $archiveEntryPathname(entry) in getFiles):
+    if not (isEmptyOrWhitespace(getFiles.join(""))) and not (entryPath in getFiles):
       continue
 
-    if $archiveEntryPathname(entry) in ignoreFiles and fileExists(path&"/"&(
-        $archiveEntryPathname(entry))):
-      debug($archiveEntryPathname(entry)&" in ignoreFiles, ignoring")
+    if entryPath in ignoreFiles and fileExists(path & "/" & entryPath):
+      debug(entryPath & " in ignoreFiles, ignoring")
       continue
 
     r = archiveWriteHeader(ext, entry)

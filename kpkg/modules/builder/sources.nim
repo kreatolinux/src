@@ -33,8 +33,8 @@ proc extractSources*(source: string, sourceDir: string) =
     try:
         discard extract(filename)
     except Exception:
-        debug "extraction failed, continuing"
-        debug "exception: "&getCurrentExceptionMsg()
+        fatal "extraction failed for " & filename & ": " &
+                getCurrentExceptionMsg()
 
 proc downloadSource*(url, filename, pkgName: string) =
     ## Downloads a source file or git repository, falling back to a mirror if necessary
