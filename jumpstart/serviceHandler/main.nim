@@ -4,6 +4,8 @@ include ../commonImports
 import ../types
 import ../configParser
 import ../dephandler
+import ../mounts
+import ../exec
 import enable, disable, start, stop
 import osproc
 import parsecfg
@@ -17,27 +19,41 @@ import jumptimer/stop
 # Initialize logging for jumpstart serviceHandler
 initLogger("jumpstart", "/etc/jumpstart/main.conf", "/var/log/jumpstart.log")
 
-proc execLoggedCmd(cmd: string, err: string) =
-  ## execShellCmd with simple if statement
-  discard existsOrCreateDir(err)
-  if err != "/proc" and execCmdEx("mountpoint "&err).exitCode == 0:
-    info err&" already mounted, skipping"
+proc mountWithLog(source, target, fstype: string, flags: culong = 0,
+    data: string = "") =
+  ## Mount a filesystem using syscall with logging.
+  discard existsOrCreateDir(target)
+
+  if isMounted(target):
+    info target & " already mounted, skipping"
     return
 
-  if execShellCmd(cmd) != 0:
-    fatal "Couldn't mount "&err
+  let ret = mountFs(source, target, fstype, flags, data)
+  if ret != 0:
+    fatal "Couldn't mount " & target & ": " & mountErrorStr(ret)
 
 proc initSystem() =
   ## Initialize system such as mounting /proc, /dev, putting the hostname, etc.
+  ## Uses direct mount syscalls instead of shell commands.
   info "Mounting filesystems..."
+
+  # Mount essential filesystems using syscalls
+  mountWithLog("proc", "/proc", "proc")
+  mountWithLog("none", "/dev", "devtmpfs")
+  mountWithLog("devpts", "/dev/pts", "devpts")
+  mountWithLog("sysfs", "/sys", "sysfs")
+  mountWithLog("none", "/run", "tmpfs")
+
+  # Remount root as read-write
+  let ret = mountFs("", "/", "", MS_REMOUNT, "")
+  if ret != 0:
+    warn "Couldn't remount root as read-write: " & mountErrorStr(ret)
+
+  # Mount fstab entries using mount -a
   if fileExists("/etc/fstab"):
-    execLoggedCmd("mount -a", "fstab")
-  execLoggedCmd("mount -t proc proc /proc", "/proc")
-  execLoggedCmd("mount -t devtmpfs none /dev", "/dev")
-  execLoggedCmd("mount -t devpts devpts /dev/pts", "/dev/pts")
-  execLoggedCmd("mount -t sysfs sysfs /sys", "/sys")
-  execLoggedCmd("mount -t tmpfs none /run", "/run")
-  execLoggedCmd("mount -o remount,rw /", "rootfs")
+    let exitCode = execDirectWait("/bin/mount -a", {poUsePath})
+    if exitCode != 0:
+      warn "mount -a failed with exit code " & $exitCode
 
   let defaultHostname = "klinux"
 

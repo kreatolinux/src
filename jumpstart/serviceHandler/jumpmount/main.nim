@@ -4,6 +4,7 @@ import osproc
 import fusion/filepermissions
 include ../../commonImports
 import ../../configParser
+import ../../mounts
 
 proc startMount*(mountName: string) =
   ## Main function for mounts.
@@ -62,41 +63,14 @@ proc startMount*(mountName: string) =
     createDir(mountConfig.toPath)
     chmod(mountConfig.toPath, mountConfig.chmod)
 
-  # Build mount command
-  var cmd = "mount -t "&mountConfig.fstype&" "&mountConfig.fromPath&" "&mountConfig.toPath
+  # Perform mount using syscall
+  # extraArgs is passed directly as filesystem-specific data string
+  let ret = mountFs(mountConfig.fromPath, mountConfig.toPath, mountConfig.fstype,
+                    flags = 0, data = mountConfig.extraArgs)
 
-  if mountConfig.extraArgs != "":
-    cmd = cmd&" "&mountConfig.extraArgs
-
-  let process = startProcess(command = cmd, options = {poEvalCommand, poUsePath})
-
-  # Handle timeout
-  if mountConfig.timeout != "":
-    # Parse timeout (e.g., "5s", "1m")
-    var timeoutMs = 0
-    var timeoutStr = mountConfig.timeout
-    if timeoutStr.endsWith("s"):
-      timeoutMs = parseInt(timeoutStr[0..^2]) * 1000
-    elif timeoutStr.endsWith("m"):
-      timeoutMs = parseInt(timeoutStr[0..^2]) * 60 * 1000
-    else:
-      try:
-        timeoutMs = parseInt(timeoutStr) * 1000
-      except ValueError:
-        timeoutMs = 5000 # Default 5 second timeout
-
-    sleep(timeoutMs)
-    if running(process):
-      terminate(process)
-      discard waitForExit(process)
-      close(process)
-      warn "Mounting "&mountName&" failed, timeout reached"
-      return
-  elif waitForExit(process) != 0:
-    warn "Mounting "&mountName&" failed, possibly broken configuration"
+  if ret != 0:
+    warn "Mounting " & mountName & " failed: " & mountErrorStr(ret)
     return
-
-  close(process)
 
   # Track mount state
   createDir(serviceHandlerPath&"/mounts/"&mountName)

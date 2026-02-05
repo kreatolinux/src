@@ -3,6 +3,7 @@ import strutils
 import ../../../common/logging
 include ../../commonImports
 import ../../configParser
+import ../../mounts
 
 proc stopMount*(mountName: string) =
   ## Stop a mount unit
@@ -48,16 +49,16 @@ proc stopMount*(mountName: string) =
     warn "Mount "&mountName&" not found in unit configuration"
     return
 
-  var cmd = "umount"
-
+  # Determine umount flags
+  var flags: cint = 0
   if mountConfig.lazyUnmount:
-    cmd = cmd&" -l"
+    flags = MNT_DETACH
 
-  cmd = cmd&" "&mountConfig.toPath
-
-  let process = startProcess(command = cmd, options = {poEvalCommand, poUsePath})
-  discard waitForExit(process)
-  close(process)
+  # Perform umount using syscall
+  let ret = umountFs(mountConfig.toPath, flags)
+  if ret != 0:
+    warn "Unmounting " & mountName & " failed: " & mountErrorStr(ret)
+    # Continue to clean up state anyway
 
   removeDir(serviceHandlerPath&"/mounts/"&mountName)
   ok "Unmounted "&mountName

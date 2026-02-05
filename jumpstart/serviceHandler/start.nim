@@ -7,6 +7,7 @@ import ../../common/logging
 include ../commonImports
 import globalVariables
 import ../configParser
+import ../exec
 
 proc startService*(serviceName: string) =
   ## Start a service.
@@ -62,15 +63,14 @@ proc startService*(serviceName: string) =
 
   var processPre: Process
   if serviceConfig.execPre != "":
-    processPre = startProcess(command = serviceConfig.execPre,
-        options = {poEvalCommand, poUsePath})
+    processPre = execDirect(serviceConfig.execPre, options = {poUsePath})
+    discard waitForExit(processPre) # Wait for pre-exec to complete
 
-  let process = startProcess(command = serviceConfig.exec,
-          options = {poEvalCommand, poUsePath, poDaemon})
+  let process = execDirect(serviceConfig.exec, options = {poUsePath, poDaemon})
 
   services = services&(serviceName: serviceName, process: process,
           processPre: processPre)
 
   spawn statusDaemon(process, serviceName, serviceConfig.execPost,
-          options = {poEvalCommand, poUsePath, poDaemon})
+          options = {poUsePath, poDaemon})
   ok "Started "&serviceName
