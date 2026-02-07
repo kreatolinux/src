@@ -3,6 +3,7 @@
 ## Minimal wrapper around mount(2)/umount2(2) for init system use.
 
 import posix
+import strutils
 
 # Mount flags
 const

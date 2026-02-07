@@ -3,8 +3,6 @@ import os
 import posix
 import strutils
 import ../commonImports
-import ../exec
-import ../../common/logging
 
 proc statusDaemon*(process: Process, serviceName: string, command: string,
         options: set[ProcessOption]) =
@@ -24,14 +22,11 @@ proc statusDaemon*(process: Process, serviceName: string, command: string,
     let exited = waitForExit(process)
     if exited == 0:
       if command.len > 0:
-        let processPost = execDirect(command, options = options)
-        let postExitCode = waitForExit(processPost)
-        if postExitCode != 0:
-          warn serviceName & " execPost failed with exit code " & $postExitCode
+        let processPost = startProcess(command = command, options = options)
+        discard waitForExit(processPost)
       writeFile(serviceHandlerPath&"/"&serviceName&"/status", "stopped")
     else:
       writeFile(serviceHandlerPath&"/"&serviceName&"/status",
               "stopped with an exit code "&intToStr(exited))
-  except CatchableError as e:
-    warn serviceName & " status daemon error: " & e.msg
+  except CatchableError:
     writeFile(serviceHandlerPath&"/"&serviceName&"/status", "stopped")
