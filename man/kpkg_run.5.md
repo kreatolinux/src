@@ -138,6 +138,38 @@ prepare {
 
 This is useful when you need to manually control the extraction process in the `prepare` function instead of relying on automatic extraction.
 
+### BUILD MACRO
+Runs build commands based on the specified build system.
+
+Usage: `macro build [--meson|--cmake|--ninja|--make|--autotools|--configure][=DIR] [FLAGS]`
+
+Flags:
+* **--meson**, **--cmake**, **--ninja**, **--make**, **--autotools**, **--configure**: Specifies the build system. Can optionally take a directory path (e.g., `--meson=..` or `--meson ..`) where the build files or configure script are located. Defaults to the current directory (`.`).
+* **--prefix**: Installation prefix (default: `/usr`).
+* **--autocd**: If `true`, automatically changes into the directory.
+
+Any other flags are passed directly to the underlying build system.
+
+Example:
+```bash
+build {
+    macro build --meson=.. -Dfeature=enabled
+}
+```
+
+### PACKAGE MACRO
+Runs installation commands based on the specified build system.
+
+Usage: `macro package [--meson|--cmake|--ninja|--make|--autotools|--configure] [FLAGS]`
+
+Flags:
+* **--prefix**: Installation prefix (default: `/usr`).
+
+### TEST MACRO
+Runs the test suite based on the specified build system.
+
+Usage: `macro test [--meson|--cmake|--ninja|--make|--autotools|--configure] [FLAGS]`
+
 
 ## REQUIRED VARIABLES
 * **name**: Name of your package. Displayed in info command output.

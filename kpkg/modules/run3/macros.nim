@@ -22,41 +22,64 @@ type
         bsAutotools
 
 proc parseMacroArgs*(args: seq[string]): tuple[buildSystem: BuildSystem,
-        autocd: bool, prefix: string, passthroughArgs: string] =
+        autocd: bool, prefix: string, passthroughArgs: string,
+        sourceDir: string] =
     ## Parse macro arguments
     ## Returns internal options and passthrough args separately
     ## passthroughArgs is a string ready to append to build commands
+    ## Build system flags (--configure, --meson, etc.) accept an optional directory:
+    ##   --configure=..  or  --configure ..  (defaults to "." if omitted)
     result.buildSystem = bsNone
     result.autocd = false
     result.prefix = "/usr"
+    result.sourceDir = "."
     var passthrough: seq[string] = @[]
 
-    for arg in args:
+    var i = 0
+    while i < args.len:
+        let arg = args[i]
         if arg.startsWith("--"):
             let argName = arg[2..^1].split('=')[0]
-            let argValue = if '=' in arg: arg.split('=', 1)[1] else: "true"
+            let hasValue = '=' in arg
+            let argValue = if hasValue: arg.split('=', 1)[1] else: ""
 
             case argName
-            of "meson":
-                result.buildSystem = bsMeson
-            of "cmake":
-                result.buildSystem = bsCMake
-            of "ninja":
-                result.buildSystem = bsNinja
-            of "make":
-                result.buildSystem = bsMake
-            of "autotools", "configure":
-                result.buildSystem = bsAutotools
+            of "meson", "cmake", "ninja", "make", "autotools", "configure":
+                # Set the build system
+                case argName
+                of "meson":
+                    result.buildSystem = bsMeson
+                of "cmake":
+                    result.buildSystem = bsCMake
+                of "ninja":
+                    result.buildSystem = bsNinja
+                of "make":
+                    result.buildSystem = bsMake
+                of "autotools", "configure":
+                    result.buildSystem = bsAutotools
+                else: discard
+
+                # Parse optional source directory argument:
+                #   --flag=DIR  or  --flag DIR  (next arg if not a flag)
+                if hasValue and argValue.len > 0:
+                    result.sourceDir = argValue
+                elif not hasValue and i + 1 < args.len and
+                        not args[i + 1].startsWith("-"):
+                    i += 1
+                    result.sourceDir = args[i]
             of "autocd":
-                result.autocd = isTrueBoolean(argValue)
+                let boolValue = if hasValue: argValue else: "true"
+                result.autocd = isTrueBoolean(boolValue)
             of "prefix":
-                result.prefix = argValue
+                if hasValue:
+                    result.prefix = argValue
             else:
                 # Unknown -- flag, pass through to build system
                 passthrough.add(arg)
         else:
             # Non -- args (like -Dfoo=bar or positional args), pass through
             passthrough.add(arg)
+        i += 1
 
     result.passthroughArgs = if passthrough.len > 0: passthrough.join(" ") else: ""
 
@@ -174,19 +197,25 @@ proc macroTest*(ctx: ExecutionContext, args: seq[string]): int =
 proc macroBuild*(ctx: ExecutionContext, args: seq[string]): int =
     ## Run build commands based on build system
     ## Extra arguments are passed through to the underlying build system
+    ## sourceDir controls where the source/configure script lives (default ".")
     let macroArgs = parseMacroArgs(args)
     let extraArgs = if macroArgs.passthroughArgs.len > 0: " " &
             macroArgs.passthroughArgs else: ""
+    let srcDir = macroArgs.sourceDir
 
     case macroArgs.buildSystem
     of bsMeson:
+        let mesonSrc = if srcDir != ".": " " & srcDir else: ""
         result = ctx.builtinExec("meson setup build --prefix=" &
-                macroArgs.prefix & " --default-library=both" & extraArgs)
+                macroArgs.prefix & " --default-library=both" & extraArgs &
+                mesonSrc)
         if result != 0: return result
         return ctx.builtinExec("meson compile -C build")
 
     of bsCMake:
-        result = ctx.builtinExec("cmake -B build -DCMAKE_INSTALL_PREFIX=" &
+        let cmakeSrc = if srcDir != ".": " -S " & srcDir else: ""
+        result = ctx.builtinExec("cmake -B build" & cmakeSrc &
+                " -DCMAKE_INSTALL_PREFIX=" &
                 macroArgs.prefix & " -DBUILD_SHARED_LIBS=ON" & extraArgs)
         if result != 0: return result
         return ctx.builtinExec("cmake --build build")
@@ -198,24 +227,29 @@ proc macroBuild*(ctx: ExecutionContext, args: seq[string]): int =
         return ctx.builtinExec("make" & extraArgs)
 
     of bsAutotools:
-        result = ctx.builtinExec("./configure --prefix=" & macroArgs.prefix & extraArgs)
+        result = ctx.builtinExec(srcDir & "/configure --prefix=" &
+                macroArgs.prefix & extraArgs)
         if result != 0: return result
         return ctx.builtinExec("make")
 
     of bsNone:
         # Try to detect build system
         if fileExists(ctx.currentDir / "meson.build"):
+            let mesonSrc = if srcDir != ".": " " & srcDir else: ""
             result = ctx.builtinExec("meson setup build --prefix=" &
-                    macroArgs.prefix & " --default-library=both" & extraArgs)
+                    macroArgs.prefix & " --default-library=both" & extraArgs &
+                    mesonSrc)
             if result != 0: return result
             return ctx.builtinExec("meson compile -C build")
         elif fileExists(ctx.currentDir / "CMakeLists.txt"):
-            result = ctx.builtinExec("cmake -B build -DCMAKE_INSTALL_PREFIX=" &
+            let cmakeSrc = if srcDir != ".": " -S " & srcDir else: ""
+            result = ctx.builtinExec("cmake -B build" & cmakeSrc &
+                    " -DCMAKE_INSTALL_PREFIX=" &
                     macroArgs.prefix & " -DBUILD_SHARED_LIBS=ON" & extraArgs)
             if result != 0: return result
             return ctx.builtinExec("cmake --build build")
         elif fileExists(ctx.currentDir / "configure"):
-            result = ctx.builtinExec("./configure --prefix=" &
+            result = ctx.builtinExec(srcDir & "/configure --prefix=" &
                     macroArgs.prefix & extraArgs)
             if result != 0: return result
             return ctx.builtinExec("make")

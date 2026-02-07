@@ -187,6 +187,7 @@ suite "run3 macros":
     check args.autocd == true
     check args.prefix == "/usr/local"
     check args.passthroughArgs == ""
+    check args.sourceDir == "."
 
   test "macro argument parsing - mixed args":
     let args = parseMacroArgs(@["--ninja", "-Dplatforms=wayland,x11",
@@ -198,6 +199,7 @@ suite "run3 macros":
     check "--enable-foo" in args.passthroughArgs
     check "install.prefix=/usr" in args.passthroughArgs
     check "--ninja" notin args.passthroughArgs
+    check args.sourceDir == "."
 
   test "macro argument parsing - set style args":
     let args = parseMacroArgs(@["--set", "install.prefix=/usr", "--set",
@@ -206,6 +208,33 @@ suite "run3 macros":
     check "--set" in args.passthroughArgs
     check "install.prefix=/usr" in args.passthroughArgs
     check "--llvm-config=/usr/bin/llvm-config" in args.passthroughArgs
+
+  test "macro argument parsing - sourceDir with equals":
+    let args = parseMacroArgs(@["--configure=.."])
+    check args.buildSystem == bsAutotools
+    check args.sourceDir == ".."
+
+  test "macro argument parsing - sourceDir with space":
+    let args = parseMacroArgs(@["--meson", ".."])
+    check args.buildSystem == bsMeson
+    check args.sourceDir == ".."
+
+  test "macro argument parsing - sourceDir default":
+    let args = parseMacroArgs(@["--cmake"])
+    check args.buildSystem == bsCMake
+    check args.sourceDir == "."
+
+  test "macro argument parsing - sourceDir not consumed from flags":
+    let args = parseMacroArgs(@["--configure", "--prefix=/opt"])
+    check args.buildSystem == bsAutotools
+    check args.sourceDir == "."
+    check args.prefix == "/opt"
+
+  test "macro argument parsing - sourceDir with extra args":
+    let args = parseMacroArgs(@["--meson", "..", "-Dfoo=bar"])
+    check args.buildSystem == bsMeson
+    check args.sourceDir == ".."
+    check "-Dfoo=bar" in args.passthroughArgs
 
 suite "run3 variable operations":
   var testDir: string
