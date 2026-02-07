@@ -173,6 +173,50 @@ prepare {
 This is useful when you need to manually control the extraction process
 in the \f[V]prepare\f[R] function instead of relying on automatic
 extraction.
+.SS BUILD MACRO
+.PP
+Runs build commands based on the specified build system.
+.PP
+Usage:
+\f[V]macro build [--meson|--cmake|--ninja|--make|--autotools|--configure][=DIR] [FLAGS]\f[R]
+.PP
+Flags: * \f[B]\[en]meson\f[R], \f[B]\[en]cmake\f[R],
+\f[B]\[en]ninja\f[R], \f[B]\[en]make\f[R], \f[B]\[en]autotools\f[R],
+\f[B]\[en]configure\f[R]: Specifies the build system.
+Can optionally take a directory path (e.g., \f[V]--meson=..\f[R] or
+\f[V]--meson ..\f[R]) where the build files or configure script are
+located.
+Defaults to the current directory (\f[V].\f[R]).
+* \f[B]\[en]prefix\f[R]: Installation prefix (default: \f[V]/usr\f[R]).
+* \f[B]\[en]autocd\f[R]: If \f[V]true\f[R], automatically changes into
+the directory.
+.PP
+Any other flags are passed directly to the underlying build system.
+.PP
+Example:
+.IP
+.nf
+\f[C]
+build {
+    macro build --meson=.. -Dfeature=enabled
+}
+\f[R]
+.fi
+.SS PACKAGE MACRO
+.PP
+Runs installation commands based on the specified build system.
+.PP
+Usage:
+\f[V]macro package [--meson|--cmake|--ninja|--make|--autotools|--configure] [FLAGS]\f[R]
+.PP
+Flags: * \f[B]\[en]prefix\f[R]: Installation prefix (default:
+\f[V]/usr\f[R]).
+.SS TEST MACRO
+.PP
+Runs the test suite based on the specified build system.
+.PP
+Usage:
+\f[V]macro test [--meson|--cmake|--ninja|--make|--autotools|--configure] [FLAGS]\f[R]
 .SS REQUIRED VARIABLES
 .IP \[bu] 2
 \f[B]name\f[R]: Name of your package.
