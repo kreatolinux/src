@@ -29,7 +29,16 @@ proc extractSources*(source: string, sourceDir: string) =
         return
 
     let filename = extractFilename(source)
-    debug "trying to extract \"" & filename & "\""
+    let ext = splitFile(filename).ext.toLowerAscii()
+
+    const archiveExtensions = [".tar", ".gz", ".tgz", ".xz", ".txz", ".bz2",
+            ".tbz2", ".zip"]
+
+    if ext notin archiveExtensions:
+        debug "skipping extraction for "&filename&" (not an archive)"
+        return
+
+    debug "trying to extract "&filename
     try:
         discard extract(filename)
     except Exception:
