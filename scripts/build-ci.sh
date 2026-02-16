@@ -66,6 +66,7 @@ case $1 in
                     cp /var/cache/kpkg/kpkg.sqlite /var/lib/kpkg/kpkg.sqlite
                 fi
 
+					touch /etc/group
 		            cat /etc/group | grep tty || addgroup tty
         ;;
 
