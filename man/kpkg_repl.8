@@ -33,11 +33,11 @@ definitions and blocks, and convenient shorthands for common
 \f[V]get\f[R] and \f[V]set\f[R] operations.
 .SH SYNOPSIS
 .PP
-\f[B]kpkg repl\f[R] [COMMAND] [ARGS]\&...
+\f[B]kpkg repl\f[R] [-a COMMAND] [[-a ARGS]\&...]
 .PP
 If no arguments are provided, it enters the interactive mode.
-If arguments are provided, it executes the single command and exits
-(similar to \f[V]bash -c\f[R]).
+If arguments are provided with \f[V]-a\f[R], it executes the single
+command and exits (similar to \f[V]bash -c\f[R]).
 .SH COMMANDS
 .SS INTERACTIVE COMMANDS
 .PP
@@ -146,7 +146,7 @@ commands.
 .IP
 .nf
 \f[C]
-kpkg repl get config.Repositories
+kpkg repl -a \[dq]get config.Repositories\[dq]
 \f[R]
 .fi
 .PP
