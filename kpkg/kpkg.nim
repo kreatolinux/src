@@ -173,6 +173,8 @@ dispatchMulti(
   stale, help = {}
   ],
   [
-  repl.repl, help = {}
+  repl.repl, help = {
+    "args": "Command to execute (e.g. 'set config.Upgrade.buildByDefault no')"
+  }
   ]
 )

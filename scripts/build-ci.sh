@@ -27,7 +27,7 @@ case $1 in
                 
                 #sed -i s/stable/master/g /etc/kpkg/kpkg.conf
 		        sed -i s/mirror.kreato.dev/mirror.krea.to/g /etc/kpkg/kpkg.conf
-				kpkg repl set config.Upgrade.buildByDefault no
+				kpkg repl -a "set config.Upgrade.buildByDefault no"
 
                 kpkg update
                 

@@ -9,10 +9,10 @@ kpkg repl - interactive shell for kpkg
 The REPL supports session history (persisted to `~/.cache/kpkg/history`), multi-line input for function definitions and blocks, and convenient shorthands for common `get` and `set` operations.
 
 # SYNOPSIS
-**kpkg repl** [COMMAND] [ARGS]...
+**kpkg repl** [-a COMMAND] [[-a ARGS]...]
 
 If no arguments are provided, it enters the interactive mode.
-If arguments are provided, it executes the single command and exits (similar to `bash -c`).
+If arguments are provided with `-a`, it executes the single command and exits (similar to `bash -c`).
 
 # COMMANDS
 
@@ -101,7 +101,7 @@ my_helper
 
 **One-off command execution:**
 ```sh
-kpkg repl get config.Repositories
+kpkg repl -a "get config.Repositories"
 ```
 
 **Interactive session:**
