@@ -50,10 +50,6 @@ proc validateExtractedFiles(kpkgInstallTemp: string, extractTarball: seq[string]
     let isRegularFile = fileExists(srcPath) and not isSymlink
     let isDir = dirExists(srcPath) and not isSymlink
 
-    # Skip if in backup list
-    if relPath in pkg.backup:
-      continue
-
     # Validate checksums for regular files
     if isRegularFile:
       if isEmptyOrWhitespace(value):
@@ -110,7 +106,7 @@ proc backupExistingFiles(tx: Transaction, filesToInstall: var seq[FileToInstall]
         tx.recordFileReplaced(destPath, backupPath)
 
 proc installFilesAtomic(tx: Transaction, filesToInstall: seq[FileToInstall],
-                        kpkgInstallTemp: string, root: string) =
+                        kpkgInstallTemp: string, root: string, backup: seq[string]) =
   ## Install files with transaction recording for rollback support.
 
   # First pass: create directories
@@ -124,6 +120,12 @@ proc installFilesAtomic(tx: Transaction, filesToInstall: seq[FileToInstall],
   # Second pass: install files and symlinks
   for f in filesToInstall:
     if f.isDir:
+      continue
+
+    # Skip backup files if they already exist (preserve user configs)
+    if f.relPath in backup and (fileExists(f.destPath) or symlinkExists(
+        f.destPath) or dirExists(f.destPath)):
+      debug "Skipping backup file (already exists): " & f.relPath
       continue
 
     # Ensure parent directory exists
@@ -357,7 +359,7 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
       backupExistingFiles(tx, filesToInstall, root, pkg)
 
       # Phase 5: Install files with transaction recording
-      installFilesAtomic(tx, filesToInstall, kpkgInstallTemp, root)
+      installFilesAtomic(tx, filesToInstall, kpkgInstallTemp, root, pkg.backup)
 
       # Phase 6: Update database (after all files are installed)
       var mI = false
