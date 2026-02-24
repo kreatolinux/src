@@ -17,6 +17,11 @@ import gitutils
 type
     repoInfo = tuple[repo: string, name: string, version: string]
 
+    SortResult* = object
+        order*: seq[string]
+        hasCycle*: bool
+        cyclePath*: seq[string]
+
     dependencyContext* = object
         root*: string
         isBuild*: bool
@@ -437,19 +442,17 @@ proc buildDependencyGraph*(pkgs: seq[string], ctx: dependencyContext,
     return graph
 
 proc topologicalSort(graph: dependencyGraph,
-        ignoreCircularDeps: bool = false): seq[string] =
+        ignoreCircularDeps: bool = false): SortResult =
     ## Perform topological sort using DFS to determine installation order
-    ## Returns packages in order where dependencies come before dependents
+    ## Returns SortResult with packages in order where dependencies come before dependents
     ##
     ## Graph structure: edges go FROM dependency TO dependent
     ## Example: graph.edges["openssl"] = ["python"] means python depends on openssl
     ##
-    ## If a cycle is detected and ignoreCircularDeps is false, this proc will
-    ## error out with a message instructing the packager to use bootstrap
-    ## dependencies (bsdeps) to break the cycle.
-    ##
-    ## If ignoreCircularDeps is true, cycles are warned about but processing
-    ## continues (useful for query commands like `kpkg get deps`).
+    ## If a cycle is detected:
+    ## - hasCycle will be true and cyclePath will contain the cycle
+    ## - If ignoreCircularDeps is true, a warning is shown but processing continues
+    ## - If ignoreCircularDeps is false, caller should handle the cycle (e.g., auto-bootstrap)
 
     var visited = initTable[string, bool]()
     var visiting = initTable[string, bool]()
@@ -516,24 +519,24 @@ proc topologicalSort(graph: dependencyGraph,
             ". Use bootstrap dependencies (bsdeps) to break the cycle."
         if ignoreCircularDeps:
             warn(cycleMsg)
-        else:
-            fatal(cycleMsg)
 
     # Reverse: since we added dependents before dependencies in post-order,
     # reversing gives us dependencies before dependents
     reverse(sortResult)
 
-    return sortResult
+    return SortResult(order: sortResult, hasCycle: cycleDetected,
+            cyclePath: cyclePath)
 
 proc flattenDependencyOrder*(graph: dependencyGraph,
-        ignoreCircularDeps: bool = false): seq[string] =
+        ignoreCircularDeps: bool = false): SortResult =
     ## Convert graph to installation order (dependencies first)
+    ## Returns SortResult with order and cycle information
 
     # Topological sort now gives us the correct order directly
     # (dependencies before dependents) since edges go from dependency to dependent
     let sorted = topologicalSort(graph, ignoreCircularDeps)
     debug "dephandler: Topological sort result ("&(
-            $sorted.len)&" packages): "&sorted.join(", ")
+            $sorted.order.len)&" packages): "&sorted.order.join(", ")
     return sorted
 
 proc generateMermaidChart*(graph: dependencyGraph, rootPackages: seq[
@@ -616,13 +619,13 @@ proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "],
     )
 
     # Flatten to installation order
-    let ordered = flattenDependencyOrder(graph, ctx.ignoreCircularDeps)
+    let sortResult = flattenDependencyOrder(graph, ctx.ignoreCircularDeps)
 
     # Filter out root packages (the packages being built/installed) and empty strings
     # We only want the dependencies, not the target packages themselves
     let rootPkgSet = pkgs.toHashSet()
     debug "dephandler: Root packages to filter out: "&pkgs.join(", ")
-    let filtered = ordered.filterIt(it.len != 0 and it notin rootPkgSet)
+    let filtered = sortResult.order.filterIt(it.len != 0 and it notin rootPkgSet)
     debug "dephandler: After filtering root packages: "&filtered.join(", ")
 
     # Deduplicate and return
@@ -640,9 +643,11 @@ proc dephandlerWithGraph*(pkgs: seq[string], ignoreDeps = @["  "],
                         commit = "", commitRepo = "",
                         headRunfileCache = initTable[string, runFile]()): (seq[
                                 string],
-                        dependencyGraph) =
+                        dependencyGraph, SortResult) =
     ## Takes packages and returns what to install in correct dependency order PLUS the dependency graph
     ## This allows reusing the graph structure instead of recalculating dependencies
+    ##
+    ## Returns: (deps, graph, sortResult) where sortResult contains cycle information
     ##
     ## Commit-based build parameters:
     ## - commit: The commit hash being built from
@@ -675,19 +680,19 @@ proc dephandlerWithGraph*(pkgs: seq[string], ignoreDeps = @["  "],
     )
 
     # Flatten to installation order
-    let ordered = flattenDependencyOrder(graph, ctx.ignoreCircularDeps)
+    let sortResult = flattenDependencyOrder(graph, ctx.ignoreCircularDeps)
 
     # Filter out root packages (the packages being built/installed) and empty strings
     let rootPkgSet = pkgs.toHashSet()
     debug "dephandler: Root packages to filter out: "&pkgs.join(", ")
-    let filtered = ordered.filterIt(it.len != 0 and it notin rootPkgSet)
+    let filtered = sortResult.order.filterIt(it.len != 0 and it notin rootPkgSet)
     debug "dephandler: After filtering root packages: "&filtered.join(", ")
 
     # Return both the dependency list and the graph
     let finalResult = deduplicate(filtered)
     debug "dephandler: Final dependency list ("&(
             $finalResult.len)&" packages): "&finalResult.join(", ")
-    return (finalResult, graph)
+    return (finalResult, graph, sortResult)
 
 proc collectRuntimeDepsFromGraph*(pkgs: seq[string], graph: dependencyGraph,
         visited: var HashSet[string]): seq[string] =
@@ -707,7 +712,7 @@ proc collectRuntimeDepsFromGraph*(pkgs: seq[string], graph: dependencyGraph,
 
 proc resolveBuildOrder*(packages: seq[string], ctx: dependencyContext,
                         bootstrap: bool, isInstallDir: bool): (seq[string],
-                                dependencyGraph, seq[string]) =
+                                dependencyGraph, seq[string], SortResult) =
     ## Resolve the complete build order for packages.
     ##
     ## This handles:
@@ -717,13 +722,14 @@ proc resolveBuildOrder*(packages: seq[string], ctx: dependencyContext,
     ## - Flattening to correct build order
     ## - Moving bootstrap deps to end when not in bootstrap mode
     ##
-    ## Returns: (orderedDeps, graph, allDependents)
+    ## Returns: (orderedDeps, graph, allDependents, sortResult)
 
     # Build the initial dependency graph
     var deps: seq[string]
     var depGraph: dependencyGraph
-    (deps, depGraph) = dephandlerWithGraph(packages, isBuild = ctx.isBuild,
-            root = ctx.root, forceInstallAll = ctx.forceInstallAll,
+    var sortResult: SortResult
+    (deps, depGraph, sortResult) = dephandlerWithGraph(packages,
+            isBuild = ctx.isBuild, root = ctx.root, forceInstallAll = ctx.forceInstallAll,
             isInstallDir = isInstallDir, ignoreInit = ctx.ignoreInit,
             useBootstrap = ctx.useBootstrap,
             useCacheIfAvailable = ctx.useCacheIfAvailable,
@@ -749,8 +755,9 @@ proc resolveBuildOrder*(packages: seq[string], ctx: dependencyContext,
     # If we have dependents, rebuild the graph with them included
     if not isEmptyOrWhitespace(allDependents.join("")):
         let allPackages = deduplicate(packages & allDependents)
-        (deps, depGraph) = dephandlerWithGraph(allPackages,
-                isBuild = ctx.isBuild, root = ctx.root, forceInstallAll = ctx.forceInstallAll,
+        (deps, depGraph, sortResult) = dephandlerWithGraph(allPackages,
+                isBuild = ctx.isBuild, root = ctx.root,
+                forceInstallAll = ctx.forceInstallAll,
                 isInstallDir = isInstallDir, ignoreInit = ctx.ignoreInit,
                 useBootstrap = ctx.useBootstrap,
                 useCacheIfAvailable = ctx.useCacheIfAvailable,
@@ -758,7 +765,7 @@ proc resolveBuildOrder*(packages: seq[string], ctx: dependencyContext,
                 headRunfileCache = ctx.headRunfileCache)
 
     # Flatten the graph to get correct build order
-    deps = flattenDependencyOrder(depGraph).filterIt(it.len != 0)
+    deps = flattenDependencyOrder(depGraph).order.filterIt(it.len != 0)
 
     # For packages with bootstrap deps in non-bootstrap mode,
     # move them to the end to ensure full BUILD_DEPENDS are available
@@ -774,7 +781,7 @@ proc resolveBuildOrder*(packages: seq[string], ctx: dependencyContext,
                     pkgInfo.name].metadata.bsdeps.len > 0:
                 deps = deps.filterIt(it != pkg) & pkg
 
-    return (deps, depGraph, allDependents)
+    return (deps, depGraph, allDependents, sortResult)
 
 proc getSandboxDepsFromGraph*(pkg: string, graph: dependencyGraph,
         bootstrap: bool, root: string, forceInstallAll: bool,
@@ -812,3 +819,14 @@ proc getSandboxDepsFromGraph*(pkg: string, graph: dependencyGraph,
             sandboxDeps.add(optDepName)
 
     return deduplicate(sandboxDeps)
+
+proc getPackagesWithBsdeps*(graph: dependencyGraph, cyclePath: seq[
+        string]): seq[string] =
+    ## Returns packages in the cycle that have bootstrap dependencies
+    ## These packages can be bootstrapped to break the circular dependency
+    result = @[]
+
+    for pkg in cyclePath:
+        if graph.nodes.hasKey(pkg) and graph.nodes[pkg].metadata.bsdeps.len > 0:
+            if pkg notin result:
+                result.add(pkg)

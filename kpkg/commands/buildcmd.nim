@@ -1,7 +1,6 @@
 import os
 import tables
 import strutils
-import sequtils
 import installcmd
 import ../modules/sqlite
 import ../../common/logging
@@ -22,6 +21,13 @@ import ../modules/builder/executor
 import ../modules/builder/environment
 import ../modules/builder/sandbox
 import ../modules/builder/commitctx
+
+proc formatCycleDisplay(cyclePath: seq[string]): string =
+  ## Format cycle path for display (use <-> for 2-node cycles, -> for longer)
+  if cyclePath.len <= 2:
+    return cyclePath.join(" <-> ")
+  else:
+    return cyclePath.join(" -> ")
 
 proc builder*(cfg: BuildConfig): bool =
   ## Builds a package using the provided configuration.
@@ -160,6 +166,9 @@ proc build*(no = false, yes = false, root = "/",
   ## Supports commit-based builds with syntax: package#commit
   ## When a commit hash is specified, the repo containing that commit
   ## is checked out to that commit for the build, then restored.
+  ##
+  ## Automatically detects circular dependencies and bootstraps packages
+  ## that have bootstrap dependencies (bsdeps) to break the cycle.
 
   if packages.len == 0:
     error("please enter a package name")
@@ -171,7 +180,7 @@ proc build*(no = false, yes = false, root = "/",
 
   withCommitContext(packages):
     # Build dependency context for resolveBuildOrder
-    let depCtx = dependencyContext(
+    var depCtx = dependencyContext(
       root: fullRootPath,
       isBuild: true,
       useBootstrap: bootstrap,
@@ -186,9 +195,57 @@ proc build*(no = false, yes = false, root = "/",
     )
 
     # Resolve complete build order (handles dependents, graph rebuild, bootstrap reordering)
-    let (deps, depGraph, allDependents) = resolveBuildOrder(
+    var (deps, depGraph, allDependents, sortResult) = resolveBuildOrder(
       packages, depCtx, bootstrap, isInstallDir
     )
+
+    # Handle circular dependency detection
+    if sortResult.hasCycle and not bootstrap:
+      # Check which packages in cycle have bsdeps
+      let pkgsWithBsdeps = getPackagesWithBsdeps(depGraph, sortResult.cyclePath)
+
+      if pkgsWithBsdeps.len > 0:
+        # Format cycle for display
+        let cycleDisplay = formatCycleDisplay(sortResult.cyclePath)
+        warn "Circular dependency detected: " & cycleDisplay &
+             ". Kpkg will attempt to bootstrap and install this package automatically."
+
+        # Build each package with bsdeps using bootstrap
+        for pkg in pkgsWithBsdeps:
+          let bootstrapResult = build(
+            no = no, yes = yes, root = root,
+            packages = @[pkg],
+            useCacheIfAvailable = useCacheIfAvailable,
+            forceInstallAll = forceInstallAll,
+            dontInstall = dontInstall,
+            tests = tests,
+            ignorePostInstall = ignorePostInstall,
+            isInstallDir = isInstallDir,
+            isUpgrade = isUpgrade,
+            target = target,
+            bootstrap = true
+          )
+          if bootstrapResult != 0:
+            fatal "Bootstrap build failed for '" & pkg & "'"
+            return bootstrapResult
+
+        # Retry the original build without bootstrap (now that packages are installed)
+        info "Bootstrap builds completed, retrying original build..."
+        depCtx.useBootstrap = false
+        (deps, depGraph, allDependents, sortResult) = resolveBuildOrder(
+          packages, depCtx, false, isInstallDir
+        )
+
+        # If still has cycle after bootstrap, error out
+        if sortResult.hasCycle:
+          fatal "Circular dependency detected: " & formatCycleDisplay(sortResult.cyclePath) &
+                ". Use bootstrap dependencies (bsdeps) to break the cycle."
+          quit(1)
+      else:
+        # No bsdeps available, show original error
+        fatal "Circular dependency detected: " & formatCycleDisplay(sortResult.cyclePath) &
+              ". Use bootstrap dependencies (bsdeps) to break the cycle."
+        quit(1)
 
     # Build package list with init variants
     var p: seq[string]
