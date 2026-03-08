@@ -33,26 +33,30 @@ proc createPackage*(actualPackage: string, pkg: runFile,
     if isEmptyOrWhitespace(dep):
       continue
 
-    var pkg: Package
+    var depPkg: Package
 
     try:
       if packageExists(dep, kpkgEnvPath):
-        pkg = getPackage(dep, kpkgEnvPath)
+        depPkg = getPackage(dep, kpkgEnvPath)
       elif packageExists(dep, kpkgOverlayPath&"/upperDir"):
-        pkg = getPackage(dep, kpkgOverlayPath&"/upperDir/")
+        depPkg = getPackage(dep, kpkgOverlayPath&"/upperDir/")
       else:
         when defined(release):
-          error "Unknown error occured while generating binary package"
+          error "Dependency '" & dep & "' not found while generating binary package"
         else:
-          debug "Unknown error occured while generating binary package"
-          raise getCurrentException()
+          debug "Dependency '" & dep & "' not found while generating binary package"
+        raise newException(CatchableError, "Dependency '" & dep & "' not found")
 
     except CatchableError:
       raise
+
+    if depPkg.isNil:
+      raise newException(CatchableError, "Failed to resolve dependency: " & dep)
+
     if isEmptyOrWhitespace(depsInfo):
-      depsInfo = (dep&"#"&pkg.version)
+      depsInfo = (dep&"#"&depPkg.version)
     else:
-      depsInfo = depsInfo&" "&(dep&"#"&pkg.version)
+      depsInfo = depsInfo&" "&(dep&"#"&depPkg.version)
 
   pkgInfo.setSectionKey("", "depends", depsInfo)
 
