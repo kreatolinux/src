@@ -15,10 +15,10 @@ jobs:
     steps:
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Update cache on every commit
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: /var/cache/kpkg/archives
           key: binary-cache-${{ github.run_id }}
@@ -31,7 +31,7 @@ jobs:
           IS_ACTIONS=y sh $GITHUB_WORKSPACE/scripts/build-ci.sh build nocc
       
       - name: Upload nocc Rootfs
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           # Artifact name
           name: nocc-rootfs # optional, default is artifact
@@ -59,7 +59,7 @@ jobs:
           IS_ACTIONS=y sh $GITHUB_WORKSPACE/scripts/build-ci.sh build builder
     
       - name: Upload Builder Rootfs
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           # Artifact name
           name: builder-rootfs # optional, default is artifact
@@ -73,7 +73,7 @@ jobs:
           IS_ACTIONS=y sh $GITHUB_WORKSPACE/scripts/build-ci.sh build builder-gnu
     
       - name: Upload builder-gnu Rootfs
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           # Artifact name
           name: builder-gnu-rootfs # optional, default is artifact
@@ -87,7 +87,7 @@ jobs:
           IS_ACTIONS=y sh $GITHUB_WORKSPACE/scripts/build-ci.sh build builder-repo
 
       - name: Upload builder-repo Rootfs
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           # Artifact name
           name: builder-repo-rootfs # optional, default is artifact
@@ -103,10 +103,10 @@ jobs:
     steps:
       
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
     
       - name: Download artifacts from build job
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         
       - name: Prepare for Docker
         run: |
@@ -121,7 +121,7 @@ jobs:
             tar -xvpf $GITHUB_WORKSPACE/nocc-rootfs/kreato-linux-nocc-*.tar.gz -C "/tmp/docker.tmp.nocc"
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
         
       - name: Login to GitHub and Forgejo Packages
         run: |
@@ -132,13 +132,13 @@ jobs:
           #FORGEJO_KEY: ${{ secrets.FORGEJO_KEY }}
       
       - name: Login to Docker Hub
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
       
       - name: Build and push builder image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: /tmp/docker.tmp
           push: true
@@ -151,7 +151,7 @@ jobs:
           #git.kreato.dev/kreatolinux/builder -f    
       
       - name: Build and push nocc image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: /tmp/docker.tmp.nocc
           push: true
@@ -163,14 +163,14 @@ jobs:
           sudo docker rmi ghcr.io/kreatolinux/nocc kreato/linux -f # git.kreato.dev/kreatolinux/nocc -f    
       
       - name: Build and push builder-repo image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: /tmp/docker.tmp.builder-repo
           push: true
           tags: kreato/builder-repo:latest,ghcr.io/kreatolinux/builder-repo:latest #,git.kreato.dev/kreatolinux/builder-repo:latest
       
       - name: Build and push builder-gnu image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: /tmp/docker.tmp.builder-gnu
           push: true
