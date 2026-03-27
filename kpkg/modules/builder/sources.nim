@@ -32,7 +32,7 @@ proc extractSources*(source: string, sourceDir: string) =
     let ext = splitFile(filename).ext.toLowerAscii()
 
     const archiveExtensions = [".tar", ".gz", ".tgz", ".xz", ".txz", ".bz2",
-            ".tbz2", ".zip"]
+            ".tbz2", ".zip", ".lz"]
 
     if ext notin archiveExtensions:
         debug "skipping extraction for "&filename&" (not an archive)"
