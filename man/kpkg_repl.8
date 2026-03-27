@@ -43,10 +43,15 @@ command and exits (similar to \f[V]bash -c\f[R]).
 .PP
 The following commands are available within the REPL prompt
 (\f[V]kpkg>\f[R]).
-.SS get [INVOCATION]
+.SS get [\[en]all] [INVOCATION]
 .PP
 Retrieves values from the database, configuration, overrides, or
 dependency graph.
+.PP
+\f[B]OPTIONS\f[R]: * \f[V]--all\f[R]: When used with \f[V]depends\f[R],
+includes all dependencies including already-installed packages.
+Equivalent to passing \f[V]forceInstallAll = true\f[R] to the dependency
+handler.
 .PP
 \f[B]TYPES\f[R]: * \f[V]db\f[R]: Get values from the database.
 * \f[V]config\f[R]: Get values from the config.
@@ -65,6 +70,15 @@ kpkg> get config
 
 # Get specific config value
 kpkg> get config.Repositories.repoLinks
+
+# Get build dependencies for bash (only non-installed)
+kpkg> get depends.bash.build
+
+# Get ALL build dependencies for bash (including installed)
+kpkg> get --all depends.bash.build
+
+# --all can also be placed after depends
+kpkg> get depends.bash.build --all
 \f[R]
 .fi
 .SS set [INVOCATION] [VALUE]
