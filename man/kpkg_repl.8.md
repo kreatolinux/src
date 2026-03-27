@@ -19,8 +19,11 @@ If arguments are provided with `-a`, it executes the single command and exits (s
 ## INTERACTIVE COMMANDS
 The following commands are available within the REPL prompt (`kpkg>`).
 
-### get [INVOCATION]
+### get [--all] [INVOCATION]
 Retrieves values from the database, configuration, overrides, or dependency graph.
+
+**OPTIONS**:
+* `--all`: When used with `depends`, includes all dependencies including already-installed packages. Equivalent to passing `forceInstallAll = true` to the dependency handler.
 
 **TYPES**:
 * `db`: Get values from the database.
@@ -38,6 +41,15 @@ kpkg> get config
 
 # Get specific config value
 kpkg> get config.Repositories.repoLinks
+
+# Get build dependencies for bash (only non-installed)
+kpkg> get depends.bash.build
+
+# Get ALL build dependencies for bash (including installed)
+kpkg> get --all depends.bash.build
+
+# --all can also be placed after depends
+kpkg> get depends.bash.build --all
 ```
 
 ### set [INVOCATION] [VALUE]

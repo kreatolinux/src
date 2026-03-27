@@ -1,5 +1,6 @@
 import os
 import strutils
+import sequtils
 import terminal
 import tables
 import ../../common/logging
@@ -25,11 +26,15 @@ import rdstdin
 
 proc get(args: seq[string]) =
   ## Gets a kpkg value. See kpkg_get(5) for more information.
-  if args.len < 1:
-    echo "Usage: get [invocation]"
+
+  let showAll = args.anyIt(it == "--all")
+  let invocs = args.filterIt(it != "--all" and it != "")
+
+  if invocs.len < 1:
+    echo "Usage: get [--all] [invocation]"
     return
 
-  for invoc in args:
+  for invoc in invocs:
     let invocSplit = invoc.split(".")
     case invocSplit[0]:
       of "db":
@@ -100,19 +105,17 @@ proc get(args: seq[string]) =
             try:
               case depType:
                 of "build":
-                  # Get build dependencies (both bdeps and deps)
-                  # Set ignoreCircularDeps=true to silently handle circular dependencies
                   deps = dephandler(@[packageName],
                           isBuild = true, root = "/",
                           prevPkgName = packageName,
-                          ignoreCircularDeps = true)
+                          ignoreCircularDeps = true,
+                          forceInstallAll = showAll)
                 of "install":
-                  # Get install dependencies only
-                  # Set ignoreCircularDeps=true to silently handle circular dependencies
                   deps = dephandler(@[packageName],
                           root = "/",
                           prevPkgName = packageName,
-                          ignoreCircularDeps = true)
+                          ignoreCircularDeps = true,
+                          forceInstallAll = showAll)
                 else:
                   error("'"&depType&"': invalid dependency type. Use 'build' or 'install'")
                   return
@@ -146,7 +149,7 @@ proc get(args: seq[string]) =
                   useBootstrap: false,
                   ignoreInit: false,
                   ignoreCircularDeps: true,
-                  forceInstallAll: false,
+                  forceInstallAll: showAll,
                   init: ""
               )
 
@@ -169,7 +172,7 @@ proc get(args: seq[string]) =
             except CatchableError:
               error("failed to generate dependency graph for '"&packageName&"'")
           else:
-            error("'"&invoc&"': invalid invocation. Usage: depends.packageName.build[.graph] or depends.packageName.install[.graph]")
+            error("'"&invoc&"': invalid invocation. Usage: get [--all] depends.packageName.build[.graph] or depends.packageName.install[.graph]")
       else:
         error("'"&invoc&"': invalid invocation. Available invocations: db, config, overrides, depends. See kpkg_get(5) for more information.")
 
