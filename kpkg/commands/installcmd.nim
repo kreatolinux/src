@@ -3,6 +3,7 @@ import osproc
 import strutils
 import sequtils
 import parsecfg
+import tables
 import ../modules/sqlite
 import ../modules/config
 import ../../common/logging
@@ -20,6 +21,7 @@ import ../modules/removeInternal
 import ../modules/transaction
 import ../modules/run3/run3
 import ../modules/staleprocs
+import ../modules/builder/commitctx
 
 setControlCHook(ctrlc)
 
@@ -451,11 +453,31 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
     tx.rollback()
     raise
 
+proc canDownloadBinary*(package: string, version: string, binrepos: seq[string],
+        kTarget: string): bool =
+  ## Check if a binary is downloadable from any mirror (without actually downloading)
+  ## Uses a quick HEAD request via curl to check existence
+
+  let tarball = package & "-" & version & ".kpkg"
+
+  for binrepo in binrepos:
+    let url = "https://" & binrepo & "/archives/system/" & kTarget & "/" & tarball
+    let (_, exitCode) = execCmdEx("curl -sfI " & quoteShell(url) & " 2>/dev/null")
+    if exitCode == 0:
+      debug "canDownloadBinary: Binary '" & tarball & "' found at " & binrepo
+      return true
+
+  debug "canDownloadBinary: Binary '" & tarball & "' not found on any mirror"
+  return false
+
 proc down_bin*(package: string, binrepos: seq[string], root: string,
         offline: bool, forceDownload = false, ignoreDownloadErrors = false,
                 kTarget = kpkgTarget(root), version = "", customPath = "",
-                ignoreErrors = false) =
+                ignoreErrors = false, commit = "") =
   ## Downloads binaries.
+  ##
+  ## For commit-based installs, the version should be the version at that commit.
+  ## If commit is specified and binary not found, returns without error (caller handles it).
 
   discard existsOrCreateDir("/var/")
   discard existsOrCreateDir("/var/cache")
@@ -481,10 +503,10 @@ proc down_bin*(package: string, binrepos: seq[string], root: string,
   if not isEmptyOrWhitespace(binreposOverride):
     binreposFinal = binreposOverride.split(" ")
 
-  for binrepo in binreposFinal:
-    var repo: string
+  var pkgVersion = version
 
-    repo = findPkgRepo(package)
+  if isEmptyOrWhitespace(pkgVersion):
+    var repo = findPkgRepo(package)
     var pkg: runFile
 
     try:
@@ -501,48 +523,57 @@ proc down_bin*(package: string, binrepos: seq[string], root: string,
     if pkg.isGroup:
       return
 
-    var pkgVersion = pkg.versionString
+    pkgVersion = pkg.versionString
 
-    if not isEmptyOrWhitespace(version):
-      pkgVersion = version
+  let tarball = package&"-"&pkgVersion&".kpkg"
+  var path = kpkgArchivesDir&"/system/"&kTarget&"/"&tarball
+  if not isEmptyOrWhitespace(customPath):
+    path = customPath
 
-    let tarball = package&"-"&pkgVersion&".kpkg"
-    var path = kpkgArchivesDir&"/system/"&kTarget&"/"&tarball
-    if not isEmptyOrWhitespace(customPath):
-      path = customPath
-
-    if fileExists(path) and (not forceDownload):
-      info "Tarball already exists for '"&package&"', not gonna download again"
-      downSuccess = true
-    elif not offline:
+  if fileExists(path) and (not forceDownload):
+    info "Tarball already exists for '"&package&"', not gonna download again"
+    downSuccess = true
+  elif not offline:
+    for binrepo in binreposFinal:
       try:
         download("https://"&binrepo&"/archives/system/"&kTarget&"/"&tarball, path)
         downSuccess = true
+        break
       except:
-        const msg = "an error occured while downloading package binary"
-        if ignoreErrors:
-          debug msg
-          return
-        else:
-          fatal(msg)
-    else:
-      const msg = "attempted to download tarball from binary repository in offline mode"
-      debug path
-      if ignoreErrors:
-        debug msg
-        return
-      else:
-        fatal(msg)
+        debug "down_bin: Failed to download from " & binrepo
+        continue
 
-  if not downSuccess and not ignoreDownloadErrors:
+    if not downSuccess and commit != "":
+      debug "down_bin: Binary for commit '" & commit & "' not found, returning (caller will handle)"
+      return
+  else:
+    const msg = "attempted to download tarball from binary repository in offline mode"
+    debug path
+    if ignoreErrors:
+      debug msg
+      return
+    else:
+      if commit != "":
+        debug "down_bin: Offline mode, commit package not cached"
+        return
+      fatal(msg)
+
+  if not downSuccess and not ignoreDownloadErrors and commit == "":
     fatal("couldn't download the binary")
 
 proc install_bin(packages: seq[string], binrepos: seq[string], root: string,
         offline: bool, downloadOnly = false, manualInstallList: seq[string],
                 kTarget = kpkgTarget(root), forceDownload = false,
                 ignoreDownloadErrors = false, forceDownloadPackages = @[""],
-                basePackage = false) =
+                basePackage = false,
+                commitContexts: Table[string, InstallCommitContext] = initTable[
+                    string, InstallCommitContext]()) =
   ## Downloads and installs binaries.
+  ##
+  ## For commit-based installs:
+  ## - Uses version from commit context for download lookup
+  ## - Checks if binary exists before download
+  ## - Provides helpful error if binary not found
 
   withLockfile:
     for i in packages:
@@ -550,16 +581,53 @@ proc install_bin(packages: seq[string], binrepos: seq[string], root: string,
       var fdownload = false
       if i in forceDownloadPackages or forceDownload:
         fdownload = true
+
+      var versionToUse = pkgParsed.version
+      var commitToUse = ""
+
+      if pkgParsed.commit != "":
+        commitToUse = pkgParsed.commit
+        if pkgParsed.name in commitContexts and commitContexts[
+            pkgParsed.name].commit != "":
+          versionToUse = commitContexts[pkgParsed.name].versionAtCommit
+          info "Installing '" & pkgParsed.name & "#" & commitToUse &
+              "' (version " & versionToUse & ")"
+
+      if pkgParsed.commit != "" and versionToUse != "":
+        let tarballPath = kpkgArchivesDir & "/system/" & kTarget & "/" &
+            pkgParsed.name & "-" & versionToUse & ".kpkg"
+
+        if not fileExists(tarballPath):
+          if offline:
+            error("Binary for '" & pkgParsed.name & "#" & commitToUse &
+                "' (version " & versionToUse & ") not cached")
+            info("Use 'kpkg build " & pkgParsed.name & "#" & commitToUse & "' to build from source at this commit")
+            quit(1)
+
+          let canDown = canDownloadBinary(pkgParsed.name, versionToUse,
+              binrepos, kTarget)
+          if not canDown:
+            error("Binary for '" & pkgParsed.name & "#" & commitToUse &
+                "' (version " & versionToUse & ") not found on mirrors")
+            info("Use 'kpkg build " & pkgParsed.name & "#" & commitToUse & "' to build from source at this commit")
+            quit(1)
+
       down_bin(pkgParsed.name, binrepos, root, offline, fdownload,
               ignoreDownloadErrors = ignoreDownloadErrors, kTarget = kTarget,
-              version = pkgParsed.version)
+              version = versionToUse, commit = commitToUse)
 
     if not downloadOnly:
       for i in packages:
         let pkgParsed = parsePkgInfo(i)
+        var versionToUse = pkgParsed.version
+
+        if pkgParsed.commit != "" and pkgParsed.name in commitContexts and
+            commitContexts[pkgParsed.name].commit != "":
+          versionToUse = commitContexts[pkgParsed.name].versionAtCommit
+
         installPkg(pkgParsed.repo, pkgParsed.name, root,
                 manualInstallList = manualInstallList, kTarget = kTarget,
-                basePackage = basePackage, version = pkgParsed.version)
+                basePackage = basePackage, version = versionToUse)
         info "Installation for "&i&" complete"
 
 proc install*(promptPackages: seq[string], root = "/", yes: bool = false,
@@ -568,6 +636,11 @@ proc install*(promptPackages: seq[string], root = "/", yes: bool = false,
                 isUpgrade = false, target = "default",
                 basePackage = false): int =
   ## Install a package from a binary, from a repository or locally.
+  ##
+  ## Supports commit-based installation with syntax: package#commit
+  ## When a commit hash is specified, the version at that commit is used
+  ## to find the binary. If binary not found, suggests using kpkg build.
+
   if promptPackages.len == 0:
     error("please enter a package name")
     quit(1)
@@ -583,44 +656,61 @@ proc install*(promptPackages: seq[string], root = "/", yes: bool = false,
 
   let fullRootPath = expandFilename(root)
 
-  for i in promptPackages:
-    let currentPackage = lastPathPart(i)
-    packages = packages&currentPackage
-    if findPkgRepo(parsePkgInfo(i).name&"-"&init) != "":
-      packages = packages&(parsePkgInfo(i).name&"-"&init)
+  withInstallCommitContexts(promptPackages, commitCtxs):
+    let hasCommit = hasAnyCommit(commitCtxs)
 
-  try:
-    deps = dephandler(packages, root = root)
-  except CatchableError:
-    error("Dependency detection failed")
-    quit(1)
+    for i in promptPackages:
+      let pkgInfo = parsePkgInfo(i)
+      packages = packages & pkgInfo.name
+      if findPkgRepo(pkgInfo.name&"-"&init) != "":
+        packages = packages & (pkgInfo.name&"-"&init)
 
-  printReplacesPrompt(deps, root, true)
-  printReplacesPrompt(packages, root)
+    var commitForDeps = ""
+    var commitRepoForDeps = ""
+    var headCacheForDeps = initTable[string, runFile]()
 
-  let binrepos = getConfigValue("Repositories", "binRepos").split(" ")
+    if hasCommit:
+      for name, ctx in commitCtxs:
+        if ctx.commit != "":
+          commitForDeps = ctx.commit
+          commitRepoForDeps = ctx.commitRepo
+          headCacheForDeps = ctx.headRunfileCache
+          break
 
-  deps = deduplicate(deps&packages)
+    try:
+      deps = dephandler(packages, root = root,
+              commit = commitForDeps, commitRepo = commitRepoForDeps,
+              headRunfileCache = headCacheForDeps)
+    except CatchableError:
+      error("Dependency detection failed")
+      quit(1)
 
-  let gD = getDependents(deps)
-  if not isEmptyOrWhitespace(gD.join("")):
-    deps = deps&gD
+    printReplacesPrompt(deps, root, true)
+    printReplacesPrompt(packages, root)
 
-  printPackagesPrompt(deps.join(" "), yes, no, dependents = gD, binary = true)
+    let binrepos = getConfigValue("Repositories", "binRepos").split(" ")
 
-  var kTarget = target
+    deps = deduplicate(deps&packages)
 
-  if target == "default":
-    kTarget = kpkgTarget(root)
+    let gD = getDependents(deps)
+    if not isEmptyOrWhitespace(gD.join("")):
+      deps = deps&gD
 
-  if not (deps.len == 0 and deps == @[""]):
-    install_bin(deps, binrepos, fullRootPath, offline,
-            downloadOnly = downloadOnly, manualInstallList = promptPackages,
-            kTarget = kTarget, forceDownload = forceDownload,
-            ignoreDownloadErrors = ignoreDownloadErrors,
-            basePackage = basePackage)
+    printPackagesPrompt(deps.join(" "), yes, no, dependents = gD, binary = true)
 
-  staleprocs.printStaleWarning()
+    var kTarget = target
 
-  info("done")
-  return 0
+    if target == "default":
+      kTarget = kpkgTarget(root)
+
+    if not (deps.len == 0 and deps == @[""]):
+      install_bin(deps, binrepos, fullRootPath, offline,
+              downloadOnly = downloadOnly, manualInstallList = promptPackages,
+              kTarget = kTarget, forceDownload = forceDownload,
+              ignoreDownloadErrors = ignoreDownloadErrors,
+              basePackage = basePackage, commitContexts = commitCtxs)
+
+    staleprocs.printStaleWarning()
+
+    info("done")
+    return 0
