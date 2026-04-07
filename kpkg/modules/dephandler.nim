@@ -308,15 +308,6 @@ proc buildDependencyGraph*(pkgs: seq[string], ctx: dependencyContext,
             debug "dephandler: Package '"&pkg&"' validation failed (repo: '"&repo&"'), not skipping"
             #continue
 
-        let repoName = if repo == "local": "local" else: lastPathPart(repo)
-        if isExcluded(pkg, repoName):
-            if packageExists(pkg, ctx.root):
-                warn "dephandler: Package '"&pkg&"' is excluded but already installed, skipping"
-                continue
-            else:
-                fatal "dephandler: Dependency '"&pkg&"' is excluded and not installed"
-                quit(1)
-
         let pkgrf = loadPackageMetadataCommitAware(pkg, repo, ctx)
 
         # Create resolved package node
@@ -372,26 +363,13 @@ proc buildDependencyGraph*(pkgs: seq[string], ctx: dependencyContext,
                     continue
 
                 # Update repo for dependency
-                var depRepoForExclude = repo
                 if not chkInstalledDirInstead:
                     let depRepo = findPkgRepo(depName)
                     debug "dephandler: findPkgRepo('"&depName&"') returned '"&depRepo&"' for build dep"
                     if depRepo != "":
                         repo = depRepo
-                        depRepoForExclude = depRepo
                     else:
                         debug "dephandler: Build dep '"&depName&"' not found in any repository!"
-
-                # Check if dependency is excluded
-                let depRepoName = if depRepoForExclude ==
-                        "local": "local" else: lastPathPart(depRepoForExclude)
-                if isExcluded(depName, depRepoName):
-                    if packageExists(depName, ctx.root):
-                        warn "dephandler: Build dep '"&depName&"' is excluded but already installed, skipping"
-                        continue
-                    else:
-                        fatal "dephandler: Build dep '"&depName&"' is excluded and not installed"
-                        quit(1)
 
                 # Skip self-dependency if the package is already installed
                 # (e.g., gmake requiring gmake to build - use the installed gmake)
@@ -433,23 +411,10 @@ proc buildDependencyGraph*(pkgs: seq[string], ctx: dependencyContext,
                     continue
 
                 # Update repo for dependency
-                var depRepoForExclude = repo
                 if not chkInstalledDirInstead:
                     let depRepo = findPkgRepo(depName)
                     if depRepo != "":
                         repo = depRepo
-                        depRepoForExclude = depRepo
-
-                # Check if dependency is excluded
-                let depRepoName = if depRepoForExclude ==
-                        "local": "local" else: lastPathPart(depRepoForExclude)
-                if isExcluded(depName, depRepoName):
-                    if packageExists(depName, ctx.root):
-                        warn "dephandler: Runtime dep '"&depName&"' is excluded but already installed, skipping"
-                        continue
-                    else:
-                        fatal "dephandler: Runtime dep '"&depName&"' is excluded and not installed"
-                        quit(1)
 
                 # Skip self-dependency if the package is already installed
                 # (e.g., gmake requiring gmake to build - use the installed gmake)
