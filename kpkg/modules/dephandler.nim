@@ -308,6 +308,15 @@ proc buildDependencyGraph*(pkgs: seq[string], ctx: dependencyContext,
             debug "dephandler: Package '"&pkg&"' validation failed (repo: '"&repo&"'), not skipping"
             #continue
 
+        let repoName = if repo == "local": "local" else: lastPathPart(repo)
+        if isExcluded(pkg, repoName):
+            if packageExists(pkg, ctx.root):
+                warn "dephandler: Package '"&pkg&"' is excluded but already installed, skipping"
+                continue
+            else:
+                fatal "dephandler: Dependency '"&pkg&"' is excluded and not installed"
+                quit(1)
+
         let pkgrf = loadPackageMetadataCommitAware(pkg, repo, ctx)
 
         # Create resolved package node
@@ -363,13 +372,26 @@ proc buildDependencyGraph*(pkgs: seq[string], ctx: dependencyContext,
                     continue
 
                 # Update repo for dependency
+                var depRepoForExclude = repo
                 if not chkInstalledDirInstead:
                     let depRepo = findPkgRepo(depName)
                     debug "dephandler: findPkgRepo('"&depName&"') returned '"&depRepo&"' for build dep"
                     if depRepo != "":
                         repo = depRepo
+                        depRepoForExclude = depRepo
                     else:
                         debug "dephandler: Build dep '"&depName&"' not found in any repository!"
+
+                # Check if dependency is excluded
+                let depRepoName = if depRepoForExclude ==
+                        "local": "local" else: lastPathPart(depRepoForExclude)
+                if isExcluded(depName, depRepoName):
+                    if packageExists(depName, ctx.root):
+                        warn "dephandler: Build dep '"&depName&"' is excluded but already installed, skipping"
+                        continue
+                    else:
+                        fatal "dephandler: Build dep '"&depName&"' is excluded and not installed"
+                        quit(1)
 
                 # Skip self-dependency if the package is already installed
                 # (e.g., gmake requiring gmake to build - use the installed gmake)
@@ -411,10 +433,23 @@ proc buildDependencyGraph*(pkgs: seq[string], ctx: dependencyContext,
                     continue
 
                 # Update repo for dependency
+                var depRepoForExclude = repo
                 if not chkInstalledDirInstead:
                     let depRepo = findPkgRepo(depName)
                     if depRepo != "":
                         repo = depRepo
+                        depRepoForExclude = depRepo
+
+                # Check if dependency is excluded
+                let depRepoName = if depRepoForExclude ==
+                        "local": "local" else: lastPathPart(depRepoForExclude)
+                if isExcluded(depName, depRepoName):
+                    if packageExists(depName, ctx.root):
+                        warn "dephandler: Runtime dep '"&depName&"' is excluded but already installed, skipping"
+                        continue
+                    else:
+                        fatal "dephandler: Runtime dep '"&depName&"' is excluded and not installed"
+                        quit(1)
 
                 # Skip self-dependency if the package is already installed
                 # (e.g., gmake requiring gmake to build - use the installed gmake)
@@ -694,6 +729,10 @@ proc dephandlerWithGraph*(pkgs: seq[string], ignoreDeps = @["  "],
             $finalResult.len)&" packages): "&finalResult.join(", ")
     return (finalResult, graph, sortResult)
 
+proc computeBuildQueue*(depGraph: dependencyGraph,
+                        requestedPackages: seq[string],
+                        bootstrap: bool): seq[string]
+
 proc collectRuntimeDepsFromGraph*(pkgs: seq[string], graph: dependencyGraph,
         visited: var HashSet[string]): seq[string] =
     ## Recursively collect all runtime dependencies from the graph (exported for reuse)
@@ -729,7 +768,8 @@ proc resolveBuildOrder*(packages: seq[string], ctx: dependencyContext,
     var depGraph: dependencyGraph
     var sortResult: SortResult
     (deps, depGraph, sortResult) = dephandlerWithGraph(packages,
-            isBuild = ctx.isBuild, root = ctx.root, forceInstallAll = ctx.forceInstallAll,
+            isBuild = ctx.isBuild, root = ctx.root,
+            forceInstallAll = ctx.forceInstallAll,
             isInstallDir = isInstallDir, ignoreInit = ctx.ignoreInit,
             useBootstrap = ctx.useBootstrap,
             useCacheIfAvailable = ctx.useCacheIfAvailable,
@@ -752,36 +792,36 @@ proc resolveBuildOrder*(packages: seq[string], ctx: dependencyContext,
     # Combine all dependents
     let allDependents = deduplicate(gD & runtimeDependents)
 
-    # If we have dependents, rebuild the graph with them included
-    if not isEmptyOrWhitespace(allDependents.join("")):
-        let allPackages = deduplicate(packages & allDependents)
-        (deps, depGraph, sortResult) = dephandlerWithGraph(allPackages,
-                isBuild = ctx.isBuild, root = ctx.root,
-                forceInstallAll = ctx.forceInstallAll,
-                isInstallDir = isInstallDir, ignoreInit = ctx.ignoreInit,
-                useBootstrap = ctx.useBootstrap,
-                useCacheIfAvailable = ctx.useCacheIfAvailable,
-                commit = ctx.commit, commitRepo = ctx.commitRepo,
-                headRunfileCache = ctx.headRunfileCache)
-
-    # Flatten the graph to get correct build order
-    deps = flattenDependencyOrder(depGraph).order.filterIt(it.len != 0)
-
-    # For packages with bootstrap deps in non-bootstrap mode,
-    # move them to the end to ensure full BUILD_DEPENDS are available
-    if not bootstrap:
-        var p: seq[string]
-        for currentPackage in packages:
-            p = p & currentPackage
-            # Note: init handling would need to be passed in or handled elsewhere
-
-        for pkg in p:
-            let pkgInfo = parsePkgInfo(pkg)
-            if depGraph.nodes.hasKey(pkgInfo.name) and depGraph.nodes[
-                    pkgInfo.name].metadata.bsdeps.len > 0:
-                deps = deps.filterIt(it != pkg) & pkg
+    # NOTE: allDependents are informational and used by callers for prompts/cache
+    # invalidation. They must not be mixed into the execution queue graph,
+    # otherwise root filtering can drop required build dependencies.
+    #
+    # Build queue must be derived strictly from the dependency graph of the
+    # originally requested packages.
+    deps = computeBuildQueue(depGraph, packages, bootstrap)
 
     return (deps, depGraph, allDependents, sortResult)
+
+proc computeBuildQueue*(depGraph: dependencyGraph,
+                        requestedPackages: seq[string],
+                        bootstrap: bool): seq[string] =
+    ## Compute the build execution queue from dependency graph.
+    ## Queue ordering is dependencies first, dependents later.
+    ##
+    ## The queue is derived from graph topology for the originally requested
+    ## package closure only.
+
+    result = flattenDependencyOrder(depGraph).order.filterIt(it.len != 0)
+
+    # For packages with bootstrap deps in non-bootstrap mode,
+    # move them to the end to ensure full BUILD_DEPENDS are available.
+    if not bootstrap:
+        for pkg in requestedPackages:
+            let pkgInfo = parsePkgInfo(pkg)
+            let pkgName = pkgInfo.name
+            if depGraph.nodes.hasKey(pkgName) and depGraph.nodes[
+                    pkgName].metadata.bsdeps.len > 0:
+                result = result.filterIt(it != pkgName) & pkgName
 
 proc getSandboxDepsFromGraph*(pkg: string, graph: dependencyGraph,
         bootstrap: bool, root: string, forceInstallAll: bool,
@@ -797,7 +837,10 @@ proc getSandboxDepsFromGraph*(pkg: string, graph: dependencyGraph,
     let isBootstrapBuild = bootstrap and node.metadata.bsdeps.len > 0
     let baseDeps = if isBootstrapBuild: node.metadata.bsdeps else: node.metadata.bdeps
 
-    var sandboxDeps: seq[string] = baseDeps
+    # Filter baseDeps to only include packages that are already installed locally.
+    # Dependencies that need to be built will be handled by the normal build order,
+    # not by trying to install them from the local database into the sandbox.
+    var sandboxDeps: seq[string] = baseDeps.filterIt(packageExists(it, root))
     var visited = initHashSet[string]()
 
     # For bootstrap builds: only the bootstrap deps and their transitive runtime deps
