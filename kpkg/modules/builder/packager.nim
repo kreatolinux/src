@@ -10,6 +10,25 @@ import ../libarchive
 import ../commonPaths
 import ../../../common/version
 
+proc resolveDependencyPackage*(dep: string,
+                              roots: seq[string] = @[kpkgEnvPath,
+                                  kpkgOverlayPath & "/upperDir",
+                                      "/"]): Package =
+  ## Resolve dependency package metadata from known roots.
+  ##
+  ## The fallback to "/" is important when a dependency is satisfied by
+  ## an already-installed package (including replacements such as ninja/samurai).
+  for root in roots:
+    if packageExists(dep, root):
+      return getPackage(dep, root)
+
+  when defined(release):
+    error "Dependency '" & dep & "' not found while generating binary package"
+  else:
+    debug "Dependency '" & dep & "' not found while generating binary package"
+
+  raise newException(CatchableError, "Dependency '" & dep & "' not found")
+
 proc createPackage*(actualPackage: string, pkg: runFile,
         kTarget: string): string =
   ## Creates a binary package from the build directory.
@@ -33,22 +52,7 @@ proc createPackage*(actualPackage: string, pkg: runFile,
     if isEmptyOrWhitespace(dep):
       continue
 
-    var depPkg: Package
-
-    try:
-      if packageExists(dep, kpkgEnvPath):
-        depPkg = getPackage(dep, kpkgEnvPath)
-      elif packageExists(dep, kpkgOverlayPath&"/upperDir"):
-        depPkg = getPackage(dep, kpkgOverlayPath&"/upperDir/")
-      else:
-        when defined(release):
-          error "Dependency '" & dep & "' not found while generating binary package"
-        else:
-          debug "Dependency '" & dep & "' not found while generating binary package"
-        raise newException(CatchableError, "Dependency '" & dep & "' not found")
-
-    except CatchableError:
-      raise
+    let depPkg = resolveDependencyPackage(dep)
 
     if depPkg.isNil:
       raise newException(CatchableError, "Failed to resolve dependency: " & dep)
