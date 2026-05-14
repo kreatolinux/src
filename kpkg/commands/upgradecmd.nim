@@ -12,8 +12,12 @@ import ../modules/staleprocs
 
 proc upgrade*(root = "/",
         builddir = "/tmp/kpkg/build", srcdir = "/tmp/kpkg/srcdir", yes = false,
-                no = false) =
+                no = false, exclude: seq[string] = @[],
+                disableExcludes: bool = false) =
   ## Upgrade packages.
+
+  setDisableExcludes(disableExcludes)
+  addCliExcludePatterns(exclude)
 
   isKpkgRunning()
   checkLockfile()
@@ -43,17 +47,22 @@ proc upgrade*(root = "/",
       info "skipping "&localPkg.name&": selected to not upgrade in kpkg.conf"
       continue
 
-    when declared(localPkg.epoch):
-      let epoch_local = epoch
-
     repo = findPkgRepo(pkg)
     if isEmptyOrWhitespace(repo):
       warn "skipping "&localPkg.name&": not found in available repositories"
       continue
 
+    let repoName = lastPathPart(repo)
+    if isExcluded(pkg, repoName):
+      info "skipping "&pkg&": excluded in kpkg.conf"
+      continue
+
+    when declared(localPkg.epoch):
+      let epoch_local = epoch
+
     var upstreamPkg: runFile
     try:
-      upstreamPkg = parse_runfile(repo&"/"&pkg)
+      upstreamPkg = parseRunfile(repo&"/"&pkg)
     except CatchableError:
       fatal("Unknown error while reading package on repository, possibly broken repo?")
 
@@ -70,7 +79,8 @@ proc upgrade*(root = "/",
     discard build(yes = yes, no = no, packages = packages, root = root,
             isUpgrade = true)
   else:
-    discard install(packages, root, yes = yes, no = no, isUpgrade = true)
+    discard install(packages, root, yes = yes, no = no, isUpgrade = true,
+            exclude = exclude, disableExcludes = disableExcludes)
 
   staleprocs.printStaleWarning()
 

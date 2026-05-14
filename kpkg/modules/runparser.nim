@@ -99,13 +99,10 @@ proc parseRunfile*(path: string, removeLockfileWhenErr = true): runFile =
     ret.bdeps = rf.getListVariable("build_depends", override, "runFile", "buildDepends")
 
     # Bootstrap depends logic
-
-    # Determine variable name for bootstrap dependencies
-    var bsdepsName = "bootstrap_depends"
-    if not allVars.hasKey("bootstrap_depends") and allVars.hasKey("build_depends"):
-      bsdepsName = "build_depends"
-
-    ret.bsdeps = rf.getListVariable(bsdepsName, override, "runFile", "bootstrapDepends")
+    if allVars.hasKey("bootstrap_depends"):
+      ret.bsdeps = rf.getListVariable("bootstrap_depends", override, "runFile", "bootstrapDepends")
+    else:
+      ret.bsdeps = @[]
 
 
     # Optdepends

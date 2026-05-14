@@ -84,14 +84,17 @@ dispatchMulti(
     "no": "Automatically say 'no' to every question",
     "offline": "Offline mode, errors out if tarball is attempted to get downloaded off binrepo",
     "downloadOnly": "Only download the binary, don't install",
-    "ignoreDownloadErrors": "Ignore errors that may occur while downloading packages"
+    "ignoreDownloadErrors": "Ignore errors that may occur while downloading packages",
+    "exclude": "Additional packages to exclude (comma-separated patterns)",
+    "disableExcludes": "Disable all exclude patterns for this transaction"
     },
-    suppress = @["isUpgrade", "basePackage"] # Internal variable for commands/upgradecmd, Internal variable of kreastrap
+    suppress = @["isUpgrade", "basePackage"]
   ],
 
   [
   search, help = {
-    "colors": "Enable color output"
+    "colors": "Enable color output",
+    "showExcluded": "Show excluded packages in results"
   }
   ],
 
@@ -126,7 +129,9 @@ dispatchMulti(
     "builddir": "Set a custom build directory",
     "yes": "Automatically say 'yes' to every question",
     "no": "Automatically say 'no' to every question",
-    "srcdir": "Set a custom source directory"
+    "srcdir": "Set a custom source directory",
+    "exclude": "Additional packages to exclude (comma-separated patterns)",
+    "disableExcludes": "Disable all exclude patterns for this transaction"
     }
   ],
 
@@ -160,7 +165,11 @@ dispatchMulti(
   }
   ],
   [
-  list
+  list, help = {
+    "installed": "List only installed packages",
+    "color": "Enable color output",
+    "showExcluded": "Show excluded packages"
+  }
   ],
   [
   clearLock, doc = "Force clear the kpkg lockfile if it's stale"

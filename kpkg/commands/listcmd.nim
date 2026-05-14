@@ -17,12 +17,17 @@ proc getListPackagesRepo(root = "/", ignoreList = @[""]): seq[string] =
   return res
 
 
-proc list*(installed = false, color = true) =
-  ## List packages.
+proc list*(installed = false, color = true, showExcluded = false) =
   var packageList = getListPackages("/")
 
   if not installed:
     packageList = getListPackagesRepo("/", packageList)
 
   for package in packageList:
+    let repo = findPkgRepo(package)
+    let repoName = if not isEmptyOrWhitespace(repo): lastPathPart(
+        repo) else: "local"
+    let excluded = isExcluded(package, repoName)
+    if excluded and not showExcluded:
+      continue
     echo printProvides("", package, color, false)

@@ -157,7 +157,7 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
         isParsed: false), manualInstallList: seq[string], isUpgrade = false,
                 kTarget = kpkgTarget(root), ignorePostInstall = false,
                 umount = true, disablePkgInfo = false, ignorePreInstall = false,
-                basePackage = false, version = "") =
+                basePackage = false, version = "", tarballPath = "") =
   ## Installs a package atomically with transaction support.
   ## If installation fails at any point, changes are rolled back.
 
@@ -220,7 +220,10 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
     pkgVersion = version
 
   if not isGroup:
-    tarball = kpkgArchivesDir&"/system/"&kTarget&"/"&package&"-"&pkgVersion&".kpkg"
+    if tarballPath.len > 0:
+      tarball = tarballPath
+    else:
+      tarball = kpkgArchivesDir&"/system/"&kTarget&"/"&package&"-"&pkgVersion&".kpkg"
 
   setCurrentDir(kpkgArchivesDir)
 
@@ -634,7 +637,8 @@ proc install*(promptPackages: seq[string], root = "/", yes: bool = false,
         no: bool = false, forceDownload = false, offline = false,
                 downloadOnly = false, ignoreDownloadErrors = false,
                 isUpgrade = false, target = "default",
-                basePackage = false): int =
+                basePackage = false, exclude: seq[string] = @[],
+                disableExcludes: bool = false): int =
   ## Install a package from a binary, from a repository or locally.
   ##
   ## Supports commit-based installation with syntax: package#commit
@@ -649,6 +653,9 @@ proc install*(promptPackages: seq[string], root = "/", yes: bool = false,
     error("you have to be root for this action.")
     quit(1)
 
+  setDisableExcludes(disableExcludes)
+  addCliExcludePatterns(exclude)
+
   var deps: seq[string]
   let init = getInit(root)
 
@@ -661,6 +668,14 @@ proc install*(promptPackages: seq[string], root = "/", yes: bool = false,
 
     for i in promptPackages:
       let pkgInfo = parsePkgInfo(i)
+      let rawRepo = if pkgInfo.repo != "": pkgInfo.repo else: findPkgRepo(pkgInfo.name)
+      let pkgRepo = lastPathPart(rawRepo)
+      if isExcluded(pkgInfo.name, pkgRepo):
+        if packageExists(pkgInfo.name, root):
+          warn "skipping " & pkgInfo.name & ": excluded in kpkg.conf but already installed"
+        else:
+          fatal "cannot install " & pkgInfo.name & ": package is excluded"
+          quit(1)
       packages = packages & pkgInfo.name
       if findPkgRepo(pkgInfo.name&"-"&init) != "":
         packages = packages & (pkgInfo.name&"-"&init)

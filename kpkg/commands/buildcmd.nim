@@ -117,20 +117,45 @@ proc builder*(cfg: BuildConfig): bool =
   # Execute build steps
   executeBuildSteps(ctx, state, cfg.actualPackage, cfg.tests)
 
-  discard createPackage(cfg.actualPackage, state.pkg, cfg.kTarget)
+  # Phase 1: Create temp tarball WITHOUT dependency resolution.
+  # Written to a temp path so the archives directory never contains an
+  # incomplete tarball (without dependency metadata).
+  let tempTarball = kpkgTempDir1 & "/" & cfg.actualPackage & "-" &
+          state.pkg.versionString & ".kpkg.tmp"
 
-  # Install package to root as well so dependency errors don't happen
-  # because the dep is installed to destdir but not root.
-  if cfg.destdir != "/" and not packageExists(cfg.actualPackage) and (
-          not cfg.dontInstall) and cfg.target == "default":
-    installPkg(cfg.repo, cfg.actualPackage, "/", state.pkg, cfg.manualInstallList,
-            isUpgrade = cfg.isUpgrade, ignorePostInstall = cfg.ignorePostInstall)
+  try:
+    discard createPackage(cfg.actualPackage, state.pkg, cfg.kTarget,
+            resolveDeps = false, tarballPath = tempTarball)
 
-  if (not cfg.dontInstall) and (cfg.kTarget == kpkgTarget(cfg.destdir)):
-    installPkg(cfg.repo, cfg.actualPackage, cfg.destdir, state.pkg, cfg.manualInstallList,
-            isUpgrade = cfg.isUpgrade, ignorePostInstall = cfg.ignorePostInstall)
-  else:
-    info "the package target doesn't match the one on '" & cfg.destdir & "', skipping installation"
+    # Phase 2: Install from the temp tarball. This registers the package in
+    # the database so that subsequent packages' createPackage calls can
+    # resolve it as a dependency.
+    if cfg.destdir != "/" and not packageExists(cfg.actualPackage) and (
+            not cfg.dontInstall) and cfg.target == "default":
+      installPkg(cfg.repo, cfg.actualPackage, "/", state.pkg, cfg.manualInstallList,
+              isUpgrade = cfg.isUpgrade,
+              ignorePostInstall = cfg.ignorePostInstall,
+              tarballPath = tempTarball)
+
+    if (not cfg.dontInstall) and (cfg.kTarget == kpkgTarget(cfg.destdir)):
+      installPkg(cfg.repo, cfg.actualPackage, cfg.destdir, state.pkg, cfg.manualInstallList,
+              isUpgrade = cfg.isUpgrade,
+              ignorePostInstall = cfg.ignorePostInstall,
+              tarballPath = tempTarball)
+    else:
+      info "the package target doesn't match the one on '" & cfg.destdir & "', skipping installation"
+
+    # Phase 3: Finalize the tarball with resolved dependencies, written
+    # directly to the archives directory. If this fails, the archives
+    # directory stays clean (no partial tarball).
+    let finalTarball = kpkgArchivesDir & "/system/" & cfg.kTarget & "/" &
+            cfg.actualPackage & "-" & state.pkg.versionString & ".kpkg"
+    createDir(kpkgArchivesDir & "/system/" & cfg.kTarget)
+    finalizePackageDeps(cfg.actualPackage, state.pkg, cfg.kTarget,
+            outputPath = finalTarball)
+
+  finally:
+    removeFile(tempTarball)
 
   removeLockfile()
 

@@ -1,6 +1,7 @@
 import os
 import strutils
 import ../modules/sqlite
+import ../modules/config
 import ../../common/logging
 import ../modules/lockfile
 import ../modules/processes
@@ -40,6 +41,13 @@ proc remove*(packages: seq[string], yes = false, root = "",
       if basePackage:
         error("\""&package&"\" is a part of base system, cannot remove")
         quit(1)
+
+  for package in packagesFinal:
+    let pkgRepo = findPkgRepo(package)
+    let repoName = if not isEmptyOrWhitespace(pkgRepo): lastPathPart(
+        pkgRepo) else: ""
+    if isExcluded(package, repoName):
+      warn "removing excluded package: " & package
 
   if not yes:
     echo "Removing: "&packagesFinal.join(" ")

@@ -7,7 +7,8 @@ import ../modules/colors
 import ../modules/runparser
 import ../modules/fuzzyFinder
 
-proc printResult(repo: string, package: string, colors = true): string =
+proc printResult(repo: string, package: string, colors = true,
+    showExcludedMarker = false): string =
   ## Prints results for searches.
   var r: string
   var isGroup = false
@@ -37,12 +38,15 @@ proc printResult(repo: string, package: string, colors = true): string =
   for i in 1 .. 40 - (package.len + 1 + repo.len + version.len):
     r = r & " "
 
+  if showExcludedMarker:
+    r = r & "(excluded) "
+
   if isEmptyOrWhitespace(desc):
     return r & "No description available"
   else:
     return r & desc
 
-proc search*(keyword: seq[string], colors = true) =
+proc search*(keyword: seq[string], colors = true, showExcluded = false) =
   ## Search packages.
   if keyword.len == 0:
     error("please enter a keyword")
@@ -51,8 +55,13 @@ proc search*(keyword: seq[string], colors = true) =
   let exactMatch = findPkgRepo(keyword[0])
 
   if exactMatch != "":
-    echo "One exact match found."
-    echo printResult(lastPathPart(exactMatch), keyword[0], colors)&"\n"
+    let repoName = lastPathPart(exactMatch)
+    let excluded = isExcluded(keyword[0], repoName)
+    if excluded and not showExcluded:
+      warn "package '" & keyword[0] & "' is excluded (use --show-excluded to display)"
+    else:
+      echo "One exact match found."
+      echo printResult(repoName, keyword[0], colors, excluded)&"\n"
 
 
   echo "Other results;"
@@ -63,12 +72,17 @@ proc search*(keyword: seq[string], colors = true) =
       if i == keyword[0]:
         continue
 
+      let repoName = lastPathPart(r)
+      let excluded = isExcluded(i, repoName)
+      if excluded and not showExcluded:
+        continue
+
       let nameScore = fuzzyMatch(keyword[0], i)
       if nameScore >= 0.6:
-        echo printResult(lastPathPart(r), i, colors)
+        echo printResult(repoName, i, colors, excluded)
         continue
 
       # Only parse runfile if name didn't match well enough
       let pkg = parseRunfile(r&"/"&i)
       if pkg.desc != "" and fuzzyMatch(keyword.join(" "), pkg.desc) >= 0.8:
-        echo printResult(lastPathPart(r), i, colors)
+        echo printResult(repoName, i, colors, excluded)
