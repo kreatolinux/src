@@ -22,7 +22,7 @@ import ../commonTasks
 proc buildPackageInSandbox*(pkgName: string, depGraph: dependencyGraph,
                             sandboxCfg: SandboxConfig,
                             builderProc: BuilderProc,
-                            installPkgProc: InstallPkgProc) =
+                            installPkgProc: InstallPkgProc): seq[string] =
   ## Sets up sandbox for a single package and builds it.
   ##
   ## Handles overlay mount, dependency installation, postinstall, ldconfig.
@@ -145,11 +145,14 @@ proc buildPackageInSandbox*(pkgName: string, depGraph: dependencyGraph,
 
   discard builderProc(buildCfg)
 
+  if buildCfg.sonameChanged:
+    return buildCfg.consumersToRebuild
+
   info("built " & pkgName & " successfully")
 
 
-proc buildAllPackagesInSandbox*(deps: seq[string], depGraph: dependencyGraph,
-                                sandboxCfg: SandboxConfig,
+proc buildAllPackagesInSandbox*(deps: var seq[string], depGraph: dependencyGraph,
+                                sandboxCfg: var SandboxConfig,
                                 builderProc: BuilderProc,
                                 installPkgProc: InstallPkgProc): int =
   ## Iterates over all packages and builds each in sandbox.
@@ -158,8 +161,13 @@ proc buildAllPackagesInSandbox*(deps: seq[string], depGraph: dependencyGraph,
 
   for pkg in deps:
     try:
-      buildPackageInSandbox(pkg, depGraph, sandboxCfg,
+      let consumers = buildPackageInSandbox(pkg, depGraph, sandboxCfg,
               builderProc, installPkgProc)
+      for consumer in consumers:
+        if consumer notin deps:
+          deps.add(consumer)
+          sandboxCfg.ignoreUseCacheIfAvailable.add(consumer)
+          info "Added " & consumer & " to build queue (SONAME consumer rebuild)"
     except CatchableError:
       when defined(release):
         fatal("Undefined error occured")

@@ -21,6 +21,7 @@ import ../modules/builder/executor
 import ../modules/builder/environment
 import ../modules/builder/sandbox
 import ../modules/builder/commitctx
+import ../modules/builder/soname
 
 proc formatCycleDisplay(cyclePath: seq[string]): string =
   ## Format cycle path for display (use <-> for 2-node cycles, -> for longer)
@@ -116,6 +117,18 @@ proc builder*(cfg: BuildConfig): bool =
 
   # Execute build steps
   executeBuildSteps(ctx, state, cfg.actualPackage, cfg.tests)
+
+  # SONAME change detection: check if this package installs .so files with
+  # different version suffixes than what's currently installed. If so, queue
+  # consumers for rebuild.
+  if not cfg.dontInstall and not cfg.isBootstrap:
+    if hasSonameChanged(kpkgBuildRoot, cfg.actualPackage, cfg.actualRoot):
+      cfg.sonameChanged = true
+      cfg.consumersToRebuild = getRuntimeDependents(@[cfg.actualPackage],
+          cfg.actualRoot)
+      if cfg.consumersToRebuild.len > 0:
+        warn "SONAME change detected for " & cfg.actualPackage &
+             ", queuing rebuild of: " & cfg.consumersToRebuild.join(", ")
 
   # Phase 1: Create temp tarball WITHOUT dependency resolution.
   # Written to a temp path so the archives directory never contains an
@@ -308,7 +321,7 @@ proc build*(no = false, yes = false, root = "/",
     let gD = getDependents(deps)
 
     # Create sandbox configuration
-    let sandboxCfg = initSandboxConfig(
+    var sandboxCfg = initSandboxConfig(
       fullRootPath = fullRootPath,
       target = target,
       bootstrap = bootstrap,

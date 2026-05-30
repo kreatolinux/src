@@ -47,6 +47,10 @@ type
     manualInstallList*: seq[string] ## Manually installed packages
     ignoreUseCacheIfAvailable*: seq[string] ## Packages to rebuild even if cached
 
+    # SONAME consumer rebuild tracking
+    sonameChanged*: bool ## True if SONAME change detected
+    consumersToRebuild*: seq[string] ## Packages to rebuild as consumers
+
     # Override configuration
     override*: Config ## Per-package override config
 
@@ -152,6 +156,8 @@ proc initBuildConfig*(package: string, destdir: string, offline = false,
     ignoreTarget: ignoreTarget,
     ignoreUseCacheIfAvailable: ignoreUseCacheIfAvailable,
     isBootstrap: isBootstrap,
+    sonameChanged: false,
+    consumersToRebuild: @[],
     commit: commit,
     commitRepo: commitRepo,
     headRunfileCache: headRunfileCache
