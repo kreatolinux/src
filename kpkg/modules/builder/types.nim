@@ -108,6 +108,8 @@ type
     commit*: string ## Commit hash for commit-based builds
     commitRepo*: string ## The repo that was checked out to the commit
     headRunfileCache*: Table[string, runFile] ## Cached runfiles at HEAD
+    # SONAME consumer rebuild tracking
+    sonameChangedPackage*: string ## Package whose SONAME changed, install for consumers
 
   InstallConfig* = object
     ## Configuration for package installation to overlay.
@@ -203,7 +205,8 @@ proc initSandboxConfig*(fullRootPath: string, target: string,
     pkgPaths: pkgPaths,
     commit: commit,
     commitRepo: commitRepo,
-    headRunfileCache: headRunfileCache
+    headRunfileCache: headRunfileCache,
+    sonameChangedPackage: ""
   )
 
 proc toCacheConfig*(cfg: BuildConfig): CacheConfig =

@@ -79,6 +79,28 @@ proc buildPackageInSandbox*(pkgName: string, depGraph: dependencyGraph,
               kpkgOverlayPath & "/upperDir",
               ignorePostInstall = true)
 
+    # Install the package with changed SONAME into the sandbox so consumers
+    # build against the new library version
+    if sandboxCfg.sonameChangedPackage != "":
+      debug "buildPackageInSandbox: installing changed soname package '" &
+          sandboxCfg.sonameChangedPackage & "'"
+      if sandboxCfg.target != "default" and sandboxCfg.target != kpkgTarget("/"):
+        let installCfg = InstallConfig(
+          repo: findPkgRepo(sandboxCfg.sonameChangedPackage),
+          package: sandboxCfg.sonameChangedPackage,
+          root: kpkgOverlayPath & "/upperDir",
+          isUpgrade: false,
+          kTarget: sandboxCfg.target,
+          manualInstallList: @[],
+          umount: false,
+          disablePkgInfo: true
+        )
+        installPkgProc(installCfg)
+      else:
+        discard installFromRoot(sandboxCfg.sonameChangedPackage,
+                sandboxCfg.root, kpkgOverlayPath & "/upperDir",
+                ignorePostInstall = true)
+
   # Mount the overlayfs after dependencies installed
   discard mountOverlayFilesystem(error = "mounting overlay filesystem")
 
@@ -159,15 +181,18 @@ proc buildAllPackagesInSandbox*(deps: var seq[string], depGraph: dependencyGraph
   ##
   ## Returns 0 on success.
 
+  var sonameSourceMap = initTable[string, string]()
   var i = 0
   while i < deps.len:
     let pkg = deps[i]
     try:
+      sandboxCfg.sonameChangedPackage = sonameSourceMap.getOrDefault(pkg, "")
       let consumers = buildPackageInSandbox(pkg, depGraph, sandboxCfg,
               builderProc, installPkgProc)
       for consumer in consumers:
         if consumer notin deps:
           deps.add(consumer)
+          sonameSourceMap[consumer] = pkg
           sandboxCfg.ignoreUseCacheIfAvailable.add(consumer)
           info "Added " & consumer & " to build queue (SONAME consumer rebuild)"
     except CatchableError:
