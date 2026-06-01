@@ -159,7 +159,9 @@ proc buildAllPackagesInSandbox*(deps: var seq[string], depGraph: dependencyGraph
   ##
   ## Returns 0 on success.
 
-  for pkg in deps:
+  var i = 0
+  while i < deps.len:
+    let pkg = deps[i]
     try:
       let consumers = buildPackageInSandbox(pkg, depGraph, sandboxCfg,
               builderProc, installPkgProc)
@@ -173,6 +175,7 @@ proc buildAllPackagesInSandbox*(deps: var seq[string], depGraph: dependencyGraph
         fatal("Undefined error occured")
       else:
         raise getCurrentException()
+    i.inc
 
   info("built all packages successfully")
   return 0
