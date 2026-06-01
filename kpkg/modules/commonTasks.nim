@@ -23,9 +23,6 @@ proc getDependents*(packages: seq[string], root = "/",
 
   for p in getListPackages():
 
-    if not dirExists(p):
-      continue
-
     let pkg = getPackage(p, root)
 
     for package in packages:
@@ -50,9 +47,6 @@ proc getRuntimeDependents*(packages: seq[string], root: string): seq[string] =
   var res: seq[string]
 
   for p in getListPackages():
-
-    if not dirExists(p):
-      continue
 
     let pkg = getPackage(p, root)
 

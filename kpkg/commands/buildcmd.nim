@@ -124,8 +124,12 @@ proc builder*(cfg: BuildConfig): bool =
   if not cfg.dontInstall and not cfg.isBootstrap:
     if hasSonameChanged(kpkgBuildRoot, cfg.actualPackage, cfg.actualRoot):
       cfg.sonameChanged = true
+      # Save CWD and change to repo root so getRuntimeDependents' dirExists check works
+      let oldCwd = getCurrentDir()
+      setCurrentDir(cfg.repo)
       cfg.consumersToRebuild = getRuntimeDependents(@[cfg.actualPackage],
           cfg.actualRoot)
+      setCurrentDir(oldCwd)
       if cfg.consumersToRebuild.len > 0:
         warn "SONAME change detected for " & cfg.actualPackage &
              ", queuing rebuild of: " & cfg.consumersToRebuild.join(", ")
