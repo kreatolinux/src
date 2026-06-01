@@ -187,6 +187,9 @@ proc buildAllPackagesInSandbox*(deps: var seq[string], depGraph: dependencyGraph
     let pkg = deps[i]
     try:
       sandboxCfg.sonameChangedPackage = sonameSourceMap.getOrDefault(pkg, "")
+      if sandboxCfg.sonameChangedPackage != "":
+        debug "buildAll: " & pkg & " is SONAME consumer of " &
+            sandboxCfg.sonameChangedPackage
       let consumers = buildPackageInSandbox(pkg, depGraph, sandboxCfg,
               builderProc, installPkgProc)
       for consumer in consumers:
