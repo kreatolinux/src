@@ -198,6 +198,10 @@ proc buildAllPackagesInSandbox*(deps: var seq[string], depGraph: dependencyGraph
       if consumers.len > 0:
         debug "buildAll: installing soname source " & pkg & " to env"
         discard installFromRoot(pkg, sandboxCfg.root, kpkgEnvPath)
+      # Install rebuilt consumer to env so subsequent consumers get the new binary
+      if sonameSourceMap.hasKey(pkg):
+        debug "buildAll: installing rebuilt consumer " & pkg & " to env"
+        discard installFromRoot(pkg, sandboxCfg.root, kpkgEnvPath)
       for consumer in consumers:
         if consumer notin deps:
           try:
