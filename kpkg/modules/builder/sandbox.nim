@@ -194,6 +194,19 @@ proc buildAllPackagesInSandbox*(deps: var seq[string], depGraph: dependencyGraph
             sandboxCfg.sonameChangedPackage
       let consumers = buildPackageInSandbox(pkg, depGraph, sandboxCfg,
               builderProc, installPkgProc)
+      # Install rebuilt consumers to the env so subsequent builds get new libs
+      if sonameSourceMap.hasKey(pkg):
+        debug "buildAll: installing rebuilt consumer " & pkg & " to env"
+        installPkgProc(InstallConfig(
+          repo: findPkgRepo(pkg),
+          package: pkg,
+          root: kpkgEnvPath,
+          isUpgrade: false,
+          kTarget: sandboxCfg.target,
+          manualInstallList: @[],
+          umount: false,
+          disablePkgInfo: true
+        ))
       for consumer in consumers:
         if consumer notin deps:
           try:
