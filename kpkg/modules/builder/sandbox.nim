@@ -196,11 +196,11 @@ proc buildAllPackagesInSandbox*(deps: var seq[string], depGraph: dependencyGraph
               builderProc, installPkgProc)
       # Install source package to env so consumers get new SONAME in their sandbox
       if consumers.len > 0:
-        debug "buildAll: installing soname source " & pkg & " to env"
+        rmPackage(pkg, kpkgEnvPath)
         discard installFromRoot(pkg, sandboxCfg.root, kpkgEnvPath)
       # Install rebuilt consumer to env so subsequent consumers get the new binary
       if sonameSourceMap.hasKey(pkg):
-        debug "buildAll: installing rebuilt consumer " & pkg & " to env"
+        rmPackage(pkg, kpkgEnvPath)
         discard installFromRoot(pkg, sandboxCfg.root, kpkgEnvPath)
       for consumer in consumers:
         if consumer notin deps:
