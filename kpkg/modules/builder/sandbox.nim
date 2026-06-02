@@ -102,6 +102,12 @@ proc buildPackageInSandbox*(pkgName: string, depGraph: dependencyGraph,
         discard installFromRoot(sandboxCfg.sonameChangedPackage,
                 sandboxCfg.root, kpkgOverlayPath & "/upperDir",
                 ignorePostInstall = true)
+    # Install rebuilt consumers to upperDir so subsequent builds get updated libs/binaries
+    for r in sandboxCfg.rebuiltConsumers:
+      if r != pkgName:
+        debug "buildPackageInSandbox: installing rebuilt consumer '" & r & "' to overlay"
+        discard installFromRoot(r, sandboxCfg.root,
+                kpkgOverlayPath & "/upperDir", ignorePostInstall = true)
 
   # Mount the overlayfs after dependencies installed
   discard mountOverlayFilesystem(error = "mounting overlay filesystem")
@@ -194,14 +200,8 @@ proc buildAllPackagesInSandbox*(deps: var seq[string], depGraph: dependencyGraph
             sandboxCfg.sonameChangedPackage
       let consumers = buildPackageInSandbox(pkg, depGraph, sandboxCfg,
               builderProc, installPkgProc)
-      # Install source package to env so consumers get new SONAME in their sandbox
       if consumers.len > 0:
-        rmPackage(pkg, kpkgEnvPath)
-        discard installFromRoot(pkg, sandboxCfg.root, kpkgEnvPath)
-      # Install rebuilt consumer to env so subsequent consumers get the new binary
-      if sonameSourceMap.hasKey(pkg):
-        rmPackage(pkg, kpkgEnvPath)
-        discard installFromRoot(pkg, sandboxCfg.root, kpkgEnvPath)
+        sandboxCfg.rebuiltConsumers.add(pkg)
       for consumer in consumers:
         if consumer notin deps:
           try:

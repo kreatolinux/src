@@ -110,6 +110,7 @@ type
     headRunfileCache*: Table[string, runFile] ## Cached runfiles at HEAD
     # SONAME consumer rebuild tracking
     sonameChangedPackage*: string ## Package whose SONAME changed, install for consumers
+    rebuiltConsumers*: seq[string] ## Rebuilt consumers to install in subsequent sandboxes
 
   InstallConfig* = object
     ## Configuration for package installation to overlay.
@@ -206,7 +207,8 @@ proc initSandboxConfig*(fullRootPath: string, target: string,
     commit: commit,
     commitRepo: commitRepo,
     headRunfileCache: headRunfileCache,
-    sonameChangedPackage: ""
+    sonameChangedPackage: "",
+    rebuiltConsumers: @[]
   )
 
 proc toCacheConfig*(cfg: BuildConfig): CacheConfig =
