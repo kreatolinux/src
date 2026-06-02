@@ -18,6 +18,8 @@ import ../dephandler
 import ../processes
 import ../commonPaths
 import ../commonTasks
+import ../runparser
+import ../sqlite
 
 proc buildPackageInSandbox*(pkgName: string, depGraph: dependencyGraph,
                             sandboxCfg: SandboxConfig,
@@ -194,6 +196,15 @@ proc buildAllPackagesInSandbox*(deps: var seq[string], depGraph: dependencyGraph
               builderProc, installPkgProc)
       for consumer in consumers:
         if consumer notin deps:
+          try:
+            let pkgDir = findPkgRepo(consumer) & "/" & consumer
+            let rf = parseRunfile(pkgDir)
+            for bdep in rf.bdeps:
+              if bdep notin deps and packageExists(bdep, sandboxCfg.root):
+                deps.add(bdep)
+                info "Added " & bdep & " (build dep) to queue for consumer " & consumer
+          except:
+            debug "could not resolve bdeps for consumer " & consumer
           deps.add(consumer)
           sonameSourceMap[consumer] = pkg
           sandboxCfg.ignoreUseCacheIfAvailable.add(consumer)
