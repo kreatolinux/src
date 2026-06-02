@@ -123,7 +123,7 @@ type
     disablePkgInfo*: bool           ## Whether to disable pkginfo writing
 
   # Proc type aliases for callbacks (avoids circular imports)
-  BuilderProc* = proc(cfg: BuildConfig): bool
+  BuilderProc* = proc(cfg: var BuildConfig): bool
   InstallPkgProc* = proc(cfg: InstallConfig)
 
 proc initBuildConfig*(package: string, destdir: string, offline = false,

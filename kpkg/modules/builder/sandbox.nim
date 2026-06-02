@@ -145,7 +145,7 @@ proc buildPackageInSandbox*(pkgName: string, depGraph: dependencyGraph,
     info("Performing bootstrap build for " & pkgName)
 
   # Create BuildConfig for this package
-  let buildCfg = BuildConfig(
+  var buildCfg = BuildConfig(
     package: actualPkgName,
     destdir: sandboxCfg.fullRootPath,
     offline: false,

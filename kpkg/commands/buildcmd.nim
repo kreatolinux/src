@@ -30,14 +30,12 @@ proc formatCycleDisplay(cyclePath: seq[string]): string =
   else:
     return cyclePath.join(" -> ")
 
-proc builder*(cfg: BuildConfig): bool =
+proc builder*(cfg: var BuildConfig): bool =
   ## Builds a package using the provided configuration.
   ##
   ## This is the main entry point for building a single package.
   ## It handles: path resolution, runfile parsing, cache checking,
   ## source downloading, environment setup, build execution, and packaging.
-
-  var cfg = cfg # Make mutable copy
 
   debug "builder ran, package: '" & cfg.package & "', destdir: '" & cfg.destdir & "' root: '" & kpkgSrcDir & "', useCacheIfAvailable: '" & (
           $cfg.useCacheIfAvailable) & "'"
@@ -184,7 +182,7 @@ proc builder*(cfg: BuildConfig): bool =
 
 
 # Wrapper procs for sandbox callbacks
-proc builderWrapper(cfg: BuildConfig): bool =
+proc builderWrapper(cfg: var BuildConfig): bool =
   ## Wrapper for builder() to match BuilderProc signature.
   builder(cfg)
 
