@@ -58,6 +58,8 @@ proc buildPackageInSandbox*(pkgName: string, depGraph: dependencyGraph,
     kpkgTarget(sandboxCfg.fullRootPath)
   else:
     sandboxCfg.target
+  debug "sandboxKTarget: '" & sandboxKTarget & "' (target: '" &
+      sandboxCfg.target & "', fullRootPath: '" & sandboxCfg.fullRootPath & "')"
 
   if sandboxCfg.target != "default" and sandboxCfg.target != kpkgTarget("/"):
     for d in sandboxDeps:

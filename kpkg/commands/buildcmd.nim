@@ -188,6 +188,8 @@ proc builderWrapper(cfg: var BuildConfig): bool =
 
 proc installPkgWrapper(cfg: InstallConfig) =
   ## Wrapper for installPkg() to match InstallPkgProc signature.
+  debug "installPkgWrapper: kTarget='" & cfg.kTarget & "' root='" & cfg.root &
+      "' package='" & cfg.package & "'"
   installPkg(cfg.repo, cfg.package, cfg.root,
              isUpgrade = cfg.isUpgrade, kTarget = cfg.kTarget,
              manualInstallList = cfg.manualInstallList,

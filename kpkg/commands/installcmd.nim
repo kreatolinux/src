@@ -172,7 +172,8 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
   except CatchableError:
     fatal("Unknown error while trying to parse package on repository, possibly broken repo?")
 
-  debug "installPkg ran, repo: '"&repo&"', package: '"&package&"', root: '"&root&"', manualInstallList: '"&manualInstallList.join(" ")&"'"
+  debug "installPkg ran, repo: '"&repo&"', package: '"&package&"', root: '"&root&"', manualInstallList: '"&manualInstallList.join(
+      " ")&"', kTarget: '"&kTarget&"'"
 
   let isUpgradeActual = (packageExists(package, root) and getPackage(package,
           root).version != pkg.versionString) or isUpgrade
