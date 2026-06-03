@@ -122,6 +122,7 @@ type
     manualInstallList*: seq[string] ## Manually installed packages
     umount*: bool                   ## Whether to unmount after install
     disablePkgInfo*: bool           ## Whether to disable pkginfo writing
+    ignorePostInstall*: bool        ## Whether to skip postinstall scripts
 
   # Proc type aliases for callbacks (avoids circular imports)
   BuilderProc* = proc(cfg: var BuildConfig): bool

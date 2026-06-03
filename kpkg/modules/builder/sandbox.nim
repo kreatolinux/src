@@ -106,8 +106,17 @@ proc buildPackageInSandbox*(pkgName: string, depGraph: dependencyGraph,
     for r in sandboxCfg.rebuiltConsumers:
       if r != pkgName:
         debug "buildPackageInSandbox: installing rebuilt consumer '" & r & "' to overlay"
-        discard installFromRoot(r, sandboxCfg.root,
-                kpkgOverlayPath & "/upperDir", ignorePostInstall = true)
+        installPkgProc(InstallConfig(
+          repo: findPkgRepo(r),
+          package: r,
+          root: kpkgOverlayPath & "/upperDir",
+          isUpgrade: false,
+          kTarget: sandboxCfg.target,
+          manualInstallList: @[],
+          umount: false,
+          disablePkgInfo: true,
+          ignorePostInstall: true
+        ))
 
   # Mount the overlayfs after dependencies installed
   discard mountOverlayFilesystem(error = "mounting overlay filesystem")

@@ -191,7 +191,8 @@ proc installPkgWrapper(cfg: InstallConfig) =
   installPkg(cfg.repo, cfg.package, cfg.root,
              isUpgrade = cfg.isUpgrade, kTarget = cfg.kTarget,
              manualInstallList = cfg.manualInstallList,
-             umount = cfg.umount, disablePkgInfo = cfg.disablePkgInfo)
+             umount = cfg.umount, disablePkgInfo = cfg.disablePkgInfo,
+             ignorePostInstall = cfg.ignorePostInstall)
 
 
 proc build*(no = false, yes = false, root = "/",
