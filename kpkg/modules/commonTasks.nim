@@ -137,9 +137,11 @@ proc systemTarget*(root: string): string =
   return target
 
 
-proc kpkgTarget*(root: string, customTarget = ""): string =
+proc kpkgTarget*(root: string, customTarget = "", releasePath = ""): string =
   ## Returns the kpkg target.
-  let conf = loadConfig(root&"/etc/kreato-release")
+  let releaseFile = if releasePath.len >
+      0: releasePath else: root&"/etc/kreato-release"
+  let conf = loadConfig(releaseFile)
   var system: string
   if not isEmptyOrWhitespace(customTarget):
     system = customTarget
