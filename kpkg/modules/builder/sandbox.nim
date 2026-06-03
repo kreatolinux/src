@@ -202,6 +202,9 @@ proc buildAllPackagesInSandbox*(deps: var seq[string], depGraph: dependencyGraph
               builderProc, installPkgProc)
       if consumers.len > 0:
         sandboxCfg.rebuiltConsumers.add(pkg)
+      elif sonameSourceMap.hasKey(pkg):
+        sandboxCfg.rebuiltConsumers.add(pkg)
+        debug "buildAll: added rebuilt consumer " & pkg & " to rebuiltConsumers"
       for consumer in consumers:
         if consumer notin deps:
           try:
