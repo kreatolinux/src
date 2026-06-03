@@ -142,16 +142,6 @@ proc builder*(cfg: var BuildConfig): bool =
     discard createPackage(cfg.actualPackage, state.pkg, cfg.kTarget,
             resolveDeps = false, tarballPath = tempTarball)
 
-    # Phase 2: Install from the temp tarball. This registers the package in
-    # the database so that subsequent packages' createPackage calls can
-    # resolve it as a dependency.
-    if cfg.destdir != "/" and not packageExists(cfg.actualPackage) and (
-            not cfg.dontInstall) and cfg.target == "default":
-      installPkg(cfg.repo, cfg.actualPackage, "/", state.pkg, cfg.manualInstallList,
-              isUpgrade = cfg.isUpgrade,
-              ignorePostInstall = cfg.ignorePostInstall,
-              tarballPath = tempTarball)
-
     if (not cfg.dontInstall) and (cfg.kTarget == kpkgTarget(cfg.destdir)):
       installPkg(cfg.repo, cfg.actualPackage, cfg.destdir, state.pkg, cfg.manualInstallList,
               isUpgrade = cfg.isUpgrade,

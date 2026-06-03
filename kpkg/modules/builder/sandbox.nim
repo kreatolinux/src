@@ -193,6 +193,23 @@ proc buildPackageInSandbox*(pkgName: string, depGraph: dependencyGraph,
 
   discard builderProc(buildCfg)
 
+  # Install to host if not a SONAME-changed package (those are deferred until
+  # after all consumers are rebuilt, handled in buildAllPackagesInSandbox).
+  if not buildCfg.sonameChanged and not packageExists(actualPkgName, "/") and
+      not sandboxCfg.dontInstall and sandboxCfg.target == "default":
+    debug "buildPackageInSandbox: installing " & actualPkgName & " to host"
+    installPkgProc(InstallConfig(
+      repo: findPkgRepo(actualPkgName),
+      package: actualPkgName,
+      root: "/",
+      isUpgrade: false,
+      kTarget: sandboxCfg.target,
+      manualInstallList: @[],
+      umount: false,
+      disablePkgInfo: false,
+      ignorePostInstall: true
+    ))
+
   if buildCfg.sonameChanged:
     return buildCfg.consumersToRebuild
 
@@ -208,6 +225,7 @@ proc buildAllPackagesInSandbox*(deps: var seq[string], depGraph: dependencyGraph
   ## Returns 0 on success.
 
   var sonameSourceMap = initTable[string, string]()
+  var sonameSources: seq[string]
   var i = 0
   while i < deps.len:
     let pkg = deps[i]
@@ -219,6 +237,7 @@ proc buildAllPackagesInSandbox*(deps: var seq[string], depGraph: dependencyGraph
       let consumers = buildPackageInSandbox(pkg, depGraph, sandboxCfg,
               builderProc, installPkgProc)
       if consumers.len > 0:
+        sonameSources.add(pkg)
         sandboxCfg.rebuiltConsumers.add(pkg)
       elif sonameSourceMap.hasKey(pkg):
         sandboxCfg.rebuiltConsumers.add(pkg)
@@ -246,4 +265,20 @@ proc buildAllPackagesInSandbox*(deps: var seq[string], depGraph: dependencyGraph
     i.inc
 
   info("built all packages successfully")
+
+  # Install SONAME-changed source packages to host after all consumers are done
+  for src in sonameSources:
+    info "Installing SONAME-changed package '" & src & "' to host"
+    installPkgProc(InstallConfig(
+      repo: findPkgRepo(src),
+      package: src,
+      root: "/",
+      isUpgrade: true,
+      kTarget: sandboxCfg.target,
+      manualInstallList: @[],
+      umount: false,
+      disablePkgInfo: false,
+      ignorePostInstall: true
+    ))
+
   return 0
