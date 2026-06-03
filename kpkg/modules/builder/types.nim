@@ -46,6 +46,7 @@ type
     ignorePostInstall*: bool ## Skip postinstall scripts
     manualInstallList*: seq[string] ## Manually installed packages
     ignoreUseCacheIfAvailable*: seq[string] ## Packages to rebuild even if cached
+    skipHostInstall*: bool ## Skip installing to host root (for deferred SONAME installs)
 
     # SONAME consumer rebuild tracking
     sonameChanged*: bool ## True if SONAME change detected

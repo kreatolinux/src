@@ -142,6 +142,15 @@ proc builder*(cfg: var BuildConfig): bool =
     discard createPackage(cfg.actualPackage, state.pkg, cfg.kTarget,
             resolveDeps = false, tarballPath = tempTarball)
 
+    # Install to host root (unless skipHostInstall is set, e.g. for SONAME
+    # packages whose host install is deferred until consumers are rebuilt).
+    if not cfg.skipHostInstall and cfg.destdir != "/" and not packageExists(
+            cfg.actualPackage) and (not cfg.dontInstall) and cfg.target == "default":
+      installPkg(cfg.repo, cfg.actualPackage, "/", state.pkg, cfg.manualInstallList,
+              isUpgrade = cfg.isUpgrade,
+              ignorePostInstall = cfg.ignorePostInstall,
+              tarballPath = tempTarball)
+
     if (not cfg.dontInstall) and (cfg.kTarget == kpkgTarget(cfg.destdir)):
       installPkg(cfg.repo, cfg.actualPackage, cfg.destdir, state.pkg, cfg.manualInstallList,
               isUpgrade = cfg.isUpgrade,

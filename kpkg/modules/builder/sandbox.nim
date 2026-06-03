@@ -20,6 +20,7 @@ import ../commonPaths
 import ../commonTasks
 import ../runparser
 import ../sqlite
+import ../../commands/installcmd
 
 proc buildPackageInSandbox*(pkgName: string, depGraph: dependencyGraph,
                             sandboxCfg: SandboxConfig,
@@ -188,7 +189,8 @@ proc buildPackageInSandbox*(pkgName: string, depGraph: dependencyGraph,
     noSandbox: false,
     ignoreTarget: false,
     ignoreUseCacheIfAvailable: sandboxCfg.ignoreUseCacheIfAvailable,
-    isBootstrap: isBootstrapBuild
+    isBootstrap: isBootstrapBuild,
+    skipHostInstall: true
   )
 
   discard builderProc(buildCfg)
@@ -198,17 +200,9 @@ proc buildPackageInSandbox*(pkgName: string, depGraph: dependencyGraph,
   if not buildCfg.sonameChanged and not packageExists(actualPkgName, "/") and
       not sandboxCfg.dontInstall and sandboxCfg.target == "default":
     debug "buildPackageInSandbox: installing " & actualPkgName & " to host"
-    installPkgProc(InstallConfig(
-      repo: findPkgRepo(actualPkgName),
-      package: actualPkgName,
-      root: "/",
-      isUpgrade: false,
-      kTarget: sandboxCfg.target,
-      manualInstallList: @[],
-      umount: false,
-      disablePkgInfo: false,
-      ignorePostInstall: true
-    ))
+    installPkg(findPkgRepo(actualPkgName), actualPkgName, "/",
+            manualInstallList = @[], kTarget = sandboxKTarget,
+            ignorePostInstall = true, umount = false)
 
   if buildCfg.sonameChanged:
     return buildCfg.consumersToRebuild
@@ -226,6 +220,11 @@ proc buildAllPackagesInSandbox*(deps: var seq[string], depGraph: dependencyGraph
 
   var sonameSourceMap = initTable[string, string]()
   var sonameSources: seq[string]
+  let sandboxKTarget = if sandboxCfg.target == "default" or sandboxCfg.target ==
+      kpkgTarget("/"):
+    kpkgTarget(sandboxCfg.fullRootPath)
+  else:
+    sandboxCfg.target
   var i = 0
   while i < deps.len:
     let pkg = deps[i]
@@ -269,16 +268,8 @@ proc buildAllPackagesInSandbox*(deps: var seq[string], depGraph: dependencyGraph
   # Install SONAME-changed source packages to host after all consumers are done
   for src in sonameSources:
     info "Installing SONAME-changed package '" & src & "' to host"
-    installPkgProc(InstallConfig(
-      repo: findPkgRepo(src),
-      package: src,
-      root: "/",
-      isUpgrade: true,
-      kTarget: sandboxCfg.target,
-      manualInstallList: @[],
-      umount: false,
-      disablePkgInfo: false,
-      ignorePostInstall: true
-    ))
+    installPkg(findPkgRepo(src), src, "/",
+            manualInstallList = @[], kTarget = sandboxKTarget,
+            isUpgrade = true, ignorePostInstall = true, umount = false)
 
   return 0
