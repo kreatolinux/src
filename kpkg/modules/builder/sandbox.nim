@@ -52,6 +52,13 @@ proc buildPackageInSandbox*(pkgName: string, depGraph: dependencyGraph,
   # Prepare overlay directories first
   discard prepareOverlayDirs(error = "preparing overlay directories")
 
+  # Resolve kTarget for tarball lookup — matches how the builder stores tarballs
+  let sandboxKTarget = if sandboxCfg.target == "default" or sandboxCfg.target ==
+      kpkgTarget("/"):
+    kpkgTarget(sandboxCfg.fullRootPath)
+  else:
+    sandboxCfg.target
+
   if sandboxCfg.target != "default" and sandboxCfg.target != kpkgTarget("/"):
     for d in sandboxDeps:
       if isEmptyOrWhitespace(d):
@@ -63,7 +70,7 @@ proc buildPackageInSandbox*(pkgName: string, depGraph: dependencyGraph,
         package: d,
         root: kpkgOverlayPath & "/upperDir",
         isUpgrade: false,
-        kTarget: sandboxCfg.target,
+        kTarget: sandboxKTarget,
         manualInstallList: @[],
         umount: false,
         disablePkgInfo: true
@@ -92,7 +99,7 @@ proc buildPackageInSandbox*(pkgName: string, depGraph: dependencyGraph,
           package: sandboxCfg.sonameChangedPackage,
           root: kpkgOverlayPath & "/upperDir",
           isUpgrade: false,
-          kTarget: sandboxCfg.target,
+          kTarget: sandboxKTarget,
           manualInstallList: @[],
           umount: false,
           disablePkgInfo: true
@@ -111,7 +118,7 @@ proc buildPackageInSandbox*(pkgName: string, depGraph: dependencyGraph,
           package: r,
           root: kpkgOverlayPath & "/upperDir",
           isUpgrade: false,
-          kTarget: sandboxCfg.target,
+          kTarget: sandboxKTarget,
           manualInstallList: @[],
           umount: false,
           disablePkgInfo: true,
