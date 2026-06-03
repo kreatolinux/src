@@ -188,8 +188,14 @@ proc builderWrapper(cfg: var BuildConfig): bool =
 
 proc installPkgWrapper(cfg: InstallConfig) =
   ## Wrapper for installPkg() to match InstallPkgProc signature.
+  ## Resolve "default" kTarget to the actual target string so the
+  ## tarball lookup path matches where tarballs are stored.
+  let kt = if cfg.kTarget == "default" or cfg.kTarget == kpkgTarget("/"):
+    kpkgTarget(cfg.root)
+  else:
+    cfg.kTarget
   installPkg(cfg.repo, cfg.package, cfg.root,
-             isUpgrade = cfg.isUpgrade, kTarget = cfg.kTarget,
+             isUpgrade = cfg.isUpgrade, kTarget = kt,
              manualInstallList = cfg.manualInstallList,
              umount = cfg.umount, disablePkgInfo = cfg.disablePkgInfo,
              ignorePostInstall = cfg.ignorePostInstall)
