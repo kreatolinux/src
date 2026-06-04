@@ -117,18 +117,17 @@ proc getInit*(root: string): string =
   except CatchableError:
     fatal("couldn't load "&root&"/etc/kreato-release")
 
-proc getLibc*(root: string): string =
-  ## Returns the libc.
+proc getLibc*(root: string, kreatoPath = ""): string =
+  let path = if kreatoPath.len > 0: kreatoPath else: root & "/etc/kreato-release"
   try:
-    return loadConfig(root&"/etc/kreato-release").getSectionValue("Core", "libc")
+    return loadConfig(path).getSectionValue("Core", "libc")
   except CatchableError:
-    fatal("couldn't load "&root&"/etc/kreato-release")
+    fatal("couldn't load " & path)
 
-proc systemTarget*(root: string): string =
-  ## Returns the system target.
+proc systemTarget*(root: string, kreatoPath = ""): string =
   var target = uname().machine&"-linux"
 
-  case getLibc(root):
+  case getLibc(root, kreatoPath):
     of "glibc":
       target = target&"-gnu"
     of "musl":
@@ -138,7 +137,6 @@ proc systemTarget*(root: string): string =
 
 
 proc kpkgTarget*(root: string, customTarget = "", releasePath = ""): string =
-  ## Returns the kpkg target.
   let releaseFile = if releasePath.len >
       0: releasePath else: root&"/etc/kreato-release"
   let conf = loadConfig(releaseFile)
@@ -146,7 +144,7 @@ proc kpkgTarget*(root: string, customTarget = "", releasePath = ""): string =
   if not isEmptyOrWhitespace(customTarget):
     system = customTarget
   else:
-    system = systemTarget(root)
+    system = systemTarget(root, releaseFile)
 
   return system&"-"&conf.getSectionValue("Core",
           "init")&"-"&conf.getSectionValue("Core", "tlsLibrary")
