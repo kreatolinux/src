@@ -70,7 +70,7 @@ proc builder*(cfg: var BuildConfig): bool =
       installPkg(cfg.repo, cfg.actualPackage, "/", state.pkg, cfg.manualInstallList,
               ignorePostInstall = cfg.ignorePostInstall)
 
-    if cfg.kTarget == kpkgTarget(cfg.destdir):
+    if not cfg.skipHostInstall and cfg.kTarget == kpkgTarget(cfg.destdir):
       installPkg(cfg.repo, cfg.actualPackage, cfg.destdir, state.pkg, cfg.manualInstallList,
               ignorePostInstall = cfg.ignorePostInstall)
     else:
@@ -151,7 +151,8 @@ proc builder*(cfg: var BuildConfig): bool =
               ignorePostInstall = cfg.ignorePostInstall,
               tarballPath = tempTarball)
 
-    if (not cfg.dontInstall) and (cfg.kTarget == kpkgTarget(cfg.destdir)):
+    if not cfg.skipHostInstall and (not cfg.dontInstall) and (cfg.kTarget ==
+        kpkgTarget(cfg.destdir)):
       installPkg(cfg.repo, cfg.actualPackage, cfg.destdir, state.pkg, cfg.manualInstallList,
               isUpgrade = cfg.isUpgrade,
               ignorePostInstall = cfg.ignorePostInstall,

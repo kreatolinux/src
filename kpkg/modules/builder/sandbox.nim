@@ -109,9 +109,12 @@ proc buildPackageInSandbox*(pkgName: string, depGraph: dependencyGraph,
         )
         installPkgProc(installCfg)
       else:
-        discard installFromRoot(sandboxCfg.sonameChangedPackage,
-                sandboxCfg.root, kpkgOverlayPath & "/upperDir",
-                ignorePostInstall = true)
+        debug "buildPackageInSandbox: installing soname package '" &
+            sandboxCfg.sonameChangedPackage & "' to overlay via installPkg"
+        installPkg(findPkgRepo(sandboxCfg.sonameChangedPackage),
+                sandboxCfg.sonameChangedPackage, kpkgOverlayPath & "/upperDir",
+                kTarget = sandboxKTarget, manualInstallList = @[],
+                ignorePostInstall = true, umount = false)
     # Install rebuilt consumers to upperDir so subsequent builds get updated libs/binaries
     for r in sandboxCfg.rebuiltConsumers:
       if r != pkgName:
