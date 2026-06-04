@@ -91,6 +91,23 @@ proc buildPackageInSandbox*(pkgName: string, depGraph: dependencyGraph,
               kpkgOverlayPath & "/upperDir",
               ignorePostInstall = true)
 
+    # If the package isn't in the dep graph (e.g. dynamically added consumer),
+    # fall back to parsing the runfile directly for build deps
+    if sandboxDeps.len == 0:
+      let pkgDir = findPkgRepo(pkgTmp.name) & "/" & pkgTmp.name
+      try:
+        let rf = parseRunfile(pkgDir)
+        for bdep in rf.bdeps:
+          if packageExists(bdep, sandboxCfg.root):
+            debug "buildPackageInSandbox: installing build dep '" & bdep &
+                "' for '" & pkgTmp.name & "'"
+            discard installFromRoot(bdep, sandboxCfg.root,
+                    kpkgOverlayPath & "/upperDir",
+                    ignorePostInstall = true)
+      except:
+        debug "buildPackageInSandbox: could not parse runfile for '" &
+            pkgTmp.name & "'"
+
     # Install the package with changed SONAME into the sandbox so consumers
     # build against the new library version
     if sandboxCfg.sonameChangedPackage != "":
