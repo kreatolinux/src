@@ -215,12 +215,13 @@ proc buildPackageInSandbox*(pkgName: string, depGraph: dependencyGraph,
 
   discard builderProc(buildCfg)
 
-  # Install to host if not a SONAME-changed package (those are deferred until
-  # after all consumers are rebuilt, handled in buildAllPackagesInSandbox).
-  if not buildCfg.sonameChanged and not packageExists(actualPkgName, "/") and
-      not sandboxCfg.dontInstall and sandboxCfg.target == "default":
+  # Install to host if not a SONAME-changed package, so rebuilt
+  # consumers replace the old system binaries.
+  if not buildCfg.sonameChanged and not sandboxCfg.dontInstall and
+      sandboxCfg.target == "default":
     debug "buildPackageInSandbox: installing " & actualPkgName & " to host"
-    installPkg(findPkgRepo(actualPkgName), actualPkgName, "/",
+    installPkg(findPkgRepo(actualPkgName), actualPkgName,
+            sandboxCfg.fullRootPath,
             manualInstallList = @[], kTarget = sandboxKTarget,
             ignorePostInstall = true, umount = false)
 
@@ -285,10 +286,12 @@ proc buildAllPackagesInSandbox*(deps: var seq[string], depGraph: dependencyGraph
 
   info("built all packages successfully")
 
-  # Install SONAME-changed source packages to host after all consumers are done
+  # Install SONAME-changed source packages to host after all consumers
+  # are rebuilt. This provides the new library version (e.g. libssl.so.4)
+  # that rebuilt consumers link against.
   for src in sonameSources:
     info "Installing SONAME-changed package '" & src & "' to host"
-    installPkg(findPkgRepo(src), src, "/",
+    installPkg(findPkgRepo(src), src, sandboxCfg.fullRootPath,
             manualInstallList = @[], kTarget = sandboxKTarget,
             isUpgrade = true, ignorePostInstall = true, umount = false)
 
