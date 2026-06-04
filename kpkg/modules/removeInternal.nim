@@ -51,14 +51,15 @@ proc removeInternal*(package: string, root = "",
         installedDir = root&"/var/cache/kpkg/installed",
         ignoreReplaces = false, force = true, depCheck = false,
             noRunfile = false, fullPkgList = @[""], removeConfigs = false,
-                runPostRemove = false, initCheck = true) =
+                runPostRemove = false, initCheck = true, kreatoPath = "") =
 
   if initCheck:
-    let init = getInit(root)
+    let init = getInit(root, kreatoPath)
 
     if dirExists(installedDir&"/"&package&"-"&init):
       removeInternal(package&"-"&init, root, installedDir, ignoreReplaces,
-          force, depCheck, noRunfile, fullPkgList, removeConfigs, runPostRemove)
+          force, depCheck, noRunfile, fullPkgList, removeConfigs, runPostRemove,
+          kreatoPath = kreatoPath)
 
   var actualPackage: string
 

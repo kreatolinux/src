@@ -259,7 +259,7 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
         if kTarget != kpkgTarget(root, releasePath = kreatoReleasePath):
           removeInternal(i, root, initCheck = false)
         else:
-          removeInternal(i, root)
+          removeInternal(i, root, kreatoPath = kreatoReleasePath)
 
     # Handle reinstallation - backup old package files
     let wasInstalled = packageExists(package, root) and (not isGroup)
@@ -281,7 +281,8 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
                 noRunfile = true, initCheck = false)
       else:
         removeInternal(package, root, ignoreReplaces = true,
-                noRunfile = false, depCheck = false)
+                noRunfile = false, depCheck = false,
+                kreatoPath = kreatoReleasePath)
 
     discard existsOrCreateDir(root&"/var")
     discard existsOrCreateDir(root&"/var/cache")

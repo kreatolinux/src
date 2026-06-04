@@ -110,12 +110,12 @@ proc createDirWithPermissionsAndOwnership*(source, dest: string,
   #debug "chown successful, setting permissions"
   setFilePermissions(dest, getFilePermissions(source), followSymlinks)
 
-proc getInit*(root: string): string =
-  ## Returns the init system.
+proc getInit*(root: string, kreatoPath = ""): string =
+  let path = if kreatoPath.len > 0: kreatoPath else: root & "/etc/kreato-release"
   try:
-    return loadConfig(root&"/etc/kreato-release").getSectionValue("Core", "init")
+    return loadConfig(path).getSectionValue("Core", "init")
   except CatchableError:
-    fatal("couldn't load "&root&"/etc/kreato-release")
+    fatal("couldn't load " & path)
 
 proc getLibc*(root: string, kreatoPath = ""): string =
   let path = if kreatoPath.len > 0: kreatoPath else: root & "/etc/kreato-release"
