@@ -250,7 +250,7 @@ proc buildAllPackagesInSandbox*(deps: var seq[string], depGraph: dependencyGraph
             let pkgDir = findPkgRepo(consumer) & "/" & consumer
             let rf = parseRunfile(pkgDir)
             for bdep in rf.bdeps:
-              if bdep notin deps and packageExists(bdep, sandboxCfg.root):
+              if bdep notin deps:
                 deps.add(bdep)
                 info "Added " & bdep & " (build dep) to queue for consumer " & consumer
           except:
