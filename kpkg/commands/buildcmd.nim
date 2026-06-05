@@ -125,8 +125,21 @@ proc builder*(cfg: var BuildConfig): bool =
       # Save CWD and change to repo root so getRuntimeDependents' dirExists check works
       let oldCwd = getCurrentDir()
       setCurrentDir(cfg.repo)
-      cfg.consumersToRebuild = getRuntimeDependents(@[cfg.actualPackage],
-          cfg.actualRoot)
+      for consumer in getRuntimeDependents(@[cfg.actualPackage],
+          cfg.actualRoot):
+        if consumer notin cfg.consumersToRebuild:
+          cfg.consumersToRebuild.add(consumer)
+      for consumer in getElfRuntimeDependents(@[cfg.actualPackage],
+          cfg.actualRoot):
+        if consumer notin cfg.consumersToRebuild:
+          cfg.consumersToRebuild.add(consumer)
+      cfg.consumersToRebuild = orderSonameConsumers(cfg.consumersToRebuild,
+          proc(pkg: string): seq[string] =
+        try:
+          return parseRunfile(findPkgRepo(pkg) & "/" & pkg).deps
+        except CatchableError:
+          debug "could not resolve runtime deps for consumer " & pkg
+          return @[])
       setCurrentDir(oldCwd)
       if cfg.consumersToRebuild.len > 0:
         warn "SONAME change detected for " & cfg.actualPackage &
