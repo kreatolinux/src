@@ -108,30 +108,17 @@ proc buildPackageInSandbox*(pkgName: string, depGraph: dependencyGraph,
         debug "buildPackageInSandbox: could not parse runfile for '" &
             pkgTmp.name & "'"
 
-    # Install the package with changed SONAME into the sandbox so consumers
-    # build against the new library version
+    # Install the package with changed SONAME into the env so consumers
+    # build against the new library version. The env is the overlay lower
+    # dir — installing there replaces the old library entirely, making
+    # pkg-config and the linker find only the new version.
     if sandboxCfg.sonameChangedPackage != "":
       debug "buildPackageInSandbox: installing changed soname package '" &
-          sandboxCfg.sonameChangedPackage & "'"
-      if sandboxCfg.target != "default" and sandboxCfg.target != kpkgTarget("/"):
-        let installCfg = InstallConfig(
-          repo: findPkgRepo(sandboxCfg.sonameChangedPackage),
-          package: sandboxCfg.sonameChangedPackage,
-          root: kpkgOverlayPath & "/upperDir",
-          isUpgrade: false,
-          kTarget: sandboxKTarget,
-          manualInstallList: @[],
-          umount: false,
-          disablePkgInfo: true
-        )
-        installPkgProc(installCfg)
-      else:
-        debug "buildPackageInSandbox: installing soname package '" &
-            sandboxCfg.sonameChangedPackage & "' to overlay via installPkg"
-        installPkg(findPkgRepo(sandboxCfg.sonameChangedPackage),
-                sandboxCfg.sonameChangedPackage, kpkgOverlayPath & "/upperDir",
-                kTarget = sandboxKTarget, manualInstallList = @[],
-                ignorePostInstall = true, umount = false)
+          sandboxCfg.sonameChangedPackage & "' to env"
+      installPkg(findPkgRepo(sandboxCfg.sonameChangedPackage),
+              sandboxCfg.sonameChangedPackage, kpkgEnvPath,
+              kTarget = sandboxKTarget, manualInstallList = @[],
+              ignorePostInstall = true, umount = false)
     # Install rebuilt consumers to upperDir so subsequent builds get updated libs/binaries
     for r in sandboxCfg.rebuiltConsumers:
       if r != pkgName:
