@@ -287,6 +287,7 @@ proc buildAllPackagesInSandbox*(deps: var seq[string], depGraph: dependencyGraph
             let rf = parseRunfile(pkgDir)
             for bdep in rf.bdeps:
               let oldLen = deps.len
+              let installedRoot = sandboxCfg.root
               addPackageRuntimeDepsToQueue(deps, bdep,
                   proc(pkg: string): seq[string] =
                 try:
@@ -294,7 +295,7 @@ proc buildAllPackagesInSandbox*(deps: var seq[string], depGraph: dependencyGraph
                 except CatchableError:
                   debug "could not resolve runtime deps for dynamic build dep " & pkg
                   return @[],
-                  proc(pkg: string): bool = packageExists(pkg, sandboxCfg.root))
+                  proc(pkg: string): bool = packageExists(pkg, installedRoot))
 
               for j in oldLen ..< deps.len:
                 if deps[j] == bdep:
