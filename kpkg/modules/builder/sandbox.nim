@@ -22,6 +22,37 @@ import ../runparser
 import ../sqlite
 import ../../commands/installcmd
 
+proc addPackageRuntimeDepsToQueue*(queue: var seq[string], packageName: string,
+                                  depResolver: proc(pkg: string): seq[string],
+                                  installedResolver: proc(pkg: string): bool) =
+  ## Add packageName to queue, inserting any missing runtime dependencies first.
+  ## Used for packages dynamically appended outside the precomputed dep graph.
+  var known = queue
+  var ordered: seq[string]
+  var visiting: seq[string]
+
+  proc visit(pkg: string) =
+    if pkg in known or installedResolver(pkg):
+      return
+    if pkg in visiting:
+      debug "addPackageRuntimeDepsToQueue: dependency cycle at " & pkg
+      return
+
+    visiting.add(pkg)
+    for dep in depResolver(pkg):
+      if not isEmptyOrWhitespace(dep):
+        visit(dep)
+    discard visiting.pop()
+
+    if pkg notin known:
+      ordered.add(pkg)
+      known.add(pkg)
+
+  visit(packageName)
+
+  for pkg in ordered:
+    queue.add(pkg)
+
 proc buildPackageInSandbox*(pkgName: string, depGraph: dependencyGraph,
                             sandboxCfg: SandboxConfig,
                             builderProc: BuilderProc,
@@ -255,9 +286,23 @@ proc buildAllPackagesInSandbox*(deps: var seq[string], depGraph: dependencyGraph
             let pkgDir = findPkgRepo(consumer) & "/" & consumer
             let rf = parseRunfile(pkgDir)
             for bdep in rf.bdeps:
-              if bdep notin deps:
-                deps.add(bdep)
-                info "Added " & bdep & " (build dep) to queue for consumer " & consumer
+              let oldLen = deps.len
+              addPackageRuntimeDepsToQueue(deps, bdep,
+                  proc(pkg: string): seq[string] =
+                try:
+                  return parseRunfile(findPkgRepo(pkg) & "/" & pkg).deps
+                except CatchableError:
+                  debug "could not resolve runtime deps for dynamic build dep " & pkg
+                  return @[],
+                  proc(pkg: string): bool = packageExists(pkg, sandboxCfg.root))
+
+              for j in oldLen ..< deps.len:
+                if deps[j] == bdep:
+                  info "Added " & bdep & " (build dep) to queue for consumer " & consumer
+                else:
+                  info "Added " & deps[j] &
+                      " (runtime dep) to queue for build dep " & bdep &
+                      " of consumer " & consumer
           except:
             debug "could not resolve bdeps for consumer " & consumer
           deps.add(consumer)

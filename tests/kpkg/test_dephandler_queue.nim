@@ -1,6 +1,7 @@
 import unittest
 import tables
 import ../../kpkg/modules/dephandler
+import ../../kpkg/modules/builder/sandbox
 import ../../kpkg/modules/runparser
 
 proc mkRunFile(name: string, bsdeps: seq[string] = @[]): runFile =
@@ -63,3 +64,17 @@ suite "dephandler build queue":
     let queue = computeBuildQueue(graph, @["foo"], bootstrap = false)
 
     check queue[^1] == "foo"
+
+  test "dynamic build deps include missing runtime deps first":
+    var queue = @["openssl"]
+
+    proc depsOf(pkg: string): seq[string] =
+      case pkg
+      of "meson": @["python", "samurai"]
+      else: @[]
+
+    proc installed(pkg: string): bool = pkg == "python"
+
+    addPackageRuntimeDepsToQueue(queue, "meson", depsOf, installed)
+
+    check queue == @["openssl", "samurai", "meson"]
