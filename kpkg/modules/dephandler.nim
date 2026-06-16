@@ -171,8 +171,9 @@ proc validatePackage(pkg: string, repo: string, root: string): bool =
     elif not dirExists(repo):
         error("The repository '"&repo&"' doesn't exist at path: "&repo)
         quit(1)
-    elif not fileExists(repo&"/"&pkg&"/run"):
-        error("The package '"&pkg&"' doesn't exist in repository "&repo&" (expected: "&repo&"/"&pkg&"/run)")
+    elif not fileExists(repo&"/"&pkg&"/run") and not fileExists(
+            repo&"/"&pkg&"/run3"):
+        error("The package '"&pkg&"' doesn't exist in repository "&repo&" (expected: "&repo&"/"&pkg&"/run or "&repo&"/"&pkg&"/run3)")
         quit(1)
 
     return true

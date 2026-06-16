@@ -219,7 +219,8 @@ proc cacheRepoRunfiles*(repoPath: string): Table[string, runFile] =
       continue
 
     let runfilePath = entry.path & "/run"
-    if not fileExists(runfilePath):
+    let run3filePath = entry.path & "/run3"
+    if not fileExists(runfilePath) and not fileExists(run3filePath):
       continue
 
     try:
