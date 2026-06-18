@@ -75,6 +75,57 @@ test2:
 # and so on...
 \f[R]
 .fi
+.SS OBJECTS
+.PP
+Objects are structured variable types that hold key-value pairs.
+They can be declared using the \f[V]object\f[R] keyword or inline in the
+header using YAML-like syntax.
+.PP
+Object properties are accessed using bracket notation
+\f[V]object[\[dq]key\[dq]]\f[R] or dot notation \f[V]${object.key}\f[R]
+in commands and conditions.
+.SS Using \f[V]object\f[R] keyword
+.IP
+.nf
+\f[C]
+object kpkg {
+    isBootstrap: \[dq]1\[dq]
+    arch: \[dq]x86_64\[dq]
+}
+
+build {
+    if kpkg[\[dq]isBootstrap\[dq]] == \[dq]1\[dq] {
+        print \[dq]Building in bootstrap mode\[dq]
+    }
+    print \[dq]Architecture: ${kpkg.arch}\[dq]
+}
+\f[R]
+.fi
+.SS Inline object syntax
+.PP
+Objects can also be declared inline in the header, using \f[V]name:\f[R]
+followed by indented \f[V]key: value\f[R] pairs:
+.IP
+.nf
+\f[C]
+name: \[dq]my-package\[dq]
+version: \[dq]1.0.0\[dq]
+
+kpkg:
+    isBootstrap: \[dq]1\[dq]
+    arch: \[dq]x86_64\[dq]
+
+build {
+    if kpkg[\[dq]isBootstrap\[dq]] == \[dq]1\[dq] {
+        print \[dq]Building in bootstrap mode\[dq]
+    }
+}
+\f[R]
+.fi
+.PP
+Objects are useful for grouping related configuration values and are
+used internally by kpkg to provide build context information (e.g.,
+\f[V]kpkg[\[dq]isBootstrap\[dq]]\f[R]).
 .PP
 Variables can be referenced in if statements, for loops, inside
 variables, and inside functions (including in commands).

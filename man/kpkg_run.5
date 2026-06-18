@@ -259,6 +259,13 @@ Supports version specifications like:
 .IP \[bu] 2
 \f[B]build_depends\f[R]: Build-time dependencies of your package.
 .IP \[bu] 2
+\f[B]bootstrap_depends\f[R]: Dependencies needed during bootstrap
+builds.
+When a package is built with \f[V]--bootstrap\f[R], only these
+dependencies are installed (not the full \f[V]build_depends\f[R]).
+This allows packages like \f[V]glib\f[R] to be built without circular
+dependencies like \f[V]gobject-introspection\f[R].
+.IP \[bu] 2
 \f[B]depends packagename\f[R]: Specify dependencies for a specific
 sub-package.
 The space-separated syntax is preferred, but the legacy underscore
@@ -354,6 +361,62 @@ Allows packaging multiple components in the same runfile.
 The space-separated syntax is preferred, but the legacy underscore
 syntax (\f[V]package_packagename {}\f[R]) is also supported for backward
 compatibility.
+.SS BUILT-IN OBJECTS
+.PP
+kpkg provides a built-in \f[V]kpkg\f[R] object that contains build
+context information.
+This object is automatically populated and available in all function
+blocks.
+.SS kpkg object properties
+.IP \[bu] 2
+\f[B]kpkg[\[lq]isBootstrap\[rq]]\f[R]: Returns \f[V]\[dq]1\[dq]\f[R] if
+the package is being built in bootstrap mode, \f[V]\[dq]0\[dq]\f[R]
+otherwise.
+Useful for conditionally disabling features that require already-built
+dependencies.
+.PP
+Example usage in a runfile:
+.IP
+.nf
+\f[C]
+name: \[dq]glib\[dq]
+version: \[dq]2.86.3\[dq]
+release: \[dq]2\[dq]
+build_depends:
+    - \[dq]meson\[dq]
+    - \[dq]ninja\[dq]
+    - \[dq]gobject-introspection\[dq]
+bootstrap_depends:
+    - \[dq]meson\[dq]
+    - \[dq]ninja\[dq]
+
+build {
+    local INTROSPECTION = \[dq]enabled\[dq]
+    if kpkg[\[dq]isBootstrap\[dq]] == \[dq]1\[dq] {
+        global INTROSPECTION = \[dq]disabled\[dq]
+    }
+    macro build -Dintrospection=$INTROSPECTION
+}
+\f[R]
+.fi
+.PP
+You can also declare custom objects inline in the header using YAML-like
+syntax:
+.IP
+.nf
+\f[C]
+name: \[dq]my-package\[dq]
+version: \[dq]1.0.0\[dq]
+
+build_info:
+    compiler: \[dq]gcc\[dq]
+    flags: \[dq]-O2\[dq]
+
+package {
+    print \[dq]Using ${build_info.compiler} with ${build_info.flags}\[dq]
+}
+\f[R]
+.fi
 .SH AUTHOR
 .PP
 Written by Kreato.
