@@ -18,7 +18,8 @@ export utils.stripQuotes
 proc resolveVariables*(ctx: ExecutionContext, text: string,
     depth: int = 0): string
 
-proc defaultExec(ctx: ExecutionContext, command: string, silent: bool): tuple[output: string, exitCode: int] =
+proc defaultExec(ctx: ExecutionContext, command: string, silent: bool): tuple[
+    output: string, exitCode: int] =
   ## Default command execution using osproc
   ## This is used when no execHook is set
   try:
@@ -131,12 +132,14 @@ proc resolveManipulation(ctx: ExecutionContext, expr: string,
   else:
     # Variable
     let varName = advance().value
-    if ctx.hasListVariable(varName):
+    if ctx.hasObjectVariable(varName):
+      baseValue = ctx.getObjectVariable(varName)
+    elif ctx.hasListVariable(varName):
       baseValue = newListValue(ctx.getListVariable(varName))
     else:
       baseValue = newStringValue(ctx.getVariable(varName))
 
-  # Parse method chain
+  # Parse method chain or property access
   var methods: seq[VarManipMethod] = @[]
   var indexExpr = ""
 
@@ -148,6 +151,14 @@ proc resolveManipulation(ctx: ExecutionContext, expr: string,
     discard advance() # .
     let methodName = peek().value
     discard advance()
+
+    # If base is an object, treat dot as property access
+    if baseValue.kind == vvkObject:
+      if baseValue.objVal.hasKey(methodName):
+        baseValue = baseValue.objVal[methodName]
+      else:
+        baseValue = newStringValue("")
+      continue
 
     var args: seq[string] = @[]
     if peek().kind == tkLParen:
@@ -212,6 +223,58 @@ proc resolveVariables*(ctx: ExecutionContext, text: string,
   # Second pass: Replace simple $varname references using regex helper
   result = replaceSimpleVars(result, proc(
       name: string): string = ctx.getVariable(name))
+
+  # Third pass: Resolve bare object property/bracket access (e.g., kpkg["isBootstrap"], obj.prop)
+  var j = 0
+  while j < result.len:
+    # Check if we have an identifier followed by [ or .
+    if result[j].isAlphaAscii() or result[j] == '_':
+      # Read the identifier
+      var identStart = j
+      while j < result.len and (result[j].isAlphaNumeric() or result[j] ==
+          '_' or result[j] == '-'):
+        j += 1
+      let ident = result[identStart ..< j]
+
+      # Check for [ or . after identifier
+      if j < result.len and ident.len > 0 and ctx.hasObjectVariable(ident):
+        if result[j] == '[':
+          # Bracket access: ident["key"]
+          j += 1 # skip [
+          if j < result.len and result[j] == '"':
+            j += 1 # skip opening "
+            var keyEnd = j
+            while keyEnd < result.len and result[keyEnd] != '"':
+              keyEnd += 1
+            let key = result[j ..< keyEnd]
+            j = keyEnd + 1 # skip closing "
+            if j < result.len and result[j] == ']':
+              j += 1 # skip ]
+              let obj = ctx.getObjectVariable(ident)
+              if obj.kind == vvkObject and obj.objVal.hasKey(key):
+                let val = obj.objVal[key].toString()
+                result = result[0 ..< identStart] & val & result[j .. ^1]
+                j = identStart + val.len
+              else:
+                result = result[0 ..< identStart] & "" & result[j .. ^1]
+              continue
+        elif result[j] == '.':
+          # Dot access: ident.prop
+          j += 1 # skip .
+          if j < result.len and (result[j].isAlphaAscii() or result[j] == '_'):
+            var propStart = j
+            while j < result.len and (result[j].isAlphaNumeric() or result[j] == '_'):
+              j += 1
+            let prop = result[propStart ..< j]
+            let obj = ctx.getObjectVariable(ident)
+            if obj.kind == vvkObject and obj.objVal.hasKey(prop):
+              let val = obj.objVal[prop].toString()
+              result = result[0 ..< identStart] & val & result[j .. ^1]
+              j = identStart + val.len
+            else:
+              result = result[0 ..< identStart] & "" & result[j .. ^1]
+            continue
+    j += 1
 
 proc builtinExec*(ctx: ExecutionContext, command: string): int =
   ## Execute a shell command

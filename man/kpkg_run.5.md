@@ -189,6 +189,7 @@ Usage: `macro test [--meson|--cmake|--ninja|--make|--autotools|--configure] [FLA
   - `test<1.8.1`: Less than version 1.8.1
   - `test>1.8.1`: Greater than version 1.8.1
 * **build_depends**: Build-time dependencies of your package.
+* **bootstrap_depends**: Dependencies needed during bootstrap builds. When a package is built with `--bootstrap`, only these dependencies are installed (not the full `build_depends`). This allows packages like `glib` to be built without circular dependencies like `gobject-introspection`.
 * **depends packagename**: Specify dependencies for a specific sub-package. The space-separated syntax is preferred, but the legacy underscore syntax (`depends_packagename:`) is also supported for backward compatibility. Can be modified using:
   - `depends packagename+: "packagename"` to add a dependency
   - `depends packagename-: "packagename"` to remove a dependency
@@ -223,6 +224,50 @@ Do mind that Git repositories don't have the checksum ability. You can use `SKIP
 * **postupgrade**: Runs after an upgrade completes.
 * **postremove**: Runs after the package is removed.
 * **package packagename**: Installation function for a sub-package. Allows packaging multiple components in the same runfile. The space-separated syntax is preferred, but the legacy underscore syntax (`package_packagename {}`) is also supported for backward compatibility.
+
+## BUILT-IN OBJECTS
+kpkg provides a built-in `kpkg` object that contains build context information. This object is automatically populated and available in all function blocks.
+
+### kpkg object properties
+* **kpkg["isBootstrap"]**: Returns `"1"` if the package is being built in bootstrap mode, `"0"` otherwise. Useful for conditionally disabling features that require already-built dependencies.
+
+Example usage in a runfile:
+
+```yaml
+name: "glib"
+version: "2.86.3"
+release: "2"
+build_depends:
+    - "meson"
+    - "ninja"
+    - "gobject-introspection"
+bootstrap_depends:
+    - "meson"
+    - "ninja"
+
+build {
+    local INTROSPECTION = "enabled"
+    if kpkg["isBootstrap"] == "1" {
+        global INTROSPECTION = "disabled"
+    }
+    macro build -Dintrospection=$INTROSPECTION
+}
+```
+
+You can also declare custom objects inline in the header using YAML-like syntax:
+
+```yaml
+name: "my-package"
+version: "1.0.0"
+
+build_info:
+    compiler: "gcc"
+    flags: "-O2"
+
+package {
+    print "Using ${build_info.compiler} with ${build_info.flags}"
+}
+```
 
 # AUTHOR
 Written by Kreato.

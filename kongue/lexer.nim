@@ -51,7 +51,8 @@ type
     tkWrite,        # write keyword
     tkAppend,       # append keyword
     tkContinue,     # continue keyword
-    tkBreak         # break keyword
+    tkBreak,        # break keyword
+    tkObject        # object keyword
 
   Token* = object
     ## A single token
@@ -269,6 +270,7 @@ proc keywordOrIdentifier(value: string): TokenKind =
   of "append": return tkAppend
   of "continue": return tkContinue
   of "break": return tkBreak
+  of "object": return tkObject
   else: return tkIdentifier
 
 proc nextToken*(lex: var Lexer): Token =

@@ -319,7 +319,7 @@ proc getListVariable*(rf: Run3File, name: string, override: Config, section,
 
     if allVars.hasKey(name):
         let v = allVars[name]
-        if v.isList:
+        if v.kind == vvkList:
             isList = true
             rawList = v.toList()
             rawString = v.toString()

@@ -4,30 +4,34 @@
 import os
 import tables
 import ast
+import variables
 
 type
   ## Hook types for extensibility - allows consumers to customize execution behavior
-  ExecHook* = proc(ctx: ExecutionContext, command: string, silent: bool): tuple[output: string, exitCode: int] {.nimcall.}
-  MacroHook* = proc(ctx: ExecutionContext, name: string, args: seq[string]): int {.nimcall.}
+  ExecHook* = proc(ctx: ExecutionContext, command: string, silent: bool): tuple[
+      output: string, exitCode: int] {.nimcall.}
+  MacroHook* = proc(ctx: ExecutionContext, name: string, args: seq[
+      string]): int {.nimcall.}
 
   ExecutionContext* = ref object of RootObj
     ## Context for executing Kongue code
     ## Inherit from RootObj to allow subclassing for extended contexts
-    variables*: Table[string, string]          ## Global variables from header
+    variables*: Table[string, string] ## Global variables from header
     listVariables*: Table[string, seq[string]] ## List variables
-    localVars*: Table[string, string]          ## Function-local variables
-    envVars*: Table[string, string]            ## Environment variable overrides
-    customFuncs*: Table[string, seq[AstNode]]  ## Custom function bodies
-    currentDir*: string                        ## Current working directory
-    previousDir*: string                       ## Previous directory (for cd -)
-    destDir*: string                           ## DESTDIR for installation
-    srcDir*: string                            ## Source directory
-    buildRoot*: string                         ## Build root directory
-    packageName*: string                       ## Package name
-    silent*: bool                              ## Suppress output
+    objectVariables*: Table[string, VarValue] ## Object variables (e.g., kpkg)
+    localVars*: Table[string, string] ## Function-local variables
+    envVars*: Table[string, string] ## Environment variable overrides
+    customFuncs*: Table[string, seq[AstNode]] ## Custom function bodies
+    currentDir*: string ## Current working directory
+    previousDir*: string ## Previous directory (for cd -)
+    destDir*: string ## DESTDIR for installation
+    srcDir*: string ## Source directory
+    buildRoot*: string ## Build root directory
+    packageName*: string ## Package name
+    silent*: bool ## Suppress output
     # Hooks for extensibility
-    execHook*: ExecHook                        ## Custom command execution hook
-    macroHook*: MacroHook                      ## Custom macro execution hook
+    execHook*: ExecHook ## Custom command execution hook
+    macroHook*: MacroHook ## Custom macro execution hook
 
 proc initExecutionContext*(destDir: string = "", srcDir: string = "",
         buildRoot: string = "", packageName: string = ""): ExecutionContext =
@@ -35,6 +39,7 @@ proc initExecutionContext*(destDir: string = "", srcDir: string = "",
   result = ExecutionContext()
   result.variables = initTable[string, string]()
   result.listVariables = initTable[string, seq[string]]()
+  result.objectVariables = initTable[string, VarValue]()
   result.localVars = initTable[string, string]()
   result.envVars = initTable[string, string]()
   result.customFuncs = initTable[string, seq[AstNode]]()
@@ -60,6 +65,10 @@ proc setListVariable*(ctx: ExecutionContext, name: string, items: seq[string]) =
   ## Set a list variable
   ctx.listVariables[name] = items
 
+proc setObjectVariable*(ctx: ExecutionContext, name: string, value: VarValue) =
+  ## Set an object variable
+  ctx.objectVariables[name] = value
+
 proc getVariable*(ctx: ExecutionContext, name: string): string =
   ## Get a variable value (checks local, then global, then built-in)
   if ctx.localVars.hasKey(name):
@@ -83,6 +92,12 @@ proc getVariable*(ctx: ExecutionContext, name: string): string =
     # Fallback to system environment variables
     return getEnv(name)
 
+proc getObjectVariable*(ctx: ExecutionContext, name: string): VarValue =
+  ## Get an object variable
+  if ctx.objectVariables.hasKey(name):
+    return ctx.objectVariables[name]
+  return newStringValue("")
+
 proc getListVariable*(ctx: ExecutionContext, name: string): seq[string] =
   ## Get a list variable
   if ctx.listVariables.hasKey(name):
@@ -100,6 +115,10 @@ proc hasVariable*(ctx: ExecutionContext, name: string): bool =
     return true
   else:
     return existsEnv(name)
+
+proc hasObjectVariable*(ctx: ExecutionContext, name: string): bool =
+  ## Check if an object variable exists
+  return ctx.objectVariables.hasKey(name)
 
 proc hasListVariable*(ctx: ExecutionContext, name: string): bool =
   ## Check if a list variable exists

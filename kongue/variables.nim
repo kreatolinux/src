@@ -1,47 +1,66 @@
 ## Variable manipulation methods for Kongue format
-## Implements string and list manipulation methods used in ${variable.method()} syntax
+## Implements string, list, and object manipulation methods used in ${variable.method()} syntax
 
 import strutils
+import tables
 import ast
 
 type
+    VarValueKind* = enum
+        vvkString, vvkList, vvkObject
+
     VarValue* = object
-        ## Represents a variable value that can be either a string or a list
-        case isList*: bool
-        of true:
-            listVal*: seq[string]
-        of false:
+        ## Represents a variable value: string, list, or object
+        case kind*: VarValueKind
+        of vvkString:
             strVal*: string
+        of vvkList:
+            listVal*: seq[string]
+        of vvkObject:
+            objVal*: Table[string, VarValue]
 
 proc newStringValue*(s: string): VarValue =
     ## Create a new string value
-    VarValue(isList: false, strVal: s)
+    VarValue(kind: vvkString, strVal: s)
 
 proc newListValue*(items: seq[string]): VarValue =
     ## Create a new list value
-    VarValue(isList: true, listVal: items)
+    VarValue(kind: vvkList, listVal: items)
+
+proc newObjectValue*(props: Table[string, VarValue]): VarValue =
+    ## Create a new object value
+    VarValue(kind: vvkObject, objVal: props)
 
 proc toString*(v: VarValue): string =
     ## Convert value to string representation
-    if v.isList:
-        return v.listVal.join(" ")
-    else:
+    case v.kind
+    of vvkString:
         return v.strVal
+    of vvkList:
+        return v.listVal.join(" ")
+    of vvkObject:
+        return ""
 
 proc toList*(v: VarValue): seq[string] =
     ## Convert value to list representation
-    if v.isList:
-        return v.listVal
-    else:
+    case v.kind
+    of vvkString:
         return @[v.strVal]
+    of vvkList:
+        return v.listVal
+    of vvkObject:
+        return @[]
 
 proc applyMethod*(value: VarValue, methodName: string, args: seq[
         string]): VarValue =
     ## Apply a manipulation method to a value
+    if value.kind == vvkObject:
+        raise newException(ValueError, "Methods cannot be called on objects")
+
     case methodName
     of "split":
         # split(delimiter) - Split string into list
-        if not value.isList:
+        if value.kind == vvkString:
             if args.len == 0:
                 raise newException(ValueError, "split() requires 1 argument: delimiter")
             let delimiter = args[0]
@@ -51,7 +70,7 @@ proc applyMethod*(value: VarValue, methodName: string, args: seq[
 
     of "join":
         # join(delimiter) - Join list into string
-        if value.isList:
+        if value.kind == vvkList:
             if args.len == 0:
                 raise newException(ValueError, "join() requires 1 argument: delimiter")
             let delimiter = args[0]
@@ -61,7 +80,7 @@ proc applyMethod*(value: VarValue, methodName: string, args: seq[
 
     of "cut":
         # cut(start, end) - Substring from start to end (not including end)
-        if not value.isList:
+        if value.kind == vvkString:
             if args.len != 2:
                 raise newException(ValueError, "cut() requires 2 arguments: start, end")
             try:
@@ -78,7 +97,7 @@ proc applyMethod*(value: VarValue, methodName: string, args: seq[
 
     of "replace":
         # replace(old, new) - Replace all occurrences of old with new
-        if not value.isList:
+        if value.kind == vvkString:
             if args.len != 2:
                 raise newException(ValueError, "replace() requires 2 arguments: old, new")
             let oldStr = args[0]
@@ -89,21 +108,21 @@ proc applyMethod*(value: VarValue, methodName: string, args: seq[
 
     of "strip":
         # strip() - Remove leading and trailing whitespace
-        if not value.isList:
+        if value.kind == vvkString:
             return newStringValue(value.strVal.strip())
         else:
             raise newException(ValueError, "strip() can only be called on strings")
 
     of "upper":
         # upper() - Convert to uppercase
-        if not value.isList:
+        if value.kind == vvkString:
             return newStringValue(value.strVal.toUpperAscii())
         else:
             raise newException(ValueError, "upper() can only be called on strings")
 
     of "lower":
         # lower() - Convert to lowercase
-        if not value.isList:
+        if value.kind == vvkString:
             return newStringValue(value.strVal.toLowerAscii())
         else:
             raise newException(ValueError, "lower() can only be called on strings")
@@ -113,9 +132,21 @@ proc applyMethod*(value: VarValue, methodName: string, args: seq[
 
 proc applyIndex*(value: VarValue, indexExpr: string): VarValue =
     ## Apply indexing or slicing to a value
-    ## Supports: [index] or [start:end]
-    if not value.isList:
-        raise newException(ValueError, "Indexing can only be applied to lists")
+    ## Supports: [index] or [start:end] for lists, ["key"] for objects
+    if value.kind == vvkObject:
+        # Object property access: ["key"]
+        var key = indexExpr.strip()
+        if key.len > 0 and (key[0] == '"' or key[0] == '\''):
+            key = key[1..^1]
+        if key.len > 0 and (key[^1] == '"' or key[^1] == '\''):
+            key = key[0..^2]
+        if value.objVal.hasKey(key):
+            return value.objVal[key]
+        else:
+            raise newException(ValueError, "Object has no property: " & key)
+
+    if value.kind != vvkList:
+        raise newException(ValueError, "Indexing can only be applied to lists or objects")
 
     if ':' in indexExpr:
         # Slice: [start:end]
@@ -170,7 +201,7 @@ proc splitVar*(value: string, delimiter: string): seq[string] =
     value.split(delimiter)
 
 proc joinVar*(values: seq[string], delimiter: string): string =
-    ## Helper to join a list variable
+    ## Helper to join a string list
     values.join(delimiter)
 
 proc cutVar*(value: string, start, endPos: int): string =

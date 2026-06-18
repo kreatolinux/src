@@ -1,5 +1,6 @@
 import os
 import ../../common/logging
+import ../../kongue/variables
 import parsecfg
 import sequtils
 import strutils
@@ -117,7 +118,7 @@ proc parseRunfile*(path: string, removeLockfileWhenErr = true): runFile =
     var optVal = ""
     if optVarName != "":
       let v = allVars[optVarName]
-      if v.isList:
+      if v.kind == vvkList:
         optVal = v.toList().join(" ;; ")
       else:
         optVal = v.toString()
@@ -126,7 +127,7 @@ proc parseRunfile*(path: string, removeLockfileWhenErr = true): runFile =
 
     # Use list directly if not overridden
     if optOverridden == optVal and optVarName != "" and allVars[
-            optVarName].isList:
+            optVarName].kind == vvkList:
       var res: seq[string] = @[]
       for item in allVars[optVarName].toList():
         res.add(rf.substituteVariables(item))

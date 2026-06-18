@@ -174,6 +174,14 @@ proc executeNode*(ctx: ExecutionContext, node: AstNode): int =
         # Comments do nothing
         return 0
 
+    of nkObject:
+        # Object declaration - store in objectVariables
+        var props = initTable[string, VarValue]()
+        for (key, value) in node.objectProperties:
+            props[key] = newStringValue(stripQuotes(ctx.resolveVariables(value)))
+        ctx.setObjectVariable(node.objectName, newObjectValue(props))
+        return 0
+
     of nkBlock:
         for stmt in node.blockBody:
             let exitCode = ctx.executeNode(stmt)
@@ -245,6 +253,13 @@ proc loadVariablesFromParsed*(ctx: ExecutionContext, parsed: ParsedScript) =
                     current.keepItIf(it != itemToRemove)
                 ctx.setListVariable(fullName, current)
 
+        of nkObject:
+            # Object declaration in header - store directly
+            var props = initTable[string, VarValue]()
+            for (key, value) in varNode.objectProperties:
+                props[key] = newStringValue(value)
+            ctx.setObjectVariable(varNode.objectName, newObjectValue(props))
+
         else:
             discard
 
@@ -313,7 +328,9 @@ proc resolveVarManipulation*(ctx: ExecutionContext, node: AstNode): string =
 
     # Get base variable value
     var baseValue: VarValue
-    if ctx.hasListVariable(node.baseVar):
+    if ctx.hasObjectVariable(node.baseVar):
+        baseValue = ctx.getObjectVariable(node.baseVar)
+    elif ctx.hasListVariable(node.baseVar):
         baseValue = newListValue(ctx.getListVariable(node.baseVar))
     else:
         baseValue = newStringValue(ctx.getVariable(node.baseVar))

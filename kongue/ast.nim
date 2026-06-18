@@ -25,7 +25,8 @@ type
     nkComment,      # # comment
     nkFuncCall,     # custom_function arg1 arg2
     nkContinue,     # continue (skip to next iteration in for loop)
-    nkBreak         # break (exit for loop)
+    nkBreak,        # break (exit for loop)
+    nkObject        # object name { key: value ... }
 
   VarManipMethod* = object
     ## A single method call in a variable manipulation chain
@@ -109,6 +110,9 @@ type
       discard                       # No additional fields needed
     of nkBreak:
       discard                       # No additional fields needed
+    of nkObject:
+      objectName*: string
+      objectProperties*: seq[tuple[key: string, value: string]]
 
   ParsedScript* = object
     ## Represents a complete parsed Kongue script
@@ -218,6 +222,11 @@ proc newContinueNode*(line: int = 0): AstNode =
 proc newBreakNode*(line: int = 0): AstNode =
   ## Create a new break node
   AstNode(kind: nkBreak, line: line)
+
+proc newObjectNode*(name: string, properties: seq[tuple[key: string, value: string]],
+        line: int = 0): AstNode =
+  ## Create a new object declaration node
+  AstNode(kind: nkObject, objectName: name, objectProperties: properties, line: line)
 
 proc getFullFuncName*(funcNode: AstNode): string =
   ## Get the full function name including qualifier

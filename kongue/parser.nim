@@ -150,6 +150,31 @@ proc parseListItems(p: var Parser): seq[string] =
     result.add(p.parseStringValue())
     p.skipNewlines()
 
+proc parseInlineObjectProperties(p: var Parser): seq[tuple[key: string,
+    value: string]] =
+  ## Parse inline object properties (key: value pairs under a name:)
+  ## Ends when we see a token that isn't an identifier followed by a colon
+  result = @[]
+  p.skipNewlines()
+
+  var propCount = 0
+  while propCount < maxItems:
+    let tok = p.peek()
+    if tok.kind != tkIdentifier:
+      break
+    # Check if this identifier is followed by a colon (key: value pattern)
+    let nextTok = p.peek(1)
+    if nextTok.kind notin {tkColon, tkPlusColon, tkMinusColon}:
+      break
+    # It's a property: key: value
+    let key = p.advance().value # consume identifier
+    discard p.advance() # consume colon
+    p.skipNewlines()
+    let value = p.parseStringValue()
+    result.add((key: key, value: value))
+    propCount += 1
+    p.skipNewlines()
+
 proc parseVariableDeclaration(p: var Parser): AstNode =
   ## Parse a variable declaration (name: value or name qualifier: value or name:\n  - item)
   ## Supports space-separated qualifiers: "depends test2:" parses as name="depends", qualifier="test2"
@@ -179,11 +204,16 @@ proc parseVariableDeclaration(p: var Parser): AstNode =
 
   p.skipNewlines()
 
-  # Check if it's a list or single value
+  # Check what follows: list, inline object, or single value
   if p.peek().kind == tkDash:
     # List variable
     let items = p.parseListItems()
     return newListVariableNode(name, items, op, nameToken.line, qualifier)
+  elif p.peek().kind == tkIdentifier and p.peek(1).kind in {tkColon,
+      tkPlusColon, tkMinusColon}:
+    # Inline object: name: \n  key: value\n  key2: value2
+    let properties = p.parseInlineObjectProperties()
+    return newObjectNode(name, properties, nameToken.line)
   else:
     # Single value variable
     let value = p.parseString()
@@ -288,8 +318,8 @@ proc parseExpression(p: var Parser): string =
       # Include && operator in expression
       parts.add(tok.value)
       discard p.advance()
-    of tkDot, tkLParen, tkRParen:
-      # Allow method chaining and function calls in expressions
+    of tkDot, tkLParen, tkRParen, tkLBracket, tkRBracket:
+      # Allow method chaining, function calls, and bracket access in expressions
       parts.add(tok.value)
       discard p.advance()
     else:
@@ -373,7 +403,7 @@ proc parseCondition(p: var Parser): string =
     of tkLBrace, tkRBrace, tkNewline, tkEof:
       # End of condition
       break
-    of tkDot, tkLParen, tkRParen:
+    of tkDot, tkLParen, tkRParen, tkLBracket, tkRBracket:
       parts.add(tok.value)
       discard p.advance()
     else:
@@ -639,6 +669,37 @@ proc parseFuncCallStatement(p: var Parser, name: string, line: int): AstNode =
       break
   return newFuncCallNode(name, args, line)
 
+proc parseObjectDeclaration(p: var Parser, line: int): AstNode =
+  ## Parse an object declaration: object name { key: "value" ... }
+  discard p.advance() # Skip 'object' keyword
+  let objectName = p.expect(tkIdentifier).value
+  discard p.expect(tkLBrace)
+  p.skipNewlines()
+
+  var properties: seq[tuple[key: string, value: string]] = @[]
+
+  while p.peek().kind != tkRBrace and p.peek().kind != tkEof:
+    # Parse key: value pair
+    let key = p.expect(tkIdentifier).value
+    discard p.expect(tkColon)
+    let value = p.parseStringValue()
+    properties.add((key: key, value: value))
+    p.skipNewlines()
+
+  discard p.expect(tkRBrace)
+  return newObjectNode(objectName, properties, line)
+
+proc isObjectDeclarationStart(p: Parser): bool =
+  ## Check if current position starts an object declaration
+  ## Matches: "object identifier {"
+  if p.peek().kind != tkObject:
+    return false
+  if p.peek(1).kind != tkIdentifier:
+    return false
+  if p.peek(2).kind != tkLBrace:
+    return false
+  return true
+
 proc parseStatement*(p: var Parser): AstNode =
   ## Parse a single statement inside a function
   p.skipCommentsAndNewlines()
@@ -704,6 +765,9 @@ proc parseStatement*(p: var Parser): AstNode =
   of tkBreak:
     discard p.advance()
     return newBreakNode(tok.line)
+
+  of tkObject:
+    return p.parseObjectDeclaration(tok.line)
 
   of tkIdentifier:
     # Could be a custom function call
@@ -795,7 +859,8 @@ proc parse*(p: var Parser): ParsedScript =
   # Parse variable declarations (header)
   while p.peek().kind notin {tkEof, tkFunc} and
               p.peek().kind != tkIdentifier or
-              p.isVariableDeclarationStart():
+              p.isVariableDeclarationStart() or
+              p.peek().kind == tkObject:
     iterations += 1
     if iterations > maxTokens:
       raise newException(ParseError, "Parser exceeded maximum iterations - possible infinite loop")
@@ -804,6 +869,9 @@ proc parse*(p: var Parser): ParsedScript =
 
     if p.isVariableDeclarationStart():
       result.variables.add(p.parseVariableDeclaration())
+      p.skipNewlines()
+    elif p.isObjectDeclarationStart():
+      result.variables.add(p.parseObjectDeclaration(p.peek().line))
       p.skipNewlines()
     elif p.peek().kind in {tkFunc, tkIdentifier}:
       break

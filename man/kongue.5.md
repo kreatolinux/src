@@ -44,6 +44,48 @@ test2:
 # and so on...
 ```
 
+## OBJECTS
+Objects are structured variable types that hold key-value pairs. They can be declared using the `object` keyword or inline in the header using YAML-like syntax.
+
+Object properties are accessed using bracket notation `object["key"]` or dot notation `${object.key}` in commands and conditions.
+
+### Using `object` keyword
+
+```bash
+object kpkg {
+    isBootstrap: "1"
+    arch: "x86_64"
+}
+
+build {
+    if kpkg["isBootstrap"] == "1" {
+        print "Building in bootstrap mode"
+    }
+    print "Architecture: ${kpkg.arch}"
+}
+```
+
+### Inline object syntax
+
+Objects can also be declared inline in the header, using `name:` followed by indented `key: value` pairs:
+
+```yaml
+name: "my-package"
+version: "1.0.0"
+
+kpkg:
+    isBootstrap: "1"
+    arch: "x86_64"
+
+build {
+    if kpkg["isBootstrap"] == "1" {
+        print "Building in bootstrap mode"
+    }
+}
+```
+
+Objects are useful for grouping related configuration values and are used internally by kpkg to provide build context information (e.g., `kpkg["isBootstrap"]`).
+
 Variables can be referenced in if statements, for loops, inside variables, and inside functions (including in commands).
 
 ```yaml

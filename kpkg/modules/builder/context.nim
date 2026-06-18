@@ -10,6 +10,7 @@ import ./types
 import ../runparser
 import ../run3/run3
 import ../commonPaths
+import ../../../kongue/variables
 
 proc initBuildContext*(cfg: BuildConfig, state: BuildState): Run3Context =
   ## Creates and configures Run3 execution context for building.
@@ -26,6 +27,11 @@ proc initBuildContext*(cfg: BuildConfig, state: BuildState): Run3Context =
   # Apply environment variables
   for k, v in state.envVars:
     ctx.envVars[k] = v
+
+  # Populate kpkg object variable for run3 conditionals
+  var kpkgProps = initTable[string, VarValue]()
+  kpkgProps["isBootstrap"] = newStringValue(if cfg.isBootstrap: "1" else: "0")
+  ctx.setObjectVariable("kpkg", newObjectValue(kpkgProps))
 
   ctx.passthrough = cfg.noSandbox
 
