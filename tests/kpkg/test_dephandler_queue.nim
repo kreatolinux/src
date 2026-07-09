@@ -75,6 +75,31 @@ suite "dephandler build queue":
 
     proc installed(pkg: string): bool = pkg == "python"
 
-    addPackageRuntimeDepsToQueue(queue, "meson", depsOf, installed)
+    addPackageWithDepsToQueue(queue, "meson", depsOf, installed)
 
     check queue == @["openssl", "samurai", "meson"]
+
+  test "dynamic build deps include build deps of runtime deps (regression)":
+    # Regression: when a package is dynamically queued (e.g. as a runtime dep
+    # of a build dep of a SONAME consumer), its OWN build deps must also be
+    # queued and built before it. Previously only runtime deps were resolved,
+    # so a package like libuv (build_depends: automake, autoconf) was built in
+    # a sandbox missing automake/autoconf -> "aclocal: not found".
+    var queue: seq[string] = @[]
+
+    proc depsOf(pkg: string): seq[string] =
+      case pkg
+      of "cmake": @["libuv"]
+      of "libuv": @["automake", "autoconf"]
+      else: @[]
+
+    proc installed(pkg: string): bool = false
+
+    # cmake is the dynamically-added build dep; libuv is its runtime dep.
+    # automake/autoconf are libuv's build deps and must be queued before libuv.
+    addPackageWithDepsToQueue(queue, "cmake", depsOf, installed)
+
+    check queue == @["automake", "autoconf", "libuv", "cmake"]
+    check queue.find("libuv") < queue.find("cmake")
+    check queue.find("automake") < queue.find("libuv")
+    check queue.find("autoconf") < queue.find("libuv")

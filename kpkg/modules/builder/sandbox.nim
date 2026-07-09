@@ -22,10 +22,15 @@ import ../runparser
 import ../sqlite
 import ../../commands/installcmd
 
-proc addPackageRuntimeDepsToQueue*(queue: var seq[string], packageName: string,
-                                  depResolver: proc(pkg: string): seq[string],
-                                  installedResolver: proc(pkg: string): bool) =
-  ## Add packageName to queue, inserting any missing runtime dependencies first.
+proc addPackageWithDepsToQueue*(queue: var seq[string], packageName: string,
+                                depResolver: proc(pkg: string): seq[string],
+                                installedResolver: proc(pkg: string): bool) =
+  ## Add packageName to queue, inserting any missing dependencies first.
+  ## depResolver must return BOTH build and runtime dependencies so that
+  ## transitively-required packages (e.g. the build deps of a runtime dep)
+  ## are built and installed before packageName. Without build deps, a
+  ## dynamically-added package whose build deps are not yet built/installed
+  ## would be built in a sandbox missing those build deps.
   ## Used for packages dynamically appended outside the precomputed dep graph.
   var known = queue
   var ordered: seq[string]
@@ -35,7 +40,7 @@ proc addPackageRuntimeDepsToQueue*(queue: var seq[string], packageName: string,
     if pkg in known or installedResolver(pkg):
       return
     if pkg in visiting:
-      debug "addPackageRuntimeDepsToQueue: dependency cycle at " & pkg
+      debug "addPackageWithDepsToQueue: dependency cycle at " & pkg
       return
 
     visiting.add(pkg)
@@ -288,12 +293,13 @@ proc buildAllPackagesInSandbox*(deps: var seq[string], depGraph: dependencyGraph
             for bdep in rf.bdeps:
               let oldLen = deps.len
               let installedRoot = sandboxCfg.root
-              addPackageRuntimeDepsToQueue(deps, bdep,
+              addPackageWithDepsToQueue(deps, bdep,
                   proc(pkg: string): seq[string] =
                 try:
-                  return parseRunfile(findPkgRepo(pkg) & "/" & pkg).deps
+                  let rf = parseRunfile(findPkgRepo(pkg) & "/" & pkg)
+                  return rf.bdeps & rf.deps
                 except CatchableError:
-                  debug "could not resolve runtime deps for dynamic build dep " & pkg
+                  debug "could not resolve deps for dynamic build dep " & pkg
                   return @[],
                   proc(pkg: string): bool = packageExists(pkg, installedRoot))
 
@@ -302,7 +308,7 @@ proc buildAllPackagesInSandbox*(deps: var seq[string], depGraph: dependencyGraph
                   info "Added " & bdep & " (build dep) to queue for consumer " & consumer
                 else:
                   info "Added " & deps[j] &
-                      " (runtime dep) to queue for build dep " & bdep &
+                      " (transitive dep) to queue for build dep " & bdep &
                       " of consumer " & consumer
           except:
             debug "could not resolve bdeps for consumer " & consumer
