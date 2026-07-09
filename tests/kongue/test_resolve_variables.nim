@@ -8,6 +8,9 @@ import tables
 import ../../kongue/context
 import ../../kongue/variables
 import ../../kongue/builtins
+import ../../kongue/lexer
+import ../../kongue/parser
+import ../../kongue/executor
 
 proc newCtx(): ExecutionContext =
   result = initExecutionContext()
@@ -61,3 +64,17 @@ suite "resolveVariables - object property access":
     ctx.setObjectVariable("kpkg", kpkgObject("1"))
     check ctx.resolveVariables("echo ${kpkg.isBootstrap} && build kpkg.nim") ==
       "echo 1 && build kpkg.nim"
+
+  test "unquoted env path values are not spaced apart":
+    let content = """
+build {
+  env DEPMOD=/nodepmod/here
+}
+"""
+    let tokens = tokenize(content)
+    var parser = initParser(tokens)
+    let parsed = parser.parse()
+    let ctx = newCtx()
+
+    check ctx.executeFunctionByName(parsed, "build") == 0
+    check ctx.envVars["DEPMOD"] == "/nodepmod/here"

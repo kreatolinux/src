@@ -327,6 +327,35 @@ proc parseExpression(p: var Parser): string =
 
   return parts.join(" ").strip()
 
+proc parseAssignmentValue(p: var Parser): string =
+  ## Parse a single assignment value for env/local/global.
+  ## Unlike general expressions, assignment values are token-concatenated so
+  ## path-like values such as /nodepmod/here and $ROOT/usr are preserved.
+  var parts: seq[string] = @[]
+  var iterations = 0
+
+  while true:
+    iterations += 1
+    if iterations > maxIterations:
+      raiseParseError("Assignment parsing exceeded maximum iterations - possible infinite loop",
+          p.peek().line, p.peek().col)
+
+    let tok = p.peek()
+    case tok.kind
+    of tkNewline, tkRBrace, tkEof:
+      break
+    of tkString:
+      parts.add("\"" & escapeStringForOutput(tok.value) & "\"")
+      discard p.advance()
+    of tkRegexString:
+      parts.add("e\"" & escapeStringForOutput(tok.value) & "\"")
+      discard p.advance()
+    else:
+      parts.add(tok.value)
+      discard p.advance()
+
+  return parts.join("").strip()
+
 proc parseCondition(p: var Parser): string =
   ## Parse a condition expression for if statements
   ## Handles ||, &&, ==, !=, =~, and regex strings e"pattern"
@@ -726,19 +755,19 @@ proc parseStatement*(p: var Parser): AstNode =
     discard p.advance()
     let varName = p.expect(tkIdentifier).value
     discard p.expect(tkEquals)
-    return newEnvNode(varName, p.parseExpression(), tok.line)
+    return newEnvNode(varName, p.parseAssignmentValue(), tok.line)
 
   of tkLocal:
     discard p.advance()
     let varName = p.expect(tkIdentifier).value
     discard p.expect(tkEquals)
-    return newLocalNode(varName, p.parseExpression(), tok.line)
+    return newLocalNode(varName, p.parseAssignmentValue(), tok.line)
 
   of tkGlobal:
     discard p.advance()
     let varName = p.expect(tkIdentifier).value
     discard p.expect(tkEquals)
-    return newGlobalNode(varName, p.parseExpression(), tok.line)
+    return newGlobalNode(varName, p.parseAssignmentValue(), tok.line)
 
   of tkWrite:
     discard p.advance()
