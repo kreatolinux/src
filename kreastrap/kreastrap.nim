@@ -13,6 +13,7 @@ import ../kpkg/commands/buildcmd
 import ../kpkg/commands/updatecmd
 import ../kpkg/commands/installcmd
 import ../kpkg/modules/commonTasks
+import package_sets
 
 ## Kreato Linux's build tools.
 
@@ -273,15 +274,9 @@ proc kreastrap(buildType = "builder", arch = "amd64",
     debug enableShadowedPw.output
     fatal "Enabling shadow failed"
 
-  # Install kpkg, p11-kit and ca-certificates here
-  kreastrapInstall("kpkg", installWithBinaries, buildDir, useCacheIfPossible, target)
-  kreastrapInstall("p11-kit", installWithBinaries, buildDir,
-          useCacheIfPossible, target)
-  kreastrapInstall("ca-certificates", installWithBinaries, buildDir,
-          useCacheIfPossible, target)
-
-  # Install timezone database
-  kreastrapInstall("tzdb", installWithBinaries, buildDir, useCacheIfPossible, target)
+  for package in caCertificatePackages():
+    kreastrapInstall(package, installWithBinaries, buildDir,
+            useCacheIfPossible, target)
 
   # Generate certdata here
   info "Generating CA certificates"
