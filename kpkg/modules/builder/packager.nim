@@ -29,9 +29,9 @@ proc resolveDependencyPackage*(dep: string,
 
   raise newException(CatchableError, "Dependency '" & dep & "' not found")
 
-proc resolveDepsInfo*(pkg: runFile): string =
+proc resolveDepsInfo*(pkg: runFile, useBootstrapDeps = false): string =
   ## Resolve all dependencies and return a formatted depsInfo string.
-  for dep in pkg.deps:
+  for dep in packageDepsForMetadata(pkg, useBootstrapDeps):
     if isEmptyOrWhitespace(dep):
       continue
 
@@ -59,7 +59,7 @@ proc writePkgSums*() =
 
 proc createPackage*(actualPackage: string, pkg: runFile,
         kTarget: string, resolveDeps: bool = true,
-        tarballPath: string = ""): string =
+        tarballPath: string = "", useBootstrapDeps = false): string =
   ## Creates a binary package from the build directory.
   ##
   ## If resolveDeps is false, the tarball is created *without* dependency
@@ -86,7 +86,7 @@ proc createPackage*(actualPackage: string, pkg: runFile,
   pkgInfo.setSectionKey("", "pkgVer", pkg.versionString)
   pkgInfo.setSectionKey("", "apiVer", ver)
 
-  let depsInfo = if resolveDeps: resolveDepsInfo(pkg) else: ""
+  let depsInfo = if resolveDeps: resolveDepsInfo(pkg, useBootstrapDeps) else: ""
 
   pkgInfo.setSectionKey("", "depends", depsInfo)
 
@@ -103,7 +103,7 @@ proc createPackage*(actualPackage: string, pkg: runFile,
   return tarball
 
 proc finalizePackageDeps*(actualPackage: string, pkg: runFile,
-        kTarget: string, outputPath: string = "") =
+        kTarget: string, outputPath: string = "", useBootstrapDeps = false) =
   ## Resolves dependencies and writes the tarball with complete metadata.
   ##
   ## Must be called AFTER installPkg has registered the current package and
@@ -120,7 +120,7 @@ proc finalizePackageDeps*(actualPackage: string, pkg: runFile,
 
   createDir(parentDir(tarball))
 
-  let depsInfo = resolveDepsInfo(pkg)
+  let depsInfo = resolveDepsInfo(pkg, useBootstrapDeps)
 
   # Update pkgInfo.ini in buildRoot
   var pkgInfo = newConfig()

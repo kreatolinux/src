@@ -39,6 +39,11 @@ type runFile* = object
   run3Data*: Run3File ## Parsed run3 representation
   functions*: seq[tuple[name: string, body: string]]
 
+proc packageDepsForMetadata*(pkg: runFile, useBootstrapDeps = false): seq[string] =
+  if useBootstrapDeps and pkg.bsdeps.len > 0:
+    return pkg.bsdeps
+  return pkg.deps
+
 proc parseRunfile*(path: string, removeLockfileWhenErr = true): runFile =
   ## Parse a run3 file into a runFile object.
 

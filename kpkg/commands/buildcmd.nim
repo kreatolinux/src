@@ -180,7 +180,7 @@ proc builder*(cfg: var BuildConfig): bool =
             cfg.actualPackage & "-" & state.pkg.versionString & ".kpkg"
     createDir(kpkgArchivesDir & "/system/" & cfg.kTarget)
     finalizePackageDeps(cfg.actualPackage, state.pkg, cfg.kTarget,
-            outputPath = finalTarball)
+            outputPath = finalTarball, useBootstrapDeps = cfg.isBootstrap)
 
   finally:
     removeFile(tempTarball)

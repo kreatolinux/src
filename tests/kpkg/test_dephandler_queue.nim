@@ -103,3 +103,18 @@ suite "dephandler build queue":
     check queue.find("libuv") < queue.find("cmake")
     check queue.find("automake") < queue.find("libuv")
     check queue.find("autoconf") < queue.find("libuv")
+
+  test "bootstrap package metadata uses bootstrap dependencies":
+    let pkg = runFile(
+      pkg: "gobject-introspection",
+      version: "1.86.0",
+      release: "4",
+      epoch: "",
+      versionString: "1.86.0-4",
+      deps: @["python", "glib"],
+      bdeps: @["meson", "ninja"],
+      bsdeps: @["python", "meson", "ninja"]
+    )
+
+    check packageDepsForMetadata(pkg, useBootstrapDeps = false) == @["python", "glib"]
+    check packageDepsForMetadata(pkg, useBootstrapDeps = true) == @["python", "meson", "ninja"]
