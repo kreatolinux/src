@@ -236,7 +236,11 @@ proc resolveVariables*(ctx: ExecutionContext, text: string,
         j += 1
       let ident = result[identStart ..< j]
 
-      # Check for [ or . after identifier
+      # Check for [ after identifier.
+      # Bare dot access (ident.prop) is intentionally NOT resolved here: it is
+      # undocumented (the manpage mandates ${object.key}) and collides with
+      # dotted filenames (e.g. kpkg.nim). Dot access must use ${object.key},
+      # which the first pass resolves via resolveManipulation.
       if j < result.len and ident.len > 0 and ctx.hasObjectVariable(ident):
         if result[j] == '[':
           # Bracket access: ident["key"]
@@ -258,22 +262,6 @@ proc resolveVariables*(ctx: ExecutionContext, text: string,
               else:
                 result = result[0 ..< identStart] & "" & result[j .. ^1]
               continue
-        elif result[j] == '.':
-          # Dot access: ident.prop
-          j += 1 # skip .
-          if j < result.len and (result[j].isAlphaAscii() or result[j] == '_'):
-            var propStart = j
-            while j < result.len and (result[j].isAlphaNumeric() or result[j] == '_'):
-              j += 1
-            let prop = result[propStart ..< j]
-            let obj = ctx.getObjectVariable(ident)
-            if obj.kind == vvkObject and obj.objVal.hasKey(prop):
-              let val = obj.objVal[prop].toString()
-              result = result[0 ..< identStart] & val & result[j .. ^1]
-              j = identStart + val.len
-            else:
-              result = result[0 ..< identStart] & "" & result[j .. ^1]
-            continue
     j += 1
 
 proc builtinExec*(ctx: ExecutionContext, command: string): int =
