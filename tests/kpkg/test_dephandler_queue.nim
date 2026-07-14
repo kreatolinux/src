@@ -5,21 +5,22 @@ import ../../kpkg/modules/dephandler
 import ../../kpkg/modules/builder/sandbox
 import ../../kpkg/modules/runparser
 
-proc mkRunFile(name: string, bsdeps: seq[string] = @[]): runFile =
+proc mkRunFile(name: string, deps: seq[string] = @[], bdeps: seq[string] = @[],
+               bsdeps: seq[string] = @[]): runFile =
   runFile(
     pkg: name,
     version: "1",
     release: "1",
     epoch: "",
     versionString: "1-1",
-    deps: @[],
-    bdeps: @[],
+    deps: deps,
+    bdeps: bdeps,
     bsdeps: bsdeps
   )
 
 proc mkResolved(name: string, bsdeps: seq[string] = @[]): resolvedPackage =
   resolvedPackage(name: name, repo: "/etc/kpkg/repos/main", metadata: mkRunFile(
-      name, bsdeps))
+      name, bsdeps = bsdeps))
 
 suite "dephandler build queue":
   test "computeBuildQueue keeps build dependencies before target":
@@ -104,6 +105,21 @@ suite "dephandler build queue":
     check queue.find("libuv") < queue.find("cmake")
     check queue.find("automake") < queue.find("libuv")
     check queue.find("autoconf") < queue.find("libuv")
+
+  test "dynamic sandbox deps include the package runtime closure":
+    var metadata = initTable[string, runFile]()
+    metadata["automake"] = mkRunFile("automake", @["perl", "autoconf",
+        "libtool"], @["gmake"])
+    metadata["autoconf"] = mkRunFile("autoconf", @["m4"])
+    metadata["gmake"] = mkRunFile("gmake")
+    metadata["perl"] = mkRunFile("perl")
+    metadata["libtool"] = mkRunFile("libtool")
+    metadata["m4"] = mkRunFile("m4")
+
+    let deps = collectDynamicSandboxDeps("automake",
+        proc(pkg: string): runFile = metadata[pkg])
+
+    check deps == @["gmake", "perl", "autoconf", "m4", "libtool"]
 
   test "bootstrap package metadata uses bootstrap dependencies":
     let pkg = runFile(

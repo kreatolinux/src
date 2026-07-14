@@ -128,20 +128,21 @@ proc buildPackageInSandbox*(pkgName: string, depGraph: dependencyGraph,
               ignorePostInstall = true)
 
     # If the package isn't in the dep graph (e.g. dynamically added consumer),
-    # fall back to parsing the runfile directly for build deps
+    # resolve its direct build deps and runtime closure from runfile metadata.
     if sandboxDeps.len == 0:
-      let pkgDir = findPkgRepo(pkgTmp.name) & "/" & pkgTmp.name
       try:
-        let rf = parseRunfile(pkgDir)
-        for bdep in rf.bdeps:
-          if packageExists(bdep, sandboxCfg.root):
-            debug "buildPackageInSandbox: installing build dep '" & bdep &
+        let dynamicDeps = collectDynamicSandboxDeps(pkgTmp.name,
+            proc(pkg: string): runFile =
+              parseRunfile(findPkgRepo(pkg) & "/" & pkg))
+        for dep in dynamicDeps:
+          if packageExists(dep, sandboxCfg.root):
+            debug "buildPackageInSandbox: installing dynamic sandbox dep '" & dep &
                 "' for '" & pkgTmp.name & "'"
-            discard installFromRoot(bdep, sandboxCfg.root,
+            discard installFromRoot(dep, sandboxCfg.root,
                     kpkgOverlayPath & "/upperDir",
                     ignorePostInstall = true)
       except:
-        debug "buildPackageInSandbox: could not parse runfile for '" &
+        debug "buildPackageInSandbox: could not resolve dynamic sandbox deps for '" &
             pkgTmp.name & "'"
 
     # Install the package with changed SONAME into the env so consumers
