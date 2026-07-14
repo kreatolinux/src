@@ -38,6 +38,20 @@ proc createDefaultConfig(): Config =
   # [Upgrade]
   result.setSectionKey("Upgrade", "buildByDefault", "yes") # Build packages by default
 
+  # [Telemetry]
+  result.setSectionKey("Telemetry", "enabled", "false")
+  result.setSectionKey("Telemetry", "endpoint", "localhost:4317")
+  result.setSectionKey("Telemetry", "tls", "false")
+  result.setSectionKey("Telemetry", "timeoutMs", "5000")
+  result.setSectionKey("Telemetry", "failurePolicy", "continue")
+  result.setSectionKey("Telemetry", "authType", "none")
+  result.setSectionKey("Telemetry", "username", "")
+  result.setSectionKey("Telemetry", "password", "")
+  result.setSectionKey("Telemetry", "bearerToken", "")
+
+proc protectConfigFile*(path: string) =
+  setFilePermissions(path, {fpUserRead, fpUserWrite})
+
 proc initializeConfig*(): Config =
   ## Initializes the configuration file
   var config = createDefaultConfig()
@@ -49,6 +63,7 @@ proc initializeConfig*(): Config =
   discard existsOrCreateDir("/etc/kpkg/repos")
 
   config.writeConfig(configPath)
+  protectConfigFile(configPath)
 
   return config
 
@@ -97,6 +112,7 @@ proc setConfigValue*(section: string, key: string, value: string) =
   ## Writes a section to the configuration file.
   config.setSectionKey(section, key, value)
   config.writeConfig(configPath)
+  protectConfigFile(configPath)
 
 proc findPkgRepo*(package: string): string =
   ## finds the package repository.
@@ -106,6 +122,20 @@ proc findPkgRepo*(package: string): string =
   # return blank line if not found
   return ""
 
+proc redactTelemetrySecrets*(configOutput: string): string =
+  var inTelemetrySection = false
+  for line in configOutput.splitLines():
+    let stripped = line.strip()
+    if stripped.startsWith("[") and stripped.endsWith("]"):
+      inTelemetrySection = stripped == "[Telemetry]"
+    if inTelemetrySection and (stripped.startsWith("password=") or
+        stripped.startsWith("bearerToken=")) and stripped.split("=", 1)[1].len > 0:
+      result.add(stripped.split("=", 1)[0] & "=REDACTED")
+    else:
+      result.add(line)
+    result.add("\n")
+  result = result.strip(leading = false, trailing = true)
+
 proc returnConfig*(): string =
   ## Returns the full configuration file.
   if not fileExists(configPath):
@@ -113,7 +143,7 @@ proc returnConfig*(): string =
   else:
     config = loadConfig(configPath)
 
-  echo ($config).strip()
+  echo redactTelemetrySecrets(($config).strip())
 
 proc setDisableExcludes*(val: bool) =
   disableExcludes = val
