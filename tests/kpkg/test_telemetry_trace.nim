@@ -1,5 +1,6 @@
 import unittest, tables, strutils
 import ../../kpkg/modules/telemetry/main
+import ../../kpkg/modules/telemetry/protobuf
 
 proc enabledSettings(policy = telemetryContinue): TelemetrySettings =
   TelemetrySettings(enabled: true, failurePolicy: policy)
@@ -159,3 +160,50 @@ suite "telemetry tracing":
     check span.status == spanError
     check span.errorType == "AssertionDefect"
     check span.errorMessage == "telemetry span failed"
+
+  test "OTLP export encodes completed root and child spans":
+    let root = Span(
+      traceId: "00112233445566778899aabbccddeeff",
+      spanId: "0011223344556677",
+      name: "kpkg.build",
+      startedAtNs: 1_000,
+      endedAtNs: 2_000,
+      status: spanOk,
+      attributes: {"kpkg.command": "build", "secret": "ignored"}.toTable
+    )
+    let child = Span(
+      traceId: "00112233445566778899aabbccddeeff",
+      spanId: "8899aabbccddeeff",
+      parentSpanId: "0011223344556677",
+      name: "kpkg.run.build",
+      startedAtNs: 1_100,
+      endedAtNs: 1_900,
+      status: spanError,
+      attributes: {"error.type": "BuildError"}.toTable
+    )
+
+    let payload = encodeExportRequest([root, child], {"service.name": "kpkg"}.toTable)
+
+    check "kpkg.build" in payload
+    check "kpkg.run.build" in payload
+    check "kpkg.command" in payload
+    check "secret" notin payload
+
+  test "gRPC records use an uncompressed big-endian payload length":
+    let record = grpcRecord("abc")
+
+    check record[] == "\0\0\0\0\3abc"
+
+  test "OTLP export rejects malformed span identifiers":
+    let span = Span(
+      traceId: "invalid",
+      spanId: "0011223344556677",
+      name: "kpkg.build",
+      startedAtNs: 1,
+      endedAtNs: 2,
+      status: spanOk,
+      attributes: initTable[string, string]()
+    )
+
+    expect ValueError:
+      discard encodeExportRequest([span], initTable[string, string]())
