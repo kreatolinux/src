@@ -26,16 +26,33 @@ suite "telemetry tracing":
     endSpan(resumed)
     endSpan(parent)
 
-  test "disabled telemetry retains spans without queueing them":
+  test "disabled telemetry leaves no active span or queue entry":
     initializeTelemetry(TelemetrySettings(enabled: false))
     defer: shutdownTelemetry()
 
     let span = startSpan("disabled")
     endSpan(span)
 
-    check span.traceId.len == 32
-    check span.endedAtNs > 0
+    check span.isNil
+    check activeSpanForTesting().isNil
     check completedSpanCountForTesting() == 0
+
+  test "out-of-order completion removes ended parent context":
+    initializeTelemetry(enabledSettings())
+    defer: shutdownTelemetry()
+
+    let parent = startSpan("parent")
+    let child = startSpan("child")
+    endSpan(parent)
+
+    let descendant = startSpan("descendant")
+    check descendant.parentSpanId == child.spanId
+    endSpan(descendant)
+    endSpan(child)
+
+    let root = startSpan("root")
+    check root.parentSpanId == ""
+    endSpan(root)
 
   test "span attributes allow only safe telemetry fields":
     initializeTelemetry(enabledSettings())

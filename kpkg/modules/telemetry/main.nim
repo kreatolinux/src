@@ -57,6 +57,8 @@ proc shutdownTelemetry*() =
 
 proc startSpan*(name: string,
     attributes = initTable[string, string]()): Span =
+  if not telemetryEnabled:
+    return
   var safeAttributes = initTable[string, string]()
   for key, value in attributes:
     if isSafeAttribute(key):
@@ -82,14 +84,18 @@ proc endSpan*(span: Span, failure: ref CatchableError = nil) =
     span.errorMessage = "telemetry span failed"
   else:
     span.status = spanOk
-  if spanStack.len > 0 and spanStack[^1] == span:
-    spanStack.setLen(spanStack.len - 1)
+  for index in countdown(spanStack.high, 0):
+    if spanStack[index] == span or spanStack[index].endedAtNs != 0:
+      spanStack.delete(index)
   currentSpan = if spanStack.len == 0: nil else: spanStack[^1]
   if telemetryEnabled:
     completedSpans.add(span)
 
 proc completedSpanCountForTesting*(): int =
   completedSpans.len
+
+proc activeSpanForTesting*(): Span =
+  currentSpan
 
 proc lastCompletedSpanForTesting*(): Span =
   if completedSpans.len > 0:
