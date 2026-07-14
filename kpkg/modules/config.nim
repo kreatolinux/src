@@ -49,6 +49,9 @@ proc createDefaultConfig(): Config =
   result.setSectionKey("Telemetry", "password", "")
   result.setSectionKey("Telemetry", "bearerToken", "")
 
+proc protectConfigFile*(path: string) =
+  setFilePermissions(path, {fpUserRead, fpUserWrite})
+
 proc initializeConfig*(): Config =
   ## Initializes the configuration file
   var config = createDefaultConfig()
@@ -60,7 +63,7 @@ proc initializeConfig*(): Config =
   discard existsOrCreateDir("/etc/kpkg/repos")
 
   config.writeConfig(configPath)
-  setFilePermissions(configPath, {fpUserRead, fpUserWrite})
+  protectConfigFile(configPath)
 
   return config
 
@@ -109,7 +112,7 @@ proc setConfigValue*(section: string, key: string, value: string) =
   ## Writes a section to the configuration file.
   config.setSectionKey(section, key, value)
   config.writeConfig(configPath)
-  setFilePermissions(configPath, {fpUserRead, fpUserWrite})
+  protectConfigFile(configPath)
 
 proc findPkgRepo*(package: string): string =
   ## finds the package repository.
