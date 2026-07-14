@@ -1,6 +1,8 @@
 import std/[httpclient, net, strutils, tables, uri]
 import ./config
 
+const telemetryHttpClientMaxRedirects* = 0
+
 type
   TelemetryHttpRequest* = object
     url*: string
@@ -52,15 +54,21 @@ proc buildTraceRequest*(settings: TelemetrySettings,
   result.verifyTls = settings.tls
   result.verifyHostname = settings.tls
 
-proc sendWithHttpClient(request: TelemetryHttpRequest): int {.gcsafe.} =
+proc newTelemetryHttpClient*(request: TelemetryHttpRequest): HttpClient =
   when defined(ssl):
     let sslContext = if request.tls: newContext(verifyMode = CVerifyPeer) else: nil
-    var client = newHttpClient(timeout = request.timeoutMs, sslContext = sslContext)
+    result = newHttpClient(timeout = request.timeoutMs,
+        maxRedirects = telemetryHttpClientMaxRedirects,
+        sslContext = sslContext)
   else:
     if request.tls:
       raise newException(TelemetryRuntimeError,
           "TLS telemetry requires a build with SSL support")
-    var client = newHttpClient(timeout = request.timeoutMs)
+    result = newHttpClient(timeout = request.timeoutMs,
+        maxRedirects = telemetryHttpClientMaxRedirects)
+
+proc sendWithHttpClient(request: TelemetryHttpRequest): int {.gcsafe.} =
+  var client = newTelemetryHttpClient(request)
   defer: client.close()
   for key, value in request.headers:
     client.headers[key] = value

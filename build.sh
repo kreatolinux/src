@@ -119,7 +119,7 @@ runTests() {
 		mkdir -p "$(dirname "$testBinary")"
 
 		# Build the test
-		set -- nim c -d:debug -d:run3NoLibArchive
+		set -- nim c -d:debug -d:ssl -d:run3NoLibArchive
 		[ -n "$passC" ] && set -- "$@" $passC
 		[ -n "$passL" ] && set -- "$@" $passL
 		set -- "$@" --threads:on --deepcopy:on -o:"$testBinary" "$testFile"

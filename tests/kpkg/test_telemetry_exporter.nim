@@ -65,3 +65,10 @@ suite "telemetry HTTP exporter":
 
     expect TelemetryRuntimeError:
       exportTracePayload(settings, "protobuf", transport)
+
+  test "creates a client that never follows redirects":
+    let settings = TelemetrySettings(endpoint: "collector.example", tls: false,
+      timeoutMs: 5000)
+    discard newTelemetryHttpClient(buildTraceRequest(settings, "protobuf"))
+
+    check telemetryHttpClientMaxRedirects == 0
