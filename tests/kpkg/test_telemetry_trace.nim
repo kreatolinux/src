@@ -92,6 +92,18 @@ suite "telemetry tracing":
 
     check completedSpanCountForTesting() == workers.len
 
+  test "completion after shutdown is not queued":
+    initializeTelemetry(enabledSettings())
+    defer:
+      setShutdownBeforeQueueAppendForTesting(false)
+      shutdownTelemetry()
+
+    let span = startSpan("shutdown")
+    setShutdownBeforeQueueAppendForTesting(true)
+    endSpan(span)
+
+    check completedSpanCountForTesting() == 0
+
   test "span attributes allow only safe telemetry fields":
     initializeTelemetry(enabledSettings())
     defer: shutdownTelemetry()

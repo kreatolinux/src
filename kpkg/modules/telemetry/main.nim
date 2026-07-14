@@ -29,6 +29,7 @@ var completedSpansLock: Lock
 var currentSpan {.threadvar.}: Span
 var spanStack {.threadvar.}: seq[Span]
 var randomFailureForTesting: bool
+var shutdownBeforeQueueAppendForTesting: bool
 
 initLock(completedSpansLock)
 
@@ -52,10 +53,10 @@ proc isSafeAttribute*(key: string): bool =
   key in safeAttributes
 
 proc initializeTelemetry*(settings: TelemetrySettings) =
-  telemetryEnabled = settings.enabled
-  telemetryFailurePolicy = settings.failurePolicy
   acquire(completedSpansLock)
   try:
+    telemetryEnabled = settings.enabled
+    telemetryFailurePolicy = settings.failurePolicy
     {.cast(gcsafe).}:
       completedSpans.setLen(0)
   finally:
@@ -63,10 +64,10 @@ proc initializeTelemetry*(settings: TelemetrySettings) =
   currentSpan = nil
   spanStack.setLen(0)
 
-proc shutdownTelemetry*() =
-  telemetryEnabled = false
+proc shutdownTelemetry*() {.gcsafe.} =
   acquire(completedSpansLock)
   try:
+    telemetryEnabled = false
     {.cast(gcsafe).}:
       completedSpans.setLen(0)
   finally:
@@ -76,7 +77,15 @@ proc shutdownTelemetry*() =
 
 proc startSpan*(name: string,
     attributes = initTable[string, string]()): Span =
-  if not telemetryEnabled:
+  var enabled: bool
+  var failurePolicy: TelemetryFailurePolicy
+  acquire(completedSpansLock)
+  try:
+    enabled = telemetryEnabled
+    failurePolicy = telemetryFailurePolicy
+  finally:
+    release(completedSpansLock)
+  if not enabled:
     return
   var safeAttributes = initTable[string, string]()
   for key, value in attributes:
@@ -92,7 +101,7 @@ proc startSpan*(name: string,
       attributes: safeAttributes
     )
   except OSError:
-    if telemetryFailurePolicy == telemetryFail:
+    if failurePolicy == telemetryFail:
       raise newException(TelemetryRuntimeError,
           "Unable to generate telemetry span identifiers")
     warn "kpkg telemetry: unable to generate span identifiers"
@@ -102,6 +111,9 @@ proc startSpan*(name: string,
 
 proc setRandomFailureForTesting*(enabled: bool) =
   randomFailureForTesting = enabled
+
+proc setShutdownBeforeQueueAppendForTesting*(enabled: bool) =
+  shutdownBeforeQueueAppendForTesting = enabled
 
 proc markSpanError(span: Span, failure: ref Exception) =
   span.status = spanError
@@ -120,14 +132,16 @@ proc endSpan*(span: Span, failure: ref CatchableError = nil) {.gcsafe.} =
     if spanStack[index] == span or spanStack[index].endedAtNs != 0:
       spanStack.delete(index)
   currentSpan = if spanStack.len == 0: nil else: spanStack[^1]
-  if telemetryEnabled:
-    acquire(completedSpansLock)
-    try:
+  if shutdownBeforeQueueAppendForTesting:
+    shutdownTelemetry()
+  acquire(completedSpansLock)
+  try:
+    if telemetryEnabled:
       # The lock makes this shared GC-managed queue safe across worker threads.
       {.cast(gcsafe).}:
         completedSpans.add(span)
-    finally:
-      release(completedSpansLock)
+  finally:
+    release(completedSpansLock)
 
 proc completedSpanCountForTesting*(): int {.gcsafe.} =
   acquire(completedSpansLock)
