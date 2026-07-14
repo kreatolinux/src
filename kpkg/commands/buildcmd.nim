@@ -67,6 +67,7 @@ proc builderImpl(cfg: var BuildConfig): bool =
 
   # Check cache and install from it if available
   if shouldInstallFromCache(cfg.toCacheConfig(), state.pkg):
+    telemetry.setActiveSpanAttribute("package.cache_hit", "true")
     debug "Tarball (and the sum) already exists, going to install"
     if cfg.destdir != "/" and cfg.target == "default":
       installPkg(cfg.repo, cfg.actualPackage, "/", state.pkg, cfg.manualInstallList,

@@ -120,6 +120,22 @@ build {
     check span.attributes["package.version"] == "1.2.3-1"
     check "token=secret" notin $span.attributes
 
+  test "nonzero execution result records an error span":
+    writeFile(telemetryTestDir / "run3", """
+name: "failing-package"
+version: "1"
+release: "1"
+
+build { macro unsupported }
+""")
+
+    let runfile = parseRun3(telemetryTestDir)
+    check runfile.executeFunction("build") != 0
+
+    let span = lastCompletedSpanForTesting()
+    check span.status == spanError
+    check span.errorType == "ExecutionError"
+
 suite "run3 variables":
   test "split method":
     let strVal = newStringValue("1.2.3")

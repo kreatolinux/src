@@ -363,12 +363,20 @@ proc initRun3ContextFromParsed*(parsed: ParsedScript, destDir: string = "",
 proc executeFunction*(rf: Run3File, functionName: string, destDir: string = "",
         srcDir: string = "", buildRoot: string = ""): int =
     ## Execute a specific function from the run3 file
-    telemetry.withSpan("kpkg.run3.execute", {
+    let span = telemetry.startSpan("kpkg.run3.execute", {
       "package.name": rf.getVariable("name"),
       "package.version": rf.getVariable("version") & "-" & rf.getVariable("release")
-    }.toTable):
+    }.toTable)
+    try:
         let ctx = initRun3ContextFromParsed(rf.parsed, destDir, srcDir, buildRoot)
-        return executeFunctionByName(ctx, rf.parsed, functionName)
+        result = executeFunctionByName(ctx, rf.parsed, functionName)
+        if result != 0:
+            telemetry.endSpan(span, newException(ExecutionError, "Run3 execution failed"))
+    except CatchableError as failure:
+        telemetry.endSpan(span, failure)
+        raise
+    finally:
+        telemetry.endSpan(span)
 
 proc getAllFunctions*(rf: Run3File): seq[string] =
     ## Get a list of all function names defined in the runfile

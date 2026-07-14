@@ -170,6 +170,10 @@ proc completedSpanCountForTesting*(): int {.gcsafe.} =
 proc activeSpanForTesting*(): Span =
   currentSpan
 
+proc setActiveSpanAttribute*(key: string, value: string) =
+  if not currentSpan.isNil and isSafeAttribute(key):
+    currentSpan.attributes[key] = value
+
 proc lastCompletedSpanForTesting*(): Span {.gcsafe.} =
   acquire(completedSpansLock)
   try:

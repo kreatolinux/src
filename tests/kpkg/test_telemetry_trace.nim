@@ -240,6 +240,21 @@ suite "telemetry tracing":
     check span.attributes == {"source.filename": "source.tar.gz"}.toTable
     endSpan(span)
 
+  test "active spans allow cache status to be updated safely":
+    initializeTelemetry(enabledSettings())
+    defer: shutdownTelemetry()
+
+    let span = startSpan("kpkg.package.build", {
+      "package.cache_hit": "false"
+    }.toTable)
+    setActiveSpanAttribute("package.cache_hit", "true")
+    setActiveSpanAttribute("source.url", "https://user:password@example.invalid")
+    endSpan(span)
+
+    let completed = lastCompletedSpanForTesting()
+    check completed.attributes["package.cache_hit"] == "true"
+    check "source.url" notin completed.attributes
+
   test "withSpan records a sanitized failure and reraises it":
     initializeTelemetry(enabledSettings())
     defer: shutdownTelemetry()
