@@ -1,5 +1,6 @@
 import unittest
 import tables
+import sets
 import ../../kpkg/modules/dephandler
 import ../../kpkg/modules/builder/sandbox
 import ../../kpkg/modules/runparser
@@ -118,3 +119,20 @@ suite "dephandler build queue":
 
     check packageDepsForMetadata(pkg, useBootstrapDeps = false) == @["python", "glib"]
     check packageDepsForMetadata(pkg, useBootstrapDeps = true) == @["python", "meson", "ninja"]
+
+  test "forced resolution skips only bootstrap-satisfied installed dependencies":
+    var rootPackages = initHashSet[string]()
+    var bootstrapSatisfied = initHashSet[string]()
+    bootstrapSatisfied.incl("gobject-introspection")
+
+    check shouldSkipInstalledDependency(true, "noupgrade", "gobject-introspection",
+        rootPackages, false, bootstrapSatisfied)
+    check not shouldSkipInstalledDependency(true, "noupgrade", "gobject-introspection",
+        rootPackages, true, initHashSet[string]())
+    check shouldSkipInstalledDependency(true, "noupgrade", "gobject-introspection",
+        rootPackages, true, bootstrapSatisfied)
+    check not shouldSkipInstalledDependency(true, "noupgrade", "glib",
+        rootPackages, true, bootstrapSatisfied)
+    rootPackages.incl("gobject-introspection")
+    check not shouldSkipInstalledDependency(true, "noupgrade", "gobject-introspection",
+        rootPackages, true, bootstrapSatisfied)

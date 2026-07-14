@@ -1,4 +1,5 @@
 import os
+import sets
 import tables
 import strutils
 import installcmd
@@ -267,6 +268,7 @@ proc build*(no = false, yes = false, root = "/",
              ". Kpkg will attempt to bootstrap and install this package automatically."
 
         # Build each package with bsdeps using bootstrap
+        var bootstrapSatisfied = initHashSet[string]()
         for pkg in pkgsWithBsdeps:
           let bootstrapResult = build(
             no = no, yes = yes, root = root,
@@ -284,10 +286,12 @@ proc build*(no = false, yes = false, root = "/",
           if bootstrapResult != 0:
             fatal "Bootstrap build failed for '" & pkg & "'"
             return bootstrapResult
+          bootstrapSatisfied.incl(pkg)
 
         # Retry the original build without bootstrap (now that packages are installed)
         info "Bootstrap builds completed, retrying original build..."
         depCtx.useBootstrap = false
+        depCtx.bootstrapSatisfied = bootstrapSatisfied
         (deps, depGraph, allDependents, sortResult) = resolveBuildOrder(
           packages, depCtx, false, isInstallDir
         )

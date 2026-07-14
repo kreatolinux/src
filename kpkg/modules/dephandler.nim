@@ -35,6 +35,7 @@ type
         commit*: string     ## Commit hash for commit-based builds
         commitRepo*: string ## The repo that was checked out to the commit
         headRunfileCache*: Table[string, runFile] ## Cached runfiles at HEAD (before checkout)
+        bootstrapSatisfied*: HashSet[string]
 
     resolvedPackage* = object
         name*: string
@@ -270,6 +271,12 @@ proc addEdge(graph: var dependencyGraph, fromPkg: string, toPkg: string) =
     if toPkg notin graph.edges[fromPkg]:
         graph.edges[fromPkg].add(toPkg)
 
+proc shouldSkipInstalledDependency*(isInstalled: bool, versionAction: string,
+        depName: string, rootPkgNames: HashSet[string], forceInstallAll: bool,
+        bootstrapSatisfied: HashSet[string]): bool =
+    isInstalled and versionAction != "upgrade" and depName notin rootPkgNames and
+            (not forceInstallAll or depName in bootstrapSatisfied)
+
 proc buildDependencyGraph*(pkgs: seq[string], ctx: dependencyContext,
                           ignoreDeps: seq[string] = @["  "],
                           chkInstalledDirInstead = false,
@@ -356,10 +363,11 @@ proc buildDependencyGraph*(pkgs: seq[string], ctx: dependencyContext,
                 let chkVer = checkVersions(ctx.root, bdep, repo)
                 let depName = chkVer[1]
 
-                # Skip if already installed and not forcing
-                # Don't skip if the dependency is one of the root packages we are explicitly processing
-                if packageExists(depName, ctx.root) and chkVer[0] !=
-                        "upgrade" and not ctx.forceInstallAll and depName notin rootPkgNames:
+                # Don't skip root packages. During a forced retry, only bootstrap
+                # packages are treated as satisfied to keep the broken cycle closed.
+                if shouldSkipInstalledDependency(packageExists(depName, ctx.root),
+                        chkVer[0], depName, rootPkgNames, ctx.forceInstallAll,
+                        ctx.bootstrapSatisfied):
                     debug "dephandler: Package '"&depName&"' already installed, skipping"
                     continue
 
@@ -404,10 +412,11 @@ proc buildDependencyGraph*(pkgs: seq[string], ctx: dependencyContext,
                 let chkVer = checkVersions(ctx.root, dep, repo)
                 let depName = chkVer[1]
 
-                # Skip if already installed and not forcing
-                # Don't skip if the dependency is one of the root packages we are explicitly processing
-                if packageExists(depName, ctx.root) and chkVer[0] !=
-                        "upgrade" and not ctx.forceInstallAll and depName notin rootPkgNames:
+                # Don't skip root packages. During a forced retry, only bootstrap
+                # packages are treated as satisfied to keep the broken cycle closed.
+                if shouldSkipInstalledDependency(packageExists(depName, ctx.root),
+                        chkVer[0], depName, rootPkgNames, ctx.forceInstallAll,
+                        ctx.bootstrapSatisfied):
                     debug "Package '"&depName&"' already installed, skipping"
                     continue
 
@@ -640,9 +649,10 @@ proc dephandlerWithGraph*(pkgs: seq[string], ignoreDeps = @["  "],
                 forceInstallAll = false, chkInstalledDirInstead = false,
                         isInstallDir = false, ignoreInit = false,
                         useBootstrap = false, ignoreCircularDeps = false,
-                        useCacheIfAvailable = false,
-                        commit = "", commitRepo = "",
-                        headRunfileCache = initTable[string, runFile]()): (seq[
+                         useCacheIfAvailable = false,
+                         commit = "", commitRepo = "",
+                         headRunfileCache = initTable[string, runFile](),
+                         bootstrapSatisfied = initHashSet[string]()): (seq[
                                 string],
                         dependencyGraph, SortResult) =
     ## Takes packages and returns what to install in correct dependency order PLUS the dependency graph
@@ -671,7 +681,8 @@ proc dephandlerWithGraph*(pkgs: seq[string], ignoreDeps = @["  "],
         init: init,
         commit: commit,
         commitRepo: commitRepo,
-        headRunfileCache: headRunfileCache
+        headRunfileCache: headRunfileCache,
+        bootstrapSatisfied: bootstrapSatisfied
     )
 
     # Build the dependency graph
@@ -740,7 +751,8 @@ proc resolveBuildOrder*(packages: seq[string], ctx: dependencyContext,
             useBootstrap = ctx.useBootstrap,
             useCacheIfAvailable = ctx.useCacheIfAvailable,
             commit = ctx.commit, commitRepo = ctx.commitRepo,
-            headRunfileCache = ctx.headRunfileCache)
+            headRunfileCache = ctx.headRunfileCache,
+            bootstrapSatisfied = ctx.bootstrapSatisfied)
 
     # Get packages that depend on what we're building (build dependents)
     let gD = getDependents(deps)
