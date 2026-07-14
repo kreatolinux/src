@@ -23,8 +23,23 @@ suite "telemetry configuration":
     expect TelemetryConfigError:
       discard parseTelemetryConfig(cfg)
 
+  test "basic authentication requires a username":
+    var cfg = newConfig()
+    cfg.setSectionKey("Telemetry", "enabled", "true")
+    cfg.setSectionKey("Telemetry", "authType", "basic")
+    cfg.setSectionKey("Telemetry", "password", "secret")
+    expect TelemetryConfigError:
+      discard parseTelemetryConfig(cfg)
+
   test "bearer authentication produces authorization metadata":
     var cfg = newConfig()
     cfg.setSectionKey("Telemetry", "authType", "bearer")
     cfg.setSectionKey("Telemetry", "bearerToken", "secret")
     check parseTelemetryConfig(cfg).authorizationHeader == "Bearer secret"
+
+  test "bearer authentication requires a token":
+    var cfg = newConfig()
+    cfg.setSectionKey("Telemetry", "enabled", "true")
+    cfg.setSectionKey("Telemetry", "authType", "bearer")
+    expect TelemetryConfigError:
+      discard parseTelemetryConfig(cfg)
