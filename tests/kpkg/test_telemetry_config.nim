@@ -1,5 +1,6 @@
-import unittest, parsecfg
+import unittest, parsecfg, strutils
 import ../../kpkg/modules/telemetry/config
+import ../../kpkg/modules/config as kpkgconfig
 
 suite "telemetry configuration":
   test "defaults disable telemetry":
@@ -43,3 +44,19 @@ suite "telemetry configuration":
     cfg.setSectionKey("Telemetry", "authType", "bearer")
     expect TelemetryConfigError:
       discard parseTelemetryConfig(cfg)
+
+  test "redacts telemetry credentials in configuration output":
+    let output = kpkgconfig.redactTelemetrySecrets("""
+[Telemetry]
+endpoint=collector.example:4317
+password=top-secret
+bearerToken=token-secret
+
+[Options]
+cc=gcc
+""")
+    check "password=REDACTED" in output
+    check "bearerToken=REDACTED" in output
+    check "top-secret" notin output
+    check "token-secret" notin output
+    check "endpoint=collector.example:4317" in output
