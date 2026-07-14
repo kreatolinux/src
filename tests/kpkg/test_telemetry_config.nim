@@ -7,7 +7,13 @@ suite "telemetry configuration":
     let settings = parseTelemetryConfig(cfg)
     check not settings.enabled
     check settings.endpoint == "localhost:4317"
+    check not settings.tls
+    check settings.timeoutMs == 5000
+    check settings.failurePolicy == telemetryContinue
     check settings.authType == telemetryAuthNone
+    check settings.username == ""
+    check settings.password == ""
+    check settings.bearerToken == ""
 
   test "basic authentication requires both credentials":
     var cfg = newConfig()
