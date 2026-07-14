@@ -2,6 +2,8 @@ import os
 import ../../common/logging
 import strutils
 import sequtils
+import telemetry/main as telemetry
+import tables
 
 # libarchive bindings
 {.passL: "-larchive".}
@@ -184,7 +186,7 @@ if setlocale(LC_ALL, "") == nil:
       if setlocale(LC_ALL, "C") == nil:
         raise newException(OSError, "setlocale failed")
 
-proc extract*(fileName: string, path = getCurrentDir(), ignoreFiles = @[""],
+proc extractImpl(fileName: string, path = getCurrentDir(), ignoreFiles = @[""],
     getFiles = @[""]): seq[string] =
   # Extracts a file to a directory.
   # Based on untar.c in libarchive/examples
@@ -256,6 +258,13 @@ proc extract*(fileName: string, path = getCurrentDir(), ignoreFiles = @[""],
   discard archiveWriteClose(ext)
   discard archiveWriteFree(ext)
   return resultStr
+
+proc extract*(fileName: string, path = getCurrentDir(), ignoreFiles = @[""],
+    getFiles = @[""]): seq[string] =
+  telemetry.withSpan("kpkg.archive.extract", {
+    "source.filename": extractFilename(fileName)
+  }.toTable):
+    return extractImpl(fileName, path, ignoreFiles, getFiles)
 
 proc createArchive*(fileName: string, path = getCurrentDir(), format = "auto",
     filter = "gzip") =

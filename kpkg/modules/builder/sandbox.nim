@@ -21,6 +21,7 @@ import ../commonTasks
 import ../runparser
 import ../sqlite
 import ../../commands/installcmd
+import ../../modules/telemetry/main as telemetry
 
 proc addPackageWithDepsToQueue*(queue: var seq[string], packageName: string,
                                 depResolver: proc(pkg: string): seq[string],
@@ -58,7 +59,7 @@ proc addPackageWithDepsToQueue*(queue: var seq[string], packageName: string,
   for pkg in ordered:
     queue.add(pkg)
 
-proc buildPackageInSandbox*(pkgName: string, depGraph: dependencyGraph,
+proc buildPackageInSandboxImpl(pkgName: string, depGraph: dependencyGraph,
                             sandboxCfg: SandboxConfig,
                             builderProc: BuilderProc,
                             installPkgProc: InstallPkgProc): seq[string] =
@@ -253,6 +254,17 @@ proc buildPackageInSandbox*(pkgName: string, depGraph: dependencyGraph,
     return buildCfg.consumersToRebuild
 
   info("built " & pkgName & " successfully")
+
+proc buildPackageInSandbox*(pkgName: string, depGraph: dependencyGraph,
+                             sandboxCfg: SandboxConfig,
+                             builderProc: BuilderProc,
+                             installPkgProc: InstallPkgProc): seq[string] =
+  telemetry.withSpan("kpkg.sandbox.lifecycle", {
+    "package.name": parsePkgInfo(pkgName).name,
+    "package.bootstrap": $sandboxCfg.bootstrap
+  }.toTable):
+    return buildPackageInSandboxImpl(pkgName, depGraph, sandboxCfg, builderProc,
+        installPkgProc)
 
 
 proc buildAllPackagesInSandbox*(deps: var seq[string], depGraph: dependencyGraph,

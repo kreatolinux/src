@@ -179,9 +179,9 @@ proc lastCompletedSpanForTesting*(): Span {.gcsafe.} =
   finally:
     release(completedSpansLock)
 
-template withSpan*(name: string, body: untyped): untyped =
+template withSpan*(name: string, attributes: untyped, body: untyped): untyped =
   block:
-    let span = startSpan(name)
+    let span = startSpan(name, attributes)
     try:
       body
     except Exception as failure:
@@ -191,3 +191,6 @@ template withSpan*(name: string, body: untyped): untyped =
       raise
     finally:
       endSpan(span)
+
+template withSpan*(name: string, body: untyped): untyped =
+  withSpan(name, initTable[string, string](), body)
