@@ -24,6 +24,17 @@ import rdstdin
 # Can also get all variables
 # `kpkg get config` # prints all config variables
 
+proc displayConfigQuery*(section, key, value: string): string =
+  if section.toLowerAscii() != "telemetry":
+    return value
+  if key.len == 0:
+    let redacted = redactTelemetrySecrets("[Telemetry]\n" & value)
+    let newline = redacted.find('\n')
+    return if newline >= 0: redacted[newline + 1 .. ^1] else: ""
+  if key.toLowerAscii() in ["password", "bearertoken"]:
+    return "REDACTED"
+  value
+
 proc get(args: seq[string]) =
   ## Gets a kpkg value. See kpkg_get(5) for more information.
 
@@ -70,9 +81,10 @@ proc get(args: seq[string]) =
           of 1:
             echo returnConfig()
           of 2:
-            echo getConfigSection(invocSplit[1])
+            echo displayConfigQuery(invocSplit[1], "", getConfigSection(invocSplit[1]))
           of 3:
-            echo getConfigValue(invocSplit[1], invocSplit[2])
+            echo displayConfigQuery(invocSplit[1], invocSplit[2],
+                getConfigValue(invocSplit[1], invocSplit[2]))
           else:
             error("'"&invoc&"': invalid invocation")
       of "overrides":
@@ -193,7 +205,8 @@ proc set(args: seq[string]) =
           error("'"&key&"': invalid invocation.")
           return
         setConfigValue(invocSplit[1], invocSplit[2], val)
-        echo getConfigValue(invocSplit[1], invocSplit[2])
+        echo displayConfigQuery(invocSplit[1], invocSplit[2],
+            getConfigValue(invocSplit[1], invocSplit[2]))
       of "overrides":
         if invocSplit.len < 4:
           error("'"&key&"': invalid invocation.")

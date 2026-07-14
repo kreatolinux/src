@@ -119,7 +119,7 @@ runTests() {
 		mkdir -p "$(dirname "$testBinary")"
 
 		# Build the test
-		set -- nim c -d:debug -d:run3NoLibArchive
+		set -- nim c -d:debug -d:ssl -d:run3NoLibArchive
 		[ -n "$passC" ] && set -- "$@" $passC
 		[ -n "$passL" ] && set -- "$@" $passL
 		set -- "$@" --threads:on --deepcopy:on -o:"$testBinary" "$testFile"
@@ -227,7 +227,7 @@ while [ "$#" -gt 0 ]; do
 done
 
 if [ "$installDeps" = "1" ]; then
-	nimble install cligen nimcrypto norm fusion regex grpc@0.1.20 -y \
+	nimble install cligen nimcrypto norm fusion regex -y \
 		|| err "Installing dependencies failed"
 fi
 

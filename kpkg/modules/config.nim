@@ -127,10 +127,16 @@ proc redactTelemetrySecrets*(configOutput: string): string =
   for line in configOutput.splitLines():
     let stripped = line.strip()
     if stripped.startsWith("[") and stripped.endsWith("]"):
-      inTelemetrySection = stripped == "[Telemetry]"
-    if inTelemetrySection and (stripped.startsWith("password=") or
-        stripped.startsWith("bearerToken=")) and stripped.split("=", 1)[1].len > 0:
-      result.add(stripped.split("=", 1)[0] & "=REDACTED")
+      inTelemetrySection = stripped.toLowerAscii() == "[telemetry]"
+    let separator = stripped.find('=')
+    let key = if separator >= 0: stripped[0 ..< separator].strip().toLowerAscii() else: ""
+    if inTelemetrySection and key in ["password", "bearertoken"] and separator >= 0:
+      let originalSeparator = line.find('=')
+      var valueStart = originalSeparator + 1
+      while valueStart < line.len and line[valueStart] in {' ', '\t'}:
+        inc valueStart
+      let whitespace = line[originalSeparator + 1 ..< valueStart]
+      result.add(line[0 .. originalSeparator] & whitespace & "REDACTED")
     else:
       result.add(line)
     result.add("\n")

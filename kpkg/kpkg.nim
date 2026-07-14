@@ -18,6 +18,8 @@
 
 import cligen
 import os
+import parsecfg
+import std/exitprocs
 import commands/repl
 import commands/infocmd as infocmdModule
 import commands/buildcmd
@@ -35,11 +37,30 @@ import commands/initcmd
 import commands/clearlockcmd
 import commands/stalecmd
 import modules/transaction
+import modules/config as kpkgConfig
+import modules/telemetry/config as telemetryConfig
+import modules/telemetry/main as telemetry
 import ../common/logging
 import ../common/version
 
 # Initialize logging for kpkg
 initLogger("kpkg", "/etc/kpkg/kpkg.conf", "/var/log/kpkg.log")
+
+var telemetryCfg = newConfig()
+for (key, defaultValue) in [
+  ("enabled", "false"), ("endpoint", "localhost:4317"), ("tls", "false"),
+  ("timeoutMs", "5000"), ("failurePolicy", "continue"),
+  ("authType", "none"), ("username", ""), ("password", ""),
+  ("bearerToken", "")
+]:
+  telemetryCfg.setSectionKey("Telemetry", key,
+      kpkgConfig.getConfigValue("Telemetry", key, defaultValue))
+telemetry.initializeTelemetry(telemetryConfig.parseTelemetryConfig(telemetryCfg))
+let commandSpan = telemetry.startSpan("kpkg.command")
+addExitProc(proc() =
+  telemetry.endSpan(commandSpan)
+  telemetry.shutdownTelemetry()
+)
 
 # Check for and recover from any incomplete transactions from previous runs
 # This must happen early, before any other operations

@@ -1,29 +1,15 @@
 import std/[locks, sysrand, strutils, tables, times]
 import ./types
+import ./protobuf
+import ./exporter
 import ../../../common/logging
 
 export types
 
-type
-  SpanStatus* = enum
-    spanUnset
-    spanOk
-    spanError
-
-  Span* = ref object
-    traceId*: string
-    spanId*: string
-    parentSpanId*: string
-    name*: string
-    startedAtNs*: int64
-    endedAtNs*: int64
-    status*: SpanStatus
-    attributes*: Table[string, string]
-    errorType*: string
-    errorMessage*: string
-
 var telemetryEnabled: bool
 var telemetryFailurePolicy: TelemetryFailurePolicy
+var telemetrySettings: TelemetrySettings
+var telemetryTransport: TelemetryTransport
 var completedSpans: seq[Span]
 var completedSpansLock: Lock
 var currentSpan {.threadvar.}: Span
@@ -32,13 +18,6 @@ var randomFailureForTesting: bool
 var shutdownBeforeQueueAppendForTesting: bool
 
 initLock(completedSpansLock)
-
-const safeAttributes = [
-  "kpkg.command", "kpkg.version", "host.name", "kpkg.target",
-  "package.name", "package.version", "package.repository",
-  "package.bootstrap", "package.cache_hit", "source.kind",
-  "source.filename", "error.type"
-]
 
 proc timestampNs(): int64 =
   int64(epochTime() * 1_000_000_000)
@@ -49,14 +28,12 @@ proc randomHex(byteCount: Natural): string =
   for value in urandom(byteCount):
     result.add(toHex(value, 2))
 
-proc isSafeAttribute*(key: string): bool =
-  key in safeAttributes
-
 proc initializeTelemetry*(settings: TelemetrySettings) =
   acquire(completedSpansLock)
   try:
     telemetryEnabled = settings.enabled
     telemetryFailurePolicy = settings.failurePolicy
+    telemetrySettings = settings
     {.cast(gcsafe).}:
       completedSpans.setLen(0)
   finally:
@@ -64,16 +41,55 @@ proc initializeTelemetry*(settings: TelemetrySettings) =
   currentSpan = nil
   spanStack.setLen(0)
 
-proc shutdownTelemetry*() {.gcsafe.} =
+proc setTelemetryTransportForTesting*(transport: TelemetryTransport) =
   acquire(completedSpansLock)
   try:
-    telemetryEnabled = false
-    {.cast(gcsafe).}:
-      completedSpans.setLen(0)
+    telemetryTransport = transport
   finally:
     release(completedSpansLock)
-  currentSpan = nil
-  spanStack.setLen(0)
+
+proc flushTelemetry*() {.gcsafe.} =
+  var spans: seq[Span]
+  var settings: TelemetrySettings
+  var transport: TelemetryTransport
+  var hasSpans: bool
+  acquire(completedSpansLock)
+  try:
+    {.cast(gcsafe).}:
+      hasSpans = completedSpans.len > 0
+    if not telemetryEnabled or not hasSpans:
+      return
+    {.cast(gcsafe).}:
+      spans = completedSpans
+      completedSpans.setLen(0)
+    {.cast(gcsafe).}:
+      settings = telemetrySettings
+      transport = telemetryTransport
+  finally:
+    release(completedSpansLock)
+
+  try:
+    let payload = encodeExportRequest(spans, {"service.name": "kpkg"}.toTable)
+    exportTracePayload(settings, payload, transport)
+  except CatchableError:
+    if settings.failurePolicy == telemetryFail:
+      raise newException(TelemetryRuntimeError, "Unable to export telemetry")
+    {.cast(gcsafe).}:
+      warn "kpkg telemetry: unable to export traces"
+
+proc shutdownTelemetry*() {.gcsafe.} =
+  try:
+    flushTelemetry()
+  finally:
+    acquire(completedSpansLock)
+    try:
+      telemetryEnabled = false
+      {.cast(gcsafe).}:
+        completedSpans.setLen(0)
+    finally:
+      release(completedSpansLock)
+    currentSpan = nil
+    spanStack.setLen(0)
 
 proc startSpan*(name: string,
     attributes = initTable[string, string]()): Span =
