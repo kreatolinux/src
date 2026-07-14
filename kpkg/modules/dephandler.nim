@@ -730,20 +730,20 @@ proc collectDynamicSandboxDeps*(packageName: string,
         metadataResolver: proc(pkg: string): runFile): seq[string] =
     ## Resolve the sandbox closure when a package was queued after graph creation.
     let metadata = metadataResolver(packageName)
-    result = metadata.bdeps
+    var deps = metadata.bdeps
     var visited = initHashSet[string]()
 
     proc addRuntimeDeps(pkg: string) =
         if pkg in visited:
             return
         visited.incl(pkg)
-        result.add(pkg)
+        deps.add(pkg)
         for dep in metadataResolver(pkg).deps:
             addRuntimeDeps(dep)
 
     for dep in metadata.deps:
         addRuntimeDeps(dep)
-    result = deduplicate(result)
+    return deduplicate(deps)
 
 proc resolveBuildOrder*(packages: seq[string], ctx: dependencyContext,
                         bootstrap: bool, isInstallDir: bool): (seq[string],
