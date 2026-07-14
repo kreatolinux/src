@@ -68,6 +68,25 @@ bearerToken=ordinary-token
     check input.contains("password=secret")
     check input.contains("bearerToken=token")
 
+  test "redacts telemetry secrets regardless of key case or formatting":
+    let input = """
+[Telemetry]
+ password = secret
+BearerToken = token ; collector credential
+PASSWORD=another
+
+[Options]
+password = ordinary
+"""
+    let output = kpkgconfig.redactTelemetrySecrets(input)
+    check "secret" notin output
+    check "token" notin output
+    check "another" notin output
+    check "password = REDACTED" in output
+    check "BearerToken = REDACTED" in output
+    check "PASSWORD=REDACTED" in output
+    check "password = ordinary" in output
+
   test "protects a configuration file with root-only permissions":
     let path = getTempDir() / "kpkg-telemetry-permissions-test.conf"
     defer: removeFile(path)

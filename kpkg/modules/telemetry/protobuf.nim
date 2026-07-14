@@ -1,5 +1,5 @@
 import std/tables
-import ./main
+import ./types
 
 proc appendVarint(output: var string, value: uint64) =
   var remaining = value
@@ -90,16 +90,3 @@ proc encodeExportRequest*(spans: openArray[Span],
   resourceSpans.appendBytes(1, resourceMessage)
   resourceSpans.appendBytes(2, scopeMessage)
   result.appendBytes(1, resourceSpans)
-
-proc checkedGrpcPayloadLength*(payloadLength: uint64): uint32 =
-  if payloadLength > uint64(uint32.high):
-    raise newException(TelemetryRuntimeError, "Telemetry payload exceeds gRPC limits")
-  result = uint32(payloadLength)
-
-proc grpcRecord*(protobufPayload: string): ref string =
-  new(result)
-  result[] = "\0"
-  let length = checkedGrpcPayloadLength(uint64(protobufPayload.len))
-  for shift in countdown(24, 0, 8):
-    result[].add(char((length shr shift) and 0xff))
-  result[].add(protobufPayload)

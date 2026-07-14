@@ -1,12 +1,23 @@
 import unittest, tables, strutils
 import ../../kpkg/modules/telemetry/main
 import ../../kpkg/modules/telemetry/protobuf
+import ../../kpkg/modules/telemetry/exporter
 
 proc enabledSettings(policy = telemetryContinue): TelemetrySettings =
   TelemetrySettings(enabled: true, failurePolicy: policy)
 
 proc completeSpanInThread(span: Span) {.thread.} =
   endSpan(span)
+
+var exportedRequests: seq[TelemetryHttpRequest]
+
+proc recordingTransport(request: TelemetryHttpRequest): int {.gcsafe.} =
+  {.cast(gcsafe).}:
+    exportedRequests.add(request)
+  200
+
+proc failingTransport(request: TelemetryHttpRequest): int {.gcsafe.} =
+  raise newException(OSError, "password=secret")
 
 type ProtoField = object
   number: uint64
@@ -167,6 +178,50 @@ suite "telemetry tracing":
 
     check completedSpanCountForTesting() == 0
 
+  test "shutdown exports completed spans as one HTTP batch":
+    exportedRequests.setLen(0)
+    initializeTelemetry(TelemetrySettings(enabled: true,
+      endpoint: "collector.example", timeoutMs: 5000,
+      failurePolicy: telemetryContinue))
+    setTelemetryTransportForTesting(recordingTransport)
+    defer:
+      setTelemetryTransportForTesting(nil)
+      shutdownTelemetry()
+
+    endSpan(startSpan("first"))
+    endSpan(startSpan("second"))
+    shutdownTelemetry()
+
+    check exportedRequests.len == 1
+    check exportedRequests[0].url == "http://collector.example/v1/traces"
+    check exportedRequests[0].body.len > 0
+
+  test "shutdown continues when export fails under continue policy":
+    initializeTelemetry(TelemetrySettings(enabled: true,
+      endpoint: "collector.example", timeoutMs: 5000,
+      failurePolicy: telemetryContinue))
+    setTelemetryTransportForTesting(failingTransport)
+    defer:
+      setTelemetryTransportForTesting(nil)
+      shutdownTelemetry()
+
+    endSpan(startSpan("failing"))
+    shutdownTelemetry()
+    check completedSpanCountForTesting() == 0
+
+  test "shutdown raises when export fails under fail policy":
+    initializeTelemetry(TelemetrySettings(enabled: true,
+      endpoint: "collector.example", timeoutMs: 5000,
+      failurePolicy: telemetryFail))
+    setTelemetryTransportForTesting(failingTransport)
+    defer:
+      setTelemetryTransportForTesting(nil)
+      shutdownTelemetry()
+
+    endSpan(startSpan("failing"))
+    expect TelemetryRuntimeError:
+      shutdownTelemetry()
+
   test "span attributes allow only safe telemetry fields":
     initializeTelemetry(enabledSettings())
     defer: shutdownTelemetry()
@@ -285,16 +340,6 @@ suite "telemetry tracing":
     let childStatus = decodeFields(field(childFields, 15).bytes)
     check childStatus[0].number == 3
     check childStatus[0].varint == 2
-
-  test "gRPC records use an uncompressed big-endian payload length":
-    let record = grpcRecord("abc")
-
-    check record[] == "\0\0\0\0\3abc"
-
-  test "gRPC records reject payload lengths above uint32":
-    check checkedGrpcPayloadLength(uint64(uint32.high)) == uint32.high
-    expect TelemetryRuntimeError:
-      discard checkedGrpcPayloadLength(uint64(uint32.high) + 1)
 
   test "OTLP export rejects malformed and zero span identifiers":
     let span = Span(
