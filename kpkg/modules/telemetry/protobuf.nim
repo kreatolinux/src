@@ -83,16 +83,23 @@ proc encodeExportRequest*(spans: openArray[Span],
   var scopeMessage: string
   scopeMessage.appendBytes(1, instrumentationScope)
   for span in spans:
+    if span.isNil:
+      raise newException(TelemetryRuntimeError, "Cannot encode a nil telemetry span")
     scopeMessage.appendBytes(2, encodeSpan(span))
   var resourceSpans: string
   resourceSpans.appendBytes(1, resourceMessage)
   resourceSpans.appendBytes(2, scopeMessage)
   result.appendBytes(1, resourceSpans)
 
+proc checkedGrpcPayloadLength*(payloadLength: uint64): uint32 =
+  if payloadLength > uint64(uint32.high):
+    raise newException(TelemetryRuntimeError, "Telemetry payload exceeds gRPC limits")
+  result = uint32(payloadLength)
+
 proc grpcRecord*(protobufPayload: string): ref string =
   new(result)
   result[] = "\0"
-  let length = uint32(protobufPayload.len)
+  let length = checkedGrpcPayloadLength(uint64(protobufPayload.len))
   for shift in countdown(24, 0, 8):
     result[].add(char((length shr shift) and 0xff))
   result[].add(protobufPayload)

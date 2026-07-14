@@ -291,6 +291,11 @@ suite "telemetry tracing":
 
     check record[] == "\0\0\0\0\3abc"
 
+  test "gRPC records reject payload lengths above uint32":
+    check checkedGrpcPayloadLength(uint64(uint32.high)) == uint32.high
+    expect TelemetryRuntimeError:
+      discard checkedGrpcPayloadLength(uint64(uint32.high) + 1)
+
   test "OTLP export rejects malformed and zero span identifiers":
     let span = Span(
       traceId: "invalid",
@@ -318,3 +323,9 @@ suite "telemetry tracing":
     span.parentSpanId = repeat("0", 16)
     expect ValueError:
       discard encodeExportRequest([span], initTable[string, string]())
+
+  test "OTLP export rejects nil spans with a telemetry error":
+    let spans = [Span(nil)]
+
+    expect TelemetryRuntimeError:
+      discard encodeExportRequest(spans, initTable[string, string]())
