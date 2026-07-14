@@ -32,12 +32,16 @@ proc hexValue(value: char): int =
 proc decodeHexId(id: string, byteCount: int): string =
   if id.len != byteCount * 2:
     raise newException(ValueError, "Invalid OTLP identifier length")
+  var nonZero = false
   for index in countup(0, id.high, 2):
     let high = hexValue(id[index])
     let low = hexValue(id[index + 1])
     if high < 0 or low < 0:
       raise newException(ValueError, "Invalid OTLP identifier")
+    nonZero = nonZero or high != 0 or low != 0
     result.add(char((high shl 4) or low))
+  if not nonZero:
+    raise newException(ValueError, "Invalid zero OTLP identifier")
 
 proc encodeAnyValue(value: string): string =
   result.appendBytes(1, value)
@@ -50,14 +54,14 @@ proc encodeAttributes(attributes: Table[string, string], resource: bool): string
   for key, value in attributes:
     if (resource and (key == "service.name" or isSafeAttribute(key))) or
         (not resource and isSafeAttribute(key)):
-      result.appendBytes(1, encodeKeyValue(key, value))
+      result.appendBytes(if resource: 1 else: 9, encodeKeyValue(key, value))
 
 proc encodeStatus(status: SpanStatus): string =
   let code = case status
     of spanOk: 1'u64
     of spanError: 2'u64
     of spanUnset: 0'u64
-  result.appendTag(2, 0)
+  result.appendTag(3, 0)
   result.appendVarint(code)
 
 proc encodeSpan(span: Span): string =
@@ -74,8 +78,10 @@ proc encodeSpan(span: Span): string =
 proc encodeExportRequest*(spans: openArray[Span],
     resource: Table[string, string]): string =
   var resourceMessage = encodeAttributes(resource, true)
+  var instrumentationScope: string
+  instrumentationScope.appendBytes(1, "kpkg")
   var scopeMessage: string
-  scopeMessage.appendBytes(1, "kpkg")
+  scopeMessage.appendBytes(1, instrumentationScope)
   for span in spans:
     scopeMessage.appendBytes(2, encodeSpan(span))
   var resourceSpans: string
