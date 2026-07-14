@@ -1,5 +1,6 @@
-import std/[sysrand, strutils, tables, times]
+import std/[locks, sysrand, strutils, tables, times]
 import ./types
+import ../../../common/logging
 
 export types
 
@@ -22,9 +23,14 @@ type
     errorMessage*: string
 
 var telemetryEnabled: bool
+var telemetryFailurePolicy: TelemetryFailurePolicy
 var completedSpans: seq[Span]
+var completedSpansLock: Lock
 var currentSpan {.threadvar.}: Span
 var spanStack {.threadvar.}: seq[Span]
+var randomFailureForTesting: bool
+
+initLock(completedSpansLock)
 
 const safeAttributes = [
   "kpkg.command", "kpkg.version", "host.name", "kpkg.target",
@@ -37,6 +43,8 @@ proc timestampNs(): int64 =
   int64(epochTime() * 1_000_000_000)
 
 proc randomHex(byteCount: Natural): string =
+  if randomFailureForTesting:
+    raise newException(OSError, "")
   for value in urandom(byteCount):
     result.add(toHex(value, 2))
 
@@ -45,13 +53,24 @@ proc isSafeAttribute*(key: string): bool =
 
 proc initializeTelemetry*(settings: TelemetrySettings) =
   telemetryEnabled = settings.enabled
-  completedSpans.setLen(0)
+  telemetryFailurePolicy = settings.failurePolicy
+  acquire(completedSpansLock)
+  try:
+    {.cast(gcsafe).}:
+      completedSpans.setLen(0)
+  finally:
+    release(completedSpansLock)
   currentSpan = nil
   spanStack.setLen(0)
 
 proc shutdownTelemetry*() =
   telemetryEnabled = false
-  completedSpans.setLen(0)
+  acquire(completedSpansLock)
+  try:
+    {.cast(gcsafe).}:
+      completedSpans.setLen(0)
+  finally:
+    release(completedSpansLock)
   currentSpan = nil
   spanStack.setLen(0)
 
@@ -63,51 +82,82 @@ proc startSpan*(name: string,
   for key, value in attributes:
     if isSafeAttribute(key):
       safeAttributes[key] = value
-  result = Span(
-    traceId: if currentSpan.isNil: randomHex(16) else: currentSpan.traceId,
-    spanId: randomHex(8),
-    parentSpanId: if currentSpan.isNil: "" else: currentSpan.spanId,
-    name: name,
-    startedAtNs: timestampNs(),
-    attributes: safeAttributes
-  )
+  try:
+    result = Span(
+      traceId: if currentSpan.isNil: randomHex(16) else: currentSpan.traceId,
+      spanId: randomHex(8),
+      parentSpanId: if currentSpan.isNil: "" else: currentSpan.spanId,
+      name: name,
+      startedAtNs: timestampNs(),
+      attributes: safeAttributes
+    )
+  except OSError:
+    if telemetryFailurePolicy == telemetryFail:
+      raise newException(TelemetryRuntimeError,
+          "Unable to generate telemetry span identifiers")
+    warn "kpkg telemetry: unable to generate span identifiers"
+    return
   spanStack.add(result)
   currentSpan = result
 
-proc endSpan*(span: Span, failure: ref CatchableError = nil) =
+proc setRandomFailureForTesting*(enabled: bool) =
+  randomFailureForTesting = enabled
+
+proc markSpanError(span: Span, failure: ref Exception) =
+  span.status = spanError
+  span.errorType = $failure.name
+  span.errorMessage = "telemetry span failed"
+
+proc endSpan*(span: Span, failure: ref CatchableError = nil) {.gcsafe.} =
   if span.isNil or span.endedAtNs != 0:
     return
   span.endedAtNs = timestampNs()
   if not failure.isNil:
-    span.status = spanError
-    span.errorType = $failure.name
-    span.errorMessage = "telemetry span failed"
-  else:
+    markSpanError(span, failure)
+  elif span.status != spanError:
     span.status = spanOk
   for index in countdown(spanStack.high, 0):
     if spanStack[index] == span or spanStack[index].endedAtNs != 0:
       spanStack.delete(index)
   currentSpan = if spanStack.len == 0: nil else: spanStack[^1]
   if telemetryEnabled:
-    completedSpans.add(span)
+    acquire(completedSpansLock)
+    try:
+      # The lock makes this shared GC-managed queue safe across worker threads.
+      {.cast(gcsafe).}:
+        completedSpans.add(span)
+    finally:
+      release(completedSpansLock)
 
-proc completedSpanCountForTesting*(): int =
-  completedSpans.len
+proc completedSpanCountForTesting*(): int {.gcsafe.} =
+  acquire(completedSpansLock)
+  try:
+    {.cast(gcsafe).}:
+      result = completedSpans.len
+  finally:
+    release(completedSpansLock)
 
 proc activeSpanForTesting*(): Span =
   currentSpan
 
-proc lastCompletedSpanForTesting*(): Span =
-  if completedSpans.len > 0:
-    result = completedSpans[^1]
+proc lastCompletedSpanForTesting*(): Span {.gcsafe.} =
+  acquire(completedSpansLock)
+  try:
+    {.cast(gcsafe).}:
+      if completedSpans.len > 0:
+        result = completedSpans[^1]
+  finally:
+    release(completedSpansLock)
 
 template withSpan*(name: string, body: untyped): untyped =
   block:
     let span = startSpan(name)
     try:
       body
-    except CatchableError as failure:
-      endSpan(span, failure)
+    except Exception as failure:
+      if not span.isNil:
+        markSpanError(span, failure)
+      endSpan(span)
       raise
     finally:
       endSpan(span)

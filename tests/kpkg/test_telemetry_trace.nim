@@ -1,8 +1,11 @@
 import unittest, tables, strutils
 import ../../kpkg/modules/telemetry/main
 
-proc enabledSettings(): TelemetrySettings =
-  TelemetrySettings(enabled: true)
+proc enabledSettings(policy = telemetryContinue): TelemetrySettings =
+  TelemetrySettings(enabled: true, failurePolicy: policy)
+
+proc completeSpanInThread(span: Span) {.thread.} =
+  endSpan(span)
 
 suite "telemetry tracing":
   test "nested spans retain trace identity and parent context":
@@ -37,6 +40,27 @@ suite "telemetry tracing":
     check activeSpanForTesting().isNil
     check completedSpanCountForTesting() == 0
 
+  test "random failure continues without changing span context":
+    initializeTelemetry(enabledSettings(telemetryContinue))
+    setRandomFailureForTesting(true)
+    defer:
+      setRandomFailureForTesting(false)
+      shutdownTelemetry()
+
+    check startSpan("random failure").isNil
+    check activeSpanForTesting().isNil
+    check completedSpanCountForTesting() == 0
+
+  test "random failure raises when telemetry must fail":
+    initializeTelemetry(enabledSettings(telemetryFail))
+    setRandomFailureForTesting(true)
+    defer:
+      setRandomFailureForTesting(false)
+      shutdownTelemetry()
+
+    expect TelemetryRuntimeError:
+      discard startSpan("random failure")
+
   test "out-of-order completion removes ended parent context":
     initializeTelemetry(enabledSettings())
     defer: shutdownTelemetry()
@@ -53,6 +77,20 @@ suite "telemetry tracing":
     let root = startSpan("root")
     check root.parentSpanId == ""
     endSpan(root)
+
+  test "completed spans are safe to record concurrently":
+    initializeTelemetry(enabledSettings())
+    defer: shutdownTelemetry()
+
+    var workers: array[16, Thread[Span]]
+    var spans: array[16, Span]
+    for index in 0 ..< spans.len:
+      spans[index] = Span()
+      createThread(workers[index], completeSpanInThread, spans[index])
+    for worker in workers.mitems:
+      joinThread(worker)
+
+    check completedSpanCountForTesting() == workers.len
 
   test "span attributes allow only safe telemetry fields":
     initializeTelemetry(enabledSettings())
@@ -96,3 +134,16 @@ suite "telemetry tracing":
     let span = lastCompletedSpanForTesting()
     check span.status == spanOk
     check span.endedAtNs > 0
+
+  test "withSpan records a defect before reraising it":
+    initializeTelemetry(enabledSettings())
+    defer: shutdownTelemetry()
+
+    expect AssertionDefect:
+      withSpan("defect"):
+        raise newException(AssertionDefect, "password=secret")
+
+    let span = lastCompletedSpanForTesting()
+    check span.status == spanError
+    check span.errorType == "AssertionDefect"
+    check span.errorMessage == "telemetry span failed"

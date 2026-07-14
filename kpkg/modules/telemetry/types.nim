@@ -9,6 +9,7 @@ type
     telemetryFail
 
   TelemetryConfigError* = object of CatchableError
+  TelemetryRuntimeError* = object of CatchableError
 
   TelemetrySettings* = object
     enabled*: bool
