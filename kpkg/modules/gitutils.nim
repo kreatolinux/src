@@ -14,6 +14,7 @@ import parsecfg
 import ../../common/logging
 import config
 import runparser
+import telemetry/main as telemetry
 
 const
   commitBuildLockPath* = "/var/cache/kpkg/commit-build.lock"
@@ -96,7 +97,7 @@ proc resolveCommit*(repoPath: string, commitish: string): string =
 
   return ""
 
-proc checkoutCommit*(repoPath: string, commit: string): bool =
+proc checkoutCommitImpl(repoPath: string, commit: string): bool =
   ## Checkout a repo to a specific commit (detached HEAD)
   ## Returns true on success
 
@@ -112,6 +113,18 @@ proc checkoutCommit*(repoPath: string, commit: string): bool =
     error "gitutils: Failed to checkout '" & repoPath & "' to commit '" &
         commit & "'"
     return false
+
+proc checkoutCommit*(repoPath: string, commit: string): bool =
+  let span = telemetry.startSpan("kpkg.vcs.commit", initTable[string, string]())
+  try:
+    result = checkoutCommitImpl(repoPath, commit)
+    if not result:
+      telemetry.endSpan(span, newException(OSError, "VCS checkout failed"))
+  except CatchableError as failure:
+    telemetry.endSpan(span, failure)
+    raise
+  finally:
+    telemetry.endSpan(span)
 
 proc restoreRepo*(repoPath: string, originalRef: string): bool =
   ## Restore a repo to its original branch or commit

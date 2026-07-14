@@ -23,6 +23,7 @@ import ../modules/builder/environment
 import ../modules/builder/sandbox
 import ../modules/builder/commitctx
 import ../modules/builder/soname
+import ../modules/telemetry/main as telemetry
 
 proc formatCycleDisplay(cyclePath: seq[string]): string =
   ## Format cycle path for display (use <-> for 2-node cycles, -> for longer)
@@ -31,7 +32,7 @@ proc formatCycleDisplay(cyclePath: seq[string]): string =
   else:
     return cyclePath.join(" -> ")
 
-proc builder*(cfg: var BuildConfig): bool =
+proc builderImpl(cfg: var BuildConfig): bool =
   ## Builds a package using the provided configuration.
   ##
   ## This is the main entry point for building a single package.
@@ -66,6 +67,7 @@ proc builder*(cfg: var BuildConfig): bool =
 
   # Check cache and install from it if available
   if shouldInstallFromCache(cfg.toCacheConfig(), state.pkg):
+    telemetry.setActiveSpanAttribute("package.cache_hit", "true")
     debug "Tarball (and the sum) already exists, going to install"
     if cfg.destdir != "/" and cfg.target == "default":
       installPkg(cfg.repo, cfg.actualPackage, "/", state.pkg, cfg.manualInstallList,
@@ -193,6 +195,14 @@ proc builder*(cfg: var BuildConfig): bool =
     removeDir(kpkgTempDir2)
 
   return false
+
+proc builder*(cfg: var BuildConfig): bool =
+  telemetry.withSpan("kpkg.package.build", {
+    "package.name": cfg.package,
+    "package.bootstrap": $cfg.isBootstrap,
+    "package.cache_hit": "false"
+  }.toTable):
+    return builderImpl(cfg)
 
 
 # Wrapper procs for sandbox callbacks

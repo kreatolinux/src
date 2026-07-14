@@ -22,6 +22,8 @@ import ../checksums
 import ../libarchive
 import ../downloader
 import ../commonPaths
+import ../telemetry/main as telemetry
+import tables
 
 proc extractSources*(source: string, sourceDir: string) =
     ## Extracts a source archive
@@ -139,7 +141,7 @@ proc setSourcePermissions*() =
                 debug "Failed to set owner for " & path.path
 
 
-proc sourceDownloader*(runf: runFile, pkgName: string, sourceDir: string,
+proc sourceDownloaderImpl(runf: runFile, pkgName: string, sourceDir: string,
         runFilePath: string) =
     ## Wrapper function for downloading and extracting sources
     debug "sourceDownloader ran, sourceDir: "&sourceDir&", runFilePath: "&runFilePath
@@ -176,7 +178,14 @@ proc sourceDownloader*(runf: runFile, pkgName: string, sourceDir: string,
         # Skip extraction for Git repositories as they're already in the correct format
         # And also skip localfiles
         if runf.extract and not (source.startsWith("git::") or isLocalFile):
-            extractSources(sourcePath, sourceDir)
+             extractSources(sourcePath, sourceDir)
+
+proc sourceDownloader*(runf: runFile, pkgName: string, sourceDir: string,
+        runFilePath: string) =
+    telemetry.withSpan("kpkg.source.retrieve", {
+      "package.name": pkgName
+    }.toTable):
+        sourceDownloaderImpl(runf, pkgName, sourceDir, runFilePath)
 
 
 proc setSourceOwnership*(sourceDir: string) =

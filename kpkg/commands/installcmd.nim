@@ -22,6 +22,7 @@ import ../modules/transaction
 import ../modules/run3/run3
 import ../modules/staleprocs
 import ../modules/builder/commitctx
+import ../modules/telemetry/main as telemetry
 
 setControlCHook(ctrlc)
 
@@ -153,7 +154,7 @@ proc installFilesAtomic(tx: Transaction, filesToInstall: seq[FileToInstall],
       tx.recordFileCreated(f.destPath)
       debug "Installed file: " & f.relPath
 
-proc installPkg*(repo: string, package: string, root: string, runf = runFile(
+proc installPkgImpl(repo: string, package: string, root: string, runf = runFile(
         isParsed: false), manualInstallList: seq[string], isUpgrade = false,
                 kTarget = kpkgTarget(root), ignorePostInstall = false,
                 umount = true, disablePkgInfo = false, ignorePreInstall = false,
@@ -464,6 +465,19 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
     error "Installation failed, rolling back..."
     tx.rollback()
     raise
+
+proc installPkg*(repo: string, package: string, root: string, runf = runFile(
+        isParsed: false), manualInstallList: seq[string], isUpgrade = false,
+                kTarget = kpkgTarget(root), ignorePostInstall = false,
+                umount = true, disablePkgInfo = false, ignorePreInstall = false,
+                basePackage = false, version = "", tarballPath = "") =
+  telemetry.withSpan("kpkg.install", {
+    "package.name": package,
+    "package.version": version
+  }.toTable):
+    installPkgImpl(repo, package, root, runf, manualInstallList, isUpgrade,
+        kTarget, ignorePostInstall, umount, disablePkgInfo, ignorePreInstall,
+        basePackage, version, tarballPath)
 
 proc canDownloadBinary*(package: string, version: string, binrepos: seq[string],
         kTarget: string): bool =

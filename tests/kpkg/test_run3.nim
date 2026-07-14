@@ -5,8 +5,10 @@ import unittest
 import os
 import times
 import strutils
+import tables
 
 import ../../kpkg/modules/run3/run3
+import ../../kpkg/modules/telemetry/main
 import ../../kongue/utils
 
 suite "run3 lexer":
@@ -80,6 +82,59 @@ package {
     check rf.getVersionString() == "1.0.0-1"
     check rf.getAllFunctions().len > 0
     check "helper" in rf.getAllCustomFunctions()
+
+suite "run3 telemetry":
+  var telemetryTestDir: string
+
+  setup:
+    telemetryTestDir = "/tmp/test-run3-telemetry-" & $getTime().toUnix()
+    createDir(telemetryTestDir)
+    initializeTelemetry(TelemetrySettings(enabled: true,
+      failurePolicy: telemetryContinue))
+
+  teardown:
+    shutdownTelemetry()
+    removeDir(telemetryTestDir)
+
+  test "execution records only package identity telemetry":
+    writeFile(telemetryTestDir / "run3", """
+name: "telemetry-package"
+version: "1.2.3"
+release: "1"
+
+build {
+  print "token=secret"
+}
+""")
+
+    let runfile = parseRun3(telemetryTestDir)
+    let parent = startSpan("kpkg.command")
+    check runfile.executeFunction("build") == 0
+    let span = lastCompletedSpanForTesting()
+    check span.parentSpanId == parent.spanId
+    endSpan(parent)
+
+    check not span.isNil
+    check span.name == "kpkg.run3.execute"
+    check span.attributes["package.name"] == "telemetry-package"
+    check span.attributes["package.version"] == "1.2.3-1"
+    check "token=secret" notin $span.attributes
+
+  test "nonzero execution result records an error span":
+    writeFile(telemetryTestDir / "run3", """
+name: "failing-package"
+version: "1"
+release: "1"
+
+build { macro unsupported }
+""")
+
+    let runfile = parseRun3(telemetryTestDir)
+    check runfile.executeFunction("build") != 0
+
+    let span = lastCompletedSpanForTesting()
+    check span.status == spanError
+    check span.errorType == "ExecutionError"
 
 suite "run3 variables":
   test "split method":

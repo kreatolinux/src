@@ -13,6 +13,7 @@ import commonPaths
 import algorithm
 import versioncmp
 import gitutils
+import telemetry/main as telemetry
 
 type
     repoInfo = tuple[repo: string, name: string, version: string]
@@ -745,7 +746,7 @@ proc collectDynamicSandboxDeps*(packageName: string,
         addRuntimeDeps(dep)
     return deduplicate(deps)
 
-proc resolveBuildOrder*(packages: seq[string], ctx: dependencyContext,
+proc resolveBuildOrderImpl(packages: seq[string], ctx: dependencyContext,
                         bootstrap: bool, isInstallDir: bool): (seq[string],
                                 dependencyGraph, seq[string], SortResult) =
     ## Resolve the complete build order for packages.
@@ -798,6 +799,15 @@ proc resolveBuildOrder*(packages: seq[string], ctx: dependencyContext,
     deps = computeBuildQueue(depGraph, packages, bootstrap)
 
     return (deps, depGraph, allDependents, sortResult)
+
+proc resolveBuildOrder*(packages: seq[string], ctx: dependencyContext,
+                        bootstrap: bool, isInstallDir: bool): (seq[string],
+                                dependencyGraph, seq[string], SortResult) =
+    var attributes = initTable[string, string]()
+    if packages.len > 0:
+        attributes["package.name"] = parsePkgInfo(packages[0]).name
+    telemetry.withSpan("kpkg.dependency.resolve", attributes):
+        return resolveBuildOrderImpl(packages, ctx, bootstrap, isInstallDir)
 
 proc computeBuildQueue*(depGraph: dependencyGraph,
                         requestedPackages: seq[string],
