@@ -227,7 +227,7 @@ while [ "$#" -gt 0 ]; do
 done
 
 if [ "$installDeps" = "1" ]; then
-	nimble install cligen nimcrypto norm fusion regex -y \
+	nimble install cligen nimcrypto norm fusion regex grpc@0.1.20 -y \
 		|| err "Installing dependencies failed"
 fi
 

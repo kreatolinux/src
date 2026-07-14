@@ -38,6 +38,17 @@ proc createDefaultConfig(): Config =
   # [Upgrade]
   result.setSectionKey("Upgrade", "buildByDefault", "yes") # Build packages by default
 
+  # [Telemetry]
+  result.setSectionKey("Telemetry", "enabled", "false")
+  result.setSectionKey("Telemetry", "endpoint", "localhost:4317")
+  result.setSectionKey("Telemetry", "tls", "false")
+  result.setSectionKey("Telemetry", "timeoutMs", "5000")
+  result.setSectionKey("Telemetry", "failurePolicy", "continue")
+  result.setSectionKey("Telemetry", "authType", "none")
+  result.setSectionKey("Telemetry", "username", "")
+  result.setSectionKey("Telemetry", "password", "")
+  result.setSectionKey("Telemetry", "bearerToken", "")
+
 proc initializeConfig*(): Config =
   ## Initializes the configuration file
   var config = createDefaultConfig()
