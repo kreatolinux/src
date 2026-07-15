@@ -78,3 +78,32 @@ build {
 
     check ctx.executeFunctionByName(parsed, "build") == 0
     check ctx.envVars["DEPMOD"] == "/nodepmod/here"
+
+suite "builtinExec command result hook":
+
+  test "reports captured output and exit code after default execution":
+    let ctx = newCtx()
+    var reportedOutput = ""
+    var reportedExitCode = -1
+    ctx.commandResultHook = proc(output: string, exitCode: int) =
+      reportedOutput = output
+      reportedExitCode = exitCode
+
+    check ctx.builtinExec("printf command-result") == 0
+    check reportedOutput == "command-result"
+    check reportedExitCode == 0
+
+  test "reports captured output and exit code after custom execution":
+    let ctx = newCtx()
+    var reportedOutput = ""
+    var reportedExitCode = -1
+    ctx.execHook = proc(ctx: ExecutionContext, command: string, silent: bool): tuple[
+        output: string, exitCode: int] =
+      ("custom result", 17)
+    ctx.commandResultHook = proc(output: string, exitCode: int) =
+      reportedOutput = output
+      reportedExitCode = exitCode
+
+    check ctx.builtinExec("ignored") == 17
+    check reportedOutput == "custom result"
+    check reportedExitCode == 17

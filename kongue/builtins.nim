@@ -325,6 +325,8 @@ proc builtinExec*(ctx: ExecutionContext, command: string): int =
     defaultExec(ctx, fullCmd, ctx.silent)
 
   debug("builtinExec: exitCode=" & $execResult.exitCode)
+  if ctx.commandResultHook != nil:
+    ctx.commandResultHook(execResult.output, execResult.exitCode)
   result = execResult.exitCode
 
 proc builtinPrint*(ctx: ExecutionContext, text: string) =
