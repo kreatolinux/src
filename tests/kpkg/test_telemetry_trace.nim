@@ -305,6 +305,7 @@ X-Api-Key: header-secret
 x-trace-id: private-trace
 configure: error: C compiler cannot create executables
 gcc: fatal error: cannot execute 'cc1': execvp: No such file or directory
+gcc: error: X-Api-Key: header-secret
 """)
 
     check sanitized.contains("configure: error: C compiler cannot create executables")
@@ -319,6 +320,7 @@ gcc: fatal error: cannot execute 'cc1': execvp: No such file or directory
     check not sanitized.contains("../private/build/config.log")
     check not sanitized.contains("header-secret")
     check not sanitized.contains("private-trace")
+    check sanitized.contains("gcc: error: [REDACTED]")
 
   test "shutdown continues when export fails under continue policy":
     initializeTelemetry(TelemetrySettings(enabled: true,

@@ -227,8 +227,8 @@ proc isShellCommandEcho(line: string): bool =
 
 proc isSafeDiagnosticLine(line: string): bool =
   let trimmed = line.strip()
-  if trimmed.len == 0 or containsCredential(trimmed) or
-      isEnvironmentAssignment(trimmed) or isShellCommandEcho(trimmed) or
+  if trimmed.len == 0 or isEnvironmentAssignment(trimmed) or
+      isShellCommandEcho(trimmed) or
       "://" in trimmed:
     return false
   let lowered = trimmed.toLowerAscii()
@@ -260,6 +260,29 @@ proc redactPathTokens(line: string): string =
       result.add(line[index])
       inc index
 
+proc isHeaderFragmentName(value: string): bool =
+  let name = value.strip()
+  if name.len == 0 or ('-' notin name and '_' notin name):
+    return false
+  for character in name:
+    if not (character in {'A'..'Z', 'a'..'z', '0'..'9', '-', '_'}):
+      return false
+  return true
+
+proc redactHeaderFragments(line: string): string =
+  var searchAt = 0
+  while true:
+    let prefixEnd = line.find(": ", searchAt)
+    if prefixEnd < 0:
+      return line
+    let nameStart = prefixEnd + 2
+    let headerEnd = line.find(": ", nameStart)
+    if headerEnd < 0:
+      return line
+    if isHeaderFragmentName(line[nameStart ..< headerEnd]):
+      return line[0 ..< nameStart] & "[REDACTED]"
+    searchAt = nameStart
+
 proc sanitizeFailureOutput*(output: string): string =
   let lines = output.splitLines()
   let first = max(0, lines.len - maxFailureLogLines)
@@ -271,7 +294,12 @@ proc sanitizeFailureOutput*(output: string): string =
       for character in lines[index]:
         if character == '\t' or (character >= ' ' and character <= '~'):
           printable.add(character)
-      result.add(redactPathTokens(printable))
+      let withoutPaths = redactPathTokens(printable)
+      let sanitized = redactHeaderFragments(withoutPaths)
+      if containsCredential(printable) and sanitized == withoutPaths:
+        result.add("[REDACTED]")
+      else:
+        result.add(sanitized)
     if index + 1 < lines.len:
       result.add('\n')
   if result.len > maxFailureLogBytes:

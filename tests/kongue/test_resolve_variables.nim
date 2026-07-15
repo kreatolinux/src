@@ -94,6 +94,21 @@ suite "builtinExec command result hook":
     check reportedOutput == "legacy-result"
     check reportedExitCode == 0
 
+  test "invokes legacy and contextual callbacks together":
+    let ctx = newCtx()
+    var legacyCalls = 0
+    var contextualCalls = 0
+    ctx.commandResultHook = proc(output: string, exitCode: int) =
+      inc legacyCalls
+    ctx.commandResultContextHook = proc(callbackCtx: ExecutionContext,
+        output: string, exitCode: int) =
+      check callbackCtx == ctx
+      inc contextualCalls
+
+    check ctx.builtinExec("printf callbacks") == 0
+    check legacyCalls == 1
+    check contextualCalls == 1
+
   test "reports captured output and exit code after default execution":
     let ctx = newCtx()
     var reportedOutput = ""
