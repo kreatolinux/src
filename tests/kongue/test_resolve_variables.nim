@@ -82,11 +82,23 @@ build {
 
 suite "builtinExec command result hook":
 
+  test "retains legacy output and exit code callback compatibility":
+    let ctx = newCtx()
+    var reportedOutput = ""
+    var reportedExitCode = -1
+    ctx.commandResultHook = proc(output: string, exitCode: int) =
+      reportedOutput = output
+      reportedExitCode = exitCode
+
+    check ctx.builtinExec("printf legacy-result") == 0
+    check reportedOutput == "legacy-result"
+    check reportedExitCode == 0
+
   test "reports captured output and exit code after default execution":
     let ctx = newCtx()
     var reportedOutput = ""
     var reportedExitCode = -1
-    ctx.commandResultHook = proc(ctx: ExecutionContext, output: string, exitCode: int) =
+    ctx.commandResultContextHook = proc(ctx: ExecutionContext, output: string, exitCode: int) =
       reportedOutput = output
       reportedExitCode = exitCode
 
@@ -101,7 +113,7 @@ suite "builtinExec command result hook":
     ctx.execHook = proc(ctx: ExecutionContext, command: string, silent: bool): tuple[
         output: string, exitCode: int] =
       ("custom result", 17)
-    ctx.commandResultHook = proc(ctx: ExecutionContext, output: string, exitCode: int) =
+    ctx.commandResultContextHook = proc(ctx: ExecutionContext, output: string, exitCode: int) =
       reportedOutput = output
       reportedExitCode = exitCode
 
@@ -112,7 +124,7 @@ suite "builtinExec command result hook":
   test "reports inline output and nonzero exit once each":
     let ctx = newCtx()
     var reported: seq[tuple[output: string, exitCode: int]] = @[]
-    ctx.commandResultHook = proc(ctx: ExecutionContext, output: string, exitCode: int) =
+    ctx.commandResultContextHook = proc(ctx: ExecutionContext, output: string, exitCode: int) =
       reported.add((output, exitCode))
 
     check ctx.resolveVariables("${exec(\"printf inline-output\").output()}") ==
@@ -131,7 +143,7 @@ suite "builtinExec command result hook":
     ctx.execHook = proc(ctx: ExecutionContext, command: string, silent: bool): tuple[
         output: string, exitCode: int] =
       ("hook output", 29)
-    ctx.commandResultHook = proc(ctx: ExecutionContext, output: string, exitCode: int) =
+    ctx.commandResultContextHook = proc(ctx: ExecutionContext, output: string, exitCode: int) =
       raise newException(ValueError, "callback failed")
 
     var exitCode = -1

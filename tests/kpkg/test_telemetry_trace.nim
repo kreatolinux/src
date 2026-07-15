@@ -209,14 +209,27 @@ suite "telemetry tracing":
 
     let parent = startSpan("kpkg.run3.execute")
     let ctx = initRun3Context(packageName = "failing-package")
-    ctx.passthrough = true
-    ctx.telemetryStage = "build"
     ctx.envVars["AUTH_TOKEN"] = "environment-secret"
     ctx.envVars["SOURCE_URL"] = "https://private.example.invalid"
     ctx.envVars["BUILD_PATH"] = "/private/build/path"
+    let tokens = tokenize("""
+build {
+  exec "first command"
+  exec "second command"
+}
+""")
+    var scriptParser = initParser(tokens)
+    let script = scriptParser.parse()
+    var commandCount = 0
+    ctx.execHook = proc(ctx: ExecutionContext, command: string,
+        silent: bool): tuple[output: string, exitCode: int] =
+      inc commandCount
+      if commandCount == 1:
+        ("configure: error: first command failed", 0)
+      else:
+        ("token=secret\nconfigure: error: command failed", 7)
 
-    check ctx.builtinExec("true") == 0
-    check ctx.builtinExec("printf 'token=secret\\ncommand failed'; exit 7") == 7
+    check executeRun3Stage(ctx, script, "build") == 7
     endSpan(parent)
     shutdownTelemetry()
 
@@ -256,9 +269,9 @@ suite "telemetry tracing":
   test "failed command output keeps only a bounded sanitized tail":
     var output = ""
     for index in 0 .. 100:
-      output.add("line-" & $index & "\n")
+      output.add("configure: error: line-" & $index & "\n")
     output.add("password=secret\n")
-    output.add(repeat("x", 70 * 1024))
+    output.add("configure: error: " & repeat("x", 70 * 1024))
 
     let sanitized = sanitizeFailureOutput(output)
     check sanitized.len == 64 * 1024
@@ -288,10 +301,14 @@ PATH=/private/bin:/usr/bin
 home=private-value
 https://private.example.invalid/download
 ../private/build/config.log: error: failed
+X-Api-Key: header-secret
+x-trace-id: private-trace
 configure: error: C compiler cannot create executables
+gcc: fatal error: cannot execute 'cc1': execvp: No such file or directory
 """)
 
     check sanitized.contains("configure: error: C compiler cannot create executables")
+    check sanitized.contains("gcc: fatal error: cannot execute 'cc1': execvp: No such file or directory")
     check not sanitized.contains("/private/bin/cc")
     check not sanitized.contains("./private/include")
     check not sanitized.contains("environment-secret")
@@ -300,6 +317,8 @@ configure: error: C compiler cannot create executables
     check not sanitized.contains("private-value")
     check not sanitized.contains("https://private.example.invalid")
     check not sanitized.contains("../private/build/config.log")
+    check not sanitized.contains("header-secret")
+    check not sanitized.contains("private-trace")
 
   test "shutdown continues when export fails under continue policy":
     initializeTelemetry(TelemetrySettings(enabled: true,

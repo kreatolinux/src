@@ -225,6 +225,26 @@ proc isShellCommandEcho(line: string): bool =
   let trimmed = line.strip(leading = true, trailing = false)
   trimmed.startsWith("$ ") or trimmed.startsWith("+ ")
 
+proc isSafeDiagnosticLine(line: string): bool =
+  let trimmed = line.strip()
+  if trimmed.len == 0 or containsCredential(trimmed) or
+      isEnvironmentAssignment(trimmed) or isShellCommandEcho(trimmed) or
+      "://" in trimmed:
+    return false
+  let lowered = trimmed.toLowerAscii()
+  let hasFailure = "error" in lowered or "warning" in lowered or
+      "failed" in lowered or "cannot" in lowered or "not found" in lowered
+  if not hasFailure:
+    return false
+  for prefix in ["configure:", "gcc:", "g++:", "clang:", "cc:",
+      "ld:", "collect2:", "make:", "ninja:", "cmake:", "meson:"]:
+    if lowered.startsWith(prefix):
+      return true
+  let separator = trimmed.find(':')
+  if separator >= 0:
+    return '/' in trimmed[0 ..< separator]
+  return '=' notin trimmed
+
 proc redactPathTokens(line: string): string =
   var index = 0
   while index < line.len:
@@ -244,8 +264,7 @@ proc sanitizeFailureOutput*(output: string): string =
   let lines = output.splitLines()
   let first = max(0, lines.len - maxFailureLogLines)
   for index in first ..< lines.len:
-    if containsCredential(lines[index]) or isEnvironmentAssignment(lines[index]) or
-        isShellCommandEcho(lines[index]) or "://" in lines[index]:
+    if not isSafeDiagnosticLine(lines[index]):
       result.add("[REDACTED]")
     else:
       var printable = ""

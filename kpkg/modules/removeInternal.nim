@@ -143,7 +143,7 @@ proc removeInternal*(package: string, root = "",
           postremoveFunc = "postremove"
 
         if postremoveFunc != "":
-          if executeFunctionByName(ctx, parsedPkg.run3Data.parsed,
+          if executeRun3Stage(ctx, parsedPkg.run3Data.parsed,
               postremoveFunc) != 0:
             fatal "postremove failed"
       except:

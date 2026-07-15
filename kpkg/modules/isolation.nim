@@ -61,7 +61,7 @@ proc runPostInstall*(package: string, rootPath = kpkgMergedPath) =
   debug "runPostInstall: "&package&": postinstallFunc: "&postinstallFunc
 
   if postinstallFunc != "":
-    if executeFunctionByName(ctx, pkg.run3Data.parsed, postinstallFunc) != 0:
+    if executeRun3Stage(ctx, pkg.run3Data.parsed, postinstallFunc) != 0:
       fatal("postinstall failed on sandbox")
 
 
