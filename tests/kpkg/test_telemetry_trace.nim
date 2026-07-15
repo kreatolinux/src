@@ -211,6 +211,9 @@ suite "telemetry tracing":
     let ctx = initRun3Context(packageName = "failing-package")
     ctx.passthrough = true
     ctx.telemetryStage = "build"
+    ctx.envVars["AUTH_TOKEN"] = "environment-secret"
+    ctx.envVars["SOURCE_URL"] = "https://private.example.invalid"
+    ctx.envVars["BUILD_PATH"] = "/private/build/path"
 
     check ctx.builtinExec("true") == 0
     check ctx.builtinExec("printf 'token=secret\\ncommand failed'; exit 7") == 7
@@ -245,6 +248,10 @@ suite "telemetry tracing":
     check attributeValue(attributes, "error.type") == "command_exit"
     check field(logFields, 9).bytes == field(traceFields, 1).bytes
     check field(logFields, 10).bytes == field(traceFields, 2).bytes
+    check not exportedRequests[1].body.contains("environment-secret")
+    check not exportedRequests[1].body.contains("https://private.example.invalid")
+    check not exportedRequests[1].body.contains("/private/build/path")
+    check not exportedRequests[1].body.contains("printf 'token=secret")
 
   test "failed command output keeps only a bounded sanitized tail":
     var output = ""
