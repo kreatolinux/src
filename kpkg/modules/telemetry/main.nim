@@ -262,7 +262,7 @@ proc redactPathTokens(line: string): string =
 
 proc isHeaderFragmentName(value: string): bool =
   let name = value.strip()
-  if name.len == 0 or ('-' notin name and '_' notin name):
+  if name.len == 0 or name.toLowerAscii() in ["error", "warning", "fatal error", "execvp"]:
     return false
   for character in name:
     if not (character in {'A'..'Z', 'a'..'z', '0'..'9', '-', '_'}):
