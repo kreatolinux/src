@@ -13,6 +13,12 @@ suite "telemetry HTTP exporter":
     check normalizeTraceEndpoint("https://collector.example/v1/traces", true) ==
       "https://collector.example/v1/traces"
 
+  test "normalizes a traces endpoint to the sibling logs path":
+    check normalizeLogEndpoint("https://collector.example/v1/traces", true) ==
+      "https://collector.example/v1/logs"
+    check normalizeLogEndpoint("https://collector.example/otel/", true) ==
+      "https://collector.example/otel/v1/logs"
+
   test "builds a protobuf request with basic authorization":
     let settings = TelemetrySettings(
       endpoint: "collector.example:4318",
@@ -55,6 +61,8 @@ suite "telemetry HTTP exporter":
     ]:
       expect TelemetryRuntimeError:
         discard normalizeTraceEndpoint(endpoint, true)
+      expect TelemetryRuntimeError:
+        discard normalizeLogEndpoint(endpoint, true)
 
   test "raises on an unsuccessful collector response":
     let settings = TelemetrySettings(endpoint: "collector.example", tls: false,

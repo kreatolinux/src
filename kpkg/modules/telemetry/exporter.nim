@@ -34,7 +34,9 @@ proc normalizeEndpoint(endpoint: string, tls: bool, signal: string): string =
 
   parsed.scheme = requestedScheme
   var path = parsed.path.strip(chars = {'/'})
-  if path != signal:
+  if path in ["v1/traces", "v1/logs"]:
+    path = signal
+  elif path != signal:
     if path.len > 0:
       path.add("/")
     path.add(signal)
