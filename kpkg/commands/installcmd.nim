@@ -197,14 +197,14 @@ proc installPkgImpl(repo: string, package: string, root: string, runf = runFile(
   if isUpgradeActual:
     let preupgradeFunc = resolveHookFunction(pkg.run3Data.parsed, "preupgrade", package)
     if preupgradeFunc != "":
-      if executeFunctionByName(ctx, pkg.run3Data.parsed, preupgradeFunc) != 0:
+      if executeRun3Stage(ctx, pkg.run3Data.parsed, preupgradeFunc) != 0:
         fatal("preupgrade failed")
 
   # Run preinstall hook (before any changes)
   if not packageExists(package, root):
     let preinstallFunc = resolveHookFunction(pkg.run3Data.parsed, "preinstall", package)
     if preinstallFunc != "":
-      if executeFunctionByName(ctx, pkg.run3Data.parsed, preinstallFunc) != 0:
+      if executeRun3Stage(ctx, pkg.run3Data.parsed, preinstallFunc) != 0:
         if ignorePreInstall:
           warn "preinstall failed"
         else:
@@ -431,7 +431,7 @@ proc installPkgImpl(repo: string, package: string, root: string, runf = runFile(
     let postinstallFunc = resolveHookFunction(pkg.run3Data.parsed,
         "postinstall", package)
     if postinstallFunc != "":
-      if executeFunctionByName(ctx, pkg.run3Data.parsed, postinstallFunc) != 0:
+      if executeRun3Stage(ctx, pkg.run3Data.parsed, postinstallFunc) != 0:
         if ignorePostInstall:
           warn "postinstall failed"
         else:
@@ -444,7 +444,7 @@ proc installPkgImpl(repo: string, package: string, root: string, runf = runFile(
       let postupgradeFunc = resolveHookFunction(pkg.run3Data.parsed,
           "postupgrade", package)
       if postupgradeFunc != "":
-        if executeFunctionByName(ctx, pkg.run3Data.parsed, postupgradeFunc) != 0:
+        if executeRun3Stage(ctx, pkg.run3Data.parsed, postupgradeFunc) != 0:
           tx.rollback()
           rollbackTransaction(root)
           fatal("postupgrade failed")

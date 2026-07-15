@@ -11,6 +11,7 @@ import ../../kongue/builtins
 import ../../kongue/lexer
 import ../../kongue/parser
 import ../../kongue/executor
+import ../../kongue/utils
 
 proc newCtx(): ExecutionContext =
   result = initExecutionContext()
@@ -78,3 +79,100 @@ build {
 
     check ctx.executeFunctionByName(parsed, "build") == 0
     check ctx.envVars["DEPMOD"] == "/nodepmod/here"
+
+suite "builtinExec command result hook":
+
+  test "retains legacy output and exit code callback compatibility":
+    let ctx = newCtx()
+    var reportedOutput = ""
+    var reportedExitCode = -1
+    ctx.commandResultHook = proc(output: string, exitCode: int) =
+      reportedOutput = output
+      reportedExitCode = exitCode
+
+    check ctx.builtinExec("printf legacy-result") == 0
+    check reportedOutput == "legacy-result"
+    check reportedExitCode == 0
+
+  test "invokes legacy and contextual callbacks together":
+    let ctx = newCtx()
+    var legacyCalls = 0
+    var contextualCalls = 0
+    ctx.commandResultHook = proc(output: string, exitCode: int) =
+      inc legacyCalls
+    ctx.commandResultContextHook = proc(callbackCtx: ExecutionContext,
+        output: string, exitCode: int) =
+      check callbackCtx == ctx
+      inc contextualCalls
+
+    check ctx.builtinExec("printf callbacks") == 0
+    check legacyCalls == 1
+    check contextualCalls == 1
+
+  test "reports captured output and exit code after default execution":
+    let ctx = newCtx()
+    var reportedOutput = ""
+    var reportedExitCode = -1
+    ctx.commandResultContextHook = proc(ctx: ExecutionContext, output: string, exitCode: int) =
+      reportedOutput = output
+      reportedExitCode = exitCode
+
+    check ctx.builtinExec("printf command-result") == 0
+    check reportedOutput == "command-result"
+    check reportedExitCode == 0
+
+  test "reports captured output and exit code after custom execution":
+    let ctx = newCtx()
+    var reportedOutput = ""
+    var reportedExitCode = -1
+    ctx.execHook = proc(ctx: ExecutionContext, command: string, silent: bool): tuple[
+        output: string, exitCode: int] =
+      ("custom result", 17)
+    ctx.commandResultContextHook = proc(ctx: ExecutionContext, output: string, exitCode: int) =
+      reportedOutput = output
+      reportedExitCode = exitCode
+
+    check ctx.builtinExec("ignored") == 17
+    check reportedOutput == "custom result"
+    check reportedExitCode == 17
+
+  test "reports inline output and nonzero exit once each":
+    let ctx = newCtx()
+    var reported: seq[tuple[output: string, exitCode: int]] = @[]
+    ctx.commandResultContextHook = proc(ctx: ExecutionContext, output: string, exitCode: int) =
+      reported.add((output, exitCode))
+
+    check ctx.resolveVariables("${exec(\"printf inline-output\").output()}") ==
+      "inline-output"
+    check ctx.resolveVariables("${exec(\"printf inline-error; exit 23\").exit()}") ==
+      "23"
+    check reported == @[("inline-output", 0), ("inline-error", 23)]
+
+  test "isolates command result callback exceptions":
+    let ctx = newCtx()
+    var warning = ""
+    warnProc = proc(message: string) =
+      warning = message
+    defer:
+      warnProc = nil
+    ctx.execHook = proc(ctx: ExecutionContext, command: string, silent: bool): tuple[
+        output: string, exitCode: int] =
+      ("hook output", 29)
+    ctx.commandResultContextHook = proc(ctx: ExecutionContext, output: string, exitCode: int) =
+      raise newException(ValueError, "callback failed")
+
+    var exitCode = -1
+    try:
+      exitCode = ctx.builtinExec("ignored")
+    except ValueError:
+      exitCode = -2
+    check exitCode == 29
+    check ctx.resolveVariables("${exec(\"ignored\").output()}") == "hook output"
+    check warning == "command result callback failed"
+
+  test "executes commands normally without a command result hook":
+    let ctx = newCtx()
+
+    check ctx.builtinExec("printf no-hook") == 0
+    check ctx.resolveVariables("${exec(\"printf inline-no-hook\").output()}") ==
+      "inline-no-hook"

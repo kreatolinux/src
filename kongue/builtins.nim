@@ -28,6 +28,18 @@ proc defaultExec(ctx: ExecutionContext, command: string, silent: bool): tuple[
   except OSError as e:
     return ("Error: " & e.msg, 1)
 
+proc reportCommandResult(ctx: ExecutionContext, output: string, exitCode: int) =
+  if ctx.commandResultHook != nil:
+    try:
+      ctx.commandResultHook(output, exitCode)
+    except CatchableError:
+      warn("command result callback failed")
+  if ctx.commandResultContextHook != nil:
+    try:
+      ctx.commandResultContextHook(ctx, output, exitCode)
+    except CatchableError:
+      warn("command result callback failed")
+
 proc execCapture(ctx: ExecutionContext, command: string, depth: int = 0): tuple[output: string,
         exitCode: int] =
   ## Execute a command and capture output
@@ -66,10 +78,11 @@ proc execCapture(ctx: ExecutionContext, command: string, depth: int = 0): tuple[
   let fullCmd = cmdParts.join(" && ")
 
   # Use hook if available, otherwise use default execution
-  if ctx.execHook != nil:
-    return ctx.execHook(ctx, fullCmd, ctx.silent)
+  result = if ctx.execHook != nil:
+    ctx.execHook(ctx, fullCmd, ctx.silent)
   else:
-    return defaultExec(ctx, fullCmd, ctx.silent)
+    defaultExec(ctx, fullCmd, ctx.silent)
+  ctx.reportCommandResult(result.output, result.exitCode)
 
 
 proc resolveManipulation(ctx: ExecutionContext, expr: string,
@@ -325,6 +338,7 @@ proc builtinExec*(ctx: ExecutionContext, command: string): int =
     defaultExec(ctx, fullCmd, ctx.silent)
 
   debug("builtinExec: exitCode=" & $execResult.exitCode)
+  ctx.reportCommandResult(execResult.output, execResult.exitCode)
   result = execResult.exitCode
 
 proc builtinPrint*(ctx: ExecutionContext, text: string) =

@@ -2,6 +2,7 @@ import unittest, tables, strutils
 import ../../kpkg/modules/telemetry/main
 import ../../kpkg/modules/telemetry/protobuf
 import ../../kpkg/modules/telemetry/exporter
+import ../../kpkg/modules/run3/run3
 
 proc enabledSettings(policy = telemetryContinue): TelemetrySettings =
   TelemetrySettings(enabled: true, failurePolicy: policy)
@@ -195,6 +196,133 @@ suite "telemetry tracing":
     check exportedRequests.len == 1
     check exportedRequests[0].url == "http://collector.example/v1/traces"
     check exportedRequests[0].body.len > 0
+
+  test "failed Run3 commands export output through the OTLP logs endpoint":
+    exportedRequests.setLen(0)
+    initializeTelemetry(TelemetrySettings(enabled: true,
+      endpoint: "collector.example", timeoutMs: 5000,
+      failurePolicy: telemetryContinue))
+    setTelemetryTransportForTesting(recordingTransport)
+    defer:
+      setTelemetryTransportForTesting(nil)
+      shutdownTelemetry()
+
+    let parent = startSpan("kpkg.run3.execute")
+    let ctx = initRun3Context(packageName = "failing-package")
+    ctx.envVars["AUTH_TOKEN"] = "environment-secret"
+    ctx.envVars["SOURCE_URL"] = "https://private.example.invalid"
+    ctx.envVars["BUILD_PATH"] = "/private/build/path"
+    let tokens = tokenize("""
+build {
+  exec "first command"
+  exec "second command"
+}
+""")
+    var scriptParser = initParser(tokens)
+    let script = scriptParser.parse()
+    var commandCount = 0
+    ctx.execHook = proc(ctx: ExecutionContext, command: string,
+        silent: bool): tuple[output: string, exitCode: int] =
+      inc commandCount
+      if commandCount == 1:
+        ("configure: error: first command failed", 0)
+      else:
+        ("token=secret\nconfigure: error: command failed", 7)
+
+    check executeRun3Stage(ctx, script, "build") == 7
+    endSpan(parent)
+    shutdownTelemetry()
+
+    check exportedRequests.len == 2
+    check exportedRequests[0].url == "http://collector.example/v1/traces"
+    check exportedRequests[1].url == "http://collector.example/v1/logs"
+
+    let traceRequest = decodeFields(exportedRequests[0].body)
+    let traceResource = decodeFields(field(traceRequest, 1).bytes)
+    let traceScope = decodeFields(field(traceResource, 2).bytes)
+    let traceFields = decodeFields(field(traceScope, 2).bytes)
+    let request = decodeFields(exportedRequests[1].body)
+    let resourceLogs = decodeFields(field(request, 1).bytes)
+    let scopeLogs = decodeFields(field(resourceLogs, 2).bytes)
+    let logFields = decodeFields(field(scopeLogs, 2).bytes)
+    check field(logFields, 3).varint == 17
+    check field(logFields, 4).bytes == "ERROR"
+    let body = decodeFields(field(logFields, 5).bytes)
+    check field(body, 1).bytes.contains("[REDACTED]")
+    check not field(body, 1).bytes.contains("secret")
+    check attributeValue(@[field(logFields, 6, 0), field(logFields, 6, 1),
+        field(logFields, 6, 2), field(logFields, 6, 3), field(logFields, 6, 4)],
+        "process.exit_code") == "7"
+    let attributes = @[field(logFields, 6, 0), field(logFields, 6, 1),
+      field(logFields, 6, 2), field(logFields, 6, 3), field(logFields, 6, 4)]
+    check attributeValue(attributes, "package.name") == "failing-package"
+    check attributeValue(attributes, "run3.stage") == "build"
+    check attributeValue(attributes, "command.kind") == "exec"
+    check attributeValue(attributes, "error.type") == "command_exit"
+    check field(logFields, 9).bytes == field(traceFields, 1).bytes
+    check field(logFields, 10).bytes == field(traceFields, 2).bytes
+    check not exportedRequests[1].body.contains("environment-secret")
+    check not exportedRequests[1].body.contains("https://private.example.invalid")
+    check not exportedRequests[1].body.contains("/private/build/path")
+    check not exportedRequests[1].body.contains("printf 'token=secret")
+
+  test "failed command output keeps only a bounded sanitized tail":
+    var output = ""
+    for index in 0 .. 100:
+      output.add("configure: error: line-" & $index & "\n")
+    output.add("password=secret\n")
+    output.add("configure: error: " & repeat("x", 70 * 1024))
+
+    let sanitized = sanitizeFailureOutput(output)
+    check sanitized.len == 64 * 1024
+    check not sanitized.contains("secret")
+    check not sanitized.contains("line-0")
+
+  test "uncorrelated command failures do not export logs":
+    exportedRequests.setLen(0)
+    initializeTelemetry(TelemetrySettings(enabled: true,
+      endpoint: "collector.example", timeoutMs: 5000,
+      failurePolicy: telemetryContinue))
+    setTelemetryTransportForTesting(recordingTransport)
+    defer:
+      setTelemetryTransportForTesting(nil)
+      shutdownTelemetry()
+
+    recordFailedCommandOutput("command failed", 7)
+    shutdownTelemetry()
+
+    check exportedRequests.len == 0
+
+  test "failure output redacts command, environment, URL, and path values":
+    let sanitized = sanitizeFailureOutput("""
++ /private/bin/cc -I./private/include source.c
+export AUTH_TOKEN=environment-secret
+PATH=/private/bin:/usr/bin
+home=private-value
+https://private.example.invalid/download
+../private/build/config.log: error: failed
+X-Api-Key: header-secret
+x-trace-id: private-trace
+configure: error: C compiler cannot create executables
+gcc: fatal error: cannot execute 'cc1': execvp: No such file or directory
+gcc: error: X-Api-Key: header-secret
+gcc: error: Cookie: session-value
+""")
+
+    check sanitized.contains("configure: error: C compiler cannot create executables")
+    check sanitized.contains("gcc: fatal error: cannot execute 'cc1': execvp: No such file or directory")
+    check not sanitized.contains("/private/bin/cc")
+    check not sanitized.contains("./private/include")
+    check not sanitized.contains("environment-secret")
+    check not sanitized.contains("/private/bin:/usr/bin")
+    check not sanitized.contains("home=")
+    check not sanitized.contains("private-value")
+    check not sanitized.contains("https://private.example.invalid")
+    check not sanitized.contains("../private/build/config.log")
+    check not sanitized.contains("header-secret")
+    check not sanitized.contains("private-trace")
+    check sanitized.contains("gcc: error: [REDACTED]")
+    check not sanitized.contains("session-value")
 
   test "shutdown continues when export fails under continue policy":
     initializeTelemetry(TelemetrySettings(enabled: true,

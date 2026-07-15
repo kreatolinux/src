@@ -50,11 +50,12 @@ proc encodeKeyValue(key, value: string): string =
   result.appendBytes(1, key)
   result.appendBytes(2, encodeAnyValue(value))
 
-proc encodeAttributes(attributes: Table[string, string], resource: bool): string =
+proc encodeAttributes(attributes: Table[string, string], fieldNumber: uint64,
+    resource: bool): string =
   for key, value in attributes:
     if (resource and (key == "service.name" or isSafeAttribute(key))) or
         (not resource and isSafeAttribute(key)):
-      result.appendBytes(if resource: 1 else: 9, encodeKeyValue(key, value))
+      result.appendBytes(fieldNumber, encodeKeyValue(key, value))
 
 proc encodeStatus(status: SpanStatus): string =
   let code = case status
@@ -72,12 +73,12 @@ proc encodeSpan(span: Span): string =
   result.appendBytes(5, span.name)
   result.appendFixed64(7, span.startedAtNs)
   result.appendFixed64(8, span.endedAtNs)
-  result.add(encodeAttributes(span.attributes, false))
+  result.add(encodeAttributes(span.attributes, 9, false))
   result.appendBytes(15, encodeStatus(span.status))
 
 proc encodeExportRequest*(spans: openArray[Span],
     resource: Table[string, string]): string =
-  var resourceMessage = encodeAttributes(resource, true)
+  var resourceMessage = encodeAttributes(resource, 1, true)
   var instrumentationScope: string
   instrumentationScope.appendBytes(1, "kpkg")
   var scopeMessage: string
@@ -90,3 +91,31 @@ proc encodeExportRequest*(spans: openArray[Span],
   resourceSpans.appendBytes(1, resourceMessage)
   resourceSpans.appendBytes(2, scopeMessage)
   result.appendBytes(1, resourceSpans)
+
+proc encodeLogRecord(log: LogRecord): string =
+  result.appendFixed64(1, log.timestampNs)
+  result.appendTag(3, 0)
+  result.appendVarint(17) # OTLP severity number for ERROR.
+  result.appendBytes(4, "ERROR")
+  result.appendBytes(5, encodeAnyValue(log.body))
+  result.add(encodeAttributes(log.attributes, 6, false))
+  if log.traceId.len > 0:
+    result.appendBytes(9, decodeHexId(log.traceId, 16))
+  if log.spanId.len > 0:
+    result.appendBytes(10, decodeHexId(log.spanId, 8))
+
+proc encodeLogExportRequest*(logs: openArray[LogRecord],
+    resource: Table[string, string]): string =
+  var resourceMessage = encodeAttributes(resource, 1, true)
+  var instrumentationScope: string
+  instrumentationScope.appendBytes(1, "kpkg")
+  var scopeMessage: string
+  scopeMessage.appendBytes(1, instrumentationScope)
+  for log in logs:
+    if log.isNil:
+      raise newException(TelemetryRuntimeError, "Cannot encode a nil telemetry log")
+    scopeMessage.appendBytes(2, encodeLogRecord(log))
+  var resourceLogs: string
+  resourceLogs.appendBytes(1, resourceMessage)
+  resourceLogs.appendBytes(2, scopeMessage)
+  result.appendBytes(1, resourceLogs)

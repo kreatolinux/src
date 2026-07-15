@@ -15,7 +15,7 @@ type
 
   TelemetryTransport* = proc(request: TelemetryHttpRequest): int {.nimcall, gcsafe.}
 
-proc normalizeTraceEndpoint*(endpoint: string, tls: bool): string =
+proc normalizeEndpoint(endpoint: string, tls: bool, signal: string): string =
   let trimmed = endpoint.strip()
   if trimmed.len == 0:
     raise newException(TelemetryRuntimeError, "Telemetry endpoint cannot be empty")
@@ -34,12 +34,20 @@ proc normalizeTraceEndpoint*(endpoint: string, tls: bool): string =
 
   parsed.scheme = requestedScheme
   var path = parsed.path.strip(chars = {'/'})
-  if path != "v1/traces":
+  if path in ["v1/traces", "v1/logs"]:
+    path = signal
+  elif path != signal:
     if path.len > 0:
       path.add("/")
-    path.add("v1/traces")
+    path.add(signal)
   parsed.path = "/" & path
   result = $parsed
+
+proc normalizeTraceEndpoint*(endpoint: string, tls: bool): string =
+  normalizeEndpoint(endpoint, tls, "v1/traces")
+
+proc normalizeLogEndpoint*(endpoint: string, tls: bool): string =
+  normalizeEndpoint(endpoint, tls, "v1/logs")
 
 proc buildTraceRequest*(settings: TelemetrySettings,
     payload: string): TelemetryHttpRequest =
@@ -53,6 +61,11 @@ proc buildTraceRequest*(settings: TelemetrySettings,
   result.tls = settings.tls
   result.verifyTls = settings.tls
   result.verifyHostname = settings.tls
+
+proc buildLogRequest*(settings: TelemetrySettings,
+    payload: string): TelemetryHttpRequest =
+  result = buildTraceRequest(settings, payload)
+  result.url = normalizeLogEndpoint(settings.endpoint, settings.tls)
 
 proc newTelemetryHttpClient*(request: TelemetryHttpRequest): HttpClient =
   when defined(ssl):
@@ -78,6 +91,14 @@ proc sendWithHttpClient(request: TelemetryHttpRequest): int {.gcsafe.} =
 proc exportTracePayload*(settings: TelemetrySettings, payload: string,
     transport: TelemetryTransport = nil) {.gcsafe.} =
   let request = buildTraceRequest(settings, payload)
+  let status = if transport.isNil: sendWithHttpClient(request) else: transport(request)
+  if status < 200 or status >= 300:
+    raise newException(TelemetryRuntimeError,
+        "Telemetry collector returned HTTP status " & $status)
+
+proc exportLogPayload*(settings: TelemetrySettings, payload: string,
+    transport: TelemetryTransport = nil) {.gcsafe.} =
+  let request = buildLogRequest(settings, payload)
   let status = if transport.isNil: sendWithHttpClient(request) else: transport(request)
   if status < 200 or status >= 300:
     raise newException(TelemetryRuntimeError,
