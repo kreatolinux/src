@@ -30,6 +30,13 @@ type
     errorType*: string
     errorMessage*: string
 
+  LogRecord* = ref object
+    traceId*: string
+    spanId*: string
+    timestampNs*: int64
+    body*: string
+    attributes*: Table[string, string]
+
   TelemetrySettings* = object
     enabled*: bool
     endpoint*: string
@@ -45,7 +52,8 @@ const safeAttributes* = [
   "kpkg.command", "kpkg.version", "host.name", "kpkg.target",
   "package.name", "package.version", "package.repository",
   "package.bootstrap", "package.cache_hit", "source.kind",
-  "source.filename", "error.type"
+  "source.filename", "error.type", "process.exit_code", "run3.stage",
+  "command.kind"
 ]
 
 proc isSafeAttribute*(key: string): bool =

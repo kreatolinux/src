@@ -11,6 +11,7 @@ var telemetryFailurePolicy: TelemetryFailurePolicy
 var telemetrySettings: TelemetrySettings
 var telemetryTransport: TelemetryTransport
 var completedSpans: seq[Span]
+var completedLogs: seq[LogRecord]
 var completedSpansLock: Lock
 var currentSpan {.threadvar.}: Span
 var spanStack {.threadvar.}: seq[Span]
@@ -36,6 +37,7 @@ proc initializeTelemetry*(settings: TelemetrySettings) =
     telemetrySettings = settings
     {.cast(gcsafe).}:
       completedSpans.setLen(0)
+      completedLogs.setLen(0)
   finally:
     release(completedSpansLock)
   currentSpan = nil
@@ -50,32 +52,46 @@ proc setTelemetryTransportForTesting*(transport: TelemetryTransport) =
 
 proc flushTelemetry*() {.gcsafe.} =
   var spans: seq[Span]
+  var logs: seq[LogRecord]
   var settings: TelemetrySettings
   var transport: TelemetryTransport
-  var hasSpans: bool
+  var hasSpans, hasLogs: bool
   acquire(completedSpansLock)
   try:
     {.cast(gcsafe).}:
       hasSpans = completedSpans.len > 0
-    if not telemetryEnabled or not hasSpans:
+      hasLogs = completedLogs.len > 0
+    if not telemetryEnabled or (not hasSpans and not hasLogs):
       return
     {.cast(gcsafe).}:
       spans = completedSpans
       completedSpans.setLen(0)
+      logs = completedLogs
+      completedLogs.setLen(0)
     {.cast(gcsafe).}:
       settings = telemetrySettings
       transport = telemetryTransport
   finally:
     release(completedSpansLock)
 
-  try:
-    let payload = encodeExportRequest(spans, {"service.name": "kpkg"}.toTable)
-    exportTracePayload(settings, payload, transport)
-  except CatchableError:
-    if settings.failurePolicy == telemetryFail:
-      raise newException(TelemetryRuntimeError, "Unable to export telemetry")
-    {.cast(gcsafe).}:
-      warn "kpkg telemetry: unable to export traces"
+  if hasSpans:
+    try:
+      let payload = encodeExportRequest(spans, {"service.name": "kpkg"}.toTable)
+      exportTracePayload(settings, payload, transport)
+    except CatchableError:
+      if settings.failurePolicy == telemetryFail:
+        raise newException(TelemetryRuntimeError, "Unable to export telemetry")
+      {.cast(gcsafe).}:
+        warn "kpkg telemetry: unable to export traces"
+  if hasLogs:
+    try:
+      let payload = encodeLogExportRequest(logs, {"service.name": "kpkg"}.toTable)
+      exportLogPayload(settings, payload, transport)
+    except CatchableError:
+      if settings.failurePolicy == telemetryFail:
+        raise newException(TelemetryRuntimeError, "Unable to export telemetry")
+      {.cast(gcsafe).}:
+        warn "kpkg telemetry: unable to export logs"
 
 proc shutdownTelemetry*() {.gcsafe.} =
   try:
@@ -86,6 +102,7 @@ proc shutdownTelemetry*() {.gcsafe.} =
       telemetryEnabled = false
       {.cast(gcsafe).}:
         completedSpans.setLen(0)
+        completedLogs.setLen(0)
     finally:
       release(completedSpansLock)
     currentSpan = nil
@@ -173,6 +190,60 @@ proc activeSpanForTesting*(): Span =
 proc setActiveSpanAttribute*(key: string, value: string) =
   if not currentSpan.isNil and isSafeAttribute(key):
     currentSpan.attributes[key] = value
+
+const maxFailureLogLines = 100
+const maxFailureLogBytes = 64 * 1024
+
+proc containsCredential(line: string): bool =
+  let lowered = line.toLowerAscii()
+  for marker in ["password", "token", "secret", "api_key", "apikey",
+      "authorization", "bearer ", "credential", "private key"]:
+    if marker in lowered:
+      return true
+  let scheme = lowered.find("://")
+  if scheme >= 0:
+    let authority = lowered[scheme + 3 .. ^1].split('/')[0]
+    return ':' in authority and '@' in authority
+
+proc sanitizeFailureOutput*(output: string): string =
+  let lines = output.splitLines()
+  let first = max(0, lines.len - maxFailureLogLines)
+  for index in first ..< lines.len:
+    if containsCredential(lines[index]):
+      result.add("[REDACTED]")
+    else:
+      for character in lines[index]:
+        if character == '\t' or (character >= ' ' and character <= '~'):
+          result.add(character)
+    if index + 1 < lines.len:
+      result.add('\n')
+  if result.len > maxFailureLogBytes:
+    result = result[result.len - maxFailureLogBytes .. ^1]
+
+proc recordFailedCommandOutput*(output: string, exitCode: int,
+    attributes = initTable[string, string]()) {.gcsafe.} =
+  if exitCode == 0:
+    return
+  acquire(completedSpansLock)
+  try:
+    if not telemetryEnabled:
+      return
+    var safeAttributes = initTable[string, string]()
+    for key, value in attributes:
+      if isSafeAttribute(key):
+        safeAttributes[key] = value
+    safeAttributes["process.exit_code"] = $exitCode
+    safeAttributes["error.type"] = "command_exit"
+    {.cast(gcsafe).}:
+      completedLogs.add(LogRecord(
+        traceId: if currentSpan.isNil: "" else: currentSpan.traceId,
+        spanId: if currentSpan.isNil: "" else: currentSpan.spanId,
+        timestampNs: timestampNs(),
+        body: sanitizeFailureOutput(output),
+        attributes: safeAttributes
+      ))
+  finally:
+    release(completedSpansLock)
 
 proc lastCompletedSpanForTesting*(): Span {.gcsafe.} =
   acquire(completedSpansLock)

@@ -31,7 +31,7 @@ proc defaultExec(ctx: ExecutionContext, command: string, silent: bool): tuple[
 proc reportCommandResult(ctx: ExecutionContext, output: string, exitCode: int) =
   if ctx.commandResultHook != nil:
     try:
-      ctx.commandResultHook(output, exitCode)
+      ctx.commandResultHook(ctx, output, exitCode)
     except CatchableError:
       warn("command result callback failed")
 

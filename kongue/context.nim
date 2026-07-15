@@ -10,7 +10,8 @@ type
   ## Hook types for extensibility - allows consumers to customize execution behavior
   ExecHook* = proc(ctx: ExecutionContext, command: string, silent: bool): tuple[
       output: string, exitCode: int] {.nimcall.}
-  CommandResultHook* = proc(output: string, exitCode: int) {.nimcall.}
+  CommandResultHook* = proc(ctx: ExecutionContext, output: string,
+      exitCode: int) {.nimcall.}
   MacroHook* = proc(ctx: ExecutionContext, name: string, args: seq[
       string]): int {.nimcall.}
 

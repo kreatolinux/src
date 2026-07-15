@@ -2,6 +2,7 @@ import unittest, tables, strutils
 import ../../kpkg/modules/telemetry/main
 import ../../kpkg/modules/telemetry/protobuf
 import ../../kpkg/modules/telemetry/exporter
+import ../../kpkg/modules/run3/run3
 
 proc enabledSettings(policy = telemetryContinue): TelemetrySettings =
   TelemetrySettings(enabled: true, failurePolicy: policy)
@@ -195,6 +196,67 @@ suite "telemetry tracing":
     check exportedRequests.len == 1
     check exportedRequests[0].url == "http://collector.example/v1/traces"
     check exportedRequests[0].body.len > 0
+
+  test "failed Run3 commands export output through the OTLP logs endpoint":
+    exportedRequests.setLen(0)
+    initializeTelemetry(TelemetrySettings(enabled: true,
+      endpoint: "collector.example", timeoutMs: 5000,
+      failurePolicy: telemetryContinue))
+    setTelemetryTransportForTesting(recordingTransport)
+    defer:
+      setTelemetryTransportForTesting(nil)
+      shutdownTelemetry()
+
+    let parent = startSpan("kpkg.run3.execute")
+    let ctx = initRun3Context(packageName = "failing-package")
+    ctx.passthrough = true
+    ctx.telemetryStage = "build"
+
+    check ctx.builtinExec("true") == 0
+    check ctx.builtinExec("printf 'token=secret\\ncommand failed'; exit 7") == 7
+    endSpan(parent)
+    shutdownTelemetry()
+
+    check exportedRequests.len == 2
+    check exportedRequests[0].url == "http://collector.example/v1/traces"
+    check exportedRequests[1].url == "http://collector.example/v1/logs"
+
+    let traceRequest = decodeFields(exportedRequests[0].body)
+    let traceResource = decodeFields(field(traceRequest, 1).bytes)
+    let traceScope = decodeFields(field(traceResource, 2).bytes)
+    let traceFields = decodeFields(field(traceScope, 2).bytes)
+    let request = decodeFields(exportedRequests[1].body)
+    let resourceLogs = decodeFields(field(request, 1).bytes)
+    let scopeLogs = decodeFields(field(resourceLogs, 2).bytes)
+    let logFields = decodeFields(field(scopeLogs, 2).bytes)
+    check field(logFields, 3).varint == 17
+    check field(logFields, 4).bytes == "ERROR"
+    let body = decodeFields(field(logFields, 5).bytes)
+    check field(body, 1).bytes.contains("[REDACTED]")
+    check not field(body, 1).bytes.contains("secret")
+    check attributeValue(@[field(logFields, 6, 0), field(logFields, 6, 1),
+        field(logFields, 6, 2), field(logFields, 6, 3), field(logFields, 6, 4)],
+        "process.exit_code") == "7"
+    let attributes = @[field(logFields, 6, 0), field(logFields, 6, 1),
+      field(logFields, 6, 2), field(logFields, 6, 3), field(logFields, 6, 4)]
+    check attributeValue(attributes, "package.name") == "failing-package"
+    check attributeValue(attributes, "run3.stage") == "build"
+    check attributeValue(attributes, "command.kind") == "exec"
+    check attributeValue(attributes, "error.type") == "command_exit"
+    check field(logFields, 9).bytes == field(traceFields, 1).bytes
+    check field(logFields, 10).bytes == field(traceFields, 2).bytes
+
+  test "failed command output keeps only a bounded sanitized tail":
+    var output = ""
+    for index in 0 .. 100:
+      output.add("line-" & $index & "\n")
+    output.add("password=secret\n")
+    output.add(repeat("x", 70 * 1024))
+
+    let sanitized = sanitizeFailureOutput(output)
+    check sanitized.len == 64 * 1024
+    check not sanitized.contains("secret")
+    check not sanitized.contains("line-0")
 
   test "shutdown continues when export fails under continue policy":
     initializeTelemetry(TelemetrySettings(enabled: true,
