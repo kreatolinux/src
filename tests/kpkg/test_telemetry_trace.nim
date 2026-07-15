@@ -265,6 +265,42 @@ suite "telemetry tracing":
     check not sanitized.contains("secret")
     check not sanitized.contains("line-0")
 
+  test "uncorrelated command failures do not export logs":
+    exportedRequests.setLen(0)
+    initializeTelemetry(TelemetrySettings(enabled: true,
+      endpoint: "collector.example", timeoutMs: 5000,
+      failurePolicy: telemetryContinue))
+    setTelemetryTransportForTesting(recordingTransport)
+    defer:
+      setTelemetryTransportForTesting(nil)
+      shutdownTelemetry()
+
+    recordFailedCommandOutput("command failed", 7)
+    shutdownTelemetry()
+
+    check exportedRequests.len == 0
+
+  test "failure output redacts command, environment, URL, and path values":
+    let sanitized = sanitizeFailureOutput("""
++ /private/bin/cc -I./private/include source.c
+export AUTH_TOKEN=environment-secret
+PATH=/private/bin:/usr/bin
+home=private-value
+https://private.example.invalid/download
+../private/build/config.log: error: failed
+configure: error: C compiler cannot create executables
+""")
+
+    check sanitized.contains("configure: error: C compiler cannot create executables")
+    check not sanitized.contains("/private/bin/cc")
+    check not sanitized.contains("./private/include")
+    check not sanitized.contains("environment-secret")
+    check not sanitized.contains("/private/bin:/usr/bin")
+    check not sanitized.contains("home=")
+    check not sanitized.contains("private-value")
+    check not sanitized.contains("https://private.example.invalid")
+    check not sanitized.contains("../private/build/config.log")
+
   test "shutdown continues when export fails under continue policy":
     initializeTelemetry(TelemetrySettings(enabled: true,
       endpoint: "collector.example", timeoutMs: 5000,

@@ -205,16 +205,54 @@ proc containsCredential(line: string): bool =
     let authority = lowered[scheme + 3 .. ^1].split('/')[0]
     return ':' in authority and '@' in authority
 
+proc isEnvironmentAssignment(line: string): bool =
+  let trimmed = line.strip()
+  if trimmed.startsWith("export ") or trimmed.startsWith("declare -x ") or
+      trimmed.startsWith("Environment:"):
+    return true
+  let separator = trimmed.find('=')
+  if separator <= 0:
+    return false
+  let name = trimmed[0 ..< separator]
+  if name[0] notin {'A'..'Z', 'a'..'z', '_'}:
+    return false
+  for character in name:
+    if not (character in {'A'..'Z', 'a'..'z', '0'..'9', '_'}):
+      return false
+  return true
+
+proc isShellCommandEcho(line: string): bool =
+  let trimmed = line.strip(leading = true, trailing = false)
+  trimmed.startsWith("$ ") or trimmed.startsWith("+ ")
+
+proc redactPathTokens(line: string): string =
+  var index = 0
+  while index < line.len:
+    let start = index
+    while index < line.len and line[index] notin {' ', '\t'}:
+      inc index
+    let token = line[start ..< index]
+    if '/' in token:
+      result.add("[REDACTED]")
+    else:
+      result.add(token)
+    while index < line.len and line[index] in {' ', '\t'}:
+      result.add(line[index])
+      inc index
+
 proc sanitizeFailureOutput*(output: string): string =
   let lines = output.splitLines()
   let first = max(0, lines.len - maxFailureLogLines)
   for index in first ..< lines.len:
-    if containsCredential(lines[index]):
+    if containsCredential(lines[index]) or isEnvironmentAssignment(lines[index]) or
+        isShellCommandEcho(lines[index]) or "://" in lines[index]:
       result.add("[REDACTED]")
     else:
+      var printable = ""
       for character in lines[index]:
         if character == '\t' or (character >= ' ' and character <= '~'):
-          result.add(character)
+          printable.add(character)
+      result.add(redactPathTokens(printable))
     if index + 1 < lines.len:
       result.add('\n')
   if result.len > maxFailureLogBytes:
@@ -226,7 +264,8 @@ proc recordFailedCommandOutput*(output: string, exitCode: int,
     return
   acquire(completedSpansLock)
   try:
-    if not telemetryEnabled:
+    if not telemetryEnabled or currentSpan.isNil or currentSpan.traceId.len == 0 or
+        currentSpan.spanId.len == 0:
       return
     var safeAttributes = initTable[string, string]()
     for key, value in attributes:
