@@ -22,6 +22,8 @@ initLock(completedSpansLock)
 proc timestampNs(): int64 =
   int64(epochTime() * 1_000_000_000)
 
+proc sanitizeErrorType(errorType: string): string
+
 proc randomHex(byteCount: Natural): string =
   if randomFailureForTesting:
     raise newException(OSError, "")
@@ -106,7 +108,7 @@ proc startSpan*(name: string,
   var safeAttributes = initTable[string, string]()
   for key, value in attributes:
     if isSafeAttribute(key):
-      safeAttributes[key] = value
+      safeAttributes[key] = if key == "error.type": sanitizeErrorType(value) else: value
   try:
     result = Span(
       traceId: if currentSpan.isNil: randomHex(16) else: currentSpan.traceId,
@@ -154,6 +156,8 @@ proc spanSummary(span: Span): LogRecord =
   var attributes = initTable[string, string]()
   for key, value in span.attributes:
     attributes[key] = value
+  if attributes.hasKey("error.type"):
+    attributes["error.type"] = sanitizeErrorType(attributes["error.type"])
   attributes["span.parent_id"] = span.parentSpanId
   attributes["span.duration_ns"] = $(span.endedAtNs - span.startedAtNs)
   attributes["span.status"] = spanStatusName(span.status)
@@ -168,7 +172,7 @@ proc spanSummary(span: Span): LogRecord =
     attributes: attributes
   )
 
-proc exportSpanSummary(span: Span) {.gcsafe.} =
+proc exportSpanSummary(span: Span, suppressFailure: bool) {.gcsafe.} =
   if span.traceId.len != 32 or span.spanId.len != 16:
     return
   var settings: TelemetrySettings
@@ -189,9 +193,13 @@ proc exportSpanSummary(span: Span) {.gcsafe.} =
   try:
     let payload = encodeLogExportRequest([spanSummary(span)],
         {"service.name": "kpkg"}.toTable)
-    exportLogPayload(settings, payload, transport)
+    let timeoutMs = if failurePolicy == telemetryContinue:
+      telemetryContinueLogTimeoutMs
+    else:
+      settings.timeoutMs
+    exportLogPayload(settings, payload, transport, timeoutMs)
   except CatchableError:
-    if failurePolicy == telemetryFail:
+    if failurePolicy == telemetryFail and not suppressFailure:
       raise newException(TelemetryRuntimeError, "Unable to export telemetry")
     {.cast(gcsafe).}:
       warn "kpkg telemetry: unable to export logs"
@@ -218,7 +226,7 @@ proc endSpan*(span: Span, failure: ref CatchableError = nil) {.gcsafe.} =
         completedSpans.add(span)
   finally:
     release(completedSpansLock)
-  exportSpanSummary(span)
+  exportSpanSummary(span, not getCurrentException().isNil)
 
 proc completedSpanCountForTesting*(): int {.gcsafe.} =
   acquire(completedSpansLock)
@@ -233,7 +241,8 @@ proc activeSpanForTesting*(): Span =
 
 proc setActiveSpanAttribute*(key: string, value: string) =
   if not currentSpan.isNil and isSafeAttribute(key):
-    currentSpan.attributes[key] = value
+    currentSpan.attributes[key] =
+      if key == "error.type": sanitizeErrorType(value) else: value
 
 proc lastCompletedSpanForTesting*(): Span {.gcsafe.} =
   acquire(completedSpansLock)

@@ -2,6 +2,7 @@ import std/[httpclient, net, strutils, tables, uri]
 import ./config
 
 const telemetryHttpClientMaxRedirects* = 0
+const telemetryContinueLogTimeoutMs* = 250
 
 type
   TelemetryHttpRequest* = object
@@ -97,8 +98,10 @@ proc exportTracePayload*(settings: TelemetrySettings, payload: string,
         "Telemetry collector returned HTTP status " & $status)
 
 proc exportLogPayload*(settings: TelemetrySettings, payload: string,
-    transport: TelemetryTransport = nil) {.gcsafe.} =
-  let request = buildLogRequest(settings, payload)
+    transport: TelemetryTransport = nil, timeoutMs = 0) {.gcsafe.} =
+  var request = buildLogRequest(settings, payload)
+  if timeoutMs > 0:
+    request.timeoutMs = timeoutMs
   let status = if transport.isNil: sendWithHttpClient(request) else: transport(request)
   if status < 200 or status >= 300:
     raise newException(TelemetryRuntimeError,

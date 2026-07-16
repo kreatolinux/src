@@ -283,6 +283,62 @@ suite "telemetry tracing":
     check not exportedRequests[0].body.contains("password=secret")
     check not exportedRequests[0].body.contains("private.example.invalid")
 
+  test "continue policy bounds immediate log exports to 250 milliseconds":
+    exportedRequests.setLen(0)
+    initializeTelemetry(TelemetrySettings(enabled: true,
+      endpoint: "collector.example", timeoutMs: 5000,
+      failurePolicy: telemetryContinue))
+    setTelemetryTransportForTesting(recordingTransport)
+    defer:
+      setTelemetryTransportForTesting(nil)
+      shutdownTelemetry()
+
+    endSpan(startSpan("kpkg.package.build"))
+
+    check exportedRequests.len == 1
+    check exportedRequests[0].timeoutMs == 250
+
+  test "telemetry failure does not replace an exception being unwound":
+    initializeTelemetry(TelemetrySettings(enabled: true,
+      endpoint: "collector.example", timeoutMs: 5000,
+      failurePolicy: telemetryFail))
+    setTelemetryTransportForTesting(failingTransport)
+
+    var caught = ""
+    try:
+      withSpan("kpkg.package.build"):
+        raise newException(ValueError, "business failure")
+    except CatchableError as failure:
+      caught = $failure.name
+
+    check caught == "ValueError"
+    setTelemetryTransportForTesting(recordingTransport)
+    shutdownTelemetry()
+    setTelemetryTransportForTesting(nil)
+
+  test "successful span summaries sanitize error type attributes":
+    exportedRequests.setLen(0)
+    initializeTelemetry(TelemetrySettings(enabled: true,
+      endpoint: "collector.example", timeoutMs: 5000,
+      failurePolicy: telemetryContinue))
+    setTelemetryTransportForTesting(recordingTransport)
+    defer:
+      setTelemetryTransportForTesting(nil)
+      shutdownTelemetry()
+
+    let span = startSpan("kpkg.package.build", {
+      "error.type": "password=secret"
+    }.toTable)
+    endSpan(span)
+
+    let request = decodeFields(exportedRequests[0].body)
+    let resourceLogs = decodeFields(field(request, 1).bytes)
+    let scopeLogs = decodeFields(field(resourceLogs, 2).bytes)
+    let logFields = decodeFields(field(scopeLogs, 2).bytes)
+    check attributeValue(logAttributes(logFields), "error.type") == "error"
+    check not exportedRequests[0].body.contains("secret")
+    check lastCompletedSpanForTesting().attributes["error.type"] == "error"
+
   test "span summaries redact unsafe error types":
     exportedRequests.setLen(0)
     initializeTelemetry(TelemetrySettings(enabled: true,

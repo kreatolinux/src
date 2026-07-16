@@ -79,3 +79,65 @@ build {
 
     check ctx.executeFunctionByName(parsed, "build") == 0
     check ctx.envVars["DEPMOD"] == "/nodepmod/here"
+
+suite "builtinExec command result hook":
+
+  test "retains legacy output and exit code callback compatibility":
+    let ctx = newCtx()
+    var reportedOutput = ""
+    var reportedExitCode = -1
+    ctx.commandResultHook = proc(output: string, exitCode: int) =
+      reportedOutput = output
+      reportedExitCode = exitCode
+
+    check ctx.builtinExec("printf legacy-result") == 0
+    check reportedOutput == "legacy-result"
+    check reportedExitCode == 0
+
+  test "invokes legacy and contextual callbacks together":
+    let ctx = newCtx()
+    var legacyCalls = 0
+    var contextualCalls = 0
+    ctx.commandResultHook = proc(output: string, exitCode: int) =
+      inc legacyCalls
+    ctx.commandResultContextHook = proc(callbackCtx: ExecutionContext,
+        output: string, exitCode: int) =
+      check callbackCtx == ctx
+      inc contextualCalls
+
+    check ctx.builtinExec("printf callbacks") == 0
+    check legacyCalls == 1
+    check contextualCalls == 1
+
+  test "reports captured output and exit code after custom execution":
+    let ctx = newCtx()
+    var reportedOutput = ""
+    var reportedExitCode = -1
+    ctx.execHook = proc(ctx: ExecutionContext, command: string, silent: bool): tuple[
+        output: string, exitCode: int] =
+      ("custom result", 17)
+    ctx.commandResultContextHook = proc(ctx: ExecutionContext, output: string,
+        exitCode: int) =
+      reportedOutput = output
+      reportedExitCode = exitCode
+
+    check ctx.builtinExec("ignored") == 17
+    check reportedOutput == "custom result"
+    check reportedExitCode == 17
+
+  test "isolates command result callback exceptions":
+    let ctx = newCtx()
+    var warning = ""
+    warnProc = proc(message: string) =
+      warning = message
+    defer:
+      warnProc = nil
+    ctx.execHook = proc(ctx: ExecutionContext, command: string, silent: bool): tuple[
+        output: string, exitCode: int] =
+      ("hook output", 29)
+    ctx.commandResultContextHook = proc(ctx: ExecutionContext, output: string,
+        exitCode: int) =
+      raise newException(ValueError, "callback failed")
+
+    check ctx.builtinExec("ignored") == 29
+    check warning == "command result callback failed"
