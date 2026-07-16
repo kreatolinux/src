@@ -35,21 +35,12 @@ type
         sandboxPath*: string ## Sandbox root path
         remount*: bool       ## Remount sandbox
         asRoot*: bool        ## Run as root in sandbox (for postinstall)
-        telemetryStage*: string
 
     Run3File* = object
         ## Represents a parsed and ready-to-execute run3 file
         parsed*: ParsedScript
         path*: string
         isParsed*: bool
-
-proc reportCommandFailure(ctx: ExecutionContext, output: string, exitCode: int) =
-    let run3ctx = Run3Context(ctx)
-    telemetry.recordFailedCommandOutput(output, exitCode, {
-      "package.name": run3ctx.packageName,
-      "run3.stage": run3ctx.telemetryStage,
-      "command.kind": "exec"
-    }.toTable)
 
 proc initRun3Context*(destDir: string = "", srcDir: string = "",
         buildRoot: string = "", packageName: string = ""): Run3Context =
@@ -76,7 +67,6 @@ proc initRun3Context*(destDir: string = "", srcDir: string = "",
     result.sandboxPath = kpkgMergedPath
     result.remount = false
     result.asRoot = false
-    result.telemetryStage = ""
 
     # Set up kpkg execution hook for sandboxed execution
     result.execHook = proc(ctx: ExecutionContext, command: string,
@@ -87,8 +77,6 @@ proc initRun3Context*(destDir: string = "", srcDir: string = "",
             $run3ctx.passthrough & ", asRoot=" & $run3ctx.asRoot
         return execEnv(command, "none", run3ctx.passthrough, silent,
                 run3ctx.sandboxPath, run3ctx.remount, run3ctx.asRoot)
-
-    result.commandResultContextHook = reportCommandFailure
 
     # Set up macro hook for kpkg macros
     result.macroHook = proc(ctx: ExecutionContext, name: string, args: seq[string]): int =
@@ -374,9 +362,7 @@ proc initRun3ContextFromParsed*(parsed: ParsedScript, destDir: string = "",
 
 proc executeRun3Stage*(ctx: ExecutionContext, parsed: ParsedScript,
         stage: string): int =
-    ## Execute a Run3 stage after recording its resolved function name for telemetry.
-    if ctx of Run3Context:
-        Run3Context(ctx).telemetryStage = stage
+    ## Execute a Run3 stage.
     executeFunctionByName(ctx, parsed, stage)
 
 proc executeFunction*(rf: Run3File, functionName: string, destDir: string = "",

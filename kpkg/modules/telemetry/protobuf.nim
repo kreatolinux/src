@@ -51,10 +51,10 @@ proc encodeKeyValue(key, value: string): string =
   result.appendBytes(2, encodeAnyValue(value))
 
 proc encodeAttributes(attributes: Table[string, string], fieldNumber: uint64,
-    resource: bool): string =
+    resource: bool, logRecord = false): string =
   for key, value in attributes:
     if (resource and (key == "service.name" or isSafeAttribute(key))) or
-        (not resource and isSafeAttribute(key)):
+        (not resource and (if logRecord: isSafeLogAttribute(key) else: isSafeAttribute(key))):
       result.appendBytes(fieldNumber, encodeKeyValue(key, value))
 
 proc encodeStatus(status: SpanStatus): string =
@@ -95,10 +95,11 @@ proc encodeExportRequest*(spans: openArray[Span],
 proc encodeLogRecord(log: LogRecord): string =
   result.appendFixed64(1, log.timestampNs)
   result.appendTag(3, 0)
-  result.appendVarint(17) # OTLP severity number for ERROR.
-  result.appendBytes(4, "ERROR")
+  let isError = log.status == spanError
+  result.appendVarint(if isError: 17 else: 9)
+  result.appendBytes(4, if isError: "ERROR" else: "INFO")
   result.appendBytes(5, encodeAnyValue(log.body))
-  result.add(encodeAttributes(log.attributes, 6, false))
+  result.add(encodeAttributes(log.attributes, 6, false, true))
   if log.traceId.len > 0:
     result.appendBytes(9, decodeHexId(log.traceId, 16))
   if log.spanId.len > 0:

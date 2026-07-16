@@ -82,6 +82,11 @@ proc attributeValue(attributes: seq[ProtoField], key: string): string =
       return field(decodeFields(field(keyValue, 2).bytes), 1).bytes
   raise newException(ValueError, "Missing test protobuf attribute")
 
+proc logAttributes(fields: seq[ProtoField]): seq[ProtoField] =
+  for value in fields:
+    if value.number == 6:
+      result.add(value)
+
 suite "telemetry tracing":
   test "nested spans retain trace identity and parent context":
     initializeTelemetry(enabledSettings())
@@ -167,6 +172,20 @@ suite "telemetry tracing":
 
     check completedSpanCountForTesting() == workers.len
 
+  test "spans without OTLP identifiers do not export summaries":
+    exportedRequests.setLen(0)
+    initializeTelemetry(TelemetrySettings(enabled: true,
+      endpoint: "collector.example", timeoutMs: 5000,
+      failurePolicy: telemetryContinue))
+    setTelemetryTransportForTesting(recordingTransport)
+    defer:
+      setTelemetryTransportForTesting(nil)
+      shutdownTelemetry()
+
+    endSpan(Span())
+
+    check exportedRequests.len == 0
+
   test "completion after shutdown is not queued":
     initializeTelemetry(enabledSettings())
     defer:
@@ -179,7 +198,7 @@ suite "telemetry tracing":
 
     check completedSpanCountForTesting() == 0
 
-  test "shutdown exports completed spans as one HTTP batch":
+  test "shutdown batches traces after immediate span summaries":
     exportedRequests.setLen(0)
     initializeTelemetry(TelemetrySettings(enabled: true,
       endpoint: "collector.example", timeoutMs: 5000,
@@ -193,11 +212,13 @@ suite "telemetry tracing":
     endSpan(startSpan("second"))
     shutdownTelemetry()
 
-    check exportedRequests.len == 1
-    check exportedRequests[0].url == "http://collector.example/v1/traces"
-    check exportedRequests[0].body.len > 0
+    check exportedRequests.len == 3
+    check exportedRequests[0].url == "http://collector.example/v1/logs"
+    check exportedRequests[1].url == "http://collector.example/v1/logs"
+    check exportedRequests[2].url == "http://collector.example/v1/traces"
+    check exportedRequests[2].body.len > 0
 
-  test "failed Run3 commands export output through the OTLP logs endpoint":
+  test "completed spans export a success summary immediately":
     exportedRequests.setLen(0)
     initializeTelemetry(TelemetrySettings(enabled: true,
       endpoint: "collector.example", timeoutMs: 5000,
@@ -207,78 +228,32 @@ suite "telemetry tracing":
       setTelemetryTransportForTesting(nil)
       shutdownTelemetry()
 
-    let parent = startSpan("kpkg.run3.execute")
-    let ctx = initRun3Context(packageName = "failing-package")
-    ctx.envVars["AUTH_TOKEN"] = "environment-secret"
-    ctx.envVars["SOURCE_URL"] = "https://private.example.invalid"
-    ctx.envVars["BUILD_PATH"] = "/private/build/path"
-    let tokens = tokenize("""
-build {
-  exec "first command"
-  exec "second command"
-}
-""")
-    var scriptParser = initParser(tokens)
-    let script = scriptParser.parse()
-    var commandCount = 0
-    ctx.execHook = proc(ctx: ExecutionContext, command: string,
-        silent: bool): tuple[output: string, exitCode: int] =
-      inc commandCount
-      if commandCount == 1:
-        ("configure: error: first command failed", 0)
-      else:
-        ("token=secret\nconfigure: error: command failed", 7)
+    let parent = startSpan("kpkg.command")
+    let span = startSpan("kpkg.package.build", {
+      "package.name": "safe-package",
+      "source.url": "https://private.example.invalid"
+    }.toTable)
+    endSpan(span)
 
-    check executeRun3Stage(ctx, script, "build") == 7
-    endSpan(parent)
-    shutdownTelemetry()
-
-    check exportedRequests.len == 2
-    check exportedRequests[0].url == "http://collector.example/v1/traces"
-    check exportedRequests[1].url == "http://collector.example/v1/logs"
-
-    let traceRequest = decodeFields(exportedRequests[0].body)
-    let traceResource = decodeFields(field(traceRequest, 1).bytes)
-    let traceScope = decodeFields(field(traceResource, 2).bytes)
-    let traceFields = decodeFields(field(traceScope, 2).bytes)
-    let request = decodeFields(exportedRequests[1].body)
+    check exportedRequests.len == 1
+    check exportedRequests[0].url == "http://collector.example/v1/logs"
+    let request = decodeFields(exportedRequests[0].body)
     let resourceLogs = decodeFields(field(request, 1).bytes)
     let scopeLogs = decodeFields(field(resourceLogs, 2).bytes)
     let logFields = decodeFields(field(scopeLogs, 2).bytes)
-    check field(logFields, 3).varint == 17
-    check field(logFields, 4).bytes == "ERROR"
     let body = decodeFields(field(logFields, 5).bytes)
-    check field(body, 1).bytes.contains("[REDACTED]")
-    check not field(body, 1).bytes.contains("secret")
-    check attributeValue(@[field(logFields, 6, 0), field(logFields, 6, 1),
-        field(logFields, 6, 2), field(logFields, 6, 3), field(logFields, 6, 4)],
-        "process.exit_code") == "7"
-    let attributes = @[field(logFields, 6, 0), field(logFields, 6, 1),
-      field(logFields, 6, 2), field(logFields, 6, 3), field(logFields, 6, 4)]
-    check attributeValue(attributes, "package.name") == "failing-package"
-    check attributeValue(attributes, "run3.stage") == "build"
-    check attributeValue(attributes, "command.kind") == "exec"
-    check attributeValue(attributes, "error.type") == "command_exit"
-    check field(logFields, 9).bytes == field(traceFields, 1).bytes
-    check field(logFields, 10).bytes == field(traceFields, 2).bytes
-    check not exportedRequests[1].body.contains("environment-secret")
-    check not exportedRequests[1].body.contains("https://private.example.invalid")
-    check not exportedRequests[1].body.contains("/private/build/path")
-    check not exportedRequests[1].body.contains("printf 'token=secret")
+    let attributes = logAttributes(logFields)
+    check field(body, 1).bytes == "kpkg.package.build completed"
+    check attributeValue(attributes, "package.name") == "safe-package"
+    check attributeValue(attributes, "span.parent_id") == parent.spanId
+    check attributeValue(attributes, "span.status") == "ok"
+    check parseInt(attributeValue(attributes, "span.duration_ns")) >= 0
+    check field(logFields, 9).bytes.len == 16
+    check field(logFields, 10).bytes.len == 8
+    check not exportedRequests[0].body.contains("private.example.invalid")
+    check exportedRequests.len == 1
 
-  test "failed command output keeps only a bounded sanitized tail":
-    var output = ""
-    for index in 0 .. 100:
-      output.add("configure: error: line-" & $index & "\n")
-    output.add("password=secret\n")
-    output.add("configure: error: " & repeat("x", 70 * 1024))
-
-    let sanitized = sanitizeFailureOutput(output)
-    check sanitized.len == 64 * 1024
-    check not sanitized.contains("secret")
-    check not sanitized.contains("line-0")
-
-  test "uncorrelated command failures do not export logs":
+  test "failed spans export a sanitized error summary immediately":
     exportedRequests.setLen(0)
     initializeTelemetry(TelemetrySettings(enabled: true,
       endpoint: "collector.example", timeoutMs: 5000,
@@ -288,41 +263,131 @@ build {
       setTelemetryTransportForTesting(nil)
       shutdownTelemetry()
 
-    recordFailedCommandOutput("command failed", 7)
+    let span = startSpan("kpkg.package.build", {
+      "package.name": "safe-package",
+      "source.url": "https://user:password@private.example.invalid"
+    }.toTable)
+    endSpan(span, newException(ValueError, "password=secret"))
+
+    check exportedRequests.len == 1
+    check exportedRequests[0].url == "http://collector.example/v1/logs"
+    let request = decodeFields(exportedRequests[0].body)
+    let resourceLogs = decodeFields(field(request, 1).bytes)
+    let scopeLogs = decodeFields(field(resourceLogs, 2).bytes)
+    let logFields = decodeFields(field(scopeLogs, 2).bytes)
+    let body = decodeFields(field(logFields, 5).bytes)
+    let attributes = logAttributes(logFields)
+    check field(body, 1).bytes == "kpkg.package.build failed"
+    check attributeValue(attributes, "span.status") == "error"
+    check attributeValue(attributes, "error.type") == "ValueError"
+    check not exportedRequests[0].body.contains("password=secret")
+    check not exportedRequests[0].body.contains("private.example.invalid")
+
+  test "continue policy bounds immediate log exports to 250 milliseconds":
+    exportedRequests.setLen(0)
+    initializeTelemetry(TelemetrySettings(enabled: true,
+      endpoint: "collector.example", timeoutMs: 5000,
+      failurePolicy: telemetryContinue))
+    setTelemetryTransportForTesting(recordingTransport)
+    defer:
+      setTelemetryTransportForTesting(nil)
+      shutdownTelemetry()
+
+    endSpan(startSpan("kpkg.package.build"))
+
+    check exportedRequests.len == 1
+    check exportedRequests[0].timeoutMs == 250
+
+  test "telemetry failure does not replace an exception being unwound":
+    initializeTelemetry(TelemetrySettings(enabled: true,
+      endpoint: "collector.example", timeoutMs: 5000,
+      failurePolicy: telemetryFail))
+    setTelemetryTransportForTesting(failingTransport)
+
+    var caught = ""
+    try:
+      withSpan("kpkg.package.build"):
+        raise newException(ValueError, "business failure")
+    except CatchableError as failure:
+      caught = $failure.name
+
+    check caught == "ValueError"
+    setTelemetryTransportForTesting(recordingTransport)
     shutdownTelemetry()
+    setTelemetryTransportForTesting(nil)
 
-    check exportedRequests.len == 0
+  test "successful span summaries sanitize error type attributes":
+    exportedRequests.setLen(0)
+    initializeTelemetry(TelemetrySettings(enabled: true,
+      endpoint: "collector.example", timeoutMs: 5000,
+      failurePolicy: telemetryContinue))
+    setTelemetryTransportForTesting(recordingTransport)
+    defer:
+      setTelemetryTransportForTesting(nil)
+      shutdownTelemetry()
 
-  test "failure output redacts command, environment, URL, and path values":
-    let sanitized = sanitizeFailureOutput("""
-+ /private/bin/cc -I./private/include source.c
-export AUTH_TOKEN=environment-secret
-PATH=/private/bin:/usr/bin
-home=private-value
-https://private.example.invalid/download
-../private/build/config.log: error: failed
-X-Api-Key: header-secret
-x-trace-id: private-trace
-configure: error: C compiler cannot create executables
-gcc: fatal error: cannot execute 'cc1': execvp: No such file or directory
-gcc: error: X-Api-Key: header-secret
-gcc: error: Cookie: session-value
-""")
+    let span = startSpan("kpkg.package.build", {
+      "error.type": "password=secret"
+    }.toTable)
+    endSpan(span)
 
-    check sanitized.contains("configure: error: C compiler cannot create executables")
-    check sanitized.contains("gcc: fatal error: cannot execute 'cc1': execvp: No such file or directory")
-    check not sanitized.contains("/private/bin/cc")
-    check not sanitized.contains("./private/include")
-    check not sanitized.contains("environment-secret")
-    check not sanitized.contains("/private/bin:/usr/bin")
-    check not sanitized.contains("home=")
-    check not sanitized.contains("private-value")
-    check not sanitized.contains("https://private.example.invalid")
-    check not sanitized.contains("../private/build/config.log")
-    check not sanitized.contains("header-secret")
-    check not sanitized.contains("private-trace")
-    check sanitized.contains("gcc: error: [REDACTED]")
-    check not sanitized.contains("session-value")
+    let request = decodeFields(exportedRequests[0].body)
+    let resourceLogs = decodeFields(field(request, 1).bytes)
+    let scopeLogs = decodeFields(field(resourceLogs, 2).bytes)
+    let logFields = decodeFields(field(scopeLogs, 2).bytes)
+    check attributeValue(logAttributes(logFields), "error.type") == "error"
+    check not exportedRequests[0].body.contains("secret")
+    check lastCompletedSpanForTesting().attributes["error.type"] == "error"
+
+  test "span summaries redact unsafe error types":
+    exportedRequests.setLen(0)
+    initializeTelemetry(TelemetrySettings(enabled: true,
+      endpoint: "collector.example", timeoutMs: 5000,
+      failurePolicy: telemetryContinue))
+    setTelemetryTransportForTesting(recordingTransport)
+    defer:
+      setTelemetryTransportForTesting(nil)
+      shutdownTelemetry()
+
+    let span = Span(
+      traceId: "00112233445566778899aabbccddeeff",
+      spanId: "0011223344556677",
+      name: "kpkg.package.build",
+      startedAtNs: 1,
+      status: spanError,
+      errorType: "password=secret",
+      attributes: initTable[string, string]()
+    )
+    endSpan(span)
+
+    let request = decodeFields(exportedRequests[0].body)
+    let resourceLogs = decodeFields(field(request, 1).bytes)
+    let scopeLogs = decodeFields(field(resourceLogs, 2).bytes)
+    let logFields = decodeFields(field(scopeLogs, 2).bytes)
+    check attributeValue(logAttributes(logFields), "error.type") == "error"
+    check not exportedRequests[0].body.contains("secret")
+
+  test "Run3 command output is not exported":
+    exportedRequests.setLen(0)
+    initializeTelemetry(TelemetrySettings(enabled: true,
+      endpoint: "collector.example", timeoutMs: 5000,
+      failurePolicy: telemetryContinue))
+    setTelemetryTransportForTesting(recordingTransport)
+    defer:
+      setTelemetryTransportForTesting(nil)
+      shutdownTelemetry()
+
+    let span = startSpan("kpkg.run3.execute")
+    let ctx = initRun3Context(packageName = "safe-package")
+    ctx.execHook = proc(ctx: ExecutionContext, command: string,
+        silent: bool): tuple[output: string, exitCode: int] =
+      ("password=secret", 7)
+    check ctx.builtinExec("ignored") == 7
+    endSpan(span, newException(ExecutionError, "Run3 execution failed"))
+
+    check exportedRequests.len == 1
+    check exportedRequests[0].url == "http://collector.example/v1/logs"
+    check not exportedRequests[0].body.contains("password=secret")
 
   test "shutdown continues when export fails under continue policy":
     initializeTelemetry(TelemetrySettings(enabled: true,
@@ -342,13 +407,12 @@ gcc: error: Cookie: session-value
       endpoint: "collector.example", timeoutMs: 5000,
       failurePolicy: telemetryFail))
     setTelemetryTransportForTesting(failingTransport)
-    defer:
-      setTelemetryTransportForTesting(nil)
-      shutdownTelemetry()
 
-    endSpan(startSpan("failing"))
     expect TelemetryRuntimeError:
-      shutdownTelemetry()
+      endSpan(startSpan("failing"))
+    setTelemetryTransportForTesting(recordingTransport)
+    shutdownTelemetry()
+    setTelemetryTransportForTesting(nil)
 
   test "span attributes allow only safe telemetry fields":
     initializeTelemetry(enabledSettings())
