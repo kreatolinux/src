@@ -2,7 +2,7 @@ import std/[httpclient, net, strutils, tables, uri]
 import ./config
 
 const telemetryHttpClientMaxRedirects* = 0
-const telemetryContinueLogTimeoutMs* = 250
+const telemetryContinueLogTimeoutMs* = 2000
 
 type
   TelemetryHttpRequest* = object
