@@ -1,8 +1,9 @@
-import unittest, tables, strutils
+import unittest, os, net, tables, strutils
 import ../../kpkg/modules/telemetry/main
 import ../../kpkg/modules/telemetry/protobuf
 import ../../kpkg/modules/telemetry/exporter
 import ../../kpkg/modules/run3/run3
+import ../../common/logging
 
 proc enabledSettings(policy = telemetryContinue): TelemetrySettings =
   TelemetrySettings(enabled: true, failurePolicy: policy)
@@ -19,6 +20,34 @@ proc recordingTransport(request: TelemetryHttpRequest): int {.gcsafe.} =
 
 proc failingTransport(request: TelemetryHttpRequest): int {.gcsafe.} =
   raise newException(OSError, "password=secret")
+
+proc statusTransport(request: TelemetryHttpRequest): int {.gcsafe.} =
+  503
+
+proc timeoutTransport(request: TelemetryHttpRequest): int {.gcsafe.} =
+  raise newException(TimeoutError,
+      "https://user:password@private.example.invalid/secret-path?token=secret")
+
+proc captureExportWarnings(transport: TelemetryTransport): string =
+  let logPath = getTempDir() / "kpkg-telemetry-export-warning-test.log"
+  if fileExists(logPath):
+    removeFile(logPath)
+  setFileLogging(true, logPath)
+  try:
+    initializeTelemetry(TelemetrySettings(enabled: true,
+      endpoint: "https://private.example.invalid/secret-path",
+      authType: telemetryAuthBearer, bearerToken: "header-secret",
+      timeoutMs: 5000, failurePolicy: telemetryContinue))
+    setTelemetryTransportForTesting(transport)
+    endSpan(startSpan("kpkg.package.build"))
+    flushTelemetry()
+    readFile(logPath)
+  finally:
+    setTelemetryTransportForTesting(nil)
+    shutdownTelemetry()
+    setFileLogging(false)
+    if fileExists(logPath):
+      removeFile(logPath)
 
 type ProtoField = object
   number: uint64
@@ -297,6 +326,42 @@ suite "telemetry tracing":
 
     check exportedRequests.len == 1
     check exportedRequests[0].timeoutMs == 2000
+
+  test "continue policy classifies HTTP export failures without secrets":
+    let warnings = captureExportWarnings(statusTransport)
+
+    check warnings.contains("kpkg telemetry: log export failed: collector HTTP status")
+    check warnings.contains("kpkg telemetry: trace export failed: collector HTTP status")
+    check not warnings.contains("503")
+    check not warnings.contains("private.example.invalid")
+    check not warnings.contains("secret-path")
+    check not warnings.contains("token=secret")
+    check not warnings.contains("password")
+    check not warnings.contains("header-secret")
+    check not warnings.contains("Authorization")
+    check not warnings.contains("kpkg.package.build")
+
+  test "continue policy classifies timeout export failures without secrets":
+    let warnings = captureExportWarnings(timeoutTransport)
+
+    check warnings.contains("kpkg telemetry: log export failed: timeout")
+    check warnings.contains("kpkg telemetry: trace export failed: timeout")
+    check not warnings.contains("private.example.invalid")
+    check not warnings.contains("secret-path")
+    check not warnings.contains("token=secret")
+    check not warnings.contains("password")
+    check not warnings.contains("header-secret")
+    check not warnings.contains("Authorization")
+    check not warnings.contains("kpkg.package.build")
+
+  test "continue policy uses fallback export failure without secrets":
+    let warnings = captureExportWarnings(failingTransport)
+
+    check warnings.contains("kpkg telemetry: log export failed: export failure")
+    check warnings.contains("kpkg telemetry: trace export failed: export failure")
+    check not warnings.contains("password=secret")
+    check not warnings.contains("Authorization")
+    check not warnings.contains("kpkg.package.build")
 
   test "telemetry failure does not replace an exception being unwound":
     initializeTelemetry(TelemetrySettings(enabled: true,
