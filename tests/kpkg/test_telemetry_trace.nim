@@ -283,7 +283,7 @@ suite "telemetry tracing":
     check not exportedRequests[0].body.contains("password=secret")
     check not exportedRequests[0].body.contains("private.example.invalid")
 
-  test "continue policy bounds immediate log exports to 250 milliseconds":
+  test "continue policy bounds immediate log exports to 2000 milliseconds":
     exportedRequests.setLen(0)
     initializeTelemetry(TelemetrySettings(enabled: true,
       endpoint: "collector.example", timeoutMs: 5000,
@@ -296,7 +296,7 @@ suite "telemetry tracing":
     endSpan(startSpan("kpkg.package.build"))
 
     check exportedRequests.len == 1
-    check exportedRequests[0].timeoutMs == 250
+    check exportedRequests[0].timeoutMs == 2000
 
   test "telemetry failure does not replace an exception being unwound":
     initializeTelemetry(TelemetrySettings(enabled: true,
