@@ -5,6 +5,8 @@ const telemetryHttpClientMaxRedirects* = 0
 const telemetryContinueLogTimeoutMs* = 2000
 
 type
+  TelemetryHttpStatusError* = object of TelemetryRuntimeError
+
   TelemetryHttpRequest* = object
     url*: string
     headers*: Table[string, string]
@@ -94,8 +96,7 @@ proc exportTracePayload*(settings: TelemetrySettings, payload: string,
   let request = buildTraceRequest(settings, payload)
   let status = if transport.isNil: sendWithHttpClient(request) else: transport(request)
   if status < 200 or status >= 300:
-    raise newException(TelemetryRuntimeError,
-        "Telemetry collector returned HTTP status " & $status)
+    raise newException(TelemetryHttpStatusError, "")
 
 proc exportLogPayload*(settings: TelemetrySettings, payload: string,
     transport: TelemetryTransport = nil, timeoutMs = 0) {.gcsafe.} =
@@ -104,5 +105,4 @@ proc exportLogPayload*(settings: TelemetrySettings, payload: string,
     request.timeoutMs = timeoutMs
   let status = if transport.isNil: sendWithHttpClient(request) else: transport(request)
   if status < 200 or status >= 300:
-    raise newException(TelemetryRuntimeError,
-        "Telemetry collector returned HTTP status " & $status)
+    raise newException(TelemetryHttpStatusError, "")

@@ -1,4 +1,4 @@
-import std/[locks, sysrand, strutils, tables, times]
+import std/[locks, net, sysrand, strutils, tables, times]
 import ./types
 import ./protobuf
 import ./exporter
@@ -23,6 +23,14 @@ proc timestampNs(): int64 =
   int64(epochTime() * 1_000_000_000)
 
 proc sanitizeErrorType(errorType: string): string
+
+proc exportFailureClass(failure: ref CatchableError): string =
+  if failure of TelemetryHttpStatusError:
+    "collector HTTP status"
+  elif failure of TimeoutError:
+    "timeout"
+  else:
+    "export failure"
 
 proc randomHex(byteCount: Natural): string =
   if randomFailureForTesting:
@@ -74,11 +82,11 @@ proc flushTelemetry*() {.gcsafe.} =
     try:
       let payload = encodeExportRequest(spans, {"service.name": "kpkg"}.toTable)
       exportTracePayload(settings, payload, transport)
-    except CatchableError:
+    except CatchableError as failure:
       if settings.failurePolicy == telemetryFail:
         raise newException(TelemetryRuntimeError, "Unable to export telemetry")
       {.cast(gcsafe).}:
-        warn "kpkg telemetry: unable to export traces"
+        warn "kpkg telemetry: trace export failed: " & exportFailureClass(failure)
 proc shutdownTelemetry*() {.gcsafe.} =
   try:
     flushTelemetry()
@@ -198,11 +206,11 @@ proc exportSpanSummary(span: Span, suppressFailure: bool) {.gcsafe.} =
     else:
       settings.timeoutMs
     exportLogPayload(settings, payload, transport, timeoutMs)
-  except CatchableError:
+  except CatchableError as failure:
     if failurePolicy == telemetryFail and not suppressFailure:
       raise newException(TelemetryRuntimeError, "Unable to export telemetry")
     {.cast(gcsafe).}:
-      warn "kpkg telemetry: unable to export logs"
+      warn "kpkg telemetry: log export failed: " & exportFailureClass(failure)
 
 proc endSpan*(span: Span, failure: ref CatchableError = nil) {.gcsafe.} =
   if span.isNil or span.endedAtNs != 0:
