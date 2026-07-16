@@ -11,7 +11,6 @@ var telemetryFailurePolicy: TelemetryFailurePolicy
 var telemetrySettings: TelemetrySettings
 var telemetryTransport: TelemetryTransport
 var completedSpans: seq[Span]
-var completedLogs: seq[LogRecord]
 var completedSpansLock: Lock
 var currentSpan {.threadvar.}: Span
 var spanStack {.threadvar.}: seq[Span]
@@ -37,7 +36,6 @@ proc initializeTelemetry*(settings: TelemetrySettings) =
     telemetrySettings = settings
     {.cast(gcsafe).}:
       completedSpans.setLen(0)
-      completedLogs.setLen(0)
   finally:
     release(completedSpansLock)
   currentSpan = nil
@@ -52,22 +50,18 @@ proc setTelemetryTransportForTesting*(transport: TelemetryTransport) =
 
 proc flushTelemetry*() {.gcsafe.} =
   var spans: seq[Span]
-  var logs: seq[LogRecord]
   var settings: TelemetrySettings
   var transport: TelemetryTransport
-  var hasSpans, hasLogs: bool
+  var hasSpans: bool
   acquire(completedSpansLock)
   try:
     {.cast(gcsafe).}:
       hasSpans = completedSpans.len > 0
-      hasLogs = completedLogs.len > 0
-    if not telemetryEnabled or (not hasSpans and not hasLogs):
+    if not telemetryEnabled or not hasSpans:
       return
     {.cast(gcsafe).}:
       spans = completedSpans
       completedSpans.setLen(0)
-      logs = completedLogs
-      completedLogs.setLen(0)
     {.cast(gcsafe).}:
       settings = telemetrySettings
       transport = telemetryTransport
@@ -83,16 +77,6 @@ proc flushTelemetry*() {.gcsafe.} =
         raise newException(TelemetryRuntimeError, "Unable to export telemetry")
       {.cast(gcsafe).}:
         warn "kpkg telemetry: unable to export traces"
-  if hasLogs:
-    try:
-      let payload = encodeLogExportRequest(logs, {"service.name": "kpkg"}.toTable)
-      exportLogPayload(settings, payload, transport)
-    except CatchableError:
-      if settings.failurePolicy == telemetryFail:
-        raise newException(TelemetryRuntimeError, "Unable to export telemetry")
-      {.cast(gcsafe).}:
-        warn "kpkg telemetry: unable to export logs"
-
 proc shutdownTelemetry*() {.gcsafe.} =
   try:
     flushTelemetry()
@@ -102,7 +86,6 @@ proc shutdownTelemetry*() {.gcsafe.} =
       telemetryEnabled = false
       {.cast(gcsafe).}:
         completedSpans.setLen(0)
-        completedLogs.setLen(0)
     finally:
       release(completedSpansLock)
     currentSpan = nil
@@ -153,6 +136,66 @@ proc markSpanError(span: Span, failure: ref Exception) =
   span.errorType = $failure.name
   span.errorMessage = "telemetry span failed"
 
+proc spanStatusName(status: SpanStatus): string =
+  case status
+  of spanOk: "ok"
+  of spanError: "error"
+  of spanUnset: "unset"
+
+proc sanitizeErrorType(errorType: string): string =
+  if errorType.len == 0:
+    return "error"
+  for character in errorType:
+    if character notin {'A'..'Z', 'a'..'z', '0'..'9', '.', '_'}:
+      return "error"
+  errorType
+
+proc spanSummary(span: Span): LogRecord =
+  var attributes = initTable[string, string]()
+  for key, value in span.attributes:
+    attributes[key] = value
+  attributes["span.parent_id"] = span.parentSpanId
+  attributes["span.duration_ns"] = $(span.endedAtNs - span.startedAtNs)
+  attributes["span.status"] = spanStatusName(span.status)
+  if span.status == spanError:
+    attributes["error.type"] = sanitizeErrorType(span.errorType)
+  result = LogRecord(
+    traceId: span.traceId,
+    spanId: span.spanId,
+    timestampNs: span.endedAtNs,
+    body: span.name & (if span.status == spanError: " failed" else: " completed"),
+    status: span.status,
+    attributes: attributes
+  )
+
+proc exportSpanSummary(span: Span) {.gcsafe.} =
+  if span.traceId.len != 32 or span.spanId.len != 16:
+    return
+  var settings: TelemetrySettings
+  var transport: TelemetryTransport
+  var enabled: bool
+  var failurePolicy: TelemetryFailurePolicy
+  acquire(completedSpansLock)
+  try:
+    {.cast(gcsafe).}:
+      enabled = telemetryEnabled
+      settings = telemetrySettings
+      transport = telemetryTransport
+      failurePolicy = telemetryFailurePolicy
+  finally:
+    release(completedSpansLock)
+  if not enabled:
+    return
+  try:
+    let payload = encodeLogExportRequest([spanSummary(span)],
+        {"service.name": "kpkg"}.toTable)
+    exportLogPayload(settings, payload, transport)
+  except CatchableError:
+    if failurePolicy == telemetryFail:
+      raise newException(TelemetryRuntimeError, "Unable to export telemetry")
+    {.cast(gcsafe).}:
+      warn "kpkg telemetry: unable to export logs"
+
 proc endSpan*(span: Span, failure: ref CatchableError = nil) {.gcsafe.} =
   if span.isNil or span.endedAtNs != 0:
     return
@@ -175,6 +218,7 @@ proc endSpan*(span: Span, failure: ref CatchableError = nil) {.gcsafe.} =
         completedSpans.add(span)
   finally:
     release(completedSpansLock)
+  exportSpanSummary(span)
 
 proc completedSpanCountForTesting*(): int {.gcsafe.} =
   acquire(completedSpansLock)
@@ -190,146 +234,6 @@ proc activeSpanForTesting*(): Span =
 proc setActiveSpanAttribute*(key: string, value: string) =
   if not currentSpan.isNil and isSafeAttribute(key):
     currentSpan.attributes[key] = value
-
-const maxFailureLogLines = 100
-const maxFailureLogBytes = 64 * 1024
-
-proc containsCredential(line: string): bool =
-  let lowered = line.toLowerAscii()
-  for marker in ["password", "token", "secret", "api_key", "apikey",
-      "authorization", "bearer ", "credential", "private key"]:
-    if marker in lowered:
-      return true
-  let scheme = lowered.find("://")
-  if scheme >= 0:
-    let authority = lowered[scheme + 3 .. ^1].split('/')[0]
-    return ':' in authority and '@' in authority
-
-proc isEnvironmentAssignment(line: string): bool =
-  let trimmed = line.strip()
-  if trimmed.startsWith("export ") or trimmed.startsWith("declare -x ") or
-      trimmed.startsWith("Environment:"):
-    return true
-  let separator = trimmed.find('=')
-  if separator <= 0:
-    return false
-  let name = trimmed[0 ..< separator]
-  if name[0] notin {'A'..'Z', 'a'..'z', '_'}:
-    return false
-  for character in name:
-    if not (character in {'A'..'Z', 'a'..'z', '0'..'9', '_'}):
-      return false
-  return true
-
-proc isShellCommandEcho(line: string): bool =
-  let trimmed = line.strip(leading = true, trailing = false)
-  trimmed.startsWith("$ ") or trimmed.startsWith("+ ")
-
-proc isSafeDiagnosticLine(line: string): bool =
-  let trimmed = line.strip()
-  if trimmed.len == 0 or isEnvironmentAssignment(trimmed) or
-      isShellCommandEcho(trimmed) or
-      "://" in trimmed:
-    return false
-  let lowered = trimmed.toLowerAscii()
-  let hasFailure = "error" in lowered or "warning" in lowered or
-      "failed" in lowered or "cannot" in lowered or "not found" in lowered
-  if not hasFailure:
-    return false
-  for prefix in ["configure:", "gcc:", "g++:", "clang:", "cc:",
-      "ld:", "collect2:", "make:", "ninja:", "cmake:", "meson:"]:
-    if lowered.startsWith(prefix):
-      return true
-  let separator = trimmed.find(':')
-  if separator >= 0:
-    return '/' in trimmed[0 ..< separator]
-  return '=' notin trimmed
-
-proc redactPathTokens(line: string): string =
-  var index = 0
-  while index < line.len:
-    let start = index
-    while index < line.len and line[index] notin {' ', '\t'}:
-      inc index
-    let token = line[start ..< index]
-    if '/' in token:
-      result.add("[REDACTED]")
-    else:
-      result.add(token)
-    while index < line.len and line[index] in {' ', '\t'}:
-      result.add(line[index])
-      inc index
-
-proc isHeaderFragmentName(value: string): bool =
-  let name = value.strip()
-  if name.len == 0 or name.toLowerAscii() in ["error", "warning", "fatal error", "execvp"]:
-    return false
-  for character in name:
-    if not (character in {'A'..'Z', 'a'..'z', '0'..'9', '-', '_'}):
-      return false
-  return true
-
-proc redactHeaderFragments(line: string): string =
-  var searchAt = 0
-  while true:
-    let prefixEnd = line.find(": ", searchAt)
-    if prefixEnd < 0:
-      return line
-    let nameStart = prefixEnd + 2
-    let headerEnd = line.find(": ", nameStart)
-    if headerEnd < 0:
-      return line
-    if isHeaderFragmentName(line[nameStart ..< headerEnd]):
-      return line[0 ..< nameStart] & "[REDACTED]"
-    searchAt = nameStart
-
-proc sanitizeFailureOutput*(output: string): string =
-  let lines = output.splitLines()
-  let first = max(0, lines.len - maxFailureLogLines)
-  for index in first ..< lines.len:
-    if not isSafeDiagnosticLine(lines[index]):
-      result.add("[REDACTED]")
-    else:
-      var printable = ""
-      for character in lines[index]:
-        if character == '\t' or (character >= ' ' and character <= '~'):
-          printable.add(character)
-      let withoutPaths = redactPathTokens(printable)
-      let sanitized = redactHeaderFragments(withoutPaths)
-      if containsCredential(printable) and sanitized == withoutPaths:
-        result.add("[REDACTED]")
-      else:
-        result.add(sanitized)
-    if index + 1 < lines.len:
-      result.add('\n')
-  if result.len > maxFailureLogBytes:
-    result = result[result.len - maxFailureLogBytes .. ^1]
-
-proc recordFailedCommandOutput*(output: string, exitCode: int,
-    attributes = initTable[string, string]()) {.gcsafe.} =
-  if exitCode == 0:
-    return
-  acquire(completedSpansLock)
-  try:
-    if not telemetryEnabled or currentSpan.isNil or currentSpan.traceId.len == 0 or
-        currentSpan.spanId.len == 0:
-      return
-    var safeAttributes = initTable[string, string]()
-    for key, value in attributes:
-      if isSafeAttribute(key):
-        safeAttributes[key] = value
-    safeAttributes["process.exit_code"] = $exitCode
-    safeAttributes["error.type"] = "command_exit"
-    {.cast(gcsafe).}:
-      completedLogs.add(LogRecord(
-        traceId: if currentSpan.isNil: "" else: currentSpan.traceId,
-        spanId: if currentSpan.isNil: "" else: currentSpan.spanId,
-        timestampNs: timestampNs(),
-        body: sanitizeFailureOutput(output),
-        attributes: safeAttributes
-      ))
-  finally:
-    release(completedSpansLock)
 
 proc lastCompletedSpanForTesting*(): Span {.gcsafe.} =
   acquire(completedSpansLock)

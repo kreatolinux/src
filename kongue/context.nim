@@ -10,9 +10,6 @@ type
   ## Hook types for extensibility - allows consumers to customize execution behavior
   ExecHook* = proc(ctx: ExecutionContext, command: string, silent: bool): tuple[
       output: string, exitCode: int] {.nimcall.}
-  CommandResultHook* = proc(output: string, exitCode: int) {.nimcall.}
-  CommandResultContextHook* = proc(ctx: ExecutionContext, output: string,
-      exitCode: int) {.nimcall.}
   MacroHook* = proc(ctx: ExecutionContext, name: string, args: seq[
       string]): int {.nimcall.}
 
@@ -34,8 +31,6 @@ type
     silent*: bool ## Suppress output
     # Hooks for extensibility
     execHook*: ExecHook ## Custom command execution hook
-    commandResultHook*: CommandResultHook ## Legacy captured command callback
-    commandResultContextHook*: CommandResultContextHook ## Context-aware callback
     macroHook*: MacroHook ## Custom macro execution hook
 
 proc initExecutionContext*(destDir: string = "", srcDir: string = "",
@@ -60,8 +55,6 @@ proc initExecutionContext*(destDir: string = "", srcDir: string = "",
   result.packageName = packageName
   result.silent = false
   result.execHook = nil
-  result.commandResultHook = nil
-  result.commandResultContextHook = nil
   result.macroHook = nil
 
 proc setVariable*(ctx: ExecutionContext, name: string, value: string) =

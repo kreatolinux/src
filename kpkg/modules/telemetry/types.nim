@@ -35,6 +35,7 @@ type
     spanId*: string
     timestampNs*: int64
     body*: string
+    status*: SpanStatus
     attributes*: Table[string, string]
 
   TelemetrySettings* = object
@@ -58,3 +59,6 @@ const safeAttributes* = [
 
 proc isSafeAttribute*(key: string): bool =
   key in safeAttributes
+
+proc isSafeLogAttribute*(key: string): bool =
+  key in safeAttributes or key in ["span.parent_id", "span.duration_ns", "span.status"]
