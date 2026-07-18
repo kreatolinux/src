@@ -129,6 +129,9 @@ proc isEnabled*(level: LogLevel): bool =
 proc setErrorCallback*(callback: ErrorCallback) =
   getDefaultLogger().errorCallback = callback
 
+proc getErrorCallback*(): ErrorCallback =
+  getDefaultLogger().errorCallback
+
 proc setUseColors*(useColors: bool) =
   getDefaultLogger().useColors = useColors
 

@@ -25,15 +25,21 @@ proc removeLockfile*() =
   if fileExists(lockfilePath):
     removeFile(lockfilePath)
 
+var previousErrorCallback: ErrorCallback
+
 proc lockfileErrorCallback(msg: string) =
-  ## Error callback that removes lockfile on fatal errors
+  ## Error callback that removes lockfile on fatal errors, then forwards
+  ## to the callback that was registered before the lockfile was taken.
   info("lockfile", "removing lockfile due to error")
   removeLockfile()
+  if previousErrorCallback != nil:
+    previousErrorCallback(msg)
 
 proc createLockfile*() =
   ## Create lockfile with PID and set up error callback
   let pid = getCurrentPid()
   writeFile(lockfilePath, $pid)
+  previousErrorCallback = getErrorCallback()
   setErrorCallback(lockfileErrorCallback)
 
 proc checkLockfile*() =
@@ -83,8 +89,9 @@ proc forceClearLockfile*() =
     info("lockfile", "no lockfile exists")
 
 proc clearErrorCallback*() =
-  ## Clear the error callback (call after successful operation)
-  setErrorCallback(nil)
+  ## Restore the callback that the lockfile callback replaced.
+  setErrorCallback(previousErrorCallback)
+  previousErrorCallback = nil
 
 template withLockfile*(body: untyped) =
   ## Context manager for lockfile-protected operations.
