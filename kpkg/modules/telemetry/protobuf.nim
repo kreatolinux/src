@@ -94,10 +94,10 @@ proc encodeExportRequest*(spans: openArray[Span],
 
 proc encodeLogRecord(log: LogRecord): string =
   result.appendFixed64(1, log.timestampNs)
-  result.appendTag(3, 0)
+  result.appendTag(2, 0)
   let isError = log.status == spanError
   result.appendVarint(if isError: 17 else: 9)
-  result.appendBytes(4, if isError: "ERROR" else: "INFO")
+  result.appendBytes(3, if isError: "ERROR" else: "INFO")
   result.appendBytes(5, encodeAnyValue(log.body))
   result.add(encodeAttributes(log.attributes, 6, false, true))
   if log.traceId.len > 0:

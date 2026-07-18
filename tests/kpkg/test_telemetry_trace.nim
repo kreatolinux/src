@@ -312,6 +312,47 @@ suite "telemetry tracing":
     check not exportedRequests[0].body.contains("password=secret")
     check not exportedRequests[0].body.contains("private.example.invalid")
 
+  test "OTLP log export encodes severity at the spec field numbers":
+    let infoLog = LogRecord(
+      traceId: "00112233445566778899aabbccddeeff",
+      spanId: "0011223344556677",
+      timestampNs: 1_000,
+      body: "kpkg.build completed",
+      status: spanOk,
+      attributes: {"span.status": "ok"}.toTable
+    )
+    let infoPayload = encodeLogExportRequest([infoLog], {"service.name": "kpkg"}.toTable)
+    let infoRequest = decodeFields(infoPayload)
+    let infoResourceLogs = decodeFields(field(infoRequest, 1).bytes)
+    let infoScopeLogs = decodeFields(field(infoResourceLogs, 2).bytes)
+    let infoFields = decodeFields(field(infoScopeLogs, 2).bytes)
+    check field(infoFields, 1).wireType == 1
+    check field(infoFields, 2).wireType == 0
+    check field(infoFields, 2).varint == 9
+    check field(infoFields, 3).wireType == 2
+    check field(infoFields, 3).bytes == "INFO"
+    check fieldCount(infoFields, 4) == 0
+
+    let errorLog = LogRecord(
+      traceId: "00112233445566778899aabbccddeeff",
+      spanId: "0011223344556677",
+      timestampNs: 2_000,
+      body: "kpkg.build failed",
+      status: spanError,
+      attributes: initTable[string, string]()
+    )
+    let errorPayload = encodeLogExportRequest([errorLog],
+        initTable[string, string]())
+    let errorRequest = decodeFields(errorPayload)
+    let errorResourceLogs = decodeFields(field(errorRequest, 1).bytes)
+    let errorScopeLogs = decodeFields(field(errorResourceLogs, 2).bytes)
+    let errorFields = decodeFields(field(errorScopeLogs, 2).bytes)
+    check field(errorFields, 2).wireType == 0
+    check field(errorFields, 2).varint == 17
+    check field(errorFields, 3).wireType == 2
+    check field(errorFields, 3).bytes == "ERROR"
+    check fieldCount(errorFields, 4) == 0
+
   test "continue policy bounds immediate log exports to 2000 milliseconds":
     exportedRequests.setLen(0)
     initializeTelemetry(TelemetrySettings(enabled: true,
