@@ -236,6 +236,13 @@ proc endSpan*(span: Span, failure: ref CatchableError = nil) {.gcsafe.} =
     release(completedSpansLock)
   exportSpanSummary(span, not getCurrentException().isNil)
 
+proc fatalExitCallback*(span: Span): ErrorCallback =
+  ## Returns a logging error callback that ends `span` as failed, so a
+  ## process aborting through fatal() exports a failure summary instead of
+  ## "completed". The exit proc ending the span afterwards is a no-op.
+  result = proc(msg: string) =
+    endSpan(span, newException(OSError, msg))
+
 proc completedSpanCountForTesting*(): int {.gcsafe.} =
   acquire(completedSpansLock)
   try:

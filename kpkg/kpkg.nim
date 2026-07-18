@@ -61,6 +61,8 @@ addExitProc(proc() =
   telemetry.endSpan(commandSpan)
   telemetry.shutdownTelemetry()
 )
+# fatal() aborts bypass normal span unwinding; report them as failures.
+setErrorCallback(telemetry.fatalExitCallback(commandSpan))
 
 # Check for and recover from any incomplete transactions from previous runs
 # This must happen early, before any other operations

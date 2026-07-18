@@ -312,6 +312,36 @@ suite "telemetry tracing":
     check not exportedRequests[0].body.contains("password=secret")
     check not exportedRequests[0].body.contains("private.example.invalid")
 
+  test "fatal exit callback ends the command span as failed exactly once":
+    exportedRequests.setLen(0)
+    initializeTelemetry(TelemetrySettings(enabled: true,
+      endpoint: "collector.example", timeoutMs: 5000,
+      failurePolicy: telemetryContinue))
+    setTelemetryTransportForTesting(recordingTransport)
+    defer:
+      setTelemetryTransportForTesting(nil)
+      shutdownTelemetry()
+
+    let span = startSpan("kpkg.command")
+    let callback = fatalExitCallback(span)
+    callback("couldn't download the binary")
+    # The exit proc ends the same span after the callback already did.
+    endSpan(span)
+
+    check exportedRequests.len == 1
+    check exportedRequests[0].url == "http://collector.example/v1/logs"
+    let request = decodeFields(exportedRequests[0].body)
+    let resourceLogs = decodeFields(field(request, 1).bytes)
+    let scopeLogs = decodeFields(field(resourceLogs, 2).bytes)
+    let logFields = decodeFields(field(scopeLogs, 2).bytes)
+    let body = decodeFields(field(logFields, 5).bytes)
+    let attributes = logAttributes(logFields)
+    check field(body, 1).bytes == "kpkg.command failed"
+    check attributeValue(attributes, "span.status") == "error"
+    check attributeValue(attributes, "error.type") == "OSError"
+    check field(logFields, 2).varint == 17
+    check field(logFields, 3).bytes == "ERROR"
+
   test "OTLP log export encodes severity at the spec field numbers":
     let infoLog = LogRecord(
       traceId: "00112233445566778899aabbccddeeff",
