@@ -342,6 +342,51 @@ suite "telemetry tracing":
     check field(logFields, 2).varint == 17
     check field(logFields, 3).bytes == "ERROR"
 
+  test "exports carry the configured build ID as a resource attribute":
+    exportedRequests.setLen(0)
+    initializeTelemetry(TelemetrySettings(enabled: true,
+      endpoint: "collector.example", timeoutMs: 5000,
+      failurePolicy: telemetryContinue, buildId: "run-1-btrfs-progs"))
+    setTelemetryTransportForTesting(recordingTransport)
+    defer:
+      setTelemetryTransportForTesting(nil)
+      shutdownTelemetry()
+
+    endSpan(startSpan("kpkg.command"))
+    flushTelemetry()
+
+    check exportedRequests.len == 2
+    for request in exportedRequests:
+      let root = decodeFields(request.body)
+      let resourceGroup = decodeFields(field(root, 1).bytes)
+      let resource = decodeFields(field(resourceGroup, 1).bytes)
+      var resourceAttrs: seq[ProtoField]
+      for f in resource:
+        if f.number == 1:
+          resourceAttrs.add(f)
+      check resourceAttrs.len == 2
+      check attributeValue(resourceAttrs, "kpkg.build.id") == "run-1-btrfs-progs"
+      check attributeValue(resourceAttrs, "service.name") == "kpkg"
+
+  test "exports omit the build ID attribute when unconfigured":
+    exportedRequests.setLen(0)
+    initializeTelemetry(TelemetrySettings(enabled: true,
+      endpoint: "collector.example", timeoutMs: 5000,
+      failurePolicy: telemetryContinue))
+    setTelemetryTransportForTesting(recordingTransport)
+    defer:
+      setTelemetryTransportForTesting(nil)
+      shutdownTelemetry()
+
+    endSpan(startSpan("kpkg.command"))
+
+    check exportedRequests.len == 1
+    let root = decodeFields(exportedRequests[0].body)
+    let resourceGroup = decodeFields(field(root, 1).bytes)
+    let resource = decodeFields(field(resourceGroup, 1).bytes)
+    check fieldCount(resource, 1) == 1
+    check attributeValue(@[field(resource, 1)], "service.name") == "kpkg"
+
   test "OTLP log export encodes severity at the spec field numbers":
     let infoLog = LogRecord(
       traceId: "00112233445566778899aabbccddeeff",

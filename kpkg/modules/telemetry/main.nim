@@ -58,6 +58,11 @@ proc setTelemetryTransportForTesting*(transport: TelemetryTransport) =
   finally:
     release(completedSpansLock)
 
+proc telemetryResource(settings: TelemetrySettings): Table[string, string] =
+  result = {"service.name": "kpkg"}.toTable
+  if settings.buildId.len > 0:
+    result["kpkg.build.id"] = settings.buildId
+
 proc flushTelemetry*() {.gcsafe.} =
   var spans: seq[Span]
   var settings: TelemetrySettings
@@ -80,7 +85,7 @@ proc flushTelemetry*() {.gcsafe.} =
 
   if hasSpans:
     try:
-      let payload = encodeExportRequest(spans, {"service.name": "kpkg"}.toTable)
+      let payload = encodeExportRequest(spans, telemetryResource(settings))
       exportTracePayload(settings, payload, transport)
     except CatchableError as failure:
       if settings.failurePolicy == telemetryFail:
@@ -200,7 +205,7 @@ proc exportSpanSummary(span: Span, suppressFailure: bool) {.gcsafe.} =
     return
   try:
     let payload = encodeLogExportRequest([spanSummary(span)],
-        {"service.name": "kpkg"}.toTable)
+        telemetryResource(settings))
     let timeoutMs = if failurePolicy == telemetryContinue:
       telemetryContinueLogTimeoutMs
     else:
