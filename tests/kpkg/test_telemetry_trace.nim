@@ -339,6 +339,7 @@ suite "telemetry tracing":
     check field(body, 1).bytes == "kpkg.command failed"
     check attributeValue(attributes, "span.status") == "error"
     check attributeValue(attributes, "error.type") == "OSError"
+    check attributeValue(attributes, "error.message") == "couldn't download the binary"
     check field(logFields, 2).varint == 17
     check field(logFields, 3).bytes == "ERROR"
 
@@ -762,3 +763,17 @@ suite "telemetry tracing":
 
     expect TelemetryRuntimeError:
       discard encodeExportRequest(spans, initTable[string, string]())
+
+  test "sanitizeErrorMessage redacts URLs, paths, and assignments":
+    check sanitizeErrorMessage("couldn't download the binary") ==
+        "couldn't download the binary"
+    check sanitizeErrorMessage("failed https://user:pass@example.invalid/x") ==
+        "failed [REDACTED]"
+    check sanitizeErrorMessage("failed /etc/kpkg/secret.conf") ==
+        "failed [REDACTED]"
+    check sanitizeErrorMessage("failed PASSWORD=hunter2") ==
+        "failed [REDACTED]"
+    check sanitizeErrorMessage("") == "error"
+
+  test "sanitizeErrorMessage caps the result length":
+    check sanitizeErrorMessage(repeat("a ", 200)).len <= 200

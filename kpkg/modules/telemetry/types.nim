@@ -62,7 +62,8 @@ proc isSafeAttribute*(key: string): bool =
   key in safeAttributes
 
 proc isSafeLogAttribute*(key: string): bool =
-  key in safeAttributes or key in ["span.parent_id", "span.duration_ns", "span.status"]
+  key in safeAttributes or key in ["span.parent_id", "span.duration_ns",
+      "span.status", "error.message"]
 
 const buildIdMaxLength = 128
 

@@ -165,6 +165,34 @@ proc sanitizeErrorType(errorType: string): string =
       return "error"
   errorType
 
+const errorMessageMaxLength = 200
+
+proc sanitizeErrorMessage*(message: string): string =
+  ## Redacts URLs, paths, and environment-assignment tokens from a fatal
+  ## message so it is safe to export. Never fails; empty becomes "error".
+  var printable = ""
+  for character in message:
+    if character in {' ' .. '~'}:
+      printable.add(character)
+  var tokens: seq[string]
+  for token in printable.split(' '):
+    if token.len == 0:
+      continue
+    let separator = token.find('=')
+    let looksLikeAssignment = separator > 0 and
+        token[0] in {'A'..'Z', 'a'..'z', '_'} and
+        token[0 ..< separator].allCharsInSet(
+            {'A'..'Z', 'a'..'z', '0'..'9', '_'})
+    if "://" in token or '/' in token or looksLikeAssignment:
+      tokens.add("[REDACTED]")
+    else:
+      tokens.add(token)
+  result = tokens.join(" ")
+  if result.len > errorMessageMaxLength:
+    result = result[0 ..< errorMessageMaxLength]
+  if result.len == 0:
+    result = "error"
+
 proc spanSummary(span: Span): LogRecord =
   var attributes = initTable[string, string]()
   for key, value in span.attributes:
@@ -246,6 +274,7 @@ proc fatalExitCallback*(span: Span): ErrorCallback =
   ## process aborting through fatal() exports a failure summary instead of
   ## "completed". The exit proc ending the span afterwards is a no-op.
   result = proc(msg: string) =
+    span.attributes["error.message"] = sanitizeErrorMessage(msg)
     endSpan(span, newException(OSError, msg))
 
 proc completedSpanCountForTesting*(): int {.gcsafe.} =
