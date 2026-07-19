@@ -20,6 +20,7 @@ import cligen
 import os
 import parsecfg
 import std/exitprocs
+import std/tables
 import commands/repl
 import commands/infocmd as infocmdModule
 import commands/buildcmd
@@ -56,7 +57,12 @@ for (key, defaultValue) in [
   telemetryCfg.setSectionKey("Telemetry", key,
       kpkgConfig.getConfigValue("Telemetry", key, defaultValue))
 telemetry.initializeTelemetry(telemetryConfig.parseTelemetryConfig(telemetryCfg))
-let commandSpan = telemetry.startSpan("kpkg.command")
+let commandName = if paramCount() > 0:
+  telemetry.sanitizeCommandName(paramStr(1))
+else:
+  "unknown"
+let commandSpan = telemetry.startSpan("kpkg.command",
+    {"kpkg.command": commandName}.toTable)
 addExitProc(proc() =
   telemetry.endSpan(commandSpan)
   telemetry.shutdownTelemetry()

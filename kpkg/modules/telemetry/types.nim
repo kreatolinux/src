@@ -75,3 +75,12 @@ proc sanitizeBuildId*(value: string): string =
     if character notin {'A'..'Z', 'a'..'z', '0'..'9', '.', '_', ':', '-'}:
       return ""
   value
+
+proc sanitizeCommandName*(name: string): string =
+  ## Returns a CLI subcommand name safe for telemetry, or "unknown".
+  if name.len == 0 or name.len > 32:
+    return "unknown"
+  for character in name:
+    if character notin {'a'..'z', '0'..'9'}:
+      return "unknown"
+  name

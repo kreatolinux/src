@@ -777,3 +777,11 @@ suite "telemetry tracing":
 
   test "sanitizeErrorMessage caps the result length":
     check sanitizeErrorMessage(repeat("a ", 200)).len <= 200
+
+  test "sanitizeCommandName accepts subcommands and rejects anything else":
+    check sanitizeCommandName("install") == "install"
+    check sanitizeCommandName("run3") == "run3"
+    check sanitizeCommandName("") == "unknown"
+    check sanitizeCommandName("Build") == "unknown"
+    check sanitizeCommandName("../etc") == "unknown"
+    check sanitizeCommandName("install btrfs-progs") == "unknown"
