@@ -51,7 +51,7 @@ for (key, defaultValue) in [
   ("enabled", "false"), ("endpoint", "localhost:4317"), ("tls", "false"),
   ("timeoutMs", "5000"), ("failurePolicy", "continue"),
   ("authType", "none"), ("username", ""), ("password", ""),
-  ("bearerToken", "")
+  ("bearerToken", ""), ("buildId", "")
 ]:
   telemetryCfg.setSectionKey("Telemetry", key,
       kpkgConfig.getConfigValue("Telemetry", key, defaultValue))

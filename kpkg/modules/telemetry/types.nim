@@ -48,13 +48,14 @@ type
     username*: string
     password*: string
     bearerToken*: string
+    buildId*: string
 
 const safeAttributes* = [
   "kpkg.command", "kpkg.version", "host.name", "kpkg.target",
   "package.name", "package.version", "package.repository",
   "package.bootstrap", "package.cache_hit", "source.kind",
   "source.filename", "error.type", "process.exit_code", "run3.stage",
-  "command.kind"
+  "command.kind", "kpkg.build.id"
 ]
 
 proc isSafeAttribute*(key: string): bool =
@@ -62,3 +63,14 @@ proc isSafeAttribute*(key: string): bool =
 
 proc isSafeLogAttribute*(key: string): bool =
   key in safeAttributes or key in ["span.parent_id", "span.duration_ns", "span.status"]
+
+const buildIdMaxLength = 128
+
+proc sanitizeBuildId*(value: string): string =
+  ## Returns the build ID if it is safe to export, otherwise "".
+  if value.len == 0 or value.len > buildIdMaxLength:
+    return ""
+  for character in value:
+    if character notin {'A'..'Z', 'a'..'z', '0'..'9', '.', '_', ':', '-'}:
+      return ""
+  value

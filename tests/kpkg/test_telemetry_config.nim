@@ -93,3 +93,19 @@ password = ordinary
     writeFile(path, "test")
     kpkgconfig.protectConfigFile(path)
     check getFilePermissions(path) == {fpUserRead, fpUserWrite}
+
+  test "buildId is empty by default":
+    var cfg = newConfig()
+    check parseTelemetryConfig(cfg).buildId == ""
+
+  test "buildId parses from Telemetry section":
+    var cfg = newConfig()
+    cfg.setSectionKey("Telemetry", "buildId", "29654547642-1-btrfs-progs")
+    check parseTelemetryConfig(cfg).buildId == "29654547642-1-btrfs-progs"
+
+  test "invalid buildId values are dropped":
+    var cfg = newConfig()
+    cfg.setSectionKey("Telemetry", "buildId", "bad id with spaces")
+    check parseTelemetryConfig(cfg).buildId == ""
+    cfg.setSectionKey("Telemetry", "buildId", repeat("a", 129))
+    check parseTelemetryConfig(cfg).buildId == ""

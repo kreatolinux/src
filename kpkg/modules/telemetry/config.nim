@@ -40,6 +40,7 @@ proc parseTelemetryConfig*(cfg: Config): TelemetrySettings =
   result.username = cfg.getSectionValue("Telemetry", "username", "")
   result.password = cfg.getSectionValue("Telemetry", "password", "")
   result.bearerToken = cfg.getSectionValue("Telemetry", "bearerToken", "")
+  result.buildId = sanitizeBuildId(cfg.getSectionValue("Telemetry", "buildId", ""))
 
   if not result.enabled:
     return
