@@ -85,7 +85,7 @@ proc autoUpdater*(pkg: Run3File, packageDir: string, newVersion: string,
 
   # Replace the version (only the version: line to avoid corrupting other fields)
   # Handle both quoted and unquoted version values
-  let versionPattern = "^(version:\\s*\"?)" & escapeRegex(version) & "(\"?)"
+  let versionPattern = "^(version:\\s*\"?)" & escapeRegex(version) & "(\"?)$"
   var content = readFile(packageDir&"/"&runFileName)
   content = content.replace(re2(versionPattern, {regexMultiline}), "${1}" &
       newVersion & "${2}")
@@ -93,7 +93,7 @@ proc autoUpdater*(pkg: Run3File, packageDir: string, newVersion: string,
 
   # Replace the release (only the release: line to avoid corrupting other fields)
   if not isEmptyOrWhitespace(release):
-    let releasePattern = "^(release:\\s*\"?)" & escapeRegex(pkgRelease) & "(\"?)"
+    let releasePattern = "^(release:\\s*\"?)" & escapeRegex(pkgRelease) & "(\"?)$"
     content = readFile(packageDir&"/"&runFileName)
     content = content.replace(re2(releasePattern, {regexMultiline}), "${1}" &
         release & "${2}")

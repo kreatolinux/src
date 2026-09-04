@@ -43,8 +43,12 @@ proc githubReleasesCheck*(package: string, repo: string,
   let isSemver = isSemverStr.toLowerAscii() in ["true", "1", "yes", "y", "on"]
 
   if "python" in pkgDeps:
-    pkgRelease = pkgRelease&"-"&parseRun3(repo &
-                    "/python").getVersion()
+    # Append the current python version to the release exactly once per
+    # python version, so the package is rebuilt when python changes but the
+    # release does not grow unbounded on every autoupdate run.
+    let pythonVersion = parseRun3(repo & "/python").getVersion()
+    if not pkgRelease.endsWith("-" & pythonVersion):
+      pkgRelease = pkgRelease&"-"&pythonVersion
 
   if isSemver:
     if verbose:
