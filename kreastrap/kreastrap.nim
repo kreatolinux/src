@@ -233,6 +233,10 @@ proc kreastrap(buildType = "builder", arch = "amd64",
       kreastrapInstall("gnu-core", installWithBinaries, buildDir,
               useCacheIfPossible, target)
 
+      # /bin/sh may already exist (e.g. busybox) from the base rootfs;
+      # replace it so GNU coreutils environments get bash as the default sh.
+      if fileExists(buildDir&"/bin/sh") or symlinkExists(buildDir&"/bin/sh"):
+        removeFile(buildDir&"/bin/sh")
       createSymlink("/bin/bash", buildDir&"/bin/sh")
     else:
       fatal conf.getSectionValue("Core",
