@@ -314,8 +314,14 @@ proc buildDependencyGraph*(pkgs: seq[string], ctx: dependencyContext,
 
         # Validate package exists
         if not validatePackage(pkg, repo, ctx.root):
-            debug "dephandler: Package '"&pkg&"' validation failed (repo: '"&repo&"'), not skipping"
-            #continue
+            # Local-only resolution is used while copying the build
+            # environment from an existing root.  A dependency that is not
+            # installed in that root cannot be loaded with getPackage(); it
+            # will be handled by the normal repository dependency resolver
+            # when needed.  Do not turn this expected absence into an
+            # unhandled database exception.
+            debug "dephandler: Package '"&pkg&"' validation failed (repo: '"&repo&"'), skipping"
+            continue
 
         let pkgrf = loadPackageMetadataCommitAware(pkg, repo, ctx)
 
