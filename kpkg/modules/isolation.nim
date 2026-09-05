@@ -259,16 +259,39 @@ proc createEnv(root: string, ignorePostInstall = false) =
 proc umountOverlay*(error = "none", silentMode = false, merged = kpkgMergedPath,
         upperDir = kpkgOverlayPath&"/upperDir",
         workDir = kpkgOverlayPath&"/workDir"): int =
-  ## Unmounts the overlay.
-  if not dirExists(merged) or not dirExists(kpkgOverlayPath) or not dirExists(workDir):
-    return 0
-  closeDb()
-  let returnCode = execCmdKpkg("umount "&merged, error, silentMode).exitCode
-  discard execCmdKpkg("umount "&kpkgOverlayPath, error,
-          silentMode = silentMode)
-  removeDir(merged)
-  removeDir(upperDir)
-  removeDir(workDir)
+  ## Unmount and remove the overlay directories.
+  ##
+  ## Overlay setup can fail part-way through (for example while downloading a
+  ## dependency).  Do not require every directory to exist before attempting
+  ## cleanup: a mounted overlay with a missing work directory is still a
+  ## mounted overlay, and removeDir would otherwise fail with EBUSY.
+  var returnCode = 0
+  let hasOverlayPaths = dirExists(merged) or dirExists(kpkgOverlayPath) or
+          dirExists(upperDir) or dirExists(workDir)
+
+  if hasOverlayPaths:
+    closeDb()
+
+  if dirExists(merged):
+    let exitCode = execCmdKpkg("umount "&merged, error, silentMode).exitCode
+    if exitCode != 0:
+      returnCode = exitCode
+
+  # The tmpfs backing the overlay directory must be unmounted after the
+  # overlay mount.  Attempt this independently even when merged/workDir was
+  # not created.
+  if dirExists(kpkgOverlayPath):
+    let exitCode = execCmdKpkg("umount "&kpkgOverlayPath, error,
+            silentMode = silentMode).exitCode
+    if exitCode != 0 and returnCode == 0:
+      returnCode = exitCode
+
+  # Remove only paths that still exist.  If an unmount failed, let the caller
+  # observe the removal error rather than silently deleting a live mount.
+  for path in [merged, upperDir, workDir]:
+    if dirExists(path):
+      removeDir(path)
+
   return returnCode
 
 
@@ -304,10 +327,11 @@ proc prepareOverlayDirs*(upperDir = kpkgOverlayPath&"/upperDir",
   ## Prepares the overlay directories by mounting tmpfs and creating directory structure
   ## without mounting the overlayfs itself. This allows installing build dependencies
   ## before the overlay is mounted.
-  try:
-    removeDir(kpkgOverlayPath)
-  except:
-    discard umountOverlay(error, silentMode, merged, upperDir, workDir)
+  # Clean up both complete and partially-created previous overlays before
+  # touching the backing directory.  In particular, removeDir on a mounted
+  # tmpfs returns EBUSY.
+  discard umountOverlay(error, silentMode, merged, upperDir, workDir)
+  if dirExists(kpkgOverlayPath):
     removeDir(kpkgOverlayPath)
 
   createDir(kpkgOverlayPath)
