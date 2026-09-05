@@ -272,8 +272,22 @@ proc umountOverlay*(error = "none", silentMode = false, merged = kpkgMergedPath,
   if hasOverlayPaths:
     closeDb()
 
+  proc unmountPath(path: string): int =
+    let exitCode = execCmdKpkg("umount "&path, error, silentMode).exitCode
+    if exitCode == 0:
+      return 0
+
+    # A failed build can leave a short-lived process holding a mount.  Lazy
+    # unmount detaches it so the next package can create a clean overlay;
+    # ordinary unmount remains the preferred operation.
+    let lazyExitCode = execCmdKpkg("umount -l "&path, error,
+            silentMode = silentMode).exitCode
+    if lazyExitCode == 0:
+      return 0
+    return exitCode
+
   if dirExists(merged):
-    let exitCode = execCmdKpkg("umount "&merged, error, silentMode).exitCode
+    let exitCode = unmountPath(merged)
     if exitCode != 0:
       returnCode = exitCode
 
@@ -281,8 +295,7 @@ proc umountOverlay*(error = "none", silentMode = false, merged = kpkgMergedPath,
   # overlay mount.  Attempt this independently even when merged/workDir was
   # not created.
   if dirExists(kpkgOverlayPath):
-    let exitCode = execCmdKpkg("umount "&kpkgOverlayPath, error,
-            silentMode = silentMode).exitCode
+    let exitCode = unmountPath(kpkgOverlayPath)
     if exitCode != 0 and returnCode == 0:
       returnCode = exitCode
 
