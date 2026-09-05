@@ -121,7 +121,6 @@ type
     isUpgrade*: bool                ## Whether this is an upgrade
     kTarget*: string                ## Target triplet
     manualInstallList*: seq[string] ## Manually installed packages
-    umount*: bool                   ## Whether to unmount after install
     disablePkgInfo*: bool           ## Whether to disable pkginfo writing
     ignorePostInstall*: bool        ## Whether to skip postinstall scripts
 

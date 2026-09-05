@@ -8,7 +8,6 @@ import ../modules/sqlite
 import ../modules/config
 import ../../common/logging
 import ../modules/lockfile
-import ../modules/isolation
 import ../modules/checksums
 import ../modules/runparser
 import ../modules/processes
@@ -157,7 +156,7 @@ proc installFilesAtomic(tx: Transaction, filesToInstall: seq[FileToInstall],
 proc installPkgImpl(repo: string, package: string, root: string, runf = runFile(
         isParsed: false), manualInstallList: seq[string], isUpgrade = false,
                 kTarget = kpkgTarget(root), ignorePostInstall = false,
-                umount = true, disablePkgInfo = false, ignorePreInstall = false,
+                disablePkgInfo = false, ignorePreInstall = false,
                 basePackage = false, version = "", tarballPath = "") =
   ## Installs a package atomically with transaction support.
   ## If installation fails at any point, changes are rolled back.
@@ -289,9 +288,9 @@ proc installPkgImpl(repo: string, package: string, root: string, runf = runFile(
     discard existsOrCreateDir(root&"/var/cache")
     discard existsOrCreateDir(root&kpkgCacheDir)
 
+    let kpkgInstallTemp = kpkgTempDir1&"/install-"&package
     if not isGroup:
       var extractTarball: seq[string]
-      let kpkgInstallTemp = kpkgTempDir1&"/install-"&package
       if dirExists(kpkgInstallTemp):
         removeDir(kpkgInstallTemp)
 
@@ -424,9 +423,6 @@ proc installPkgImpl(repo: string, package: string, root: string, runf = runFile(
     let ldconfigCmd = if root == "/": "ldconfig" else: "ldconfig -r " & root
     discard execProcess(ldconfigCmd)
 
-    if dirExists(kpkgOverlayPath) and dirExists(kpkgMergedPath) and umount:
-      discard umountOverlay(error = "unmounting overlays")
-
     # Phase 7: Run postinstall (BEFORE cleanup so rollback is possible)
     let postinstallFunc = resolveHookFunction(pkg.run3Data.parsed,
         "postinstall", package)
@@ -454,8 +450,13 @@ proc installPkgImpl(repo: string, package: string, root: string, runf = runFile(
 
     # Phase 10: Cleanup temp directories (AFTER successful commit)
     when defined(release):
-      removeDir(kpkgTempDir1)
-      removeDir(kpkgTempDir2)
+      # Remove only this installation's extraction directory.  kpkgTempDir1
+      # also contains the active sandbox mounts and must never be deleted by
+      # the package installer.
+      if dirExists(kpkgInstallTemp):
+        if getCurrentDir().startsWith(kpkgInstallTemp):
+          setCurrentDir("/")
+        removeDir(kpkgInstallTemp)
 
     for i in pkg.optdeps:
       info(i)
@@ -469,14 +470,14 @@ proc installPkgImpl(repo: string, package: string, root: string, runf = runFile(
 proc installPkg*(repo: string, package: string, root: string, runf = runFile(
         isParsed: false), manualInstallList: seq[string], isUpgrade = false,
                 kTarget = kpkgTarget(root), ignorePostInstall = false,
-                umount = true, disablePkgInfo = false, ignorePreInstall = false,
+                disablePkgInfo = false, ignorePreInstall = false,
                 basePackage = false, version = "", tarballPath = "") =
   telemetry.withSpan("kpkg.install", {
     "package.name": package,
     "package.version": version
   }.toTable):
     installPkgImpl(repo, package, root, runf, manualInstallList, isUpgrade,
-        kTarget, ignorePostInstall, umount, disablePkgInfo, ignorePreInstall,
+        kTarget, ignorePostInstall, disablePkgInfo, ignorePreInstall,
         basePackage, version, tarballPath)
 
 proc canDownloadBinary*(package: string, version: string, binrepos: seq[string],

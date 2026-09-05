@@ -69,8 +69,10 @@ proc builderImpl(cfg: var BuildConfig): bool =
   if shouldInstallFromCache(cfg.toCacheConfig(), state.pkg):
     telemetry.setActiveSpanAttribute("package.cache_hit", "true")
     debug "Tarball (and the sum) already exists, going to install"
-    if cfg.destdir != "/" and cfg.target == "default":
-      installPkg(cfg.repo, cfg.actualPackage, "/", state.pkg, cfg.manualInstallList,
+    if not cfg.skipHostInstall and cfg.destdir != "/" and
+        cfg.target == "default":
+      installPkg(cfg.repo, cfg.actualPackage, "/", state.pkg,
+              cfg.manualInstallList,
               ignorePostInstall = cfg.ignorePostInstall)
 
     if not cfg.skipHostInstall and cfg.kTarget == kpkgTarget(cfg.destdir):
@@ -217,7 +219,7 @@ proc installPkgWrapper(cfg: InstallConfig) =
   installPkg(cfg.repo, cfg.package, cfg.root,
              isUpgrade = cfg.isUpgrade, kTarget = cfg.kTarget,
              manualInstallList = cfg.manualInstallList,
-             umount = cfg.umount, disablePkgInfo = cfg.disablePkgInfo,
+             disablePkgInfo = cfg.disablePkgInfo,
              ignorePostInstall = cfg.ignorePostInstall)
 
 

@@ -294,6 +294,9 @@ proc umountOverlay*(error = "none", silentMode = false, merged = kpkgMergedPath,
     if dirExists(path):
       removeDir(path)
 
+  if dirExists(kpkgOverlayPath):
+    removeDir(kpkgOverlayPath)
+
 
 proc createOrUpgradeEnv*(root: string, ignorePostInstall = false) =
   ## Creates and upgrades environment (if needed)
@@ -324,29 +327,33 @@ proc createOrUpgradeEnv*(root: string, ignorePostInstall = false) =
 proc prepareOverlayDirs*(upperDir = kpkgOverlayPath&"/upperDir",
         workDir = kpkgOverlayPath&"/workDir", merged = kpkgMergedPath,
         error = "none", silentMode = false): int =
-  ## Prepares the overlay directories by mounting tmpfs and creating directory structure
-  ## without mounting the overlayfs itself. This allows installing build dependencies
-  ## before the overlay is mounted.
-  # Clean up both complete and partially-created previous overlays before
-  # touching the backing directory.  In particular, removeDir on a mounted
-  # tmpfs returns EBUSY.
-  discard umountOverlay(error, silentMode, merged, upperDir, workDir)
-  if dirExists(kpkgOverlayPath):
-    removeDir(kpkgOverlayPath)
+  ## Prepare the tmpfs and directories used by an overlay build.
+  ## Any mount acquired here is either returned fully prepared to the caller
+  ## or released before this procedure returns.
+  result = umountOverlay(error, silentMode, merged, upperDir, workDir)
+  if result != 0:
+    return
 
   createDir(kpkgOverlayPath)
-  discard execCmdKpkg("mount -t tmpfs tmpfs "&kpkgOverlayPath, error,
-          silentMode = silentMode)
+  result = execCmdKpkg("mount -t tmpfs tmpfs "&quoteShell(kpkgOverlayPath),
+          silentMode = silentMode).exitCode
+  if result != 0:
+    removeDir(kpkgOverlayPath)
+    return
 
-  removeDir(upperDir)
-  removeDir(merged)
-  removeDir(workDir)
-  createDir(upperDir)
-  createDir(merged)
-  createDir(workDir)
+  var prepared = false
+  try:
+    createDir(upperDir)
+    createDir(merged)
+    createDir(workDir)
+    initDirectories(upperDir, hostCPU, true)
+    prepared = true
+    result = 0
+  finally:
+    if not prepared:
+      discard umountOverlay(silentMode = true, merged = merged,
+              upperDir = upperDir, workDir = workDir)
 
-  initDirectories(upperDir, hostCPU, true)
-  return 0
 
 proc mountOverlayFilesystem*(upperDir = kpkgOverlayPath&"/upperDir",
         workDir = kpkgOverlayPath&"/workDir", lowerDir = kpkgEnvPath,
@@ -363,5 +370,12 @@ proc mountOverlay*(upperDir = kpkgOverlayPath&"/upperDir",
   ## Mounts the overlay in one step (prepare directories and mount overlayfs).
   ## For build processes that need to install dependencies before mounting,
   ## use prepareOverlayDirs() and mountOverlayFilesystem() separately.
-  discard prepareOverlayDirs(upperDir, workDir, merged, error, silentMode)
-  return mountOverlayFilesystem(upperDir, workDir, lowerDir, merged, error, silentMode)
+  result = prepareOverlayDirs(upperDir, workDir, merged, error, silentMode)
+  if result != 0:
+    return
+
+  result = mountOverlayFilesystem(upperDir, workDir, lowerDir, merged,
+          error, silentMode)
+  if result != 0:
+    discard umountOverlay(silentMode = true, merged = merged,
+            upperDir = upperDir, workDir = workDir)

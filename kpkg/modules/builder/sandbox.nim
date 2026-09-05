@@ -87,8 +87,17 @@ proc buildPackageInSandboxImpl(pkgName: string, depGraph: dependencyGraph,
   debug "sandboxDeps for " & pkgTmp.name & " = \"" & sandboxDeps.join(" ") & "\""
   var allInstalledDeps: seq[string]
 
-  # Prepare overlay directories first
-  discard prepareOverlayDirs(error = "preparing overlay directories")
+  # Prepare the tmpfs backing the overlay.  This procedure owns the entire
+  # mount lifetime from this point onward, including dependency installation,
+  # overlay mounting, package execution, and early returns.
+  let prepareResult = prepareOverlayDirs()
+  if prepareResult != 0:
+    fatal("preparing overlay directories failed")
+
+  defer:
+    let cleanupResult = umountOverlay(silentMode = true)
+    if cleanupResult != 0:
+      fatal("internal: sandbox overlay remained mounted")
 
   # Resolve kTarget for tarball lookup — matches how the builder stores tarballs
   let sandboxKTarget = if sandboxCfg.target == "default" or sandboxCfg.target ==
@@ -112,7 +121,6 @@ proc buildPackageInSandboxImpl(pkgName: string, depGraph: dependencyGraph,
         isUpgrade: false,
         kTarget: sandboxKTarget,
         manualInstallList: @[],
-        umount: false,
         disablePkgInfo: true
       )
       installPkgProc(installCfg)
@@ -156,7 +164,7 @@ proc buildPackageInSandboxImpl(pkgName: string, depGraph: dependencyGraph,
       installPkg(findPkgRepo(sandboxCfg.sonameChangedPackage),
               sandboxCfg.sonameChangedPackage, kpkgEnvPath,
               kTarget = sandboxKTarget, manualInstallList = @[],
-              ignorePostInstall = true, umount = false)
+              ignorePostInstall = true)
     # Install rebuilt consumers to upperDir so subsequent builds get updated libs/binaries
     for r in sandboxCfg.rebuiltConsumers:
       if r != pkgName:
@@ -168,18 +176,14 @@ proc buildPackageInSandboxImpl(pkgName: string, depGraph: dependencyGraph,
           isUpgrade: false,
           kTarget: sandboxKTarget,
           manualInstallList: @[],
-          umount: false,
           disablePkgInfo: true,
           ignorePostInstall: true
         ))
 
-  # Mount the overlayfs after dependencies are installed.  This procedure
-  # owns the mount lifetime: teardown must not depend on whether the built
-  # package is installed immediately, deferred for a SONAME transition, or
-  # returns early.
-  discard mountOverlayFilesystem(error = "mounting overlay filesystem")
-  defer:
-    discard umountOverlay(error = "unmounting overlay filesystem")
+  # Mount the overlayfs after dependencies are installed.
+  let mountResult = mountOverlayFilesystem()
+  if mountResult != 0:
+    fatal("mounting overlay filesystem failed")
 
   # Run postinstall scripts in merged overlay
   if sandboxCfg.target == "default" or sandboxCfg.target == kpkgTarget("/"):
@@ -253,7 +257,7 @@ proc buildPackageInSandboxImpl(pkgName: string, depGraph: dependencyGraph,
     installPkg(findPkgRepo(actualPkgName), actualPkgName,
             sandboxCfg.fullRootPath,
             manualInstallList = @[], kTarget = sandboxKTarget,
-            ignorePostInstall = true, umount = false)
+            ignorePostInstall = true)
 
   if buildCfg.sonameChanged:
     return buildCfg.consumersToRebuild
@@ -350,6 +354,6 @@ proc buildAllPackagesInSandbox*(deps: var seq[string], depGraph: dependencyGraph
     info "Installing SONAME-changed package '" & src & "' to host"
     installPkg(findPkgRepo(src), src, sandboxCfg.fullRootPath,
             manualInstallList = @[], kTarget = sandboxKTarget,
-            isUpgrade = true, ignorePostInstall = true, umount = false)
+            isUpgrade = true, ignorePostInstall = true)
 
   return 0
