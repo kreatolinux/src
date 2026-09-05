@@ -261,51 +261,38 @@ proc umountOverlay*(error = "none", silentMode = false, merged = kpkgMergedPath,
         workDir = kpkgOverlayPath&"/workDir"): int =
   ## Unmount and remove the overlay directories.
   ##
-  ## Overlay setup can fail part-way through (for example while downloading a
-  ## dependency).  Do not require every directory to exist before attempting
-  ## cleanup: a mounted overlay with a missing work directory is still a
-  ## mounted overlay, and removeDir would otherwise fail with EBUSY.
-  var returnCode = 0
-  let hasOverlayPaths = dirExists(merged) or dirExists(kpkgOverlayPath) or
-          dirExists(upperDir) or dirExists(workDir)
+  ## Overlay setup can be partial, so inspect the actual mount table instead
+  ## of requiring every expected directory to exist.  Only issue umount for
+  ## real mount points; ordinary directories are simply removed below.
+  proc isMounted(path: string): bool =
+    if not fileExists("/proc/self/mountinfo"):
+      return false
+    let mountPath = absolutePath(path)
+    for line in lines("/proc/self/mountinfo"):
+      let fields = line.splitWhitespace()
+      if fields.len > 4 and fields[4] == mountPath:
+        return true
+    return false
 
-  if hasOverlayPaths:
+  if isMounted(merged) or isMounted(kpkgOverlayPath):
     closeDb()
 
-  proc unmountPath(path: string): int =
-    let exitCode = execCmdKpkg("umount "&path, error, silentMode).exitCode
-    if exitCode == 0:
-      return 0
+  if isMounted(merged):
+    result = execCmdKpkg("umount "&quoteShell(merged), error,
+            silentMode).exitCode
+    if result != 0:
+      return
 
-    # A failed build can leave a short-lived process holding a mount.  Lazy
-    # unmount detaches it so the next package can create a clean overlay;
-    # ordinary unmount remains the preferred operation.
-    let lazyExitCode = execCmdKpkg("umount -l "&path, error,
-            silentMode = silentMode).exitCode
-    if lazyExitCode == 0:
-      return 0
-    return exitCode
+  # The tmpfs backing the overlay must be unmounted after the merged overlay.
+  if isMounted(kpkgOverlayPath):
+    result = execCmdKpkg("umount "&quoteShell(kpkgOverlayPath), error,
+            silentMode).exitCode
+    if result != 0:
+      return
 
-  if dirExists(merged):
-    let exitCode = unmountPath(merged)
-    if exitCode != 0:
-      returnCode = exitCode
-
-  # The tmpfs backing the overlay directory must be unmounted after the
-  # overlay mount.  Attempt this independently even when merged/workDir was
-  # not created.
-  if dirExists(kpkgOverlayPath):
-    let exitCode = unmountPath(kpkgOverlayPath)
-    if exitCode != 0 and returnCode == 0:
-      returnCode = exitCode
-
-  # Remove only paths that still exist.  If an unmount failed, let the caller
-  # observe the removal error rather than silently deleting a live mount.
   for path in [merged, upperDir, workDir]:
     if dirExists(path):
       removeDir(path)
-
-  return returnCode
 
 
 proc createOrUpgradeEnv*(root: string, ignorePostInstall = false) =

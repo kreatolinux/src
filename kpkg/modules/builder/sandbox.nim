@@ -173,8 +173,13 @@ proc buildPackageInSandboxImpl(pkgName: string, depGraph: dependencyGraph,
           ignorePostInstall: true
         ))
 
-  # Mount the overlayfs after dependencies installed
+  # Mount the overlayfs after dependencies are installed.  This procedure
+  # owns the mount lifetime: teardown must not depend on whether the built
+  # package is installed immediately, deferred for a SONAME transition, or
+  # returns early.
   discard mountOverlayFilesystem(error = "mounting overlay filesystem")
+  defer:
+    discard umountOverlay(error = "unmounting overlay filesystem")
 
   # Run postinstall scripts in merged overlay
   if sandboxCfg.target == "default" or sandboxCfg.target == kpkgTarget("/"):
