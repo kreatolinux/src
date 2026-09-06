@@ -312,26 +312,30 @@ proc buildAllPackagesInSandbox*(deps: var seq[string], depGraph: dependencyGraph
           try:
             let pkgDir = findPkgRepo(consumer) & "/" & consumer
             let rf = parseRunfile(pkgDir)
-            for bdep in rf.bdeps:
+            # A SONAME consumer is rebuilt from source, so both its declared
+            # build and runtime dependencies must be present in the sandbox.
+            # Runtime dependencies commonly provide development headers (e.g.
+            # nss needs nspr); omitting them makes these dynamic rebuilds use
+            # an incomplete environment.
+            for dep in rf.bdeps & rf.deps:
               let oldLen = deps.len
               let installedRoot = sandboxCfg.root
-              addPackageWithDepsToQueue(deps, bdep,
+              addPackageWithDepsToQueue(deps, dep,
                   proc(pkg: string): seq[string] =
                 try:
                   let rf = parseRunfile(findPkgRepo(pkg) & "/" & pkg)
                   return rf.bdeps & rf.deps
                 except CatchableError:
-                  debug "could not resolve deps for dynamic build dep " & pkg
+                  debug "could not resolve deps for dynamic consumer dependency " & pkg
                   return @[],
                   proc(pkg: string): bool = packageExists(pkg, installedRoot))
 
               for j in oldLen ..< deps.len:
-                if deps[j] == bdep:
-                  info "Added " & bdep & " (build dep) to queue for consumer " & consumer
+                if deps[j] == dep:
+                  info "Added " & dep & " (dependency) to queue for consumer " & consumer
                 else:
                   info "Added " & deps[j] &
-                      " (transitive dep) to queue for build dep " & bdep &
-                      " of consumer " & consumer
+                      " (transitive dependency) to queue for consumer " & consumer
           except:
             debug "could not resolve bdeps for consumer " & consumer
           deps.add(consumer)
