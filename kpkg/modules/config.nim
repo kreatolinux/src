@@ -33,7 +33,9 @@ proc createDefaultConfig(): Config =
       "mirror.krea.to") # Seperate by space
   
   # [Parallelization]
-  result.setSectionKey("Parallelization", "threadsUsed", "1")
+  result.setSectionKey("Parallelization", "threadsUsed", "4")
+  result.setSectionKey("Parallelization", "downloadThreads", "8")
+  result.setSectionKey("Parallelization", "installThreads", "4")
 
   # [Upgrade]
   result.setSectionKey("Upgrade", "buildByDefault", "yes") # Build packages by default
@@ -75,6 +77,46 @@ proc getConfigValue*(section: string, key: string, defaultVal = ""): string =
   else:
     config = loadConfig(configPath)
   return config.getSectionValue(section, key, defaultVal)
+
+proc getThreadsUsed*(): int =
+  ## Returns the number of threads to use for parallel operations
+  ## (downloads, installs). Read from [Parallelization] threadsUsed.
+  ## Values <= 1 disable parallelism; an unset/invalid value falls back to 4
+  ## (capped at 16).
+  let val = getConfigValue("Parallelization", "threadsUsed", "")
+  try:
+    let n = parseInt(val.strip())
+    if n <= 1:
+      return 1
+    return min(n, 16)
+  except CatchableError:
+    discard
+  # Fallback: default to 4 workers
+  return 4
+
+proc getDownloadThreads*(): int =
+  ## Network transfers benefit from a wider pool than archive/database work.
+  ## Explicit downloadThreads wins; legacy threadsUsed=1 still disables
+  ## concurrency, while other legacy configurations default to at least 8.
+  let explicit = getConfigValue("Parallelization", "downloadThreads", "")
+  if not isEmptyOrWhitespace(explicit):
+    try:
+      return max(1, min(parseInt(explicit.strip()), 16))
+    except CatchableError:
+      discard
+  let legacy = getThreadsUsed()
+  if legacy <= 1:
+    return 1
+  return min(16, max(8, legacy))
+
+proc getInstallThreads*(): int =
+  let explicit = getConfigValue("Parallelization", "installThreads", "")
+  if not isEmptyOrWhitespace(explicit):
+    try:
+      return max(1, min(parseInt(explicit.strip()), 16))
+    except CatchableError:
+      discard
+  return getThreadsUsed()
 
 proc getConfigSection*(section: string, defaultVal = ""): string =
   ## Reads the configuration file and returns the section as a string.

@@ -9,6 +9,7 @@ import parsecfg
 import runparser
 import posix_utils
 import gitutils
+import times
 
 proc isEmptyDir(dir: string): bool =
   # Checks if a directory is empty or not.
@@ -88,6 +89,39 @@ proc copyFileWithPermissionsAndOwnership*(source, dest: string, options = {
   except Exception:
     debug "fatal, source: \""&source&"\", dest: \""&dest&"\""
     raise getCurrentException()
+
+proc copyFileAtomicWithPermissionsAndOwnership*(source, dest: string) =
+  ## Copies a regular file or symlink into a same-directory temporary path,
+  ## applies metadata, then atomically renames it into `dest`.
+  ##
+  ## The temporary name is beside the destination so rename(2) remains atomic
+  ## even when the package root is on a different filesystem.
+  if dirExists(dest) and not symlinkExists(dest):
+    fatal("\"" & dest & "\" is a directory, cannot overwrite with a file")
+
+  let tmp = dest & ".kpkg-tmp-" & $getpid() & "-" &
+      $int(epochTime() * 1_000_000)
+  try:
+    if symlinkExists(source):
+      createSymlink(expandSymlink(source), tmp)
+    else:
+      var statVar: Stat
+      if stat(source, statVar) != 0:
+        raise newException(IOError, "cannot stat " & source)
+      copyFileWithPermissions(source, tmp)
+      if posix.chown(tmp.cstring, statVar.st_uid, statVar.st_gid) != 0:
+        raise newException(IOError, "cannot set ownership on " & tmp)
+      setFilePermissions(tmp, getFilePermissions(source))
+
+    # POSIX rename replaces an existing regular file/symlink atomically.
+    moveFile(tmp, dest)
+  except CatchableError:
+    if fileExists(tmp) or symlinkExists(tmp):
+      try:
+        removeFile(tmp)
+      except CatchableError:
+        discard
+    raise
 
 proc createDirWithPermissionsAndOwnership*(source, dest: string,
         followSymlinks = true) =

@@ -36,6 +36,21 @@ type
     configPath*: string
 
 var defaultLogger*: Logger = nil
+# Worker progress UIs suppress informational stdout while redrawing. Warnings
+# and errors remain visible; callers restore this flag when work completes.
+var suppressProgressInfo {.threadvar.}: bool
+var deferredProgressLogs {.threadvar.}: seq[string]
+
+proc setProgressInfoSuppressed*(enabled: bool) =
+  suppressProgressInfo = enabled
+  if enabled:
+    deferredProgressLogs = @[]
+
+proc takeDeferredProgressLogs*(): seq[string] =
+  ## Return warnings/errors captured by a progress worker. Informational
+  ## messages are intentionally discarded while the progress UI is active.
+  result = deferredProgressLogs
+  deferredProgressLogs = @[]
 
 proc initDefaultLogger(name: string = "app", configPath: string = "",
                        logFilePath: string = "") =
@@ -260,6 +275,29 @@ proc writeToLogFile(logger: Logger, level: LogLevel, module: string,
 proc logImpl(logger: Logger, level: LogLevel, module: string, msg: string,
              context: openArray[string]) =
   if level < logger.level:
+    return
+  if suppressProgressInfo:
+    let contextStr = formatContext(context)
+    writeToLogFile(logger, level, module, msg, contextStr)
+    if level >= lvlWarn:
+      var deferred = logger.name & ": "
+      if logger.showTimestamp:
+        deferred.add(now().format("yyyy-MM-dd HH:mm:ss") & " ")
+      let useDeferredColors = logger.useColors and stderr.isatty()
+      if useDeferredColors:
+        case level
+        of lvlWarn: deferred.add("\27[33m")
+        of lvlError, lvlFatal: deferred.add("\27[31m")
+        else: discard
+      deferred.add(levelToString(level) & ": ")
+      if useDeferredColors:
+        deferred.add("\27[39m")
+      if module != "":
+        deferred.add("[" & module & "] ")
+      deferred.add(msg & contextStr)
+      if useDeferredColors:
+        deferred.add("\27[0m")
+      deferredProgressLogs.add(deferred)
     return
 
   let output = if level >= lvlWarn: stderr else: stdout

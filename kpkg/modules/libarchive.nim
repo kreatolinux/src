@@ -131,6 +131,8 @@ proc archiveEntryFree*(entry: ptr structArchiveEntry) {.importc: "archive_entry_
     header: "<archive_entry.h>".}
 proc archiveEntryPathname*(entry: ptr structArchiveEntry): cstring {.importc: "archive_entry_pathname",
     header: "<archive_entry.h>".}
+proc archiveEntrySetPathname*(entry: ptr structArchiveEntry, path: cstring) {.
+    importc: "archive_entry_set_pathname", header: "<archive_entry.h>".}
 proc archiveEntryPathnameUtf8*(entry: ptr structArchiveEntry): cstring {.importc: "archive_entry_pathname_utf8",
     header: "<archive_entry.h>".}
 proc archiveEntrySourcepath*(entry: ptr structArchiveEntry): cstring {.importc: "archive_entry_sourcepath",
@@ -217,8 +219,9 @@ proc extractImpl(fileName: string, path = getCurrentDir(), ignoreFiles = @[""],
   discard archiveWriteDiskSetStandardLookup(ext)
   r = archiveReadOpenFilename(a, filename, 10240)
 
-  # I am using chdir as compilation with setCurrentDir() fail for some reason.
-  discard chdir(path)
+  # Do not chdir here: cwd is process-global and makes concurrent extraction
+  # unsafe. Each archive entry is rewritten to an absolute path below `path`.
+  let pathPrefix = if path.endsWith("/"): path else: path & "/"
 
   while true:
     r = archiveReadNextHeader(a, addr(entry))
@@ -234,6 +237,15 @@ proc extractImpl(fileName: string, path = getCurrentDir(), ignoreFiles = @[""],
       debugWarn("archiveReadNextHeader()", $archiveErrorString(a))
 
     let entryPath = getEntryPathname(entry)
+    # Reject traversal before constructing the absolute destination.
+    let normalizedEntry = entryPath.replace("\\", "/")
+    if normalizedEntry == ".." or normalizedEntry.startsWith("../") or
+        normalizedEntry.contains("/../"):
+      raise newException(LibarchiveError, "archive entry escapes extraction directory: " & entryPath)
+    let fullEntryPath = pathPrefix & normalizedEntry
+    # Keep fullEntryPath alive until archiveWriteFinishEntry.
+    archiveEntrySetPathname(entry, fullEntryPath.cstring)
+
     
     if not (entryPath in resultStr):
       resultStr = resultStr & entryPath

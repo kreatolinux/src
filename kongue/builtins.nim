@@ -286,7 +286,7 @@ proc builtinExec*(ctx: ExecutionContext, command: string): int =
 
   # Execute command
   if not ctx.silent:
-    echo "[exec] " & resolvedCmd
+    debug "exec: " & resolvedCmd
 
   # Build environment variable exports for the command
   var cmdParts: seq[string] = @[]

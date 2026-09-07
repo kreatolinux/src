@@ -26,10 +26,13 @@ type
     package*: Package
 
 
-var kpkgDb: DbConn
-var connOn = false
-var currentRoot: string = ""
-var inTransaction = false
+# Each install worker owns an independent SQLite connection/state. SQLite
+# serializes writers at the database-file level; WAL plus busy_timeout lets
+# concurrent package workers wait briefly instead of failing immediately.
+var kpkgDb {.threadvar.}: DbConn
+var connOn {.threadvar.}: bool
+var currentRoot {.threadvar.}: string
+var inTransaction {.threadvar.}: bool
 
 
 func newPackageInternal(name = "", version = "", deps = "", bdeps = "",
@@ -74,6 +77,13 @@ proc rootCheck(root: string) =
   kpkgDb = open(root&"/"&kpkgDbPath, "", "", "")
   connOn = true
   currentRoot = root
+  # Wait up to five minutes for another package transaction to finish.
+  kpkgDb.exec(sql"PRAGMA busy_timeout = 300000")
+  # WAL permits readers while a worker commits its package metadata.
+  try:
+    kpkgDb.exec(sql"PRAGMA journal_mode = WAL")
+  except DbError:
+    discard
 
   if firstTime:
     kpkgDb.createTables(newFileInternal())

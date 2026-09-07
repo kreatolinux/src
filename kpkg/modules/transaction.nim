@@ -8,6 +8,7 @@ import os
 import json
 import times
 import strutils
+import sequtils
 import commonPaths
 import ../../common/logging
 
@@ -37,8 +38,9 @@ type
     journalPath*: string
     state*: TransactionState
     root*: string ## The installation root
+    journalHandle: File
 
-const journalVersion = "1"
+const journalVersion = "2"
 
 proc getBackupPath*(tx: Transaction, originalPath: string): string =
   ## Generate a unique backup path for a file
@@ -48,35 +50,20 @@ proc getBackupPath*(tx: Transaction, originalPath: string): string =
     originalPath
   result = kpkgBackupDir & "/" & tx.id & "/" & relativePath
 
-proc writeJournal(tx: Transaction) =
-  ## Write the current transaction state to the journal file
-  var journalData = %* {
-    "version": journalVersion,
-    "id": tx.id,
-    "packageName": tx.packageName,
-    "state": $tx.state,
-    "root": tx.root,
-    "operations": []
-  }
-
-  for op in tx.operations:
-    journalData["operations"].add( %* {
-      "kind": $op.kind,
-      "path": op.path,
-      "backupPath": op.backupPath,
-      "timestamp": op.timestamp
-    })
-
-  writeFile(tx.journalPath, $journalData)
+proc parseState(stateStr: string): TransactionState =
+  case stateStr
+  of "tsCommitted": tsCommitted
+  of "tsRolledBack": tsRolledBack
+  else: tsActive
 
 proc parseOperation(node: JsonNode): Operation =
-  ## Parse an operation from JSON
+  ## Parse an operation from JSON.
   result.path = node["path"].getStr()
   result.backupPath = node["backupPath"].getStr()
   result.timestamp = node["timestamp"].getFloat()
 
   let kindStr = node["kind"].getStr()
-  case kindStr:
+  case kindStr
   of "opFileCreated": result.kind = opFileCreated
   of "opFileReplaced": result.kind = opFileReplaced
   of "opFileDeleted": result.kind = opFileDeleted
@@ -84,28 +71,70 @@ proc parseOperation(node: JsonNode): Operation =
   of "opSymlinkCreated": result.kind = opSymlinkCreated
   else: result.kind = opFileCreated
 
+proc appendJournalRecord(tx: Transaction, node: JsonNode) =
+  ## Append one durable record instead of rewriting every previous operation.
+  ## Keeping the handle open removes repeated open/truncate work; flushing
+  ## each record preserves the previous crash-recovery visibility guarantee.
+  if tx.journalHandle == nil:
+    if not open(tx.journalHandle, tx.journalPath, fmAppend):
+      raise newException(IOError, "cannot open transaction journal " &
+          tx.journalPath)
+  tx.journalHandle.writeLine($node)
+  tx.journalHandle.flushFile()
+
+proc appendOperation(tx: Transaction, op: Operation) =
+  tx.appendJournalRecord(%* {
+    "record": "operation",
+    "kind": $op.kind,
+    "path": op.path,
+    "backupPath": op.backupPath,
+    "timestamp": op.timestamp
+  })
+
+proc appendState(tx: Transaction) =
+  tx.appendJournalRecord(%* {
+    "record": "state",
+    "state": $tx.state,
+    "timestamp": epochTime()
+  })
+
+proc closeJournal(tx: Transaction) =
+  if tx.journalHandle != nil:
+    tx.journalHandle.close()
+    tx.journalHandle = nil
+
 proc loadTransaction(journalPath: string): Transaction =
-  ## Load a transaction from a journal file
+  ## Load both legacy v1 whole-document journals and v2 append-only JSONL.
   let content = readFile(journalPath)
-  let data = parseJson(content)
+  let records = content.splitLines().filterIt(not isEmptyOrWhitespace(it))
+  if records.len == 0:
+    raise newException(ValueError, "empty transaction journal")
 
-  result = Transaction(
-    id: data["id"].getStr(),
-    packageName: data["packageName"].getStr(),
-    journalPath: journalPath,
-    root: data["root"].getStr(),
-    operations: @[]
-  )
+  let first = parseJson(records[0])
+  if first.hasKey("operations"):
+    # Version 1 compatibility.
+    result = Transaction(id: first["id"].getStr(),
+        packageName: first["packageName"].getStr(), journalPath: journalPath,
+        root: first["root"].getStr(), operations: @[],
+        state: parseState(first["state"].getStr()))
+    for opNode in first["operations"]:
+      result.operations.add(parseOperation(opNode))
+    return
 
-  let stateStr = data["state"].getStr()
-  case stateStr:
-  of "tsActive": result.state = tsActive
-  of "tsCommitted": result.state = tsCommitted
-  of "tsRolledBack": result.state = tsRolledBack
-  else: result.state = tsActive
-
-  for opNode in data["operations"]:
-    result.operations.add(parseOperation(opNode))
+  if first.getOrDefault("record").getStr() != "header":
+    raise newException(ValueError, "invalid transaction journal header")
+  result = Transaction(id: first["id"].getStr(),
+      packageName: first["packageName"].getStr(), journalPath: journalPath,
+      root: first["root"].getStr(), operations: @[], state: tsActive)
+  for i in 1 ..< records.len:
+    let record = parseJson(records[i])
+    case record.getOrDefault("record").getStr()
+    of "operation":
+      result.operations.add(parseOperation(record))
+    of "state":
+      result.state = parseState(record["state"].getStr())
+    else:
+      discard
 
 proc newTransaction*(packageName: string, root: string): Transaction =
   ## Create a new transaction for package installation
@@ -127,8 +156,22 @@ proc newTransaction*(packageName: string, root: string): Transaction =
   createDir(kpkgBackupDir)
   createDir(kpkgBackupDir & "/" & id)
 
-  # Write initial journal
-  result.writeJournal()
+  # Atomically publish the append-only journal header, then retain an
+  # append handle for O(1) operation records.
+  let partialJournal = result.journalPath & ".partial"
+  writeFile(partialJournal, $(%* {
+    "record": "header",
+    "version": journalVersion,
+    "id": id,
+    "packageName": packageName,
+    "state": $tsActive,
+    "root": root,
+    "timestamp": timestamp
+  }) & "\n")
+  moveFile(partialJournal, result.journalPath)
+  if not open(result.journalHandle, result.journalPath, fmAppend):
+    raise newException(IOError, "cannot open transaction journal " &
+        result.journalPath)
   debug "Transaction created: " & id
 
 proc recordFileCreated*(tx: Transaction, path: string) =
@@ -140,7 +183,7 @@ proc recordFileCreated*(tx: Transaction, path: string) =
     timestamp: epochTime()
   )
   tx.operations.add(op)
-  tx.writeJournal()
+  tx.appendOperation(op)
 
 proc recordFileReplaced*(tx: Transaction, path: string, backupPath: string) =
   ## Record that an existing file was replaced
@@ -151,7 +194,7 @@ proc recordFileReplaced*(tx: Transaction, path: string, backupPath: string) =
     timestamp: epochTime()
   )
   tx.operations.add(op)
-  tx.writeJournal()
+  tx.appendOperation(op)
 
 proc recordFileDeleted*(tx: Transaction, path: string, backupPath: string) =
   ## Record that a file was deleted
@@ -162,7 +205,7 @@ proc recordFileDeleted*(tx: Transaction, path: string, backupPath: string) =
     timestamp: epochTime()
   )
   tx.operations.add(op)
-  tx.writeJournal()
+  tx.appendOperation(op)
 
 proc recordDirCreated*(tx: Transaction, path: string) =
   ## Record that a new directory was created
@@ -173,7 +216,7 @@ proc recordDirCreated*(tx: Transaction, path: string) =
     timestamp: epochTime()
   )
   tx.operations.add(op)
-  tx.writeJournal()
+  tx.appendOperation(op)
 
 proc recordSymlinkCreated*(tx: Transaction, path: string) =
   ## Record that a new symlink was created
@@ -184,7 +227,7 @@ proc recordSymlinkCreated*(tx: Transaction, path: string) =
     timestamp: epochTime()
   )
   tx.operations.add(op)
-  tx.writeJournal()
+  tx.appendOperation(op)
 
 proc backupFile*(tx: Transaction, originalPath: string): string =
   ## Backup a file before replacing/deleting it. Returns the backup path.
@@ -235,7 +278,7 @@ proc rollback*(tx: Transaction) =
     debug "Transaction " & tx.id & " is not active, cannot rollback"
     return
 
-  info "Rolling back transaction: " & tx.id
+  debug "Rolling back transaction: " & tx.id
 
   # Process operations in reverse order
   for i in countdown(tx.operations.high, 0):
@@ -289,7 +332,8 @@ proc rollback*(tx: Transaction) =
       warn "Rollback operation failed for " & op.path & ": " & e.msg
 
   tx.state = tsRolledBack
-  tx.writeJournal()
+  tx.appendState()
+  tx.closeJournal()
 
   # Clean up backup directory for this transaction
   let txBackupDir = kpkgBackupDir & "/" & tx.id
@@ -299,7 +343,7 @@ proc rollback*(tx: Transaction) =
     except:
       discard
 
-  info "Rollback complete for transaction: " & tx.id
+  debug "Rollback complete for transaction: " & tx.id
 
 proc commit*(tx: Transaction) =
   ## Mark transaction as complete and clean up backups
@@ -310,7 +354,8 @@ proc commit*(tx: Transaction) =
   debug "Committing transaction: " & tx.id
 
   tx.state = tsCommitted
-  tx.writeJournal()
+  tx.appendState()
+  tx.closeJournal()
 
   # Clean up backup files - they're no longer needed
   let txBackupDir = kpkgBackupDir & "/" & tx.id
@@ -329,7 +374,66 @@ proc commit*(tx: Transaction) =
     except CatchableError as e:
       warn "Failed to remove journal file: " & e.msg
 
-  info "Transaction committed: " & tx.id
+  debug "Transaction committed: " & tx.id
+
+
+proc getActiveTransactions*(): seq[Transaction]
+
+proc beginBatchJournal*(id, root, dbPath, dbBackupPath: string,
+        hadDatabase: bool): string =
+  ## Create a crash-recovery marker for a multi-package installation. The
+  ## marker is written atomically after the metadata snapshot exists.
+  createDir(kpkgLibDir)
+  createDir(kpkgJournalDir)
+  result = kpkgJournalDir & "/batch-" & id & ".batch"
+  let partial = result & ".partial"
+  let data = %* {
+    "version": journalVersion,
+    "id": id,
+    "root": root,
+    "dbPath": dbPath,
+    "dbBackupPath": dbBackupPath,
+    "hadDatabase": hadDatabase,
+    "state": "active"
+  }
+  writeFile(partial, $data)
+  moveFile(partial, result)
+
+proc finishBatchJournal*(path: string) =
+  if path != "" and fileExists(path):
+    removeFile(path)
+
+proc recoverBatchJournals*(): bool =
+  ## Recover batches that crashed after staging one or more package
+  ## transactions. Called before SQLite is opened by kpkg.
+  if not dirExists(kpkgJournalDir):
+    return false
+  for marker in walkFiles(kpkgJournalDir & "/batch-*.batch"):
+    try:
+      let data = parseJson(readFile(marker))
+      let dbPath = data["dbPath"].getStr()
+      let backupPath = data["dbBackupPath"].getStr()
+      let hadDatabase = data["hadDatabase"].getBool()
+      # Package journals are still active because batch finalization is the
+      # last operation. Roll them back before restoring metadata.
+      for tx in getActiveTransactions():
+        tx.rollback()
+      if dbPath != "":
+        if fileExists(dbPath):
+          removeFile(dbPath)
+        for suffix in ["-wal", "-shm"]:
+          let sidecar = dbPath & suffix
+          if fileExists(sidecar):
+            removeFile(sidecar)
+        if hadDatabase and fileExists(backupPath):
+          copyFile(backupPath, dbPath)
+      if backupPath != "" and fileExists(backupPath):
+        removeFile(backupPath)
+      removeFile(marker)
+      result = true
+      warn "Recovered incomplete batch installation from " & marker
+    except CatchableError as e:
+      warn "Failed to recover batch journal " & marker & ": " & e.msg
 
 proc getActiveTransactions*(): seq[Transaction] =
   ## Find all incomplete transactions (for crash recovery)
@@ -349,10 +453,11 @@ proc getActiveTransactions*(): seq[Transaction] =
 proc recoverFromCrash*(): bool =
   ## Check for and recover from incomplete transactions.
   ## Returns true if any recovery was performed.
+  result = recoverBatchJournals()
   let activeTxs = getActiveTransactions()
 
   if activeTxs.len == 0:
-    return false
+    return result
 
   warn "Found " & $activeTxs.len & " incomplete transaction(s) from previous run"
 
