@@ -267,7 +267,10 @@ proc umountOverlay*(error = "none", silentMode = false, merged = kpkgMergedPath,
   proc isMounted(path: string): bool =
     if not fileExists("/proc/self/mountinfo"):
       return false
-    let mountPath = absolutePath(path)
+    # All overlay paths passed here are absolute.  Avoid absolutePath(), which
+    # queries the current working directory even for an absolute input: a
+    # failed transaction may already have removed that directory.
+    let mountPath = path
     for line in lines("/proc/self/mountinfo"):
       let fields = line.splitWhitespace()
       if fields.len > 4 and fields[4] == mountPath:
