@@ -56,8 +56,14 @@ proc validateExtractedFiles(kpkgInstallTemp: string, extractTarball: seq[string]
 
     # libarchive returns archive-relative names; only normalize absolute
     # names. This avoids resolving a relative entry against the process cwd.
-    let relPath = if file.isAbsolute: relativePath(file, kpkgInstallTemp)
+    var relPath = if file.isAbsolute: relativePath(file, kpkgInstallTemp)
                   else: file
+    # Archives created with "tar -C <parent> ." store entries with a leading
+    # "./" while pkgsums.ini keys never carry it. Normalize so the manifest
+    # lookup and destination paths match regardless of how the archive was
+    # packed.
+    while relPath.startsWith("./"):
+      relPath = relPath[2 ..^ 1]
     let srcPath = kpkgInstallTemp & "/" & relPath
     let value = dict.getSectionValue("", relPath)
 
