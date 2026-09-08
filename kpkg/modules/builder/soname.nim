@@ -1,6 +1,7 @@
 import std/[os, osproc, strutils]
 import ../sqlite
 import ../../../common/logging
+import ../processes
 
 proc parseNeededSonames*(readelfOutput: string): seq[string] =
   for line in readelfOutput.splitLines:
@@ -50,6 +51,7 @@ proc orderSonameConsumers*(consumers: seq[string],
   return ordered
 
 proc getNeededSonames*(filePath: string): seq[string] =
+  ensureValidCwd()
   let (output, exitCode) = execCmdEx("readelf -d " & quoteShell(filePath) &
       " 2>/dev/null")
   if exitCode != 0:

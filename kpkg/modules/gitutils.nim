@@ -13,6 +13,7 @@ import strutils
 import parsecfg
 import ../../common/logging
 import config
+import processes
 import runparser
 import telemetry/main as telemetry
 
@@ -51,6 +52,7 @@ proc findRepoWithCommit*(commit: string): string =
       continue
 
     # Use git cat-file to check if commit exists in this repo
+    ensureValidCwd()
     let (output, exitCode) = execCmdEx("git -C " & quoteShell(repoDir) &
                                         " cat-file -t " & quoteShell(commit) & " 2>/dev/null")
 
@@ -66,6 +68,7 @@ proc getCurrentRef*(repoPath: string): string =
   ## Returns branch name if on a branch, or commit hash if in detached HEAD state
 
   # Try to get branch name first
+  ensureValidCwd()
   let (branchOutput, branchExitCode) = execCmdEx(
     "git -C " & quoteShell(repoPath) & " symbolic-ref --short HEAD 2>/dev/null")
 
@@ -75,6 +78,7 @@ proc getCurrentRef*(repoPath: string): string =
     return branch
 
   # Fallback to commit hash (detached HEAD)
+  ensureValidCwd()
   let (commitOutput, commitExitCode) = execCmdEx(
     "git -C " & quoteShell(repoPath) & " rev-parse HEAD 2>/dev/null")
 
@@ -89,6 +93,7 @@ proc getCurrentRef*(repoPath: string): string =
 proc resolveCommit*(repoPath: string, commitish: string): string =
   ## Resolve a partial commit hash or ref to a full commit hash
 
+  ensureValidCwd()
   let (output, exitCode) = execCmdEx(
     "git -C " & quoteShell(repoPath) & " rev-parse " & quoteShell(commitish) & " 2>/dev/null")
 
@@ -103,6 +108,7 @@ proc checkoutCommitImpl(repoPath: string, commit: string): bool =
 
   debug "gitutils: Checking out '" & repoPath & "' to commit '" & commit & "'"
 
+  ensureValidCwd()
   let exitCode = execCmd("git -C " & quoteShell(repoPath) &
                          " checkout " & quoteShell(commit) & " 2>/dev/null")
 
@@ -132,6 +138,7 @@ proc restoreRepo*(repoPath: string, originalRef: string): bool =
 
   debug "gitutils: Restoring '" & repoPath & "' to '" & originalRef & "'"
 
+  ensureValidCwd()
   let exitCode = execCmd("git -C " & quoteShell(repoPath) &
                          " checkout " & quoteShell(originalRef) & " 2>/dev/null")
 
@@ -265,6 +272,7 @@ proc pullRepo*(repoPath: string): bool =
   ## Returns true on success.
 
   debug "gitutils: Pulling " & repoPath
+  ensureValidCwd()
   let exitCode = execCmd("git -C " & quoteShell(repoPath) & " pull")
   if exitCode == 0:
     debug "gitutils: Pull successful for " & repoPath
@@ -280,6 +288,7 @@ proc cloneRepo*(url: string, destPath: string, branch = ""): bool =
 
   debug "gitutils: Cloning " & url & " to " & destPath
 
+  ensureValidCwd()
   let cloneExitCode = execCmd("git clone " & quoteShell(url) & " " & quoteShell(destPath))
   if cloneExitCode != 0:
     error "gitutils: Failed to clone " & url
@@ -287,6 +296,7 @@ proc cloneRepo*(url: string, destPath: string, branch = ""): bool =
 
   if branch != "" and branch != "master" and branch != "main":
     debug "gitutils: Checking out branch " & branch
+    ensureValidCwd()
     let checkoutExitCode = execCmd("git -C " & quoteShell(destPath) &
         " checkout " & quoteShell(branch))
     if checkoutExitCode != 0:

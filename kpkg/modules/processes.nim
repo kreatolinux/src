@@ -5,23 +5,27 @@ import streams
 import strutils
 import commonPaths
 
-proc execCmdKpkg*(command: string, error = "none", silentMode = false): tuple[
-    output: string, exitCode: int] =
-  # Like execCmdKpkg, but captures output instead of printing (unless not silent).
-  debug "execCmdKpkg: command: "&command
-  # startProcess() resolves the current working directory even when no
-  # workingDir is given.  A failed transaction can delete that directory
-  # (for example during overlay cleanup), which would make process spawning
-  # fail with ENOENT and abort cleanup.  Fall back to "/" instead: every
-  # kpkg command uses absolute paths, so the cwd is irrelevant.
+proc ensureValidCwd*() =
+  ## Ensures the current working directory exists before spawning processes.
+  ## osproc (startProcess, execProcess, execCmd, execCmdEx) resolves the cwd
+  ## even when no workingDir is given.  A failed transaction can delete that
+  ## directory (for example during overlay cleanup or rollback), which makes
+  ## every spawn fail with ENOENT and abort cleanup.  Fall back to "/":
+  ## every kpkg command uses absolute paths, so the cwd is irrelevant.
   try:
     discard getCurrentDir()
   except OSError:
-    debug "execCmdKpkg: current working directory is gone, falling back to /"
+    debug "current working directory is gone, falling back to /"
     try:
       setCurrentDir("/")
     except OSError:
       discard
+
+proc execCmdKpkg*(command: string, error = "none", silentMode = false): tuple[
+    output: string, exitCode: int] =
+  # Like execCmdKpkg, but captures output instead of printing (unless not silent).
+  debug "execCmdKpkg: command: "&command
+  ensureValidCwd()
   let process = startProcess(command, options = {poEvalCommand,
       poStdErrToStdOut, poUsePath})
 

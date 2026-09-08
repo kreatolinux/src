@@ -459,6 +459,7 @@ proc installPkgImpl(repo: string, package: string, root: string, runf = runFile(
     installProgress(progressIndex, 91, progressStart)
 
     # Run ldconfig afterwards for any new libraries.
+    ensureValidCwd()
     let ldconfigCmd = if root == "/": "ldconfig" else: "ldconfig -r " & root
     discard execProcess(ldconfigCmd)
 

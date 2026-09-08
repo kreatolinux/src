@@ -13,6 +13,7 @@ It includes the following functions:
 import os
 import posix
 import osproc
+import ../processes
 import sequtils
 import strutils
 import ../../../common/logging
@@ -66,6 +67,7 @@ proc downloadSource*(url, filename, pkgName: string) =
         let repoUrl = gitParts[1]
         let branch = if gitParts.len > 2: gitParts[2] else: "HEAD"
         let repoName = lastPathPart(repoUrl)
+        ensureValidCwd()
         if execCmd("git clone " & repoUrl & " " & repoName & " && cd " &
                 repoName & " && git checkout " & branch) != 0:
             fatal("Git clone failed for: " & repoUrl)
