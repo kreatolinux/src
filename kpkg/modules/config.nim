@@ -3,6 +3,7 @@ import os
 import streams
 import strutils
 import regex
+import tables
 import ../../common/logging
 
 const configPath = "/etc/kpkg/kpkg.conf"
@@ -149,6 +150,17 @@ proc getConfigSection*(section: string, defaultVal = ""): string =
       reachedSection = true
 
   return res
+
+proc configSectionNames*(): seq[string] =
+  ## Return sections from the active configuration, including custom sections.
+  for section in config.sections:
+    result.add(section)
+
+proc configKeyNames*(section: string): seq[string] =
+  ## Return keys from the active configuration section.
+  if config.hasKey(section):
+    for key in config[section].keys:
+      result.add(key)
 
 proc setConfigValue*(section: string, key: string, value: string) =
   ## Writes a section to the configuration file.

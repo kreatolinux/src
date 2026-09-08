@@ -68,6 +68,11 @@ type
     line*: int
     col*: int
 
+proc run3Keywords*(): seq[string] =
+  ## Derive keyword spellings from the contiguous keyword token range.
+  for kind in tkFunc .. tkObject:
+    result.add(($kind)[2 .. ^1].toLowerAscii())
+
 proc initLexer*(input: string): Lexer =
   ## Initialize a new lexer
   result.input = input
@@ -251,27 +256,12 @@ proc readComment(lex: var Lexer): string =
     result.add(lex.advance())
 
 proc keywordOrIdentifier(value: string): TokenKind =
-  ## Determine if an identifier is actually a keyword
-  case value
-  of "func": return tkFunc
-  of "if": return tkIf
-  of "else": return tkElse
-  of "for": return tkFor
-  of "in": return tkIn
-  of "exec": return tkExec
-  of "macro": return tkMacro
-  of "print": return tkPrint
-  of "echo": return tkEcho
-  of "cd": return tkCd
-  of "env": return tkEnv
-  of "local": return tkLocal
-  of "global": return tkGlobal
-  of "write": return tkWrite
-  of "append": return tkAppend
-  of "continue": return tkContinue
-  of "break": return tkBreak
-  of "object": return tkObject
-  else: return tkIdentifier
+  ## Keyword token names follow the tkKeyword naming convention, so the enum
+  ## range is the single source of truth for both lexing and completion.
+  for kind in tkFunc .. tkObject:
+    if value == ($kind)[2 .. ^1].toLowerAscii():
+      return kind
+  tkIdentifier
 
 proc nextToken*(lex: var Lexer): Token =
   ## Get the next token from the input

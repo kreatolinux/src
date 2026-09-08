@@ -50,6 +50,21 @@ func newFileInternal(path = "", checksum = "", package = newPackageInternal()): 
   # Initializes a new Package.
   File(path: path, blake2Checksum: checksum, package: package)
 
+proc packageFieldNames*(): seq[string] =
+  ## Fields accepted by getPackageByValue(). Keep reflection beside the model.
+  let package = newPackageInternal()
+  for fieldName, value in package[].fieldPairs:
+    result.add(fieldName)
+  result.add("listFiles")
+
+proc fileFieldNames*(): seq[string] =
+  ## Fields accepted by getFileByValue(), including its checksum alias.
+  let file = newFileInternal()
+  for fieldName, value in file[].fieldPairs:
+    result.add(fieldName)
+    if fieldName == "blake2Checksum":
+      result.add("b2Sum")
+
 proc closeDb*() =
   # Wrapper for close.
   if connOn:

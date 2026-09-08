@@ -8,6 +8,8 @@ kpkg repl - interactive shell for kpkg
 
 The REPL supports session history (persisted to `~/.cache/kpkg/history`), multi-line input for function definitions and blocks, and convenient shorthands for common `get` and `set` operations.
 
+Press **Tab** to complete REPL commands, run3 statements, dotted `get` and `set` invocations, configuration keys, and package names. When several matches are available, press **Tab** again to display them.
+
 # SYNOPSIS
 **kpkg repl** [-a COMMAND] [[-a ARGS]...]
 

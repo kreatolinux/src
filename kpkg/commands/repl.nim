@@ -3,6 +3,7 @@ import strutils
 import sequtils
 import terminal
 import tables
+import algorithm
 import ../../common/logging
 import ../modules/config
 import ../modules/sqlite
@@ -11,6 +12,8 @@ import ../modules/downloader
 import ../modules/dephandler
 import ../modules/run3/run3
 import rdstdin
+when not defined(windows) and not defined(genode):
+  import std/linenoise as linenoise
 
 # base functions
 #
@@ -23,6 +26,112 @@ import rdstdin
 #
 # Can also get all variables
 # `kpkg get config` # prints all config variables
+
+const replCommands = ["get", "set", "history", "clear", "exit", "quit"]
+
+type ReplCompletionCatalog = object
+  topLevel: seq[string]
+  commandTokens: Table[string, seq[string]]
+
+proc addUnique(values: var seq[string], value: string) =
+  if value notin values:
+    values.add(value)
+
+proc addPath(catalog: var ReplCompletionCatalog, commands,
+        components: openArray[string]) =
+  ## Register every usable dotted prefix of a command path.
+  var token = ""
+  for component in components:
+    if token.len > 0: token.add('.')
+    token.add(component)
+    for command in commands:
+      catalog.commandTokens.mgetOrPut(command, @[]).addUnique(token)
+
+proc buildCompletionCatalog(packageNames,
+        installedPackages: seq[string]): ReplCompletionCatalog =
+  result.commandTokens = initTable[string, seq[string]]()
+  for command in replCommands:
+    result.topLevel.addUnique(command)
+  for keyword in run3Keywords():
+    result.topLevel.addUnique(keyword)
+
+  result.commandTokens.mgetOrPut("get", @[]).addUnique("--all")
+
+  for entity in ["package", "file"]:
+    result.addPath(["get"], ["db", entity])
+
+  for packageName in installedPackages:
+    for field in packageFieldNames():
+      result.addPath(["get"], ["db", "package", packageName, field])
+
+  for section in configSectionNames():
+    result.addPath(["get", "set"], ["config", section])
+    for key in configKeyNames(section):
+      result.addPath(["get", "set"], ["config", section, key])
+
+  # Overrides are valid for repository packages, while dependency queries use
+  # the same live repository package catalog.
+  for packageName in packageNames:
+    result.addPath(["get", "set"], ["overrides", packageName])
+    for dependencyKind in ["build", "install"]:
+      result.addPath(["get"], ["depends", packageName, dependencyKind, "graph"])
+
+  result.topLevel.sort()
+  for command, tokens in result.commandTokens.mpairs:
+    tokens.sort()
+
+proc completionCandidates(input: string,
+        catalog: ReplCompletionCatalog): seq[string] =
+  ## Generic linenoise matcher. Grammar knowledge lives only in the catalog.
+  let tokenStart = block:
+    let space = input.rfind({' ', '\t'})
+    if space < 0: 0 else: space + 1
+  let before = input[0 ..< tokenStart]
+  let token = input[tokenStart .. ^1]
+
+  if tokenStart == 0:
+    for candidate in catalog.topLevel:
+      if candidate.toLowerAscii().startsWith(token.toLowerAscii()):
+        result.add(candidate)
+    return
+
+  let words = before.strip().splitWhitespace()
+  if words.len == 0 or not catalog.commandTokens.hasKey(words[0]):
+    return
+  let depth = token.count('.')
+  for candidate in catalog.commandTokens[words[0]]:
+    if candidate.count('.') == depth and
+        candidate.toLowerAscii().startsWith(token.toLowerAscii()):
+      result.add(before & candidate)
+
+proc replCompletionCandidates*(input: string, packageNames: seq[string] = @[],
+        installedPackages: seq[string] = @[]): seq[string] =
+  ## Return complete replacement lines accepted by linenoise.
+  completionCandidates(input,
+      buildCompletionCatalog(packageNames, installedPackages))
+
+proc repositoryPackageNames(): seq[string] =
+  for repoDir in getConfigValue("Repositories", "repoDirs").splitWhitespace():
+    if not dirExists(repoDir): continue
+    for kind, path in walkDir(repoDir):
+      if kind in {pcDir, pcLinkToDir} and
+          (fileExists(path / "run3") or fileExists(path / "run")):
+        let name = lastPathPart(path)
+        if name notin result: result.add(name)
+  result.sort()
+
+when not defined(windows) and not defined(genode):
+  var replCompletionPackages: seq[string]
+  var replCompletionInstalled: seq[string]
+
+  proc replCompletionCallback(input: cstring,
+          completions: ptr linenoise.Completions) {.cdecl.} =
+    try:
+      for candidate in replCompletionCandidates($input,
+              replCompletionPackages, replCompletionInstalled):
+        linenoise.addCompletion(completions, candidate.cstring)
+    except CatchableError:
+      discard
 
 proc displayConfigQuery*(section, key, value: string): string =
   if section.toLowerAscii() != "telemetry":
@@ -283,6 +392,15 @@ proc repl*(args: seq[string] = @[]) =
     # Process commands from arguments
     dispatchCommand(ctx, args.join(" "))
     return
+
+  when not defined(windows) and not defined(genode):
+    replCompletionPackages = repositoryPackageNames()
+    try:
+      replCompletionInstalled = getListPackages("/")
+    except CatchableError:
+      replCompletionInstalled = @[]
+    linenoise.setCompletionCallback(replCompletionCallback)
+    defer: linenoise.setCompletionCallback(nil)
 
   echo "kpkg REPL (run3)"
   echo "Type 'exit' or 'quit' to leave."
