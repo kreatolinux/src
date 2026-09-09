@@ -26,14 +26,25 @@ proc removeLockfile*() =
     removeFile(lockfilePath)
 
 var previousErrorCallback: ErrorCallback
+var lockfileCallbackActive = false
 
 proc lockfileErrorCallback(msg: string) =
   ## Error callback that removes lockfile on fatal errors, then forwards
   ## to the callback that was registered before the lockfile was taken.
+  ##
+  ## Re-entrant calls are ignored: sandbox bootstrap installs run kpkg
+  ## in-process, so createLockfile() can register this callback twice.
+  ## Without the guard, the forwarded callback re-enters here and recurses
+  ## until the call depth limit kills the process.
+  if lockfileCallbackActive:
+    return
+  lockfileCallbackActive = true
   info("lockfile", "removing lockfile due to error")
   removeLockfile()
-  if previousErrorCallback != nil:
-    previousErrorCallback(msg)
+  let cb = previousErrorCallback
+  previousErrorCallback = nil
+  if cb != nil:
+    cb(msg)
 
 proc createLockfile*() =
   ## Create lockfile with PID and set up error callback
