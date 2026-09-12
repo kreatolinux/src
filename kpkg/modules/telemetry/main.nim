@@ -121,7 +121,8 @@ proc startSpan*(name: string,
   var safeAttributes = initTable[string, string]()
   for key, value in attributes:
     if isSafeAttribute(key):
-      safeAttributes[key] = if key == "error.type": sanitizeErrorType(value) else: value
+      safeAttributes[key] = if key == "error.type": sanitizeErrorType(
+          value) else: value
   try:
     result = Span(
       traceId: if currentSpan.isNil: randomHex(16) else: currentSpan.traceId,
@@ -208,7 +209,8 @@ proc spanSummary(span: Span): LogRecord =
     traceId: span.traceId,
     spanId: span.spanId,
     timestampNs: span.endedAtNs,
-    body: span.name & (if span.status == spanError: " failed" else: " completed"),
+    body: span.name & (if span.status ==
+        spanError: " failed" else: " completed"),
     status: span.status,
     attributes: attributes
   )
@@ -274,6 +276,11 @@ proc fatalExitCallback*(span: Span): ErrorCallback =
   ## process aborting through fatal() exports a failure summary instead of
   ## "completed". The exit proc ending the span afterwards is a no-op.
   result = proc(msg: string) =
+    # startSpan returns nil when telemetry is disabled (the default), so the
+    # installed callback must not dereference it: fatal() would crash with
+    # SIGSEGV instead of exiting with status 1.
+    if span.isNil:
+      return
     span.attributes["error.message"] = sanitizeErrorMessage(msg)
     endSpan(span, newException(OSError, msg))
 
