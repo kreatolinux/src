@@ -171,12 +171,15 @@ proc createEnv(root: string, ignorePostInstall = false) =
   setControlCHook(createEnvCtrlC)
   initDirectories(kpkgEnvPath, hostCPU, true)
 
-  copyFileWithPermissionsAndOwnership(root&"/etc/kreato-release",
-          kpkgEnvPath&"/etc/kreato-release")
-
   var depsTotal: seq[string]
 
-  let dict = loadConfig(kpkgEnvPath&"/etc/kreato-release")
+  # The env has to carry a release file of its own: kpkgTarget() and friends read
+  # it back out of kpkgEnvPath while a build is running. On a real Kreato host we
+  # copy the host file, and on a foreign host we write the synthesized one so the
+  # env is self-describing either way.
+  let dict = resolveRelease(root)
+  createDir(kpkgEnvPath & "/etc")
+  dict.writeConfig(kpkgEnvPath / kreatoReleaseName)
 
   discard installFromRoot(dict.getSectionValue("Core", "libc"), root,
           kpkgEnvPath, ignorePostInstall = true)

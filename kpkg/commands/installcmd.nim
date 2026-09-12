@@ -203,12 +203,16 @@ proc installPkgImpl(repo: string, package: string, root: string, runf = runFile(
   debug "installPkg ran, repo: '"&repo&"', package: '"&package&"', root: '"&root&"', manualInstallList: '"&manualInstallList.join(
       " ")&"', kTarget: '"&kTarget&"'"
 
-  # If the target root doesn't have /etc/kreato-release (e.g. sandbox upperDir),
-  # fall back to the env path so kpkgTarget() can still read it.
-  let kreatoReleasePath = if fileExists(root & "/etc/kreato-release"):
-    root & "/etc/kreato-release"
-  else:
-    kpkgEnvPath & "/etc/kreato-release"
+  # Resolve which release file describes the install root. A sandbox upperDir has
+  # no release file of its own, so fall back to the env copy. When neither exists
+  # (a foreign host during bootstrap) pass "" and let hostSystem synthesize one.
+  let kreatoReleasePath =
+    if fileExists(root / kreatoReleaseName):
+      root / kreatoReleaseName
+    elif fileExists(kpkgEnvPath / kreatoReleaseName):
+      kpkgEnvPath / kreatoReleaseName
+    else:
+      ""
 
   let isUpgradeActual = (packageExists(package, root) and getPackage(package,
           root).version != pkg.versionString) or isUpgrade
