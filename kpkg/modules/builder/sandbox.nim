@@ -383,9 +383,12 @@ proc buildPackageInSandboxImpl(pkgName: string, depGraph: dependencyGraph,
   discard builderProc(buildCfg)
 
   # Install to host if not a SONAME-changed package, so rebuilt
-  # consumers replace the old system binaries.
+  # consumers replace the old system binaries. An explicit target that
+  # matches the root's own target is the noSandbox bootstrap case: the
+  # root is the target system and the package must be installed there.
   if not buildCfg.sonameChanged and not sandboxCfg.dontInstall and
-      sandboxCfg.target == "default":
+      (sandboxCfg.target == "default" or
+       sandboxCfg.target == kpkgTarget(sandboxCfg.root)):
     debug "buildPackageInSandbox: installing " & actualPkgName & " to host"
     installPkg(findPkgRepo(actualPkgName), actualPkgName,
             sandboxCfg.fullRootPath,
