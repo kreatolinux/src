@@ -20,7 +20,7 @@ ARG NIM_VERSION=2.2.12
 ARG NIM_SHA256=3dc04191af72a8310cf1c8ffb6f772cc3716fc5f264bc7c453ab4aecb4085221
 
 ENV DEBIAN_FRONTEND=noninteractive
-ENV PATH=/opt/nim/bin:/root/.nimble/bin:/usr/local/bin:/usr/bin:/bin
+ENV PATH=/opt/nim/bin:/root/.nimble/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential \
@@ -60,7 +60,8 @@ RUN sh build.sh --projects kpkg,kreastrap \
 # Pin the release identity the seed builds against. Without this the
 # synthesized release would depend on whatever Ubuntu ships; with it the kpkg
 # target is deterministic: aarch64-linux-gnu-jumpstart-openssl.
-RUN printf '[Core]\nlibc=glibc\ninit=jumpstart\ntlsLibrary=openssl\ncoreutils=busybox\ncompiler=gcc\n' \
+RUN mkdir -p /etc/kpkg \
+    && printf '[Core]\nlibc=glibc\ninit=jumpstart\ntlsLibrary=openssl\ncoreutils=busybox\ncompiler=gcc\n' \
         > /etc/kpkg/host-release.conf
 
 COPY docker/seed-aarch64/entrypoint.sh /entrypoint.sh

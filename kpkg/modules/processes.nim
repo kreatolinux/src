@@ -90,7 +90,14 @@ proc runLdconfig*(root: string, silentMode = false): int =
   let cmd = if root == "/": "ldconfig"
             else: "bwrap --bind " & root & " / /bin/sh -c ldconfig"
   debug "runLdconfig: running '" & cmd & "'"
-  let res = execCmdKpkg(cmd, silentMode = silentMode)
+  var res: tuple[output: string, exitCode: int]
+  try:
+    res = execCmdKpkg(cmd, silentMode = silentMode)
+  except CatchableError as e:
+    # A missing ldconfig (e.g. not on PATH in a minimal chroot) must not
+    # abort the whole build; report it and let the caller decide.
+    warn "runLdconfig: could not run '" & cmd & "': " & e.msg
+    return 1
   if res.exitCode != 0:
     warn "ldconfig failed (cmd: " & cmd & ", exitCode: " & $res.exitCode & ")"
     debug "ldconfig output: " & res.output
