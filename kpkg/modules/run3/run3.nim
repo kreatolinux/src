@@ -62,6 +62,11 @@ proc initRun3Context*(destDir: string = "", srcDir: string = "",
     result.buildRoot = buildRoot
     result.packageName = packageName
     result.silent = false
+    # Kongue call-depth guard. This context is built directly rather than
+    # via initExecutionContext, so the fields need setting here too or
+    # kpkg would run without the recursion ceiling.
+    result.callDepth = 0
+    result.maxCallDepth = kongueUtils.defaultMaxCallDepth
     # kpkg-specific fields
     result.passthrough = false
     result.sandboxPath = kpkgMergedPath

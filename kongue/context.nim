@@ -6,6 +6,7 @@ when not defined(js):
   import os
 import tables
 import ast
+import utils
 import variables
 when defined(js):
   import jscompat
@@ -36,6 +37,8 @@ type
     buildRoot*: string ## Build root directory
     packageName*: string ## Package name
     silent*: bool ## Suppress output
+    callDepth*: int ## Current custom-function nesting depth
+    maxCallDepth*: int ## Ceiling for callDepth; see utils.defaultMaxCallDepth
     # Hooks for extensibility
     execHook*: ExecHook ## Custom command execution hook
     commandResultHook*: CommandResultHook ## Legacy captured command callback
@@ -52,6 +55,8 @@ proc initExecutionContext*(destDir: string = "", srcDir: string = "",
   result.localVars = initTable[string, string]()
   result.envVars = initTable[string, string]()
   result.customFuncs = initTable[string, seq[AstNode]]()
+  result.callDepth = 0
+  result.maxCallDepth = defaultMaxCallDepth
   # Use srcDir for currentDir if provided (supports autocd from buildcmd)
   if srcDir != "":
     result.currentDir = srcDir

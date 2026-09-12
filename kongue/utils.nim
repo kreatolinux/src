@@ -47,6 +47,12 @@ const
   maxStatements* = 10000
   maxArgs* = 1000
   maxItems* = 10000
+  defaultMaxCallDepth* = 256
+    # Ceiling for nested custom-function calls. Without a guard a recursive
+    # function consumes the host stack until it dies: SIGSEGV natively,
+    # RangeError in the browser. 256 is far past any real Kongue script
+    # and stays clear of the browser's ~870 frame ceiling, so the failure
+    # is a reported error on every target.
 
 # Regex patterns for variable resolution
 # Note: These handle simple cases; complex nested expressions need manual parsing

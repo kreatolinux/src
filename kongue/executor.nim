@@ -141,6 +141,20 @@ proc executeNode*(ctx: ExecutionContext, node: AstNode): int =
     of nkFuncCall:
         # Execute custom function call
         if ctx.customFuncs.hasKey(node.callName):
+            # Guard before doing any work: recursion here is unbounded by the
+            # language (there is no arithmetic to count down with), so a
+            # self-calling function would otherwise run the host stack into
+            # the ground. See utils.defaultMaxCallDepth.
+            # A non-positive ceiling means "no limit". Contexts built directly
+            # rather than through initExecutionContext leave maxCallDepth at 0,
+            # and 0 must not read as "fail immediately".
+            if ctx.maxCallDepth > 0 and ctx.callDepth >= ctx.maxCallDepth:
+                var err = newException(ExecutionError,
+                    "Maximum call depth (" & $ctx.maxCallDepth &
+                    ") exceeded calling: " & node.callName)
+                err.line = node.line
+                raise err
+
             # Resolve arguments in current scope
             var resolvedArgs: seq[string] = @[]
             for arg in node.callArgs:
@@ -157,12 +171,16 @@ proc executeNode*(ctx: ExecutionContext, node: AstNode): int =
             for i, arg in resolvedArgs:
                 ctx.localVars[$(i + 1)] = arg
 
-            # Execute function body
+            # Execute function body. The depth counter must come back down even
+            # if the body raises, or a caught error would poison later calls.
             let funcBody = ctx.customFuncs[node.callName]
-            let res = ctx.executeFunction(funcBody)
-
-            # Restore locals
-            ctx.localVars = parentLocals
+            ctx.callDepth += 1
+            let res =
+                try:
+                    ctx.executeFunction(funcBody)
+                finally:
+                    ctx.callDepth -= 1
+                    ctx.localVars = parentLocals
 
             return res
         else:
