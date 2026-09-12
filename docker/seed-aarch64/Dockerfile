@@ -34,6 +34,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libssl-dev \
         libarchive-dev \
         libsqlite3-dev \
+        m4 \
+        autoconf \
+        automake \
+        libtool \
+        pkg-config \
+        bison \
+        flex \
+        gettext \
+        texinfo \
+        gawk \
+        patch \
+        rsync \
+        sudo \
+        file \
+        python3 \
     && rm -rf /var/lib/apt/lists/*
 
 # Pinned Nim compiler (official linux_arm64 tarball)

@@ -43,6 +43,11 @@ proc execCmdKpkg*(command: string, error = "none", silentMode = false): tuple[
 
   let res = waitForExit(process)
 
+  # Release the pipe descriptors: kpkg runs thousands of commands over a
+  # bootstrap and never closing the Process leaked fds until the process
+  # hit its nofile limit ('Too many open files') mid-run.
+  process.close()
+
   if error != "none" and res != 0:
     fatal error&" failed"
 
