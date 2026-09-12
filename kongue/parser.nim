@@ -6,7 +6,12 @@ import ast
 import lexer
 import utils
 
-when not declared(readFile):
+when defined(js):
+  # ``readFile`` technically exists in the JS target, but it cannot read a
+  # browser disk. Route file reads to the virtual filesystem instead.
+  # ``except readFile`` avoids clashing with the auto-imported ``std/syncio``.
+  import jscompat except readFile
+elif not declared(readFile):
   import os
 
 proc escapeStringForOutput(s: string): string =
@@ -937,7 +942,10 @@ proc parse*(p: var Parser): ParsedScript =
 proc parseFile*(path: string): ParsedScript =
   ## Parse a Kongue script file from disk
   debug "parseFile: reading file '"&path&"'"
-  let content = readFile(path)
+  when defined(js):
+    let content = jscompat.readFile(path)
+  else:
+    let content = readFile(path)
   debug "parseFile: file read, size: "&($content.len)&" bytes"
   debug "parseFile: tokenizing"
   let tokens = tokenize(content)

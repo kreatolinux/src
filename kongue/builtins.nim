@@ -2,7 +2,9 @@
 ## Implements: exec, print, cd, env, local, global, write, append
 
 import os
-import osproc
+when not defined(js):
+  # No process table in a browser. `exec` is served by ctx.execHook there.
+  import osproc
 import regex
 import strutils
 import tables
@@ -15,6 +17,13 @@ import utils
 export context
 export utils.stripQuotes
 
+when defined(js):
+  import jscompat
+
+  # ``quoteShell`` is posix-only in the JS target. POSIX quoting is what we want
+  # here, since Kongue commands are POSIX shell strings.
+  template quoteShell(s: string): string = quoteShellPosix(s)
+
 proc resolveVariables*(ctx: ExecutionContext, text: string,
     depth: int = 0): string
 
@@ -22,11 +31,16 @@ proc defaultExec(ctx: ExecutionContext, command: string, silent: bool): tuple[
     output: string, exitCode: int] =
   ## Default command execution using osproc
   ## This is used when no execHook is set
-  try:
-    let (output, exitCode) = execCmdEx(command)
-    return (output.strip(), exitCode)
-  except OSError as e:
-    return ("Error: " & e.msg, 1)
+  when defined(js):
+    # Nothing can be spawned in a browser. Callers that want real behaviour
+    # must install ctx.execHook; embedders supply a sandboxed one there.
+    return ("exec is unavailable in this target", 126)
+  else:
+    try:
+      let (output, exitCode) = execCmdEx(command)
+      return (output.strip(), exitCode)
+    except OSError as e:
+      return ("Error: " & e.msg, 1)
 
 proc reportCommandResult(ctx: ExecutionContext, output: string, exitCode: int) =
   if ctx.commandResultHook != nil:
@@ -412,12 +426,19 @@ proc builtinWrite*(ctx: ExecutionContext, path: string, content: string) =
   if not isAbsolute(resolvedPath):
     fullPath = ctx.currentDir / resolvedPath
 
-  try:
-    writeFile(fullPath, resolvedContent)
+  when defined(js):
+    # Record the write in the virtual filesystem instead of touching a disk
+    # that is not there.
+    jscompat.writeFile(fullPath, resolvedContent)
     if not ctx.silent:
       echo "[write] " & fullPath
-  except IOError as e:
-    echo "Error writing to file " & fullPath & ": " & e.msg
+  else:
+    try:
+      writeFile(fullPath, resolvedContent)
+      if not ctx.silent:
+        echo "[write] " & fullPath
+    except IOError as e:
+      echo "Error writing to file " & fullPath & ": " & e.msg
 
 proc builtinAppend*(ctx: ExecutionContext, path: string, content: string) =
   ## Append content to a file
@@ -429,14 +450,19 @@ proc builtinAppend*(ctx: ExecutionContext, path: string, content: string) =
   if not isAbsolute(resolvedPath):
     fullPath = ctx.currentDir / resolvedPath
 
-  try:
-    var f = open(fullPath, fmAppend)
-    f.write(resolvedContent)
-    f.close()
+  when defined(js):
+    jscompat.writeFile(fullPath, jscompat.readFile(fullPath) & resolvedContent)
     if not ctx.silent:
       echo "[append] " & fullPath
-  except IOError as e:
-    echo "Error appending to file " & fullPath & ": " & e.msg
+  else:
+    try:
+      var f = open(fullPath, fmAppend)
+      f.write(resolvedContent)
+      f.close()
+      if not ctx.silent:
+        echo "[append] " & fullPath
+    except IOError as e:
+      echo "Error appending to file " & fullPath & ": " & e.msg
 
 proc evaluateSingleCondition(ctx: ExecutionContext, condition: string): bool =
   ## Evaluate a single condition (no || or &&)

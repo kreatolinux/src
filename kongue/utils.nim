@@ -16,19 +16,27 @@ proc debug*(msg: string) =
   if debugProc != nil:
     debugProc(msg)
 
+proc logStderr(msg: string) =
+  ## Write to stderr. There is no stderr in the JS target, so ``echo`` is used
+  ## there; embedders can capture it along with normal output.
+  when defined(js):
+    echo msg
+  else:
+    stderr.writeLine(msg)
+
 proc warn*(msg: string) =
   ## Warning logging - prints to stderr by default
   if warnProc != nil:
     warnProc(msg)
   else:
-    stderr.writeLine("[warn] " & msg)
+    logStderr("[warn] " & msg)
 
 proc error*(msg: string) =
   ## Error logging - prints to stderr by default
   if errorProc != nil:
     errorProc(msg)
   else:
-    stderr.writeLine("[error] " & msg)
+    logStderr("[error] " & msg)
 
 # Safety limits for parsing/execution
 const

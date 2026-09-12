@@ -1,10 +1,14 @@
 ## Execution context for Kongue scripting language
 ## Contains the ExecutionContext type and variable management procs
 
-import os
+when not defined(js):
+  # Only the native branches below touch the host environment.
+  import os
 import tables
 import ast
 import variables
+when defined(js):
+  import jscompat
 
 type
   ## Hook types for extensibility - allows consumers to customize execution behavior
@@ -52,7 +56,12 @@ proc initExecutionContext*(destDir: string = "", srcDir: string = "",
   if srcDir != "":
     result.currentDir = srcDir
   else:
-    result.currentDir = getCurrentDir()
+    when defined(js):
+      # A browser has no working directory. Use a fixed absolute root so
+      # relative paths in a script still resolve predictably.
+      result.currentDir = playgroundDir
+    else:
+      result.currentDir = getCurrentDir()
   result.previousDir = result.currentDir
   result.destDir = destDir
   result.srcDir = srcDir
@@ -96,8 +105,12 @@ proc getVariable*(ctx: ExecutionContext, name: string): string =
   of "PACKAGENAME":
     return ctx.packageName
   else:
-    # Fallback to system environment variables
-    return getEnv(name)
+    when defined(js):
+      # No host environment in a browser.
+      return ""
+    else:
+      # Fallback to system environment variables
+      return getEnv(name)
 
 proc getObjectVariable*(ctx: ExecutionContext, name: string): VarValue =
   ## Get an object variable
@@ -121,7 +134,10 @@ proc hasVariable*(ctx: ExecutionContext, name: string): bool =
   of "ROOT", "DESTDIR", "SRCDIR", "PACKAGENAME":
     return true
   else:
-    return existsEnv(name)
+    when defined(js):
+      return false
+    else:
+      return existsEnv(name)
 
 proc hasObjectVariable*(ctx: ExecutionContext, name: string): bool =
   ## Check if an object variable exists
