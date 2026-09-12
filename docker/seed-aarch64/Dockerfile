@@ -67,10 +67,21 @@ RUN nimble install -y cligen nimcrypto norm fusion regex
 COPY . /work
 WORKDIR /work
 
+# The Ubuntu libssl-dev files live in the multiarch dir, which the linker
+# searches before /usr/lib: it picks libssl.so there, or - with the symlink
+# gone - falls back to the static libssl.a in the same dir, which is worse
+# (undefined OpenSSL 3.5+/4 symbols surface only at import, e.g. python's
+# _ssl). Kreato's own OpenSSL (installed into the root during bootstrap,
+# soname .4) must win once it exists. kpkg itself keeps running against
+# Ubuntu's runtime libssl.so.3, which stays.
 RUN sh build.sh --projects kpkg,kreastrap \
     && cp out/kpkg /usr/local/bin/kpkg \
     && git config --global --add safe.directory /work \
-    && git config --global --add safe.directory /etc/kpkg/repos/main
+    && git config --global --add safe.directory /etc/kpkg/repos/main \
+    && rm -f /usr/lib/aarch64-linux-gnu/libssl.so \
+             /usr/lib/aarch64-linux-gnu/libssl.a \
+             /usr/lib/aarch64-linux-gnu/libcrypto.so \
+             /usr/lib/aarch64-linux-gnu/libcrypto.a
 
 # Pin the release identity the seed builds against. Without this the
 # synthesized release would depend on whatever Ubuntu ships; with it the kpkg
