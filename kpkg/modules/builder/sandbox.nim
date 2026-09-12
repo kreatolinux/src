@@ -280,7 +280,7 @@ proc buildPackageInSandboxImpl(pkgName: string, depGraph: dependencyGraph,
           for dep in dynamicDeps:
             if packageExists(dep, sandboxCfg.root):
               debug "buildPackageInSandbox: installing dynamic sandbox dep '" &
-                  dep &"' for '" & pkgTmp.name & "'"
+                  dep & "' for '" & pkgTmp.name & "'"
               discard installFromRoot(dep, sandboxCfg.root,
                       kpkgOverlayPath & "/upperDir",
                       ignorePostInstall = true)

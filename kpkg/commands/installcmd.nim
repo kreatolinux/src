@@ -650,7 +650,7 @@ proc down_bin*(package: string, binrepos: seq[string], root: string,
       const hint = "use 'kpkg build' to build it from source, or check Repositories.binRepos"
       if ignoreErrors or ignoreDownloadErrors:
         debug "down_bin: no binary for '" & package & "' on target '" &
-            kTarget &"'; " & hint
+            kTarget & "'; " & hint
         return
       fatal("no binary of '" & package & "' for target '" & kTarget &
           "' exists on any mirror; " & hint)
