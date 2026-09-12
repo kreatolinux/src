@@ -545,10 +545,13 @@ proc canDownloadBinary*(package: string, version: string, binrepos: seq[string],
   ## Check if a binary is downloadable from any mirror (without actually
   ## downloading). Uses a native HTTP HEAD request with a short timeout
   ## instead of spawning curl.
+>>>>>>> b20c1bfa (kpkg: add --noSandbox builds and gate binary downloads)
 
   let tarball = package & "-" & version & ".kpkg"
 
   for binrepo in binrepos:
+    if isEmptyOrWhitespace(binrepo):
+      continue
     let url = "https://" & binrepo & "/archives/system/" & kTarget & "/" & tarball
     try:
       var client = newHttpClient(timeout = 10, userAgent = "kpkg")
@@ -583,7 +586,7 @@ proc down_bin*(package: string, binrepos: seq[string], root: string,
 
   var downSuccess: bool
 
-  var binreposFinal = binrepos
+  var binreposFinal = binrepos.filterIt(not isEmptyOrWhitespace(it))
 
   var override: Config
 
@@ -595,7 +598,17 @@ proc down_bin*(package: string, binrepos: seq[string], root: string,
   let binreposOverride = override.getSectionValue("Mirror", "binaryMirrors")
 
   if not isEmptyOrWhitespace(binreposOverride):
-    binreposFinal = binreposOverride.split(" ")
+    binreposFinal = binreposOverride.split(" ").filterIt(
+            not isEmptyOrWhitespace(it))
+
+  # An empty binary mirror list means "never use binaries". This is the
+  # bootstrap path for a brand-new target: with no mirrors configured every
+  # install falls back to a source build instead of failing on a download
+  # of a binary that cannot exist yet.
+  if binreposFinal.len == 0:
+    debug "down_bin: no binary mirrors configured, skipping binary for '" &
+        package & "'"
+    return
 
   var pkgVersion = version
 
@@ -628,6 +641,20 @@ proc down_bin*(package: string, binrepos: seq[string], root: string,
     debug "Tarball already exists for '"&package&"', not gonna download again"
     downSuccess = true
   elif not offline:
+    # Ask the mirrors whether the binary exists before attempting a download.
+    # On a target with no published binaries (e.g. a new arch during
+    # bootstrap) this replaces a chain of failed downloads with one clear
+    # message, and lets ignoreDownloadErrors callers fall back to source.
+    if commit == "" and not canDownloadBinary(package, pkgVersion,
+            binreposFinal, kTarget):
+      const hint = "use 'kpkg build' to build it from source, or check Repositories.binRepos"
+      if ignoreErrors or ignoreDownloadErrors:
+        debug "down_bin: no binary for '" & package & "' on target '" &
+            kTarget &"'; " & hint
+        return
+      fatal("no binary of '" & package & "' for target '" & kTarget &
+          "' exists on any mirror; " & hint)
+
     for binrepo in binreposFinal:
       try:
         download("https://"&binrepo&"/archives/system/"&kTarget&"/"&tarball, path)

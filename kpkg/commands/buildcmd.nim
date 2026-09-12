@@ -229,7 +229,13 @@ proc build*(no = false, yes = false, root = "/",
                     dontInstall = false, tests = true,
                             ignorePostInstall = false, isInstallDir = false,
                             isUpgrade = false, target = "default",
-                            bootstrap = false): int =
+                            bootstrap = false, noSandbox = false): int =
+  ## Build and install packages.
+  ##
+  ## With noSandbox, kpkg skips the bwrap/overlay sandbox and the kpkg build
+  ## env entirely and builds directly in root. Use this inside a chroot or
+  ## seed image (e.g. bootstrapping a foreign arch): the chroot is the
+  ## isolation boundary there.
   ## Build and install packages.
   ##
   ## Supports commit-based builds with syntax: package#commit
@@ -293,7 +299,8 @@ proc build*(no = false, yes = false, root = "/",
             isInstallDir = isInstallDir,
             isUpgrade = isUpgrade,
             target = target,
-            bootstrap = true
+            bootstrap = true,
+            noSandbox = noSandbox
           )
           if bootstrapResult != 0:
             fatal "Bootstrap build failed for '" & pkg & "'"
@@ -373,7 +380,8 @@ proc build*(no = false, yes = false, root = "/",
       pkgPaths = pkgPaths,
       commit = commitCtx.commit,
       commitRepo = commitCtx.commitRepo,
-      headRunfileCache = commitCtx.headRunfileCache
+      headRunfileCache = commitCtx.headRunfileCache,
+      noSandbox = noSandbox
     )
 
     # Build all packages in sandbox

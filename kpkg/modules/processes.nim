@@ -113,7 +113,13 @@ proc execEnv*(command: string, error = "none", passthrough = false,
   if passthrough:
     # Use single quotes for the sh -c argument to avoid escaping issues
     let escapedCmd = command.replace("'", "'\\''")
-    return execCmdKpkg(envPrefix&"/bin/sh -c '"&escapedCmd&"'", error,
+    # Match the sandbox behavior: as of coreutils 8.68+ (and newer autoconf),
+    # running ./configure as root needs this or it refuses to run. Passthrough
+    # runs the same build scripts, so it needs the same escape hatch.
+    var unsafePrefix = envPrefix
+    if not asRoot:
+      unsafePrefix = "FORCE_UNSAFE_CONFIGURE=1 " & envPrefix
+    return execCmdKpkg(unsafePrefix&"/bin/sh -c '"&escapedCmd&"'", error,
             silentMode = silentMode)
   else:
     debug "execEnv: checking if path exists: " & path
