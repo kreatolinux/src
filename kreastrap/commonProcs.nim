@@ -136,10 +136,19 @@ proc initDirectories*(buildDirectory: string, arch: string, silent = false) =
     createSymlink("usr/lib", buildDirectory&"/lib64")
     createSymlink("lib", buildDirectory&"/usr/lib64")
 
-  createSymlink("usr/bin", buildDirectory&"/sbin")
-  createSymlink("bin", buildDirectory&"/usr/sbin")
-  createSymlink("usr/bin", buildDirectory&"/bin")
-  createSymlink("usr/lib", buildDirectory&"/lib")
+  # Tolerate leftovers from a previous partial run: without this,
+  # createSymlink raises 'File exists' and kreastrap cannot resume.
+  proc ensureSymlink(target, link: string) =
+    if symlinkExists(link):
+      removeFile(link)
+    elif fileExists(link) or dirExists(link):
+      removeDir(link)
+    createSymlink(target, link)
+
+  ensureSymlink("usr/bin", buildDirectory&"/sbin")
+  ensureSymlink("bin", buildDirectory&"/usr/sbin")
+  ensureSymlink("usr/bin", buildDirectory&"/bin")
+  ensureSymlink("usr/lib", buildDirectory&"/lib")
 
   if not silent:
     info "Root directory structure created."
