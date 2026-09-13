@@ -20,7 +20,8 @@ import ../modules/run3/run3
 export processes.execEnv
 
 
-proc runPostInstall*(package: string, rootPath = kpkgMergedPath) =
+proc runPostInstall*(package: string, rootPath = kpkgMergedPath,
+        passthrough = false) =
   ## Runs postinstall scripts for a package in the provided environment root.
   ## Defaults to the merged overlay, but can be overridden (e.g. createEnv).
   debug "runPostInstall ran, package: '"&package&"', root: '"&rootPath&"'"
@@ -49,6 +50,9 @@ proc runPostInstall*(package: string, rootPath = kpkgMergedPath) =
   ctx.sandboxPath = rootPath
   ctx.remount = remountNeeded
   ctx.silent = silent
+  # Passthrough runs the postinstall directly on rootPath (no bwrap/overlay
+  # needed). This is how noSandbox builds run postinstalls on a chroot root.
+  ctx.passthrough = passthrough
   ctx.asRoot = true # Postinstall scripts need root to modify system directories in sandbox
 
   debug "runPostInstall: checking for postinstall function"

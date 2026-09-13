@@ -173,7 +173,7 @@ proc buildPackageInSandboxImpl(pkgName: string, depGraph: dependencyGraph,
 
     for d in allInstalledDeps:
       if not isEmptyOrWhitespace(d):
-        runPostInstall(d)
+        runPostInstall(d, sandboxCfg.root, passthrough = true)
 
     discard runLdconfig(sandboxCfg.root, silentMode = true)
   else:
