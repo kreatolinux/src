@@ -386,8 +386,13 @@ proc buildPackageInSandboxImpl(pkgName: string, depGraph: dependencyGraph,
   # consumers replace the old system binaries. An explicit target that
   # matches the root's own target is the noSandbox bootstrap case: the
   # root is the target system and the package must be installed there.
-  if not buildCfg.sonameChanged and not sandboxCfg.dontInstall and
-      (sandboxCfg.target == "default" or
+  #
+  # Exception: glibc. Installing it replaces the libc the build
+  # environment itself is running on - fatal on a foreign bootstrap root
+  # (every process dies with GLIBC_PRIVATE mismatches). The rootfs gets
+  # glibc through the buildDir install instead.
+  if actualPkgName != "glibc" and not buildCfg.sonameChanged and
+      not sandboxCfg.dontInstall and(sandboxCfg.target == "default" or
        sandboxCfg.target == kpkgTarget(sandboxCfg.root)):
     debug "buildPackageInSandbox: installing " & actualPkgName & " to host"
     installPkg(findPkgRepo(actualPkgName), actualPkgName,
