@@ -374,8 +374,11 @@ proc buildAllPackagesInSandbox*(deps: var seq[string], depGraph: dependencyGraph
           sandboxCfg.ignoreUseCacheIfAvailable.add(consumer)
           info "Added " & consumer & " to build queue (SONAME consumer rebuild)"
     except CatchableError:
+      # Report which package failed and why. Swallowing the message made
+      # release builds abort with a bare "Undefined error occured", which
+      # gives nothing to act on.
       when defined(release):
-        fatal("Undefined error occured")
+        fatal("build of " & pkg & " failed: " & getCurrentExceptionMsg())
       else:
         raise getCurrentException()
     i.inc
