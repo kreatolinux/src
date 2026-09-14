@@ -74,8 +74,6 @@ proc buildPackageInSandboxImpl(pkgName: string, depGraph: dependencyGraph,
   ##   builderProc: Callback to builder() function
   ##   installPkgProc: Callback for installing packages to overlay
 
-  let pkgTmp = parsePkgInfo(pkgName)
-
   if sandboxCfg.noSandbox:
     # The root itself (a chroot or seed image) is the isolation boundary.
     # There is no kpkg env to create: createEnv() copies the host system into
@@ -84,6 +82,8 @@ proc buildPackageInSandboxImpl(pkgName: string, depGraph: dependencyGraph,
     debug "noSandbox: skipping sandbox env creation for " & pkgName
   else:
     createOrUpgradeEnv(sandboxCfg.root)
+
+  let pkgTmp = parsePkgInfo(pkgName)
 
   # Extract sandbox dependencies from the graph
   let sandboxDeps = getSandboxDepsFromGraph(pkgTmp.name, depGraph,
@@ -94,131 +94,15 @@ proc buildPackageInSandboxImpl(pkgName: string, depGraph: dependencyGraph,
   debug "sandboxDeps for " & pkgTmp.name & " = \"" & sandboxDeps.join(" ") & "\""
   var allInstalledDeps: seq[string]
 
-<<<<<<< HEAD
-  # Prepare the tmpfs backing the overlay.  This procedure owns the entire
-  # mount lifetime from this point onward, including dependency installation,
-  # overlay mounting, package execution, and early returns.
-  let prepareResult = prepareOverlayDirs()
-  if prepareResult != 0:
-    fatal("preparing overlay directories failed")
+  var overlayMounted = false
+  if not sandboxCfg.noSandbox:
+    # Prepare the tmpfs backing the overlay.  This procedure owns the entire
+    # mount lifetime from this point onward, including dependency installation,
+    # overlay mounting, package execution, and early returns.
+    let prepareResult = prepareOverlayDirs()
+    if prepareResult != 0:
+      fatal("preparing overlay directories failed")
 
-  defer:
-    let cleanupResult = umountOverlay(silentMode = true)
-    if cleanupResult != 0:
-      fatal("internal: sandbox overlay remained mounted")
-
-||||||| parent of b20c1bfa (kpkg: add --noSandbox builds and gate binary downloads)
-  # Prepare overlay directories first
-  discard prepareOverlayDirs(error = "preparing overlay directories")
-
-=======
->>>>>>> b20c1bfa (kpkg: add --noSandbox builds and gate binary downloads)
-  # Resolve kTarget for tarball lookup — matches how the builder stores tarballs
-  let sandboxKTarget = if sandboxCfg.target == "default" or sandboxCfg.target ==
-      kpkgTarget("/"):
-    kpkgTarget(sandboxCfg.fullRootPath)
-  else:
-    sandboxCfg.target
-  debug "sandboxKTarget: '" & sandboxKTarget & "' (target: '" &
-      sandboxCfg.target & "', fullRootPath: '" & sandboxCfg.fullRootPath & "')"
-
-<<<<<<< HEAD
-  if sandboxCfg.target != "default" and sandboxCfg.target != kpkgTarget("/"):
-    for d in sandboxDeps:
-      if isEmptyOrWhitespace(d):
-        continue
-
-      debug "buildPackageInSandbox: installPkg ran for '" & d & "'"
-      let installCfg = InstallConfig(
-        repo: findPkgRepo(d),
-        package: d,
-        root: kpkgOverlayPath & "/upperDir",
-        isUpgrade: false,
-        kTarget: sandboxKTarget,
-        manualInstallList: @[],
-        disablePkgInfo: true
-      )
-      installPkgProc(installCfg)
-  else:
-    # Collect all transitive runtime dependencies
-||||||| parent of b20c1bfa (kpkg: add --noSandbox builds and gate binary downloads)
-  if sandboxCfg.target != "default" and sandboxCfg.target != kpkgTarget("/"):
-    for d in sandboxDeps:
-      if isEmptyOrWhitespace(d):
-        continue
-
-      debug "buildPackageInSandbox: installPkg ran for '" & d & "'"
-      let installCfg = InstallConfig(
-        repo: findPkgRepo(d),
-        package: d,
-        root: kpkgOverlayPath & "/upperDir",
-        isUpgrade: false,
-        kTarget: sandboxKTarget,
-        manualInstallList: @[],
-        umount: false,
-        disablePkgInfo: true
-      )
-      installPkgProc(installCfg)
-  else:
-    # Collect all transitive runtime dependencies
-=======
-  if sandboxCfg.noSandbox:
-    # No overlay and no env: the root itself is the isolation boundary. Build
-    # dependencies were installed into the root by earlier iterations of the
-    # build queue, so only their postinstall scripts and ldconfig are missing.
->>>>>>> b20c1bfa (kpkg: add --noSandbox builds and gate binary downloads)
-    var visited = initHashSet[string]()
-    allInstalledDeps = deduplicate(collectRuntimeDepsFromGraph(
-            sandboxDeps, depGraph, visited))
-
-    for d in allInstalledDeps:
-      if not isEmptyOrWhitespace(d):
-        runPostInstall(d, sandboxCfg.root, passthrough = true)
-
-    discard runLdconfig(sandboxCfg.root, silentMode = true)
-  else:
-    # Prepare overlay directories first
-    discard prepareOverlayDirs(error = "preparing overlay directories")
-
-<<<<<<< HEAD
-    # Install the package with changed SONAME into the env so consumers
-    # build against the new library version. The env is the overlay lower
-    # dir — installing there replaces the old library entirely, making
-    # pkg-config and the linker find only the new version.
-    if sandboxCfg.sonameChangedPackage != "":
-      debug "buildPackageInSandbox: installing changed soname package '" &
-          sandboxCfg.sonameChangedPackage & "' to env"
-      installPkg(findPkgRepo(sandboxCfg.sonameChangedPackage),
-              sandboxCfg.sonameChangedPackage, kpkgEnvPath,
-              kTarget = sandboxKTarget, manualInstallList = @[],
-              ignorePostInstall = true)
-    # Install rebuilt consumers to upperDir so subsequent builds get updated libs/binaries
-    for r in sandboxCfg.rebuiltConsumers:
-      if r != pkgName:
-        debug "buildPackageInSandbox: installing rebuilt consumer '" & r & "' to overlay"
-        installPkgProc(InstallConfig(
-          repo: findPkgRepo(r),
-          package: r,
-||||||| parent of b20c1bfa (kpkg: add --noSandbox builds and gate binary downloads)
-    # Install the package with changed SONAME into the env so consumers
-    # build against the new library version. The env is the overlay lower
-    # dir — installing there replaces the old library entirely, making
-    # pkg-config and the linker find only the new version.
-    if sandboxCfg.sonameChangedPackage != "":
-      debug "buildPackageInSandbox: installing changed soname package '" &
-          sandboxCfg.sonameChangedPackage & "' to env"
-      installPkg(findPkgRepo(sandboxCfg.sonameChangedPackage),
-              sandboxCfg.sonameChangedPackage, kpkgEnvPath,
-              kTarget = sandboxKTarget, manualInstallList = @[],
-              ignorePostInstall = true, umount = false)
-    # Install rebuilt consumers to upperDir so subsequent builds get updated libs/binaries
-    for r in sandboxCfg.rebuiltConsumers:
-      if r != pkgName:
-        debug "buildPackageInSandbox: installing rebuilt consumer '" & r & "' to overlay"
-        installPkgProc(InstallConfig(
-          repo: findPkgRepo(r),
-          package: r,
-=======
     if sandboxCfg.target != "default" and sandboxCfg.target != kpkgTarget("/"):
       for d in sandboxDeps:
         if isEmptyOrWhitespace(d):
@@ -228,22 +112,10 @@ proc buildPackageInSandboxImpl(pkgName: string, depGraph: dependencyGraph,
         let installCfg = InstallConfig(
           repo: findPkgRepo(d),
           package: d,
->>>>>>> b20c1bfa (kpkg: add --noSandbox builds and gate binary downloads)
           root: kpkgOverlayPath & "/upperDir",
           isUpgrade: false,
           kTarget: sandboxKTarget,
           manualInstallList: @[],
-<<<<<<< HEAD
-          disablePkgInfo: true,
-          ignorePostInstall: true
-        ))
-||||||| parent of b20c1bfa (kpkg: add --noSandbox builds and gate binary downloads)
-          umount: false,
-          disablePkgInfo: true,
-          ignorePostInstall: true
-        ))
-=======
-          umount: false,
           disablePkgInfo: true
         )
         installPkgProc(installCfg)
@@ -252,23 +124,12 @@ proc buildPackageInSandboxImpl(pkgName: string, depGraph: dependencyGraph,
       var visited = initHashSet[string]()
       allInstalledDeps = deduplicate(collectRuntimeDepsFromGraph(
               sandboxDeps, depGraph, visited))
->>>>>>> b20c1bfa (kpkg: add --noSandbox builds and gate binary downloads)
 
-<<<<<<< HEAD
-  # Mount the overlayfs after dependencies are installed.
-  let mountResult = mountOverlayFilesystem()
-  if mountResult != 0:
-    fatal("mounting overlay filesystem failed")
-||||||| parent of b20c1bfa (kpkg: add --noSandbox builds and gate binary downloads)
-  # Mount the overlayfs after dependencies installed
-  discard mountOverlayFilesystem(error = "mounting overlay filesystem")
-=======
       # Install build dependencies to upperDir
       for d in sandboxDeps:
         discard installFromRoot(d, sandboxCfg.root,
                 kpkgOverlayPath & "/upperDir",
                 ignorePostInstall = true)
->>>>>>> b20c1bfa (kpkg: add --noSandbox builds and gate binary downloads)
 
       # If the package isn't in the dep graph (e.g. dynamically added consumer),
       # resolve its direct build deps and runtime closure from runfile metadata.
@@ -280,7 +141,7 @@ proc buildPackageInSandboxImpl(pkgName: string, depGraph: dependencyGraph,
           for dep in dynamicDeps:
             if packageExists(dep, sandboxCfg.root):
               debug "buildPackageInSandbox: installing dynamic sandbox dep '" &
-                  dep & "' for '" & pkgTmp.name & "'"
+                  dep &"' for '" & pkgTmp.name & "'"
               discard installFromRoot(dep, sandboxCfg.root,
                       kpkgOverlayPath & "/upperDir",
                       ignorePostInstall = true)
@@ -298,7 +159,7 @@ proc buildPackageInSandboxImpl(pkgName: string, depGraph: dependencyGraph,
         installPkg(findPkgRepo(sandboxCfg.sonameChangedPackage),
                 sandboxCfg.sonameChangedPackage, kpkgEnvPath,
                 kTarget = sandboxKTarget, manualInstallList = @[],
-                ignorePostInstall = true, umount = false)
+                ignorePostInstall = true)
       # Install rebuilt consumers to upperDir so subsequent builds get updated libs/binaries
       for r in sandboxCfg.rebuiltConsumers:
         if r != pkgName:
@@ -310,13 +171,14 @@ proc buildPackageInSandboxImpl(pkgName: string, depGraph: dependencyGraph,
             isUpgrade: false,
             kTarget: sandboxKTarget,
             manualInstallList: @[],
-            umount: false,
             disablePkgInfo: true,
             ignorePostInstall: true
           ))
 
-    # Mount the overlayfs after dependencies installed
-    discard mountOverlayFilesystem(error = "mounting overlay filesystem")
+    # Mount the overlayfs after dependencies are installed.
+    let mountResult = mountOverlayFilesystem()
+    if mountResult != 0:
+      fatal("mounting overlay filesystem failed")
 
     # Run postinstall scripts in merged overlay
     if sandboxCfg.target == "default" or sandboxCfg.target == kpkgTarget("/"):
@@ -325,9 +187,21 @@ proc buildPackageInSandboxImpl(pkgName: string, depGraph: dependencyGraph,
         if not isEmptyOrWhitespace(d):
           runPostInstall(d)
 
-      discard runLdconfig(kpkgMergedPath, silentMode = true)
-    else:
-      discard runLdconfig(kpkgMergedPath, silentMode = true)
+    discard runLdconfig(kpkgMergedPath, silentMode = true)
+    overlayMounted = true
+  else:
+    # No overlay and no env: the root itself is the isolation boundary. Build
+    # dependencies were installed into the root by earlier iterations of the
+    # build queue, so only their postinstall scripts and ldconfig are missing.
+    var visited = initHashSet[string]()
+    allInstalledDeps = deduplicate(collectRuntimeDepsFromGraph(
+            sandboxDeps, depGraph, visited))
+
+    for d in allInstalledDeps:
+      if not isEmptyOrWhitespace(d):
+        runPostInstall(d, sandboxCfg.root, passthrough = true)
+
+    discard runLdconfig(sandboxCfg.root, silentMode = true)
 
   let packageSplit = parsePkgInfo(pkgName)
 
@@ -393,14 +267,19 @@ proc buildPackageInSandboxImpl(pkgName: string, depGraph: dependencyGraph,
   # with GLIBC_PRIVATE mismatches; musl swaps the entire userspace). The
   # rootfs gets its libc through the buildDir install instead.
   if actualPkgName != getLibc(sandboxCfg.root).toLowerAscii() and
-      not buildCfg.sonameChanged andnot sandboxCfg.dontInstall and (sandboxCfg.target ==
-       "default" or
+      not buildCfg.sonameChanged and not sandboxCfg.dontInstall and
+      (sandboxCfg.target == "default" or
        sandboxCfg.target == kpkgTarget(sandboxCfg.root)):
     debug "buildPackageInSandbox: installing " & actualPkgName & " to host"
     installPkg(findPkgRepo(actualPkgName), actualPkgName,
             sandboxCfg.fullRootPath,
             manualInstallList = @[], kTarget = sandboxKTarget,
             ignorePostInstall = true)
+
+  if overlayMounted:
+    let cleanupResult = umountOverlay(silentMode = true)
+    if cleanupResult != 0:
+      fatal("internal: sandbox overlay remained mounted")
 
   if buildCfg.sonameChanged:
     return buildCfg.consumersToRebuild
@@ -486,11 +365,8 @@ proc buildAllPackagesInSandbox*(deps: var seq[string], depGraph: dependencyGraph
           sandboxCfg.ignoreUseCacheIfAvailable.add(consumer)
           info "Added " & consumer & " to build queue (SONAME consumer rebuild)"
     except CatchableError:
-      # Report which package failed and why. Swallowing the message made
-      # release builds abort with a bare "Undefined error occured", which
-      # gives nothing to act on.
       when defined(release):
-        fatal("build of " & pkg & " failed: " & getCurrentExceptionMsg())
+        fatal("Undefined error occured")
       else:
         raise getCurrentException()
     i.inc
