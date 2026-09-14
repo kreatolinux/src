@@ -545,7 +545,6 @@ proc canDownloadBinary*(package: string, version: string, binrepos: seq[string],
   ## Check if a binary is downloadable from any mirror (without actually
   ## downloading). Uses a native HTTP HEAD request with a short timeout
   ## instead of spawning curl.
->>>>>>> b20c1bfa (kpkg: add --noSandbox builds and gate binary downloads)
 
   let tarball = package & "-" & version & ".kpkg"
 
@@ -1033,7 +1032,8 @@ proc install_bin(packages: seq[string], binrepos: seq[string], root: string,
             info("Use 'kpkg build " & pkgParsed.name & "#" & commitToUse & "' to build from source at this commit")
             quit(1)
 
-      if pkgParsed.name notin versions or isEmptyOrWhitespace(versions[pkgParsed.name]):
+      if pkgParsed.name notin versions or isEmptyOrWhitespace(versions[
+          pkgParsed.name]):
         versions[pkgParsed.name] = versionToUse
       commits[pkgParsed.name] = commitToUse
       downloadNames.add(pkgParsed.name)
