@@ -71,18 +71,24 @@ proc detectInit(root: string): string =
       probe = "init"
 
   let p = probe.toLowerAscii()
-  if "systemd" in p:
-    return "systemd"
-  elif "jumpstart" in p:
-    return "jumpstart"
-  elif "openrc" in p:
-    return "openrc"
-  elif "runit" in p:
-    return "runit"
-  elif "busybox" in p or p == "init" or p == "":
+
+  # First pattern that appears in the probe wins; init implementations
+  # usually announce themselves in the process name.
+  const knownInits = [
+    ("systemd", "systemd"),
+    ("jumpstart", "jumpstart"),
+    ("openrc", "openrc"),
+    ("runit", "runit"),
+    ("busybox", "busybox"),
+  ]
+  for (pattern, name) in knownInits:
+    if pattern in p:
+      return name
+
+  if p in ["", "init"]:
     return "busybox"
-  else:
-    return probe
+
+  return probe
 
 proc synthesizeRelease*(root: string): Config =
   ## Builds a Kreato-shaped release config from what a foreign host exposes.
