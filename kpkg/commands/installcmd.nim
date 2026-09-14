@@ -203,12 +203,16 @@ proc installPkgImpl(repo: string, package: string, root: string, runf = runFile(
   debug "installPkg ran, repo: '"&repo&"', package: '"&package&"', root: '"&root&"', manualInstallList: '"&manualInstallList.join(
       " ")&"', kTarget: '"&kTarget&"'"
 
-  # If the target root doesn't have /etc/kreato-release (e.g. sandbox upperDir),
-  # fall back to the env path so kpkgTarget() can still read it.
-  let kreatoReleasePath = if fileExists(root & "/etc/kreato-release"):
-    root & "/etc/kreato-release"
-  else:
-    kpkgEnvPath & "/etc/kreato-release"
+  # Resolve which release file describes the install root. A sandbox upperDir has
+  # no release file of its own, so fall back to the env copy. When neither exists
+  # (a foreign host during bootstrap) pass "" and let hostSystem synthesize one.
+  let kreatoReleasePath =
+    if fileExists(root / kreatoReleaseName):
+      root / kreatoReleaseName
+    elif fileExists(kpkgEnvPath / kreatoReleaseName):
+      kpkgEnvPath / kreatoReleaseName
+    else:
+      ""
 
   let isUpgradeActual = (packageExists(package, root) and getPackage(package,
           root).version != pkg.versionString) or isUpgrade
@@ -545,6 +549,8 @@ proc canDownloadBinary*(package: string, version: string, binrepos: seq[string],
   let tarball = package & "-" & version & ".kpkg"
 
   for binrepo in binrepos:
+    if isEmptyOrWhitespace(binrepo):
+      continue
     let url = "https://" & binrepo & "/archives/system/" & kTarget & "/" & tarball
     try:
       var client = newHttpClient(timeout = 10, userAgent = "kpkg")
@@ -579,7 +585,7 @@ proc down_bin*(package: string, binrepos: seq[string], root: string,
 
   var downSuccess: bool
 
-  var binreposFinal = binrepos
+  var binreposFinal = binrepos.filterIt(not isEmptyOrWhitespace(it))
 
   var override: Config
 
@@ -591,7 +597,17 @@ proc down_bin*(package: string, binrepos: seq[string], root: string,
   let binreposOverride = override.getSectionValue("Mirror", "binaryMirrors")
 
   if not isEmptyOrWhitespace(binreposOverride):
-    binreposFinal = binreposOverride.split(" ")
+    binreposFinal = binreposOverride.split(" ").filterIt(
+            not isEmptyOrWhitespace(it))
+
+  # An empty binary mirror list means "never use binaries". This is the
+  # bootstrap path for a brand-new target: with no mirrors configured every
+  # install falls back to a source build instead of failing on a download
+  # of a binary that cannot exist yet.
+  if binreposFinal.len == 0:
+    debug "down_bin: no binary mirrors configured, skipping binary for '" &
+        package & "'"
+    return
 
   var pkgVersion = version
 
@@ -624,6 +640,20 @@ proc down_bin*(package: string, binrepos: seq[string], root: string,
     debug "Tarball already exists for '"&package&"', not gonna download again"
     downSuccess = true
   elif not offline:
+    # Ask the mirrors whether the binary exists before attempting a download.
+    # On a target with no published binaries (e.g. a new arch during
+    # bootstrap) this replaces a chain of failed downloads with one clear
+    # message, and lets ignoreDownloadErrors callers fall back to source.
+    if commit == "" and not canDownloadBinary(package, pkgVersion,
+            binreposFinal, kTarget):
+      const hint = "use 'kpkg build' to build it from source, or check Repositories.binRepos"
+      if ignoreErrors or ignoreDownloadErrors:
+        debug "down_bin: no binary for '" & package & "' on target '" &
+            kTarget & "'; " & hint
+        return
+      fatal("no binary of '" & package & "' for target '" & kTarget &
+          "' exists on any mirror; " & hint)
+
     for binrepo in binreposFinal:
       try:
         download("https://"&binrepo&"/archives/system/"&kTarget&"/"&tarball, path)
@@ -1002,7 +1032,8 @@ proc install_bin(packages: seq[string], binrepos: seq[string], root: string,
             info("Use 'kpkg build " & pkgParsed.name & "#" & commitToUse & "' to build from source at this commit")
             quit(1)
 
-      if pkgParsed.name notin versions or isEmptyOrWhitespace(versions[pkgParsed.name]):
+      if pkgParsed.name notin versions or isEmptyOrWhitespace(versions[
+          pkgParsed.name]):
         versions[pkgParsed.name] = versionToUse
       commits[pkgParsed.name] = commitToUse
       downloadNames.add(pkgParsed.name)

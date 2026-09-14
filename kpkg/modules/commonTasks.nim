@@ -10,6 +10,9 @@ import runparser
 import posix_utils
 import gitutils
 import times
+import hostSystem
+
+export hostSystem
 
 proc isEmptyDir(dir: string): bool =
   # Checks if a directory is empty or not.
@@ -145,18 +148,13 @@ proc createDirWithPermissionsAndOwnership*(source, dest: string,
   setFilePermissions(dest, getFilePermissions(source), followSymlinks)
 
 proc getInit*(root: string, kreatoPath = ""): string =
-  let path = if kreatoPath.len > 0: kreatoPath else: root & "/etc/kreato-release"
-  try:
-    return loadConfig(path).getSectionValue("Core", "init")
-  except CatchableError:
-    fatal("couldn't load " & path)
+  ## Init system of `root`. On a foreign host this comes from the synthesized
+  ## release (see hostSystem) instead of fataling.
+  resolveRelease(root, kreatoPath).getSectionValue("Core", "init")
 
 proc getLibc*(root: string, kreatoPath = ""): string =
-  let path = if kreatoPath.len > 0: kreatoPath else: root & "/etc/kreato-release"
-  try:
-    return loadConfig(path).getSectionValue("Core", "libc")
-  except CatchableError:
-    fatal("couldn't load " & path)
+  ## libc of `root`. On a foreign host this comes from the synthesized release.
+  resolveRelease(root, kreatoPath).getSectionValue("Core", "libc")
 
 proc systemTarget*(root: string, kreatoPath = ""): string =
   var target = uname().machine&"-linux"
@@ -170,15 +168,19 @@ proc systemTarget*(root: string, kreatoPath = ""): string =
   return target
 
 
-proc kpkgTarget*(root: string, customTarget = "", releasePath = ""): string =
-  let releaseFile = if releasePath.len >
-      0: releasePath else: root&"/etc/kreato-release"
-  let conf = loadConfig(releaseFile)
+proc kpkgTarget*(root: string, customTarget = "",
+        releasePath = ""): string =
+  ## Full kpkg target string: <arch>-linux-<libc>-<init>-<tlsLibrary>.
+  ##
+  ## Reads the release file for `root` through hostSystem, so a foreign host
+  ## without /etc/kreato-release resolves to a synthesized target instead of
+  ## aborting the whole command.
+  let conf = resolveRelease(root, releasePath)
   var system: string
   if not isEmptyOrWhitespace(customTarget):
     system = customTarget
   else:
-    system = systemTarget(root, releaseFile)
+    system = systemTarget(root, releasePath)
 
   return system&"-"&conf.getSectionValue("Core",
           "init")&"-"&conf.getSectionValue("Core", "tlsLibrary")

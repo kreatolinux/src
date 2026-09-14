@@ -55,7 +55,9 @@ proc initKrelease(conf: Config) =
           "BuildDirectory")&"/etc/kreato-release")
 
 proc kreastrapInstall(package: string, installWithBinaries: bool,
-        buildDir: string, useCacheIfPossible = true, target = kpkgTarget(buildDir)) =
+        buildDir: string, useCacheIfPossible = true, target = kpkgTarget(
+            buildDir),
+        noSandbox = false) =
   # Install a package.
   info "Installing package '"&package&"'"
 
@@ -73,7 +75,8 @@ proc kreastrapInstall(package: string, installWithBinaries: bool,
     discard build(yes = true, root = "/", packages = toSeq([
             package]),
             useCacheIfAvailable = useCacheIfPossible,
-            forceInstallAll = true, target = targetFin)
+            forceInstallAll = true, target = targetFin,
+            noSandbox = noSandbox)
     discard install(toSeq([package]), buildDir, true, offline = true,
             target = targetFin, basePackage = true)
 
@@ -90,8 +93,14 @@ proc converterArch(arch: string): string =
       return arch
 
 proc kreastrap(buildType = "builder", arch = "amd64",
-        useCacheIfPossible = true) =
+        useCacheIfPossible = true, noSandbox = false) =
   ## Build a Kreato Linux rootfs.
+  ##
+  ## With noSandbox, every source build skips the kpkg sandbox and builds
+  ## directly in the root it runs on. Use this when kreastrap itself runs
+  ## inside a chroot or seed image (e.g. bootstrapping a foreign arch from a
+  ## Ubuntu base): there is no kpkg environment or overlay stack to set up
+  ## there, and the chroot is already the isolation boundary.
 
   if not isAdmin():
     fatal "You have to be root to continue."
@@ -165,18 +174,18 @@ proc kreastrap(buildType = "builder", arch = "amd64",
 
   # Install kreato-fs-essentials
   kreastrapInstall("kreato-fs-essentials", installWithBinaries, buildDir,
-          useCacheIfPossible, target)
+          useCacheIfPossible, target, noSandbox)
 
   # Installation of TLS library
   case conf.getSectionValue("Core", "TlsLibrary").normalize():
     of "openssl":
       info "Installing OpenSSL as TLS Library"
       kreastrapInstall("openssl", installWithBinaries, buildDir,
-              useCacheIfPossible, target)
+              useCacheIfPossible, target, noSandbox)
     of "libressl":
       info "Installing LibreSSL as TLS library"
       kreastrapInstall("libressl", installWithBinaries, buildDir,
-              useCacheIfPossible, target)
+              useCacheIfPossible, target, noSandbox)
     else:
       fatal conf.getSectionValue("Core",
               "TlsLibrary")&" is not available as a TLS library option."
@@ -186,17 +195,17 @@ proc kreastrap(buildType = "builder", arch = "amd64",
     of "gcc":
       info "Installing GCC as Compiler"
       kreastrapInstall("gcc", installWithBinaries, buildDir,
-              useCacheIfPossible, target)
+              useCacheIfPossible, target, noSandbox)
       set_default_cc(buildDir, "gcc")
       kreastrapInstall("gmake", installWithBinaries, buildDir,
-              useCacheIfPossible, target)
+              useCacheIfPossible, target, noSandbox)
     of "clang":
       info "Installing clang as Compiler"
       kreastrapInstall("llvm", installWithBinaries, buildDir,
-              useCacheIfPossible, target)
+              useCacheIfPossible, target, noSandbox)
       set_default_cc(buildDir, "clang")
       kreastrapInstall("gmake", installWithBinaries, buildDir,
-              useCacheIfPossible, target)
+              useCacheIfPossible, target, noSandbox)
     of "no":
       warn "Skipping compiler installation"
     else:
@@ -212,11 +221,11 @@ proc kreastrap(buildType = "builder", arch = "amd64",
 
       info "Installing glibc as libc"
       kreastrapInstall("glibc", installWithBinaries, buildDir,
-              useCacheIfPossible, target)
+              useCacheIfPossible, target, noSandbox)
     of "musl":
       info "Installing musl as libc"
       kreastrapInstall("musl", installWithBinaries, buildDir,
-              useCacheIfPossible, target)
+              useCacheIfPossible, target, noSandbox)
     else:
       fatal conf.getSectionValue("Core",
               "Libc")&" is not available as a Libc option."
@@ -226,12 +235,12 @@ proc kreastrap(buildType = "builder", arch = "amd64",
     of "busybox":
       info "Installing BusyBox as Coreutils"
       kreastrapInstall("busybox", installWithBinaries, buildDir,
-              useCacheIfPossible, target)
+              useCacheIfPossible, target, noSandbox)
     of "gnu":
       info "Installing GNU Coreutils as Coreutils"
 
       kreastrapInstall("gnu-core", installWithBinaries, buildDir,
-              useCacheIfPossible, target)
+              useCacheIfPossible, target, noSandbox)
 
       # /bin/sh may already exist (e.g. busybox) from the base rootfs;
       # replace it so GNU coreutils environments get bash as the default sh.
@@ -251,27 +260,32 @@ proc kreastrap(buildType = "builder", arch = "amd64",
     of "jumpstart":
       info "Installing Jumpstart as the init system"
       kreastrapInstall("jumpstart", installWithBinaries, buildDir,
-              useCacheIfPossible, target)
+              useCacheIfPossible, target, noSandbox)
       removeFile(buildDir&"/sbin/init")
       createSymlink("/bin/jumpstart", buildDir&"/sbin/init")
     of "openrc":
       info "Installing OpenRC as the init system"
       kreastrapInstall("openrc", installWithBinaries, buildDir,
-              useCacheIfPossible, target)
+              useCacheIfPossible, target, noSandbox)
       removeFile(buildDir&"/sbin/init")
       createSymlink("/usr/bin/openrc-init", buildDir&"/sbin/init")
     of "systemd":
       info "Installing systemd as the init system"
       kreastrapInstall("systemd", installWithBinaries, buildDir,
-              useCacheIfPossible, target)
+              useCacheIfPossible, target, noSandbox)
       kreastrapInstall("dbus", installWithBinaries, buildDir,
-              useCacheIfPossible, target)
+              useCacheIfPossible, target, noSandbox)
       removeFile(buildDir&"/sbin/init")
       createSymlink("/lib/systemd/systemd", buildDir&"/sbin/init")
 
   # Install shadow, and enable it
   kreastrapInstall("shadow", installWithBinaries, buildDir,
-          useCacheIfPossible, target)
+          useCacheIfPossible, target, noSandbox)
+
+  # kpkg removes its source dir after builds; kreastrap's cwd may then point
+  # into the removed tree, which makes the chroot execs below fail with an
+  # unhandled ENOENT. Move to a directory that always exists first.
+  setCurrentDir(getAppDir())
 
   let enableShadowedPw = execCmdEx("chroot "&buildDir&" /usr/sbin/pwconv")
   if enableShadowedPw.exitcode != 0:
@@ -280,10 +294,14 @@ proc kreastrap(buildType = "builder", arch = "amd64",
 
   for package in caCertificatePackages():
     kreastrapInstall(package, installWithBinaries, buildDir,
-            useCacheIfPossible, target)
+            useCacheIfPossible, target, noSandbox)
 
   # Generate certdata here
   info "Generating CA certificates"
+
+  # kpkg may have deleted its source dir (and kreastrap's cwd with it)
+  # while installing the ca-certificates chain.
+  setCurrentDir(getAppDir())
 
   let caCertCmd = execCmdEx("chroot "&buildDir&" /bin/sh -c 'update-ca-trust'")
 
@@ -297,19 +315,20 @@ proc kreastrap(buildType = "builder", arch = "amd64",
 
   info "Installing Python (and pip)"
   kreastrapInstall("python", installWithBinaries, buildDir,
-          useCacheIfPossible, target)
+          useCacheIfPossible, target, noSandbox)
   kreastrapInstall("python-pip", installWithBinaries, buildDir,
-          useCacheIfPossible, target)
+          useCacheIfPossible, target, noSandbox)
 
   if conf.getSectionValue("Extras", "ExtraPackages") != "":
     info "Installing extra packages"
     for i in conf.getSectionValue("Extras", "ExtraPackages").split(" "):
       kreastrapInstall(i, installWithBinaries, buildDir,
-              useCacheIfPossible, target)
+              useCacheIfPossible, target, noSandbox)
 
 when isMainModule:
   dispatch kreastrap, help = {
               "buildType": "Specify the build type",
               "arch": "Specify the architecture",
-              "useCacheIfPossible": "Use already built packages if possible"
+              "useCacheIfPossible": "Use already built packages if possible",
+              "noSandbox": "Build packages directly in the current root without the kpkg sandbox (for chroot/seed builds)"
   }

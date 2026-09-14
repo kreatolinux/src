@@ -124,7 +124,11 @@ proc builderImpl(cfg: var BuildConfig): bool =
   # SONAME change detection: check if this package installs .so files with
   # different version suffixes than what's currently installed. If so, queue
   # consumers for rebuild.
-  if not cfg.dontInstall and not cfg.isBootstrap:
+  # noSandbox bootstrap builds a fresh root: the topo order already places
+  # consumers after providers, and the SONAME consumer mechanism (meant for
+  # upgrades on a live system) would requeue big packages like gcc for every
+  # library whose soname differs from nothing.
+  if not cfg.noSandbox and not cfg.dontInstall and not cfg.isBootstrap:
     if hasSonameChanged(kpkgBuildRoot, cfg.actualPackage, cfg.actualRoot):
       cfg.sonameChanged = true
       # Save CWD and change to repo root so getRuntimeDependents' dirExists check works
@@ -229,7 +233,13 @@ proc build*(no = false, yes = false, root = "/",
                     dontInstall = false, tests = true,
                             ignorePostInstall = false, isInstallDir = false,
                             isUpgrade = false, target = "default",
-                            bootstrap = false): int =
+                            bootstrap = false, noSandbox = false): int =
+  ## Build and install packages.
+  ##
+  ## With noSandbox, kpkg skips the bwrap/overlay sandbox and the kpkg build
+  ## env entirely and builds directly in root. Use this inside a chroot or
+  ## seed image (e.g. bootstrapping a foreign arch): the chroot is the
+  ## isolation boundary there.
   ## Build and install packages.
   ##
   ## Supports commit-based builds with syntax: package#commit
@@ -293,7 +303,8 @@ proc build*(no = false, yes = false, root = "/",
             isInstallDir = isInstallDir,
             isUpgrade = isUpgrade,
             target = target,
-            bootstrap = true
+            bootstrap = true,
+            noSandbox = noSandbox
           )
           if bootstrapResult != 0:
             fatal "Bootstrap build failed for '" & pkg & "'"
@@ -373,7 +384,8 @@ proc build*(no = false, yes = false, root = "/",
       pkgPaths = pkgPaths,
       commit = commitCtx.commit,
       commitRepo = commitCtx.commitRepo,
-      headRunfileCache = commitCtx.headRunfileCache
+      headRunfileCache = commitCtx.headRunfileCache,
+      noSandbox = noSandbox
     )
 
     # Build all packages in sandbox

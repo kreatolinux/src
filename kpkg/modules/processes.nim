@@ -43,6 +43,11 @@ proc execCmdKpkg*(command: string, error = "none", silentMode = false): tuple[
 
   let res = waitForExit(process)
 
+  # Release the pipe descriptors: kpkg runs thousands of commands over a
+  # bootstrap and never closing the Process leaked fds until the process
+  # hit its nofile limit ('Too many open files') mid-run.
+  process.close()
+
   if error != "none" and res != 0:
     fatal error&" failed"
 
@@ -90,7 +95,14 @@ proc runLdconfig*(root: string, silentMode = false): int =
   let cmd = if root == "/": "ldconfig"
             else: "bwrap --bind " & root & " / /bin/sh -c ldconfig"
   debug "runLdconfig: running '" & cmd & "'"
-  let res = execCmdKpkg(cmd, silentMode = silentMode)
+  var res: tuple[output: string, exitCode: int]
+  try:
+    res = execCmdKpkg(cmd, silentMode = silentMode)
+  except CatchableError as e:
+    # A missing ldconfig (e.g. not on PATH in a minimal chroot) must not
+    # abort the whole build; report it and let the caller decide.
+    warn "runLdconfig: could not run '" & cmd & "': " & e.msg
+    return 1
   if res.exitCode != 0:
     warn "ldconfig failed (cmd: " & cmd & ", exitCode: " & $res.exitCode & ")"
     debug "ldconfig output: " & res.output
@@ -113,7 +125,13 @@ proc execEnv*(command: string, error = "none", passthrough = false,
   if passthrough:
     # Use single quotes for the sh -c argument to avoid escaping issues
     let escapedCmd = command.replace("'", "'\\''")
-    return execCmdKpkg(envPrefix&"/bin/sh -c '"&escapedCmd&"'", error,
+    # Match the sandbox behavior: as of coreutils 8.68+ (and newer autoconf),
+    # running ./configure as root needs this or it refuses to run. Passthrough
+    # runs the same build scripts, so it needs the same escape hatch.
+    var unsafePrefix = envPrefix
+    if not asRoot:
+      unsafePrefix = "FORCE_UNSAFE_CONFIGURE=1 " & envPrefix
+    return execCmdKpkg(unsafePrefix&"/bin/sh -c '"&escapedCmd&"'", error,
             silentMode = silentMode)
   else:
     debug "execEnv: checking if path exists: " & path

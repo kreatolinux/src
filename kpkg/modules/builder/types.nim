@@ -112,6 +112,7 @@ type
     # SONAME consumer rebuild tracking
     sonameChangedPackage*: string ## Package whose SONAME changed, install for consumers
     rebuiltConsumers*: seq[string] ## Rebuilt consumers to install in subsequent sandboxes
+    noSandbox*: bool ## Build directly in root (chroot is the isolation boundary)
 
   InstallConfig* = object
     ## Configuration for package installation to overlay.
@@ -187,7 +188,8 @@ proc initSandboxConfig*(fullRootPath: string, target: string,
                         root: string,
                         pkgPaths: Table[string, string],
                         commit = "", commitRepo = "",
-                        headRunfileCache = initTable[string, runFile]()): SandboxConfig =
+                        headRunfileCache = initTable[string, runFile](),
+                        noSandbox = false): SandboxConfig =
   ## Creates a SandboxConfig from individual parameters.
   SandboxConfig(
     fullRootPath: fullRootPath,
@@ -209,7 +211,8 @@ proc initSandboxConfig*(fullRootPath: string, target: string,
     commitRepo: commitRepo,
     headRunfileCache: headRunfileCache,
     sonameChangedPackage: "",
-    rebuiltConsumers: @[]
+    rebuiltConsumers: @[],
+    noSandbox: noSandbox
   )
 
 proc toCacheConfig*(cfg: BuildConfig): CacheConfig =

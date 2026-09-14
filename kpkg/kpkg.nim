@@ -101,7 +101,8 @@ dispatchMulti(
     "forceInstallAll": "Force reinstall every dependency",
     "isInstallDir": "Build package from specified path",
     "ignorePostInstall": "Ignore if postInstall fails",
-    "bootstrap": "Perform bootstrap build"
+    "bootstrap": "Perform bootstrap build",
+    "noSandbox": "Build directly in root without the bwrap/overlay sandbox (for chroot/seed builds)"
   },
     suppress = @["isUpgrade"] # Internal variable for commands/upgradecmd
   ],
