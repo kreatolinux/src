@@ -299,6 +299,10 @@ proc kreastrap(buildType = "builder", arch = "amd64",
   # Generate certdata here
   info "Generating CA certificates"
 
+  # kpkg may have deleted its source dir (and kreastrap's cwd with it)
+  # while installing the ca-certificates chain.
+  setCurrentDir(getAppDir())
+
   let caCertCmd = execCmdEx("chroot "&buildDir&" /bin/sh -c 'update-ca-trust'")
 
   if caCertCmd.exitcode != 0:
