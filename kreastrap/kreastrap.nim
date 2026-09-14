@@ -282,6 +282,11 @@ proc kreastrap(buildType = "builder", arch = "amd64",
   kreastrapInstall("shadow", installWithBinaries, buildDir,
           useCacheIfPossible, target, noSandbox)
 
+  # kpkg removes its source dir after builds; kreastrap's cwd may then point
+  # into the removed tree, which makes the chroot execs below fail with an
+  # unhandled ENOENT. Move to a directory that always exists first.
+  setCurrentDir(getAppDir())
+
   let enableShadowedPw = execCmdEx("chroot "&buildDir&" /usr/sbin/pwconv")
   if enableShadowedPw.exitcode != 0:
     debug enableShadowedPw.output
