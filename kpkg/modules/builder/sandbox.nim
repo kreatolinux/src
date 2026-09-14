@@ -94,6 +94,15 @@ proc buildPackageInSandboxImpl(pkgName: string, depGraph: dependencyGraph,
   debug "sandboxDeps for " & pkgTmp.name & " = \"" & sandboxDeps.join(" ") & "\""
   var allInstalledDeps: seq[string]
 
+
+
+  # Resolve kTarget for tarball lookup — matches how the builder stores tarballs
+  let sandboxKTarget = if sandboxCfg.target == "default" or sandboxCfg.target ==
+      kpkgTarget("/"):
+    kpkgTarget(sandboxCfg.fullRootPath)
+  else:
+    sandboxCfg.target
+
   var overlayMounted = false
   if not sandboxCfg.noSandbox:
     # Prepare the tmpfs backing the overlay.  This procedure owns the entire
@@ -141,7 +150,7 @@ proc buildPackageInSandboxImpl(pkgName: string, depGraph: dependencyGraph,
           for dep in dynamicDeps:
             if packageExists(dep, sandboxCfg.root):
               debug "buildPackageInSandbox: installing dynamic sandbox dep '" &
-                  dep &"' for '" & pkgTmp.name & "'"
+                  dep & "' for '" & pkgTmp.name & "'"
               discard installFromRoot(dep, sandboxCfg.root,
                       kpkgOverlayPath & "/upperDir",
                       ignorePostInstall = true)
