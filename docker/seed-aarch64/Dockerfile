@@ -81,7 +81,9 @@ RUN sh build.sh --projects kpkg,kreastrap \
     && rm -f /usr/lib/aarch64-linux-gnu/libssl.so \
              /usr/lib/aarch64-linux-gnu/libssl.a \
              /usr/lib/aarch64-linux-gnu/libcrypto.so \
-             /usr/lib/aarch64-linux-gnu/libcrypto.a
+             /usr/lib/aarch64-linux-gnu/libcrypto.a \
+    && mkdir -p /etc/ld.so.conf.d \
+    && echo /usr/lib64 > /etc/ld.so.conf.d/bootstrap-lib64.conf
 
 # Pin the release identity the seed builds against. Without this the
 # synthesized release would depend on whatever Ubuntu ships; with it the kpkg
