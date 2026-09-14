@@ -1,4 +1,4 @@
-# Seed image for bootstrapping Kreato Linux aarch64 from a foreign base.
+# Seed image for bootstrapping Klinux aarch64 from a foreign base.
 #
 # This is stage 1 of the aarch64 bootstrap (issue #108): a Ubuntu arm64 base
 # with a pinned Nim toolchain and a freshly built kpkg/kreastrap. There is no
@@ -71,7 +71,7 @@ WORKDIR /work
 # searches before /usr/lib: it picks libssl.so there, or - with the symlink
 # gone - falls back to the static libssl.a in the same dir, which is worse
 # (undefined OpenSSL 3.5+/4 symbols surface only at import, e.g. python's
-# _ssl). Kreato's own OpenSSL (installed into the root during bootstrap,
+# _ssl). Klinux's own OpenSSL (installed into the root during bootstrap,
 # soname .4) must win once it exists. kpkg itself keeps running against
 # Ubuntu's runtime libssl.so.3, which stays.
 RUN sh build.sh --projects kpkg,kreastrap \

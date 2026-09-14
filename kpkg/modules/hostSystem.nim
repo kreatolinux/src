@@ -1,22 +1,22 @@
-# Resolves the "system release" for a root, on Kreato Linux and on foreign hosts.
+# Resolves the "system release" for a root, on Klinux and on foreign hosts.
 #
-# Kreato stores its identity in /etc/kreato-release. kpkgTarget(), getLibc() and
+# Klinux stores its identity in /etc/kreato-release. kpkgTarget(), getLibc() and
 # getInit() all need those Core values in order to build a target string such as
 # "aarch64-linux-gnu-jumpstart-openssl". On a foreign host (Ubuntu, Debian,
 # Fedora, Arch, Alpine) that file does not exist, which used to make kpkg fatal
 # before it could do anything at all. That is the main reason kpkg could not be
-# used to bootstrap Kreato onto a foreign base.
+# used to bootstrap Klinux onto a foreign base.
 #
 # Resolution order for a given root:
 #   1. an explicit release path handed in by the caller
-#   2. <root>/etc/kreato-release           (a real Kreato system or rootfs)
+#   2. <root>/etc/kreato-release           (a real Klinux system or rootfs)
 #   3. $KPKG_HOST_RELEASE                  (explicit override, set by seed images)
 #   4. /etc/kpkg/host-release.conf         (persisted override)
 #   5. synthesized from /etc/os-release    (best effort, warns once)
 #
 # A synthesized release is never written to disk. It exists only so that target
 # strings and libc/init lookups keep working during a bootstrap build. Callers
-# that genuinely need a real Kreato release should check isKreato() themselves.
+# that genuinely need a real Klinux release should check isKreato() themselves.
 
 import os
 import strutils
@@ -50,7 +50,7 @@ proc isKreato*(root: string): bool =
   fileExists(root / kreatoReleaseName)
 
 proc isForeign*(root: string): bool =
-  ## True when root is not a Kreato system.
+  ## True when root is not a Klinux system.
   not isKreato(root)
 
 proc detectInit(root: string): string =
@@ -91,7 +91,7 @@ proc detectInit(root: string): string =
   return probe
 
 proc synthesizeRelease*(root: string): Config =
-  ## Builds a Kreato-shaped release config from what a foreign host exposes.
+  ## Builds a Klinux-shaped release config from what a foreign host exposes.
   result = newConfig()
 
   let id = osReleaseField(root, "ID").toLowerAscii()
