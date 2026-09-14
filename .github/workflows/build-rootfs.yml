@@ -5,15 +5,6 @@ on:
     - cron: '0 0 * * 0'
 
   workflow_dispatch:
-    inputs:
-      srcBranch:
-        description: "src branch to build from (aarch64 leg)"
-        required: false
-        default: "feat/aarch64-bootstrap"
-      kpkgRepoBranch:
-        description: "kpkg-repo branch with the aarch64 runfile fixes"
-        required: false
-        default: "feat/aarch64-runfiles"
 
 jobs:
   build:
@@ -79,59 +70,44 @@ jobs:
           path: ${{ github.workspace }}/kreato-linux-builder-repo-*.tar.gz
           if-no-files-found: error
 
-  # aarch64 bootstrap: a foreign Ubuntu arm64 base produces the first native
-  # Kreato aarch64 builder rootfs. Requires the runfile fixes on the
-  # kpkg-repo branch selected above (merged into master, this default works).
+  # aarch64 builder rootfs: built inside the aarch64 builder container itself
+  # (self-hosting). The container's kpkg-repo clone is reset to origin/master
+  # so it always carries the current runfiles.
   build-arm64:
     runs-on: ubuntu-24.04-arm
+    container:
+        image: ghcr.io/kreatolinux/builder:aarch64
+        options: --privileged
     steps:
-      - name: Checkout src (aarch64 bootstrap branch)
+
+      - name: Checkout
         uses: actions/checkout@v6
-        with:
-          ref: ${{ github.event.inputs.srcBranch || 'feat/aarch64-bootstrap' }}
 
-      - name: Checkout kpkg-repo (aarch64 runfile fixes)
-        uses: actions/checkout@v6
-        with:
-          repository: kreatolinux/kpkg-repo
-          ref: ${{ github.event.inputs.kpkgRepoBranch || 'feat/aarch64-runfiles' }}
-          path: kpkg-repo
+      - name: Reset the kpkg-repo clone to origin/master
+        run: |
+          git config --global --add safe.directory /etc/kpkg/repos/main
+          git config --global pull.rebase true
+          git -C /etc/kpkg/repos/main fetch origin
+          git -C /etc/kpkg/repos/main reset --hard origin/master
 
-      - name: Build seed image
-        run: docker build -f docker/seed-aarch64/Dockerfile -t kreato/seed-aarch64 .
-
-      - name: Restore kpkg package cache
+      - name: Update cache on every commit
         uses: actions/cache@v5
         with:
-          path: kpkg-cache
-          key: kpkg-aarch64-cache-${{ github.run_id }}
+          path: /var/cache/kpkg/archives
+          key: binary-cache-aarch64-${{ github.run_id }}
           restore-keys: |
-            kpkg-aarch64-cache
+            binary-cache-aarch64
 
-      - name: Bootstrap the aarch64 builder rootfs
+      - name: Build builder rootfs tarball
         run: |
-          mkdir -p out
-          # --privileged: kpkg needs root; the container is the isolation
-          # boundary (noSandbox). The fixed kpkg-repo is overlaid at
-          # /etc/kpkg/repos/main by the entrypoint.
-          docker run --privileged --name kreastrap-arm64 \
-            -v $GITHUB_WORKSPACE/kpkg-repo:/mnt/fixed-repo:ro \
-            -v $GITHUB_WORKSPACE/out:/mnt/logs \
-            -v $GITHUB_WORKSPACE/kpkg-cache:/var/cache/kpkg \
-            kreato/seed-aarch64:dev builder
-
-      - name: Pack the rootfs tarball
-        run: |
-          docker commit kreastrap-arm64 kreato/rootfs-snapshot:aarch64
-          docker run --rm --entrypoint /bin/sh kreato/rootfs-snapshot:aarch64 -c \
-            "cd /out && tar -czf /mnt/logs/kreato-linux-builder-aarch64.tar.gz --numeric-owner ."
-          ls -la $GITHUB_WORKSPACE/out/kreato-linux-builder-aarch64.tar.gz
+          IS_ACTIONS=y sh $GITHUB_WORKSPACE/scripts/build-ci.sh init
+          IS_ACTIONS=y sh $GITHUB_WORKSPACE/scripts/build-ci.sh build builder arm64
 
       - name: Upload aarch64 Builder Rootfs
         uses: actions/upload-artifact@v7
         with:
           name: builder-rootfs-aarch64
-          path: out/kreato-linux-builder-aarch64.tar.gz
+          path: ${{ github.workspace }}/kreato-linux-builder-aarch64-*.tar.gz
           if-no-files-found: error
 
   docker:
