@@ -81,7 +81,8 @@ proc buildPackageInSandboxImpl(pkgName: string, depGraph: dependencyGraph,
     # foreign host and is unnecessary when we already have a populated root.
     debug "noSandbox: skipping sandbox env creation for " & pkgName
   else:
-    createOrUpgradeEnv(sandboxCfg.root)
+    createOrUpgradeEnv(sandboxCfg.root,
+        deferPostInstall = sandboxCfg.deferPostInstall)
 
   let pkgTmp = parsePkgInfo(pkgName)
 
@@ -125,7 +126,8 @@ proc buildPackageInSandboxImpl(pkgName: string, depGraph: dependencyGraph,
           isUpgrade: false,
           kTarget: sandboxKTarget,
           manualInstallList: @[],
-          disablePkgInfo: true
+          disablePkgInfo: true,
+          deferPostInstall: sandboxCfg.deferPostInstall
         )
         installPkgProc(installCfg)
     else:
@@ -168,7 +170,8 @@ proc buildPackageInSandboxImpl(pkgName: string, depGraph: dependencyGraph,
         installPkg(findPkgRepo(sandboxCfg.sonameChangedPackage),
                 sandboxCfg.sonameChangedPackage, kpkgEnvPath,
                 kTarget = sandboxKTarget, manualInstallList = @[],
-                ignorePostInstall = true)
+                ignorePostInstall = true,
+                deferPostInstall = sandboxCfg.deferPostInstall)
       # Install rebuilt consumers to upperDir so subsequent builds get updated libs/binaries
       for r in sandboxCfg.rebuiltConsumers:
         if r != pkgName:
@@ -181,7 +184,8 @@ proc buildPackageInSandboxImpl(pkgName: string, depGraph: dependencyGraph,
             kTarget: sandboxKTarget,
             manualInstallList: @[],
             disablePkgInfo: true,
-            ignorePostInstall: true
+            ignorePostInstall: true,
+            deferPostInstall: sandboxCfg.deferPostInstall
           ))
 
     # Mount the overlayfs after dependencies are installed.
@@ -190,7 +194,8 @@ proc buildPackageInSandboxImpl(pkgName: string, depGraph: dependencyGraph,
       fatal("mounting overlay filesystem failed")
 
     # Run postinstall scripts in merged overlay
-    if sandboxCfg.target == "default" or sandboxCfg.target == kpkgTarget("/"):
+    if not sandboxCfg.deferPostInstall and
+        (sandboxCfg.target == "default" or sandboxCfg.target == kpkgTarget("/")):
       debug "builder-ng: postinstall is running"
       for d in deduplicate(allInstalledDeps):
         if not isEmptyOrWhitespace(d):
@@ -206,9 +211,10 @@ proc buildPackageInSandboxImpl(pkgName: string, depGraph: dependencyGraph,
     allInstalledDeps = deduplicate(collectRuntimeDepsFromGraph(
             sandboxDeps, depGraph, visited))
 
-    for d in allInstalledDeps:
-      if not isEmptyOrWhitespace(d):
-        runPostInstall(d, sandboxCfg.root, passthrough = true)
+    if not sandboxCfg.deferPostInstall:
+      for d in allInstalledDeps:
+        if not isEmptyOrWhitespace(d):
+          runPostInstall(d, sandboxCfg.root, passthrough = true)
 
     discard runLdconfig(sandboxCfg.root, silentMode = true)
 
@@ -256,6 +262,7 @@ proc buildPackageInSandboxImpl(pkgName: string, depGraph: dependencyGraph,
     target: sandboxCfg.target,
     actualRoot: sandboxCfg.root,
     ignorePostInstall: sandboxCfg.ignorePostInstall,
+    deferPostInstall: sandboxCfg.deferPostInstall,
     noSandbox: sandboxCfg.noSandbox,
     ignoreTarget: false,
     ignoreUseCacheIfAvailable: sandboxCfg.ignoreUseCacheIfAvailable,
@@ -283,7 +290,8 @@ proc buildPackageInSandboxImpl(pkgName: string, depGraph: dependencyGraph,
     installPkg(findPkgRepo(actualPkgName), actualPkgName,
             sandboxCfg.fullRootPath,
             manualInstallList = @[], kTarget = sandboxKTarget,
-            ignorePostInstall = true)
+            ignorePostInstall = true,
+            deferPostInstall = sandboxCfg.deferPostInstall)
 
   if overlayMounted:
     let cleanupResult = umountOverlay(silentMode = true)
@@ -392,6 +400,7 @@ proc buildAllPackagesInSandbox*(deps: var seq[string], depGraph: dependencyGraph
     info "Installing SONAME-changed package '" & src & "' to host"
     installPkg(findPkgRepo(src), src, sandboxCfg.fullRootPath,
             manualInstallList = @[], kTarget = sandboxKTarget,
-            isUpgrade = true, ignorePostInstall = true)
+            isUpgrade = true, ignorePostInstall = true,
+            deferPostInstall = sandboxCfg.deferPostInstall)
 
   return 0

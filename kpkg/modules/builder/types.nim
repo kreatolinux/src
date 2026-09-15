@@ -43,7 +43,8 @@ type
     # Installation options
     isInstallDir*: bool ## Package arg is a directory path
     isUpgrade*: bool ## This is an upgrade operation
-    ignorePostInstall*: bool ## Skip postinstall scripts
+    ignorePostInstall*: bool ## Ignore postinstall failures (still runs hooks)
+    deferPostInstall*: bool ## Do not run postinstall hooks (explicit repair mode)
     manualInstallList*: seq[string] ## Manually installed packages
     ignoreUseCacheIfAvailable*: seq[string] ## Packages to rebuild even if cached
     skipHostInstall*: bool ## Skip installing to host root (for deferred SONAME installs)
@@ -100,7 +101,8 @@ type
     useCacheIfAvailable*: bool ## Use cached tarballs if available
     tests*: bool ## Run test suite
     isUpgrade*: bool ## Whether this is an upgrade
-    ignorePostInstall*: bool ## Skip postinstall scripts
+    ignorePostInstall*: bool ## Ignore postinstall failures (still runs hooks)
+    deferPostInstall*: bool ## Do not run postinstall hooks (explicit repair mode)
     manualInstallList*: seq[string] ## List of manually installed packages
     ignoreUseCacheIfAvailable*: seq[string] ## Packages to skip cache for
     root*: string ## Root path
@@ -123,7 +125,8 @@ type
     kTarget*: string                ## Target triplet
     manualInstallList*: seq[string] ## Manually installed packages
     disablePkgInfo*: bool           ## Whether to disable pkginfo writing
-    ignorePostInstall*: bool        ## Whether to skip postinstall scripts
+    ignorePostInstall*: bool        ## Ignore postinstall failures (still runs hooks)
+    deferPostInstall*: bool         ## Do not run postinstall hooks (explicit repair mode)
 
   # Proc type aliases for callbacks (avoids circular imports)
   BuilderProc* = proc(cfg: var BuildConfig): bool
@@ -139,7 +142,8 @@ proc initBuildConfig*(package: string, destdir: string, offline = false,
                       ignoreUseCacheIfAvailable: seq[string] = @[""],
                       isBootstrap = false,
                       commit = "", commitRepo = "",
-                      headRunfileCache = initTable[string, runFile]()): BuildConfig =
+                      headRunfileCache = initTable[string, runFile](),
+                      deferPostInstall = false): BuildConfig =
   ## Creates a BuildConfig from individual parameters.
   ## Useful for backwards compatibility with existing call sites.
 
@@ -157,6 +161,7 @@ proc initBuildConfig*(package: string, destdir: string, offline = false,
     target: target,
     actualRoot: actualRoot,
     ignorePostInstall: ignorePostInstall,
+    deferPostInstall: deferPostInstall,
     noSandbox: noSandbox,
     ignoreTarget: ignoreTarget,
     ignoreUseCacheIfAvailable: ignoreUseCacheIfAvailable,
@@ -189,7 +194,8 @@ proc initSandboxConfig*(fullRootPath: string, target: string,
                         pkgPaths: Table[string, string],
                         commit = "", commitRepo = "",
                         headRunfileCache = initTable[string, runFile](),
-                        noSandbox = false): SandboxConfig =
+                        noSandbox = false,
+                        deferPostInstall = false): SandboxConfig =
   ## Creates a SandboxConfig from individual parameters.
   SandboxConfig(
     fullRootPath: fullRootPath,
@@ -203,6 +209,7 @@ proc initSandboxConfig*(fullRootPath: string, target: string,
     tests: tests,
     isUpgrade: isUpgrade,
     ignorePostInstall: ignorePostInstall,
+    deferPostInstall: deferPostInstall,
     manualInstallList: manualInstallList,
     ignoreUseCacheIfAvailable: ignoreUseCacheIfAvailable,
     root: root,

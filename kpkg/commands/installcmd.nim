@@ -182,9 +182,12 @@ proc installPkgImpl(repo: string, package: string, root: string, runf = runFile(
                 disablePkgInfo = false, ignorePreInstall = false,
                 basePackage = false, version = "", tarballPath = "",
                 keepTransaction = false, progressIndex = -1,
-                progressStart = 0) =
+                progressStart = 0, deferPostInstall = false) =
   ## Installs a package atomically with transaction support.
   ## If installation fails at any point, changes are rolled back.
+  ## ignorePostInstall runs the hook and ignores failure. deferPostInstall
+  ## skips it entirely for repair; callers must reinstall to run it later.
+  ## Other hooks and ldconfig are deliberately unchanged.
 
   var pkg: runFile
 
@@ -476,7 +479,7 @@ proc installPkgImpl(repo: string, package: string, root: string, runf = runFile(
     # Phase 7: Run postinstall (BEFORE cleanup so rollback is possible)
     let postinstallFunc = resolveHookFunction(pkg.run3Data.parsed,
         "postinstall", package)
-    if postinstallFunc != "":
+    if not deferPostInstall and postinstallFunc != "":
       if executeRun3Stage(ctx, pkg.run3Data.parsed, postinstallFunc) != 0:
         if ignorePostInstall:
           warn "postinstall failed"
@@ -530,7 +533,7 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
                 disablePkgInfo = false, ignorePreInstall = false,
                 basePackage = false, version = "", tarballPath = "",
                 keepTransaction = false, progressIndex = -1,
-                progressStart = 0) =
+                progressStart = 0, deferPostInstall = false) =
   telemetry.withSpan("kpkg.install", {
     "package.name": package,
     "package.version": version
@@ -538,7 +541,7 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
     installPkgImpl(repo, package, root, runf, manualInstallList, isUpgrade,
         kTarget, ignorePostInstall, disablePkgInfo, ignorePreInstall,
         basePackage, version, tarballPath, keepTransaction, progressIndex,
-        progressStart)
+        progressStart, deferPostInstall)
 
 proc canDownloadBinary*(package: string, version: string, binrepos: seq[string],
         kTarget: string): bool =

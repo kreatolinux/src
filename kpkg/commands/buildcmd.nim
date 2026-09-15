@@ -73,11 +73,13 @@ proc builderImpl(cfg: var BuildConfig): bool =
         cfg.target == "default":
       installPkg(cfg.repo, cfg.actualPackage, "/", state.pkg,
               cfg.manualInstallList,
-              ignorePostInstall = cfg.ignorePostInstall)
+              ignorePostInstall = cfg.ignorePostInstall,
+              deferPostInstall = cfg.deferPostInstall)
 
     if not cfg.skipHostInstall and cfg.kTarget == kpkgTarget(cfg.destdir):
       installPkg(cfg.repo, cfg.actualPackage, cfg.destdir, state.pkg, cfg.manualInstallList,
-              ignorePostInstall = cfg.ignorePostInstall)
+              ignorePostInstall = cfg.ignorePostInstall,
+              deferPostInstall = cfg.deferPostInstall)
     else:
       info "the package target doesn't match the one on '" & cfg.destdir & "', skipping installation"
 
@@ -90,7 +92,8 @@ proc builderImpl(cfg: var BuildConfig): bool =
   if state.pkg.isGroup:
     debug "Package is a group package"
     installPkg(cfg.repo, cfg.actualPackage, cfg.destdir, state.pkg, cfg.manualInstallList,
-            ignorePostInstall = cfg.ignorePostInstall)
+            ignorePostInstall = cfg.ignorePostInstall,
+            deferPostInstall = cfg.deferPostInstall)
     removeDir(kpkgBuildRoot)
     removeDir(kpkgSrcDir)
     removeLockfile()
@@ -171,6 +174,7 @@ proc builderImpl(cfg: var BuildConfig): bool =
       installPkg(cfg.repo, cfg.actualPackage, "/", state.pkg, cfg.manualInstallList,
               isUpgrade = cfg.isUpgrade,
               ignorePostInstall = cfg.ignorePostInstall,
+              deferPostInstall = cfg.deferPostInstall,
               tarballPath = tempTarball)
 
     if not cfg.skipHostInstall and (not cfg.dontInstall) and (cfg.kTarget ==
@@ -178,6 +182,7 @@ proc builderImpl(cfg: var BuildConfig): bool =
       installPkg(cfg.repo, cfg.actualPackage, cfg.destdir, state.pkg, cfg.manualInstallList,
               isUpgrade = cfg.isUpgrade,
               ignorePostInstall = cfg.ignorePostInstall,
+              deferPostInstall = cfg.deferPostInstall,
               tarballPath = tempTarball)
     else:
       info "the package target doesn't match the one on '" & cfg.destdir & "', skipping installation"
@@ -224,7 +229,8 @@ proc installPkgWrapper(cfg: InstallConfig) =
              isUpgrade = cfg.isUpgrade, kTarget = cfg.kTarget,
              manualInstallList = cfg.manualInstallList,
              disablePkgInfo = cfg.disablePkgInfo,
-             ignorePostInstall = cfg.ignorePostInstall)
+             ignorePostInstall = cfg.ignorePostInstall,
+             deferPostInstall = cfg.deferPostInstall)
 
 
 proc build*(no = false, yes = false, root = "/",
@@ -233,8 +239,12 @@ proc build*(no = false, yes = false, root = "/",
                     dontInstall = false, tests = true,
                             ignorePostInstall = false, isInstallDir = false,
                             isUpgrade = false, target = "default",
-                            bootstrap = false, noSandbox = false): int =
+                            bootstrap = false, noSandbox = false,
+                            deferPostInstall = false): int =
   ## Build and install packages.
+  ## deferPostInstall skips postinstall hooks for sandbox repair, not failures.
+  ## A later build without this flag recreates and fully initializes the env.
+  ## Package hooks outside the env must be rerun by reinstalling the package.
   ##
   ## With noSandbox, kpkg skips the bwrap/overlay sandbox and the kpkg build
   ## env entirely and builds directly in root. Use this inside a chroot or
@@ -252,6 +262,9 @@ proc build*(no = false, yes = false, root = "/",
   if packages.len == 0:
     error("please enter a package name")
     quit(1)
+
+  if deferPostInstall:
+    warn "postinstall hooks deferred for repair; reinstall affected packages without deferPostInstall after repair"
 
   let init = getInit(root)
   let fullRootPath = expandFilename(root)
@@ -300,6 +313,7 @@ proc build*(no = false, yes = false, root = "/",
             dontInstall = dontInstall,
             tests = tests,
             ignorePostInstall = ignorePostInstall,
+            deferPostInstall = deferPostInstall,
             isInstallDir = isInstallDir,
             isUpgrade = isUpgrade,
             target = target,
@@ -378,6 +392,7 @@ proc build*(no = false, yes = false, root = "/",
       tests = tests,
       isUpgrade = isUpgrade,
       ignorePostInstall = ignorePostInstall,
+      deferPostInstall = deferPostInstall,
       manualInstallList = p,
       ignoreUseCacheIfAvailable = gD,
       root = root,

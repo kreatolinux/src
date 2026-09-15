@@ -2,7 +2,8 @@
 import std/os
 import ../../common/logging
 import sqlite
-import std/times
+import envstate
+import archivemeta
 import processes
 import dephandler
 import runparser
@@ -83,6 +84,12 @@ proc installFromRootInternal(package, root, destdir: string,
 
   for line in listFiles:
     let listFilesSplitted = line.split("=")[0].replace("\"", "")
+
+    # Generated archive-root metadata is registered in the package DB but is
+    # never present in installed roots; skip it without weakening payload
+    # validation.
+    if isArchiveRootMetadata(listFilesSplitted):
+      continue
 
     if not (fileExists(root&"/"&listFilesSplitted) or dirExists(
             root&"/"&listFilesSplitted) or symlinkExists(
@@ -169,10 +176,12 @@ proc checkEnvPackageUpdates(name: string): bool =
     return false
 
 
-proc createEnv(root: string, ignorePostInstall = false) =
+proc createEnv(root: string, ignorePostInstall = false,
+               deferPostInstall = false) =
   # TODO: cross-compilation support
   info "initializing sandbox, this might take a while..."
   setControlCHook(createEnvCtrlC)
+  invalidateEnvSetup(kpkgEnvPath)
   initDirectories(kpkgEnvPath, hostCPU, true)
 
   var depsTotal: seq[string]
@@ -198,7 +207,7 @@ proc createEnv(root: string, ignorePostInstall = false) =
   try:
     setDefaultCC(kpkgEnvPath, compiler)
   except:
-    removeDir(root)
+    removeDir(kpkgEnvPath)
     when defined(release):
       error("setting default compiler in the environment failed")
       quit(1)
@@ -244,23 +253,47 @@ proc createEnv(root: string, ignorePostInstall = false) =
   #    for i in extras:
   #        installFromRoot(i, root, kpkgEnvPath)
 
-  let result = execCmdKpkg("bwrap --bind "&kpkgEnvPath&" / --bind /etc/resolv.conf /etc/resolv.conf /usr/bin/env update-ca-trust",
-          silentMode = false)
-  if result.exitCode != 0:
-    debug "bwrap update-ca-trust failed with exit code: " & $result.exitCode
-    debug "bwrap output: " & result.output
-    removeDir(kpkgEnvPath)
-    error("creating sandbox environment failed")
-    quit(1)
+  proc updateTrust() =
+    let result = execCmdKpkg("bwrap --bind "&kpkgEnvPath&" / --bind /etc/resolv.conf /etc/resolv.conf /usr/bin/env update-ca-trust",
+            silentMode = false)
+    if result.exitCode != 0:
+      debug "bwrap update-ca-trust failed with exit code: " & $result.exitCode
+      debug "bwrap output: " & result.output
+      removeDir(kpkgEnvPath)
+      error("creating sandbox environment failed")
+      quit(1)
 
-  writeFile(kpkgEnvPath&"/envDateBuilt", now().format("yyyy-MM-dd"))
-
-  if ignorePostInstall == false:
+  proc postInstall() =
     runPostInstall(dict.getSectionValue("Core", "libc"), kpkgEnvPath)
     for dep in deduplicate(depsTotal):
       if isEmptyOrWhitespace(dep):
         continue
       runPostInstall(dep, kpkgEnvPath)
+
+  # The env loader only searches its compiled-in defaults plus /etc/ld.so.conf.
+  # Ship the host config (or the standard directories when the host has none)
+  # and rebuild the cache inside the env so env binaries resolve host-installed
+  # libraries before any postinstall hook runs.
+  if fileExists(root&"/etc/ld.so.conf"):
+    copyFile(root&"/etc/ld.so.conf", kpkgEnvPath&"/etc/ld.so.conf")
+  else:
+    writeFile(kpkgEnvPath&"/etc/ld.so.conf",
+        "/lib\n/usr/lib\n/lib64\n/usr/lib64\n")
+  let ldconfigResult = execCmdKpkg("bwrap --bind "&kpkgEnvPath &
+      " / --bind /etc/resolv.conf /etc/resolv.conf ldconfig",
+      silentMode = false)
+  if ldconfigResult.exitCode != 0:
+    debug "bwrap ldconfig failed with exit code: " & $ldconfigResult.exitCode
+    debug "bwrap output: " & ldconfigResult.output
+    removeDir(kpkgEnvPath)
+    error("rebuilding sandbox loader cache failed")
+    quit(1)
+
+  if deferPostInstall:
+    warn "sandbox postinstall and CA setup deferred for repair; rebuild without deferPostInstall to initialize normally"
+  finishEnvSetup(kpkgEnvPath, updateTrust, postInstall,
+      deferPostInstall = deferPostInstall,
+      ignorePostInstall = ignorePostInstall)
 
 
 proc umountOverlay*(error = "none", silentMode = false, merged = kpkgMergedPath,
@@ -308,10 +341,12 @@ proc umountOverlay*(error = "none", silentMode = false, merged = kpkgMergedPath,
     removeDir(kpkgOverlayPath)
 
 
-proc createOrUpgradeEnv*(root: string, ignorePostInstall = false) =
-  ## Creates and upgrades environment (if needed)
+proc createOrUpgradeEnv*(root: string, ignorePostInstall = false,
+                         deferPostInstall = false) =
+  ## Creates and upgrades environment (if needed).
+  ## Deferred or incomplete environments are never reused by normal builds.
 
-  if fileExists(kpkgEnvPath&"/etc/kreato-release"):
+  if canReuseEnv(kpkgEnvPath, deferPostInstall, ignorePostInstall):
     try:
       var needsReinit = false
       let envPkgList = getListPackages(kpkgEnvPath)
@@ -322,6 +357,10 @@ proc createOrUpgradeEnv*(root: string, ignorePostInstall = false) =
           needsReinit = true
 
       if not needsReinit:
+        # Repair builds may modify the lower env without running hooks. Do not
+        # let a later normal build reuse that env as fully initialized.
+        if deferPostInstall:
+          markEnvDeferred(kpkgEnvPath)
         return
 
     except:
@@ -329,9 +368,9 @@ proc createOrUpgradeEnv*(root: string, ignorePostInstall = false) =
 
   let umountExit = umountOverlay()
   if umountExit != 0:
-    debug "createOrUpgradeEnv: umountOverlay failed, exit code "&($umountExit)
+    fatal("createOrUpgradeEnv: umountOverlay failed, exit code " & $umountExit)
   removeDir(kpkgEnvPath)
-  createEnv(root, ignorePostInstall)
+  createEnv(root, ignorePostInstall, deferPostInstall)
 
 
 proc prepareOverlayDirs*(upperDir = kpkgOverlayPath&"/upperDir",
