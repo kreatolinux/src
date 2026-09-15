@@ -600,15 +600,6 @@ proc down_bin*(package: string, binrepos: seq[string], root: string,
     binreposFinal = binreposOverride.split(" ").filterIt(
             not isEmptyOrWhitespace(it))
 
-  # An empty binary mirror list means "never use binaries". This is the
-  # bootstrap path for a brand-new target: with no mirrors configured every
-  # install falls back to a source build instead of failing on a download
-  # of a binary that cannot exist yet.
-  if binreposFinal.len == 0:
-    debug "down_bin: no binary mirrors configured, skipping binary for '" &
-        package & "'"
-    return
-
   var pkgVersion = version
 
   if isEmptyOrWhitespace(pkgVersion):
