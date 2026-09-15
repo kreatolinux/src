@@ -94,7 +94,7 @@ jobs:
       - name: Init and build the builder rootfs tarball
         run: |
           set -x
-          ln -s $GITHUB_WORKSPACE /work
+          ln -sfn $GITHUB_WORKSPACE /work
           git config --global --add safe.directory /__w/src/src
           mkdir /out
           ln -s /out /work/out
