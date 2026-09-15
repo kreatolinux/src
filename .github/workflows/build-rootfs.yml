@@ -134,7 +134,7 @@ jobs:
             [ -f "$src" ] && cp "$src" /usr/lib/"$lib"
           done
           ln -sf libcrypt.so.1.1.0 /usr/lib/libcrypt.so.1
-          ldconfig
+          /usr/sbin/ldconfig
 
           ./kreastrap/kreastrap --buildType=builder --arch=arm64
 
