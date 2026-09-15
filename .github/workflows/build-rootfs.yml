@@ -112,6 +112,8 @@ jobs:
           ./build.sh -i
 
           kpkg
+          # Use the master branch of kpkg-repo (stable lacks the aarch64 fixes)
+          sed -i s/stable/master/g /etc/kpkg/kpkg.conf
           # Disable binary repos entirely: no aarch64 binaries exist on the
           # mirror, and install_bin fatals when the download fails.
           kpkg repl -a "set config.Repositories.binRepos ''"
