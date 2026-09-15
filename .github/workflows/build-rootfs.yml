@@ -117,11 +117,16 @@ jobs:
           nim c -d:branch=master --deepcopy:on --passL:-larchive --passC:-no-pie \
               --threads:on -d:ssl -o=kreastrap/kreastrap kreastrap/kreastrap.nim
 
-          # Bridge libcrypt.so.1: the rootfs tarball's libxcrypt was built
-          # --disable-obsolete-api (.so.2 only) but shadow's pwconv links
-          # libcrypt.so.1. The rebirth rebuilds libxcrypt with
-          # --enable-obsolete-api=yes producing .so.1 for the new rootfs.
-          ln -sf libcrypt.so.2 /usr/lib/libcrypt.so.1
+          # Copy the Ubuntu base libs that the rootfs binaries need.
+          # The rootfs tarball was built with noSandbox against the seed's
+          # multiarch libs, so binaries link libacl.so.1, liblz4.so.1,
+          # libpcre2-8.so.0 which the rootfs doesn't ship.
+          for lib in libacl.so.1 liblz4.so.1 libpcre2-8.so.0; do
+            src="/lib/aarch64-linux-gnu/$lib"
+            [ -f "$src" ] && cp "$src" /usr/lib/"$lib"
+          done
+          ln -sf libcrypt.so.1.1.0 /usr/lib/libcrypt.so.1
+          ldconfig
 
           ./kreastrap/kreastrap --buildType=builder --arch=arm64
 
