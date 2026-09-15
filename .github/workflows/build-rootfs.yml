@@ -120,6 +120,8 @@ jobs:
           kpkg repl -a "set config.Upgrade.buildByDefault no"
           # Verify the config is correct
           echo "binRepos: $(grep binRepos /etc/kpkg/kpkg.conf)"
+          # Wipe the old repos and re-clone from master (has aarch64 fixes)
+          rm -rf /etc/kpkg/repos/main /etc/kpkg/repos/lockin
           kpkg update
 
           nim c -d:branch=master --deepcopy:on --passL:-larchive --passC:-no-pie \
