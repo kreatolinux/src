@@ -5,9 +5,16 @@ on:
     - cron: '0 0 * * 0'
 
   workflow_dispatch:
+    inputs:
+      arm64Only:
+        description: "Only run the arm64 leg (skip amd64)"
+        required: false
+        default: "false"
+        type: boolean
 
 jobs:
   build:
+    if: ${{ !inputs.arm64Only }}
     runs-on: ubuntu-latest
     container:
         image: ghcr.io/kreatolinux/builder:latest
@@ -101,9 +108,10 @@ jobs:
           cd /work
           export KPKG_ENABLE_DEBUG=yes
 
-          ./build.sh -i
-          nim c -d:release -d:ssl --deepcopy:on --threads:on \
-              --passL:-larchive -o:/usr/bin/kpkg kpkg/kpkg.nim
+          # TODO: re-enable kpkg rebuild once libacl/liblz4 are in the rootfs
+          # ./build.sh -i
+          # nim c -d:release -d:ssl --deepcopy:on --threads:on \
+          #     --passL:-larchive -o:/usr/bin/kpkg kpkg/kpkg.nim
 
           kpkg
           # Disable binary repos entirely: no aarch64 binaries exist on the
@@ -141,6 +149,7 @@ jobs:
           if-no-files-found: error
 
   docker:
+    if: ${{ !inputs.arm64Only }}
     runs-on: ubuntu-latest
     needs: build
     steps:
@@ -219,6 +228,7 @@ jobs:
   # Multiarch builder image: amd64 rootfs from the build job above, aarch64
   # rootfs from build-arm64. One manifest on ghcr.io/kreatolinux/builder:latest.
   docker-multiarch:
+    if: ${{ !inputs.arm64Only }}
     runs-on: ubuntu-latest
     needs: [build, build-arm64]
     permissions:
