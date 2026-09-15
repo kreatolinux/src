@@ -138,7 +138,12 @@ jobs:
           ln -sf libcrypt.so.1.1.0 /usr/lib/libcrypt.so.1
           /usr/sbin/ldconfig
 
-          ./kreastrap/kreastrap --buildType=builder --arch=arm64
+          # --noSandbox is required for the first bootstrap from a foreign
+          # base: the kpkg DB only tracks kpkg-installed packages, so the
+          # sandbox env lacks the base system libraries (libacl, libcrypt,
+          # etc) that host-built binaries need. The resulting rootfs is
+          # self-consistent and future rebuilds inside it use the sandbox.
+          ./kreastrap/kreastrap --buildType=builder --arch=arm64 --noSandbox
 
           cd /out
           tar -czf /work/kreato-linux-builder-aarch64-$(date +%d-%m-%Y).tar.gz --numeric-owner .
