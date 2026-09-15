@@ -278,6 +278,13 @@ proc kreastrap(buildType = "builder", arch = "amd64",
       removeFile(buildDir&"/sbin/init")
       createSymlink("/lib/systemd/systemd", buildDir&"/sbin/init")
 
+  # Install libxcrypt before shadow: shadow's pwconv links libcrypt.so.1
+  # (the glibc-ABI soname), which only exists if libxcrypt was built with
+  # --enable-obsolete-api=yes (the runfile on master does this).
+  info "Installing libxcrypt (libcrypt provider)"
+  kreastrapInstall("libxcrypt", installWithBinaries, buildDir,
+          useCacheIfPossible, target, noSandbox)
+
   # Install shadow, and enable it
   kreastrapInstall("shadow", installWithBinaries, buildDir,
           useCacheIfPossible, target, noSandbox)
