@@ -108,10 +108,8 @@ jobs:
           cd /work
           export KPKG_ENABLE_DEBUG=yes
 
-          # TODO: re-enable kpkg rebuild once libacl/liblz4 are in the rootfs
-          # ./build.sh -i
-          # nim c -d:release -d:ssl --deepcopy:on --threads:on \
-          #     --passL:-larchive -o:/usr/bin/kpkg kpkg/kpkg.nim
+          # Install nimble deps (needed for kreastrap build)
+          ./build.sh -i
 
           kpkg
           # Disable binary repos entirely: no aarch64 binaries exist on the
