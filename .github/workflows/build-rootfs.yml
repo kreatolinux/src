@@ -91,10 +91,32 @@ jobs:
           restore-keys: |
             binary-cache-aarch64
 
-      - name: Build builder rootfs tarball
+      - name: Init and build the builder rootfs tarball
         run: |
-          IS_ACTIONS=y sh $GITHUB_WORKSPACE/scripts/build-ci.sh init
-          IS_ACTIONS=y sh $GITHUB_WORKSPACE/scripts/build-ci.sh build builder arm64
+          set -x
+          ln -s $GITHUB_WORKSPACE /work
+          git config --global --add safe.directory /__w/src/src
+          mkdir /out
+          ln -s /out /work/out
+          cd /work
+          export KPKG_ENABLE_DEBUG=yes
+
+          ./build.sh -i
+          nim c -d:release -d:ssl --deepcopy:on --threads:on \
+              --passL:-larchive -o:/usr/bin/kpkg kpkg/kpkg.nim
+
+          kpkg
+          sed -i 's/^binRepos=.*/binRepos=/' /etc/kpkg/kpkg.conf
+          kpkg repl -a "set config.Upgrade.buildByDefault no"
+          kpkg update
+
+          nim c -d:branch=master --deepcopy:on --passL:-larchive --passC:-no-pie \
+              --threads:on -d:ssl -o=kreastrap/kreastrap kreastrap/kreastrap.nim
+
+          ./kreastrap/kreastrap --buildType=builder --arch=arm64
+
+          cd /out
+          tar -czf /work/kreato-linux-builder-aarch64-$(date +%d-%m-%Y).tar.gz --numeric-owner .
 
       - name: Upload aarch64 Builder Rootfs
         uses: actions/upload-artifact@v7
