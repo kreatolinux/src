@@ -106,8 +106,12 @@ jobs:
               --passL:-larchive -o:/usr/bin/kpkg kpkg/kpkg.nim
 
           kpkg
-          sed -i 's/^binRepos=.*/binRepos=/' /etc/kpkg/kpkg.conf
+          # Disable binary repos entirely: no aarch64 binaries exist on the
+          # mirror, and install_bin fatals when the download fails.
+          kpkg repl -a "set config.Repositories.binRepos ''"
           kpkg repl -a "set config.Upgrade.buildByDefault no"
+          # Verify the config is correct
+          echo "binRepos: $(grep binRepos /etc/kpkg/kpkg.conf)"
           kpkg update
 
           nim c -d:branch=master --deepcopy:on --passL:-larchive --passC:-no-pie \
