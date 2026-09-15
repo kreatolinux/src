@@ -208,11 +208,22 @@ proc newFile*(path, checksum: string, package: Package, root: string) =
 
 proc pkgSumstoSQL*(file: string, package: Package, root: string) =
   # Converts pkgSums.ini into SQL
+  #
+  # pkgsums.ini is the transport format into the database: its entries
+  # become the authoritative File rows, and verification afterwards only
+  # consults sqlite. The archive metadata files themselves are inputs to
+  # the installer, not package payload, so they must never be registered.
+  const archiveMeta = ["\"" & "pkgsums.ini" & "\"", "\"pkgInfo.ini\"",
+          "pkgsums.ini", "pkgInfo.ini"]
   for line in lines file:
     let splittedLine = line.split("=")
     if splittedLine.len != 2:
+      if splittedLine[0] in archiveMeta:
+        continue
       newFile(splittedLine[0], "", package, root)
     else:
+      if splittedLine[0] in archiveMeta:
+        continue
       newFile(splittedLine[0], splittedLine[1], package, root)
 
 proc isReplaced*(name: string, root = "/"): tuple[replaced: bool,
