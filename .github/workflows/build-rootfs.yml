@@ -113,6 +113,12 @@ jobs:
           nim c -d:branch=master --deepcopy:on --passL:-larchive --passC:-no-pie \
               --threads:on -d:ssl -o=kreastrap/kreastrap kreastrap/kreastrap.nim
 
+          # Bridge libcrypt.so.1: the rootfs tarball's libxcrypt was built
+          # --disable-obsolete-api (.so.2 only) but shadow's pwconv links
+          # libcrypt.so.1. The rebirth rebuilds libxcrypt with
+          # --enable-obsolete-api=yes producing .so.1 for the new rootfs.
+          ln -sf libcrypt.so.2 /usr/lib/libcrypt.so.1
+
           ./kreastrap/kreastrap --buildType=builder --arch=arm64
 
           cd /out
