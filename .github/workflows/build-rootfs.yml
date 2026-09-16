@@ -119,13 +119,9 @@ jobs:
           # Wipe the old repos and re-clone from master (has aarch64 fixes)
           rm -rf /etc/kpkg/repos/main /etc/kpkg/repos/lockin
           kpkg update
-          # Compile packages in sandboxed kpkg-repo CI, then assemble this
-          # Klinux rootfs with the normal checksum-verified binary installer.
-          # Missing binaries must fail instead of starting a long source build.
-          for pkg in kreato-fs-essentials openssl gcc gmake glibc busybox jumpstart libxcrypt shadow python python-pip git kpkg p11-kit ca-certificates-utils ca-certificates tzdb nim gtar; do
-            kpkg install "$pkg" -y --downloadOnly || exit 1
-          done
-          ls /var/cache/kpkg/archives/system/*/ | head -30 || true
+          # Binary assembly downloads the required runtime closure directly
+          # into /out using the current source's checksum-verified installer.
+          # Do not prefetch against the builder host's installed package set.
 
           nim c -d:branch=master --deepcopy:on --passL:-larchive --passC:-no-pie \
               --threads:on -d:ssl -o=kreastrap/kreastrap kreastrap/kreastrap.nim
