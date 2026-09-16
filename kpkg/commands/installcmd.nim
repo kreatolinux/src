@@ -1317,7 +1317,7 @@ proc install*(promptPackages: seq[string], root = "/", yes: bool = false,
 
     deps = deduplicate(deps&packages)
 
-    let gD = getDependents(deps)
+    let gD = getDependents(deps, root = root)
     if not isEmptyOrWhitespace(gD.join("")):
       deps = deps&gD
 

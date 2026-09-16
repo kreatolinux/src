@@ -25,14 +25,19 @@ proc getDependents*(packages: seq[string], root = "/",
   # @["bash"]
   var res: seq[string]
 
-  for p in getListPackages():
+  for p in getListPackages(root):
 
     let pkg = getPackage(p, root)
 
     for package in packages:
       if package in pkg.deps.split("!!k!!"):
         if addIfOutdated:
-          let packageLocalVer = pkg.version
+          # A consumer needs invalidation when its provider changes, not when
+          # the consumer and provider happen to have different versions.
+          if not packageExists(package, root):
+            res = res&p
+            continue
+          let packageLocalVer = getPackage(package, root).version
           let packageUpstreamVer = parseRunfile(findPkgRepo(
                   package)&"/"&package).versionString
           if packageLocalVer != packageUpstreamVer:
