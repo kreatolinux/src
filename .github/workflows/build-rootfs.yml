@@ -119,18 +119,20 @@ jobs:
           # Wipe the old repos and re-clone from master (has aarch64 fixes)
           rm -rf /etc/kpkg/repos/main /etc/kpkg/repos/lockin
           kpkg update
-          # Pre-populate the archive cache from the binary mirror (published
-          # by the kpkg-repo arm64 CI). Anything missing on the mirror is
-          # built from source by kreastrap inside the sandbox.
+          # Compile packages in sandboxed kpkg-repo CI, then assemble this
+          # Klinux rootfs with the normal checksum-verified binary installer.
+          # Missing binaries must fail instead of starting a long source build.
           for pkg in kreato-fs-essentials openssl gcc gmake glibc busybox jumpstart libxcrypt shadow python python-pip git kpkg p11-kit ca-certificates-utils ca-certificates tzdb nim gtar; do
-            kpkg install $pkg -y --downloadOnly || echo "no binary for $pkg, kreastrap will build it"
+            kpkg install "$pkg" -y --downloadOnly || exit 1
           done
           ls /var/cache/kpkg/archives/system/*/ | head -30 || true
 
           nim c -d:branch=master --deepcopy:on --passL:-larchive --passC:-no-pie \
               --threads:on -d:ssl -o=kreastrap/kreastrap kreastrap/kreastrap.nim
 
-          # Build inside the Klinux package sandbox.
+          # Binary assembly does not compile packages or bypass the sandbox.
+          # Keep the checked-in config's source-build default for local users.
+          sed -i 's/^BuildPackages=yes$/BuildPackages=no/' kreastrap/arch/arm64/configs/builder.conf
           ./kreastrap/kreastrap --buildType=builder --arch=arm64
 
           cd /out
