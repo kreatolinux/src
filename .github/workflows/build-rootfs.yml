@@ -122,7 +122,7 @@ jobs:
           # Pre-populate the archive cache from the binary mirror (published
           # by the kpkg-repo arm64 CI). Anything missing on the mirror is
           # built from source by kreastrap inside the sandbox.
-          for pkg in kreato-fs-essentials openssl gcc gmake glibc busybox jumpstart libxcrypt shadow python python-pip git kpkg ca-certificates nim gtar; do
+          for pkg in kreato-fs-essentials openssl gcc gmake glibc busybox jumpstart libxcrypt shadow python python-pip git kpkg p11-kit ca-certificates-utils ca-certificates tzdb nim gtar; do
             kpkg install $pkg -y --downloadOnly || echo "no binary for $pkg, kreastrap will build it"
           done
           ls /var/cache/kpkg/archives/system/*/ | head -30 || true
