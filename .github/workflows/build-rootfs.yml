@@ -149,6 +149,7 @@ jobs:
             kpkg-8.0.0-rc2-1.kpkg \
             kreato-fs-essentials-0.0.2-1.kpkg \
             libarchive-3.8.7-5.kpkg \
+            libcap-2.78-1.kpkg \
             libbsd-0.12.2-1.kpkg \
             libffi-3.8.0-1.kpkg \
             libmd-1.2.0-1.kpkg \
@@ -167,6 +168,8 @@ jobs:
             openssl-4.0.2-1.kpkg \
             p11-kit-0.25.10-2.kpkg \
             pcre-10.47-2.kpkg \
+            sqlite-3.53.4.0-2.kpkg \
+            bubblewrap-0.12.0-2.kpkg \
             perl-5.44.0-2.kpkg \
             pkgconf-2.9.99-1.kpkg \
             python-3.14.7-6.kpkg \
@@ -185,7 +188,7 @@ jobs:
             fi
           done
 
-          nim c -d:branch=master --deepcopy:on --passL:-larchive --passC:-no-pie \
+          nim c --mm:arc -d:branch=master --deepcopy:on --passL:-larchive --passC:-no-pie \
               --threads:on -d:ssl -o=krep/krep krep/krep.nim
 
           # Binary assembly does not compile packages or bypass the sandbox.
