@@ -188,7 +188,7 @@ jobs:
             fi
           done
 
-          nim c --mm:arc -d:branch=master --deepcopy:on --passL:-larchive --passC:-no-pie \
+          nim c -d:branch=master --deepcopy:on --passL:-larchive --passC:-no-pie \
               --threads:on -d:ssl -o=krep/krep krep/krep.nim
 
           # Binary assembly does not compile packages or bypass the sandbox.

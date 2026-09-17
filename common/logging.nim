@@ -35,9 +35,12 @@ type
     logFilePath*: string
     configPath*: string
 
-var defaultLogger*: Logger = nil
-# Worker progress UIs suppress informational stdout while redrawing. Warnings
-# and errors remain visible; callers restore this flag when work completes.
+# Each Nim thread owns its logger. Logger contains reference-counted strings;
+# sharing one ref Logger through a gcsafe cast lets ORC reclaim its fields on
+# one thread while another thread is formatting a message.
+var defaultLogger* {.threadvar.}: Logger
+ # Worker progress UIs suppress informational stdout while redrawing. Warnings
+ # and errors remain visible; callers restore this flag when work completes.
 var suppressProgressInfo {.threadvar.}: bool
 var deferredProgressLogs {.threadvar.}: seq[string]
 
