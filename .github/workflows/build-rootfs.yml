@@ -129,6 +129,7 @@ jobs:
             attr-2.6.0-1.kpkg \
             bash-5.2.15-1.kpkg \
             bison-3.8.2-1.kpkg \
+            binutils-2.46.0-3.kpkg \
             busybox-1.36.1-5.kpkg \
             bzip2-1.0.8-4.kpkg \
             ca-certificates-20260816-1.kpkg \
@@ -153,6 +154,7 @@ jobs:
             libbsd-0.12.2-1.kpkg \
             libffi-3.8.0-1.kpkg \
             libmd-1.2.0-1.kpkg \
+            libxml2-2.15.4-2.kpkg \
             libtasn-4.19.0-1.kpkg \
             libxcrypt-4.4.36-2.kpkg \
             libzstd-1.5.1-2.kpkg \
