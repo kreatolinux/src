@@ -81,16 +81,21 @@ proc parseOperation(node: JsonNode): Operation =
     result.gid = node["gid"].getInt()
   else: result.kind = opFileCreated
 
-proc appendJournalRecord(tx: Transaction, node: JsonNode) =
-  ## Append one durable record instead of rewriting every previous operation.
-  ## Keeping the handle open removes repeated open/truncate work; flushing
-  ## each record preserves the previous crash-recovery visibility guarantee.
+proc appendJournalLine(tx: Transaction, line: string) =
+  ## Append one durable journal line. Controlled state records use this path
+  ## directly to avoid JSON table serialization after worker installs.
   if tx.journalHandle == nil:
     if not open(tx.journalHandle, tx.journalPath, fmAppend):
       raise newException(IOError, "cannot open transaction journal " &
           tx.journalPath)
-  tx.journalHandle.writeLine($node)
+  tx.journalHandle.writeLine(line)
   tx.journalHandle.flushFile()
+
+proc appendJournalRecord(tx: Transaction, node: JsonNode) =
+  ## Append one durable record instead of rewriting every previous operation.
+  ## Keeping the handle open removes repeated open/truncate work; flushing
+  ## each record preserves the previous crash-recovery visibility guarantee.
+  tx.appendJournalLine($node)
 
 proc appendOperation(tx: Transaction, op: Operation) =
   tx.appendJournalRecord( %* {
@@ -105,11 +110,13 @@ proc appendOperation(tx: Transaction, op: Operation) =
   })
 
 proc appendState(tx: Transaction) =
-  tx.appendJournalRecord( %* {
-    "record": "state",
-    "state": $tx.state,
-    "timestamp": epochTime()
-  })
+  ## State records contain only controlled enum/time values. Write this small
+  ## record directly so batch finalization does not depend on JSON table
+  ## serialization after worker-thread installs have completed.
+  let state = $tx.state
+  let timestamp = $epochTime()
+  tx.appendJournalLine("{\"record\":\"state\",\"state\":\"" & state &
+      "\",\"timestamp\":" & $timestamp & "}")
 
 proc closeJournal(tx: Transaction) =
   if tx.journalHandle != nil:
