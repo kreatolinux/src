@@ -50,3 +50,47 @@ suite "append-only transaction journal":
     check not fileExists(tx.journalPath)
     if dirExists(root):
       removeDir(root)
+
+  test "reloaded journal restores empty directories with original metadata":
+    if not isAdmin():
+      skip()
+    let root = "/tmp/kpkg-tx-directory-" & $getpid()
+    let empty = root & "/etc/security/limits.d"
+    createDir(empty)
+    doAssert posix.chmod(empty.cstring, Mode(0o750)) == 0
+    doAssert posix.chown(empty.cstring, Uid(123), Gid(456)) == 0
+    let tx = newTransaction("journal-dir-test-" & $getpid(), root)
+    tx.recordDirDeleted(empty)
+    removeDir(empty)
+    # Reinstallation creates the directory with different metadata.
+    createDir(empty)
+    tx.recordDirCreated(empty)
+    doAssert posix.chmod(empty.cstring, Mode(0o755)) == 0
+    # Rollback via a reloaded journal, as batch failure/crash recovery does.
+    let loaded = getActiveTransactions().filterIt(it.id == tx.id)[0]
+    loaded.rollback()
+    check dirExists(empty)
+    var st: Stat
+    check posix.stat(empty.cstring, st) == 0
+    check (int(st.st_mode) and 0o7777) == 0o750
+    check st.st_uid == Uid(123)
+    check st.st_gid == Gid(456)
+    tx.commit() # Close the original journal handle and clean its record.
+    removeDir(root)
+
+  test "rollback restores removed nested directory without file backups":
+    if not isAdmin():
+      skip()
+    let root = "/tmp/kpkg-tx-nested-" & $getpid()
+    let parent = root & "/usr/lib/modprobe.d"
+    let empty = parent & "/empty"
+    createDir(empty)
+    let tx = newTransaction("journal-nested-test-" & $getpid(), root)
+    tx.recordDirDeleted(parent)
+    tx.recordDirDeleted(empty)
+    removeDir(parent)
+    tx.rollback()
+    check dirExists(parent)
+    check dirExists(empty)
+    removeFile(tx.journalPath)
+    removeDir(root)

@@ -291,6 +291,8 @@ proc installPkgImpl(repo: string, package: string, root: string, runf = runFile(
             let backupPath = tx.backupFile(fullPath)
             if backupPath != "":
               tx.recordFileDeleted(fullPath, backupPath)
+          elif dirExists(fullPath):
+            tx.recordDirDeleted(fullPath)
 
         if kTarget != kpkgTarget(root, releasePath = kreatoReleasePath):
           removeInternal(i, root, initCheck = false)
@@ -310,6 +312,8 @@ proc installPkgImpl(repo: string, package: string, root: string, runf = runFile(
           let backupPath = tx.backupFile(fullPath)
           if backupPath != "":
             tx.recordFileDeleted(fullPath, backupPath)
+        elif dirExists(fullPath):
+          tx.recordDirDeleted(fullPath)
 
       # Remove old package from database (but files are backed up)
       if kTarget != kpkgTarget(root, releasePath = kreatoReleasePath):

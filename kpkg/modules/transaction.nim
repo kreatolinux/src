@@ -9,6 +9,7 @@ import json
 import times
 import strutils
 import sequtils
+import posix
 import commonPaths
 import ../../common/logging
 
@@ -19,12 +20,16 @@ type
     opFileDeleted    ## A file was deleted (backup exists)
     opDirCreated     ## A new directory was created
     opSymlinkCreated ## A new symlink was created
+    opDirDeleted     ## An existing directory may be removed during reinstall
 
   Operation* = object
     kind*: OperationType
     path*: string       ## The target path that was modified
     backupPath*: string ## Path to backup file (for replaced/deleted)
     timestamp*: float   ## When the operation occurred
+    mode*: int          ## Original directory mode, uid and gid
+    uid*: int
+    gid*: int
 
   TransactionState* = enum
     tsActive     ## Transaction is in progress
@@ -69,6 +74,11 @@ proc parseOperation(node: JsonNode): Operation =
   of "opFileDeleted": result.kind = opFileDeleted
   of "opDirCreated": result.kind = opDirCreated
   of "opSymlinkCreated": result.kind = opSymlinkCreated
+  of "opDirDeleted":
+    result.kind = opDirDeleted
+    result.mode = node["mode"].getInt()
+    result.uid = node["uid"].getInt()
+    result.gid = node["gid"].getInt()
   else: result.kind = opFileCreated
 
 proc appendJournalRecord(tx: Transaction, node: JsonNode) =
@@ -83,16 +93,19 @@ proc appendJournalRecord(tx: Transaction, node: JsonNode) =
   tx.journalHandle.flushFile()
 
 proc appendOperation(tx: Transaction, op: Operation) =
-  tx.appendJournalRecord(%* {
+  tx.appendJournalRecord( %* {
     "record": "operation",
     "kind": $op.kind,
     "path": op.path,
     "backupPath": op.backupPath,
+    "mode": op.mode,
+    "uid": op.uid,
+    "gid": op.gid,
     "timestamp": op.timestamp
   })
 
 proc appendState(tx: Transaction) =
-  tx.appendJournalRecord(%* {
+  tx.appendJournalRecord( %* {
     "record": "state",
     "state": $tx.state,
     "timestamp": epochTime()
@@ -159,7 +172,7 @@ proc newTransaction*(packageName: string, root: string): Transaction =
   # Atomically publish the append-only journal header, then retain an
   # append handle for O(1) operation records.
   let partialJournal = result.journalPath & ".partial"
-  writeFile(partialJournal, $(%* {
+  writeFile(partialJournal, $( %* {
     "record": "header",
     "version": journalVersion,
     "id": id,
@@ -204,6 +217,18 @@ proc recordFileDeleted*(tx: Transaction, path: string, backupPath: string) =
     backupPath: backupPath,
     timestamp: epochTime()
   )
+  tx.operations.add(op)
+  tx.appendOperation(op)
+
+proc recordDirDeleted*(tx: Transaction, path: string) =
+  ## Save directory metadata before package removal. File backups cannot
+  ## restore empty directories, which are also package-owned paths.
+  var st: Stat
+  if lstat(path.cstring, st) != 0 or not S_ISDIR(st.st_mode):
+    raise newException(IOError, "cannot snapshot directory " & path)
+  let op = Operation(kind: opDirDeleted, path: path,
+      timestamp: epochTime(), mode: int(st.st_mode),
+      uid: int(st.st_uid), gid: int(st.st_gid))
   tx.operations.add(op)
   tx.appendOperation(op)
 
@@ -321,6 +346,17 @@ proc rollback*(tx: Transaction) =
             createDir(destDir)
           moveFile(op.backupPath, op.path)
           debug "Rollback: restored deleted file " & op.path
+
+      of opDirDeleted:
+        # File backups may recreate parents, but cannot recreate empty leaves.
+        # Never follow a replacement symlink while restoring metadata.
+        if symlinkExists(op.path) or fileExists(op.path):
+          raise newException(IOError, "cannot restore directory over file/symlink")
+        createDir(op.path)
+        if posix.chown(op.path.cstring, Uid(op.uid), Gid(op.gid)) != 0 or
+            posix.chmod(op.path.cstring, Mode(op.mode)) != 0:
+          raise newException(IOError, "cannot restore directory metadata")
+        debug "Rollback: restored deleted directory " & op.path
 
       of opDirCreated:
         # Remove directory if empty
