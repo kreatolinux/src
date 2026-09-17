@@ -1,8 +1,8 @@
 #!/bin/sh
-# Prepare the seed environment and run kreastrap for arm64.
+# Prepare the seed environment and run krep rootfs for arm64.
 #
 # Usage (inside the container):
-#   entrypoint.sh [buildType] [extra kreastrap args...]
+#   entrypoint.sh [buildType] [extra krep rootfs args...]
 set -ex
 
 BUILD_TYPE="${1:-builder}"
@@ -21,4 +21,4 @@ kpkg update
 # Build the first native aarch64 rootfs. --noSandbox is essential here:
 # the bwrap/overlay sandbox and the kpkg build env cannot be created inside
 # a foreign base, and the container is already the isolation boundary.
-exec /work/kreastrap/kreastrap --buildType="$BUILD_TYPE" --arch=arm64 --noSandbox "$@"
+exec /usr/local/bin/krep rootfs --buildType="$BUILD_TYPE" --arch=arm64 --noSandbox "$@"

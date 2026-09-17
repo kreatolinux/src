@@ -14,7 +14,7 @@ import std/strutils
 import std/parsecfg
 import ../modules/config
 import ../commands/checkcmd
-import ../../kreastrap/commonProcs
+import ../../krep/modules/commonProcs
 import ../modules/run3/run3
 
 # execEnv is now in processes.nim to avoid circular imports

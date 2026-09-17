@@ -70,8 +70,8 @@ buildNim() {
 	[ -n "$CC" ] && set -- "$@" --cc:$CC
 	[ -n "$args" ] && set -- "$@" $args
 	[ -n "$target" ] && set -- "$@" $target
-	[ -n "$passC" ] && set -- "$@" $passC
-	[ -n "$passL" ] && set -- "$@" $passL
+	[ -n "$passC" ] && set -- "$@" "$passC"
+	[ -n "$passL" ] && set -- "$@" "$passL"
 	[ -n "$useDeepcopy" ] && set -- "$@" --deepcopy:on
 	[ -n "$useBranchSsl" ] && set -- "$@" -d:branch=$branch -d:ssl
 	set -- "$@" --threads:$threads -o:"$outputPath"
@@ -81,6 +81,28 @@ buildNim() {
 	"$@" || err "building $project failed"
 
 	cd - > /dev/null
+}
+
+# Keep the build-tree layout identical to the installed share/krep layout.
+# Replace only our staged resources, including any overlay removed from source.
+stageKrepAssets() {
+	dataRoot="$srcdir/out/share/krep"
+	mkdir -p "$dataRoot" || err "Creating krep data directory failed"
+	rm -rf "$dataRoot/rootfs" "$dataRoot/iso" || err "Cleaning staged krep assets failed"
+	mkdir -p "$dataRoot/rootfs" "$dataRoot/iso" || err "Creating krep asset directories failed"
+	cp -R -P "$srcdir/krep/data/rootfs/arch" "$dataRoot/rootfs/" \
+		|| err "Staging krep rootfs configurations failed"
+	if [ -d "$srcdir/krep/data/rootfs/overlay" ]; then
+		cp -R -P "$srcdir/krep/data/rootfs/overlay" "$dataRoot/rootfs/" \
+			|| err "Staging krep rootfs overlay failed"
+	fi
+	cp -R -P "$srcdir/krep/data/iso/overlay" \
+		"$srcdir/krep/data/iso/grub.cfg" "$dataRoot/iso/" \
+		|| err "Staging krep ISO assets failed"
+	if [ -d "$srcdir/krep/data/iso/overlays" ]; then
+		cp -R -P "$srcdir/krep/data/iso/overlays" "$dataRoot/iso/" \
+			|| err "Staging krep init overlays failed"
+	fi
 }
 
 # Run tests for a project
@@ -120,8 +142,8 @@ runTests() {
 
 		# Build the test
 		set -- nim c -d:debug -d:ssl -d:run3NoLibArchive
-		[ -n "$passC" ] && set -- "$@" $passC
-		[ -n "$passL" ] && set -- "$@" $passL
+		[ -n "$passC" ] && set -- "$@" "$passC"
+		[ -n "$passL" ] && set -- "$@" "$passL"
 		set -- "$@" --threads:on --deepcopy:on -o:"$testBinary" "$testFile"
 
 		if ! "$@"; then
@@ -200,8 +222,7 @@ while [ "$#" -gt 0 ]; do
 		-c|--clean)
 			echo "Cleaning binaries"
 			rm -rf "$prefix"
-			rm -f "$srcdir/kreastrap/kreastrap"
-			rm -f "$srcdir/kreaiso/kreaiso"
+			rm -f "$srcdir/krep/krep"
 			;;
 		-b|--branch)
 			shift
@@ -249,23 +270,14 @@ for v in $projects; do
 		kpkg)
 			buildNim "$v" "$v.nim" "$prefix/$v" "on" "" "1" "1"
 			;;
-		chkupd)
-			buildNim "$v" "$v.nim" "$prefix/$v" "on" "-d:run3NoLibArchive" "" "1"
-			;;
 		jumpstart)
 			buildNim "jumpstart" "jumpstart.nim" "$prefix/jumpstart" "on" "--mm:refc" "1" ""
 			buildNim "jumpstart" "jumpctl.nim" "$prefix/jumpctl" "off" "" "1" ""
 			;;
-		run3tools)
-			buildNim "run3tools" "main.nim" "$prefix/run3tools" "off" "-d:run3Standalone" "1" ""
-			;;
-		kreastrap)
-			buildNim "kreastrap" "kreastrap.nim" "$srcdir/kreastrap/kreastrap" \
-				"on" "" "1" "1"
-			;;
-		kreaiso)
-			buildNim "kreaiso" "kreaiso.nim" "$srcdir/kreaiso/kreaiso" \
-				"on" "" "1" "1"
+		krep)
+			mkdir -p "$srcdir/out" || err "Creating krep output directory failed"
+			buildNim "krep" "krep.nim" "$srcdir/out/krep" "on" "" "1" "1"
+			stageKrepAssets
 			;;
 		install_klinstaller)
 			[ ! -d "$DESTDIR" ] && mkdir -p "$DESTDIR"
@@ -273,7 +285,7 @@ for v in $projects; do
 			chmod +x "$DESTDIR/bin/klinstaller"
 			;;
 		*)
-			echo "Unknown project: $v" >&2
+			err "Unknown project: $v"
 			;;
 	esac
 done

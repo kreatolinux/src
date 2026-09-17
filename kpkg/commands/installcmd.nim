@@ -29,8 +29,6 @@ import ../modules/staleprocs
 import ../modules/builder/commitctx
 import ../modules/telemetry/main as telemetry
 
-setControlCHook(ctrlc)
-
 type
   FileToInstall = object
     srcPath: string  # Path in the extracted temp directory
@@ -1263,6 +1261,9 @@ proc install*(promptPackages: seq[string], root = "/", yes: bool = false,
     error("you have to be root for this action.")
     quit(1)
 
+  # Importing the installer must not replace the caller's signal handler.
+  # Its cleanup hook is only appropriate once an install was requested.
+  setControlCHook(ctrlc)
   setDisableExcludes(disableExcludes)
   addCliExcludePatterns(exclude)
 

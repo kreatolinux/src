@@ -109,7 +109,7 @@ jobs:
           cd /work
           export KPKG_ENABLE_DEBUG=yes
 
-          # Install nimble deps (needed for kreastrap build)
+          # Install nimble deps (needed for krep build)
           ./build.sh -i
 
           kpkg
@@ -124,12 +124,12 @@ jobs:
           # Do not prefetch against the builder host's installed package set.
 
           nim c -d:branch=master --deepcopy:on --passL:-larchive --passC:-no-pie \
-              --threads:on -d:ssl -o=kreastrap/kreastrap kreastrap/kreastrap.nim
+              --threads:on -d:ssl -o=krep/krep krep/krep.nim
 
           # Binary assembly does not compile packages or bypass the sandbox.
           # Keep the checked-in config's source-build default for local users.
-          sed -i 's/^BuildPackages=yes$/BuildPackages=no/' kreastrap/arch/arm64/configs/builder.conf
-          ./kreastrap/kreastrap --buildType=builder --arch=arm64
+          sed -i 's/^BuildPackages=yes$/BuildPackages=no/' krep/data/rootfs/arch/arm64/configs/builder.conf
+          ./krep/krep rootfs --dataDir=/work/krep/data/rootfs --buildType=builder --arch=arm64
 
           cd /out
           tar -czf /work/kreato-linux-builder-aarch64-$(date +%d-%m-%Y).tar.gz --numeric-owner .

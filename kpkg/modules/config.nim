@@ -1,12 +1,13 @@
 import parsecfg
 import os
-import streams
 import strutils
 import regex
 import tables
 import ../../common/logging
 
-const configPath = "/etc/kpkg/kpkg.conf"
+# Compile-time override permits isolated configuration tests and custom builds.
+const kpkgConfigPath* {.strdefine.} = "/etc/kpkg/kpkg.conf"
+const configPath = kpkgConfigPath
 
 var disableExcludes {.threadvar.}: bool
 var cliExcludePatterns {.threadvar.}: seq[string]
@@ -62,8 +63,8 @@ proc initializeConfig*(): Config =
   if not isAdmin():
     return config
 
-  discard existsOrCreateDir("/etc/kpkg")
-  discard existsOrCreateDir("/etc/kpkg/repos")
+  createDir(parentDir(configPath))
+  createDir(parentDir(configPath) / "repos")
 
   config.writeConfig(configPath)
   protectConfigFile(configPath)
@@ -71,12 +72,21 @@ proc initializeConfig*(): Config =
   return config
 
 
-proc getConfigValue*(section: string, key: string, defaultVal = ""): string =
-  ## Reads the configuration file and returns value of section.
+proc loadActiveConfig() =
+  ## Only explicit configuration access may read or create the file.
   if not fileExists(configPath):
     config = initializeConfig()
   else:
     config = loadConfig(configPath)
+
+proc ensureConfigLoaded() =
+  if config.isNil:
+    loadActiveConfig()
+
+proc getConfigValue*(section: string, key: string, defaultVal = ""): string =
+  ## Reads the configuration file and returns value of section.
+  # Retain the existing refresh-on-read behavior.
+  loadActiveConfig()
   return config.getSectionValue(section, key, defaultVal)
 
 proc getThreadsUsed*(): int =
@@ -121,49 +131,31 @@ proc getInstallThreads*(): int =
 
 proc getConfigSection*(section: string, defaultVal = ""): string =
   ## Reads the configuration file and returns the section as a string.
-  if not fileExists(configPath):
-    config = initializeConfig()
-  else:
-    config = loadConfig(configPath)
-
-  var fileStr = newFileStream(configPath, fmRead)
-  var parser: CfgParser
-  var res: string
-  var reachedSection = false
-
-  open(parser, fileStr, configPath)
-  while true:
-    var entry = next(parser)
-
-    if entry.kind == cfgEof: break
-
-    if reachedSection:
-      if entry.kind == cfgKeyValuePair:
-        if isEmptyOrWhitespace(res):
-          res = entry.key & "=" & entry.value
-        else:
-          res.add("\n" & entry.key & "=" & entry.value)
-      else:
-        break
-
-    if entry.kind == cfgSectionStart and entry.section == section:
-      reachedSection = true
-
-  return res
+  loadActiveConfig()
+  # Use the loaded config, which also works with in-memory defaults when an
+  # unprivileged caller has no configuration file.
+  if config.hasKey(section):
+    for key, value in config[section].pairs:
+      if result.len > 0:
+        result.add("\n")
+      result.add(key & "=" & value)
 
 proc configSectionNames*(): seq[string] =
   ## Return sections from the active configuration, including custom sections.
+  ensureConfigLoaded()
   for section in config.sections:
     result.add(section)
 
 proc configKeyNames*(section: string): seq[string] =
   ## Return keys from the active configuration section.
+  ensureConfigLoaded()
   if config.hasKey(section):
     for key in config[section].keys:
       result.add(key)
 
 proc setConfigValue*(section: string, key: string, value: string) =
   ## Writes a section to the configuration file.
+  ensureConfigLoaded()
   config.setSectionKey(section, key, value)
   config.writeConfig(configPath)
   protectConfigFile(configPath)
@@ -184,7 +176,8 @@ proc redactTelemetrySecrets*(configOutput: string): string =
       inTelemetrySection = stripped.toLowerAscii() == "[telemetry]"
     let separator = stripped.find('=')
     let key = if separator >= 0: stripped[0 ..< separator].strip().toLowerAscii() else: ""
-    if inTelemetrySection and key in ["password", "bearertoken"] and separator >= 0:
+    if inTelemetrySection and key in ["password", "bearertoken"] and
+        separator >= 0:
       let originalSeparator = line.find('=')
       var valueStart = originalSeparator + 1
       while valueStart < line.len and line[valueStart] in {' ', '\t'}:
@@ -198,10 +191,7 @@ proc redactTelemetrySecrets*(configOutput: string): string =
 
 proc returnConfig*(): string =
   ## Returns the full configuration file.
-  if not fileExists(configPath):
-    config = initializeConfig()
-  else:
-    config = loadConfig(configPath)
+  loadActiveConfig()
 
   echo redactTelemetrySecrets(($config).strip())
 
@@ -258,9 +248,3 @@ proc isExcluded*(package: string, repo: string = ""): bool =
     except CatchableError:
       warn "Invalid exclude pattern: " & pattern
   return false
-
-
-if not fileExists(configPath):
-  config = initializeConfig()
-else:
-  config = loadConfig(configPath)

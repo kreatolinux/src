@@ -18,12 +18,12 @@
 .hy
 .SH NAME
 .PP
-chkupd.cfg - Per package configuration file for chkupd.
+chkupd.cfg - Per package configuration file for krep upstream checks.
 .SH DESCRIPTION
 .PP
-PACKAGEPATH/chkupd.cfg is a per package configuration file for chkupd.
-It is used to configure the behavior of chkupd for a specific package.
-If a configuration file is not found, chkupd will use the arguments
+PACKAGEPATH/chkupd.cfg is a per package configuration file for krep upstream checks.
+It is used to configure the behavior of krep check and update for a specific package.
+If a configuration file is not found, krep will use the arguments
 passed to it.
 .SH SYNTAX
 .PP
@@ -45,7 +45,7 @@ repo=\[dq]kreatolinux/kpkg\[dq]
 .SS AUTOUPDATER
 .IP \[bu] 2
 mechanism: The mechanism to use for checking for updates.
-Defaults to whatever is used while running \f[V]chkupd\f[R].
+Defaults to whatever is used while running \f[V]krep check\f[R].
 .IP \[bu] 2
 trimString: String to trim from the version string.
 Defaults to nothing.

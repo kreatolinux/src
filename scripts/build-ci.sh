@@ -59,7 +59,7 @@ case $1 in
                 #nim c --deepcopy:on scripts/sqlite.nim
                 #scripts/sqlite || true
 
-		            nim c -d:branch=master --deepcopy:on --passL:-larchive --passC:-no-pie --threads:on -d:ssl -o=kreastrap/kreastrap kreastrap/kreastrap.nim
+		            nim c -d:branch=master --deepcopy:on --passL:-larchive --passC:-no-pie --threads:on -d:ssl -o=krep/krep krep/krep.nim
                     
                 if [ -f "/var/cache/kpkg/kpkg.sqlite" ]; then
                     mkdir -p /var/lib/kpkg
@@ -81,7 +81,7 @@ case $1 in
 			arch="$3"
 		fi
   
-                ./kreastrap/kreastrap --buildType="$2" --arch="$arch" || e
+                ./krep/krep rootfs --dataDir=/work/krep/data/rootfs --buildType="$2" --arch="$arch" || e
                 cd /out || exit 1
                 tar -czvf /work/kreato-linux-"$2"-glibc-"$(date +%d-%m-%Y)"-amd64.tar.gz *
         ;;

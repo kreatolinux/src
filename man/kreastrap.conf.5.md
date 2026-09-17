@@ -1,10 +1,10 @@
 % kreastrap.conf(5)
 
 # NAME
-kreastrap.conf - Configuration file for kreastrap v3
+kreastrap.conf - Configuration file for krep rootfs
 
 # DESCRIPTION
-kreastrap.conf is the configuration file for kreastrap. It is put on `arch/ARCHITECTURE/configs/buildTypeName.conf`.
+kreastrap.conf is the configuration format used by krep rootfs. It is put on `share/krep/rootfs/arch/ARCHITECTURE/configs/buildTypeName.conf`.
 
 # SYNTAX
 kreastrap.conf uses a INI format.

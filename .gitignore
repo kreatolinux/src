@@ -1,10 +1,9 @@
 out
 packages
-kreastrap/kreastrap
 result
-kreaiso/kreaiso
 kpkg-repo
 archives
 kpkg/modules/generated.nim
 kreato-linux*.tar.gz
 .direnv/
+krep/krep

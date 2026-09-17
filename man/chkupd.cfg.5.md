@@ -1,10 +1,10 @@
 % chkupd.cfg(5)
 
 # NAME
-chkupd.cfg - Per package configuration file for chkupd.
+chkupd.cfg - Per package configuration file for krep upstream checks.
 
 # DESCRIPTION
-PACKAGEPATH/chkupd.cfg is a per package configuration file for chkupd. It is used to configure the behavior of chkupd for a specific package. If a configuration file is not found, chkupd will use the arguments passed to it.
+PACKAGEPATH/chkupd.cfg is a per package configuration file for krep upstream checks. It is used to configure the behavior of krep check and update for a specific package. If a configuration file is not found, krep will use the arguments passed to it.
 
 # SYNTAX
 chkupd.cfg uses a INI format.
@@ -21,7 +21,7 @@ repo="kreatolinux/kpkg"
 ```
 
 ## AUTOUPDATER
-* mechanism: The mechanism to use for checking for updates. Defaults to whatever is used while running `chkupd`.
+* mechanism: The mechanism to use for checking for updates. Defaults to whatever is used while running `krep check`.
 * trimString: String to trim from the version string. Defaults to nothing.
 
 ## GITHUBRELEASES

@@ -1,7 +1,7 @@
 # Seed image for bootstrapping Klinux aarch64 from a foreign base.
 #
 # This is stage 1 of the aarch64 bootstrap (issue #108): a Ubuntu arm64 base
-# with a pinned Nim toolchain and a freshly built kpkg/kreastrap. There is no
+# with a pinned Nim toolchain and a freshly built kpkg/krep. There is no
 # Kreato userspace here yet, and nothing in this image pretends otherwise:
 # kpkg runs without /etc/kreato-release by synthesizing a release, and the
 # container/chroot itself is the isolation boundary (--noSandbox).
@@ -10,7 +10,7 @@
 #   docker build -f docker/seed-aarch64/Dockerfile -t kreato/seed-aarch64 .
 #
 # Run (produces a rootfs tarball staging area under /out):
-#   docker run --privileged kreato/seed-aarch64 kreastrap --buildType=builder --arch=arm64 --noSandbox
+#   docker run --privileged kreato/seed-aarch64 builder
 #
 # Binary repositories are disabled inside the seed (there are no aarch64
 # binaries on the mirror yet), so every package is built from source.
@@ -60,7 +60,7 @@ RUN curl -fsSL -o /tmp/nim.tar.xz \
     && rm /tmp/nim.tar.xz \
     && nim --version
 
-# kpkg/kreastrap dependencies (matches build.sh --installDeps)
+# kpkg/krep dependencies (matches build.sh --installDeps)
 RUN nimble install -y cligen nimcrypto norm fusion regex
 
 # Source tree, built in the layout the CI builder image uses (/work)
@@ -74,8 +74,10 @@ WORKDIR /work
 # _ssl). Klinux's own OpenSSL (installed into the root during bootstrap,
 # soname .4) must win once it exists. kpkg itself keeps running against
 # Ubuntu's runtime libssl.so.3, which stays.
-RUN sh build.sh --projects kpkg,kreastrap \
-    && cp out/kpkg /usr/local/bin/kpkg \
+RUN sh build.sh --projects kpkg,krep \
+    && cp out/kpkg out/krep /usr/local/bin/ \
+    && mkdir -p /usr/local/share/krep \
+    && cp -R out/share/krep/. /usr/local/share/krep/ \
     && git config --global --add safe.directory /work \
     && git config --global --add safe.directory /etc/kpkg/repos/main \
     && rm -f /usr/lib/aarch64-linux-gnu/libssl.so \

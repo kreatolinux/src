@@ -5,6 +5,10 @@ on:
   push:
     paths:
       - '**.nim'
+      - 'build.sh'
+      - 'Makefile'
+      - 'krep/**'
+      - '.github/workflows/build.yml'
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -39,13 +43,15 @@ jobs:
           make deps
           ./build.sh -T kpkg
           ./build.sh -p kpkg
-          ./build.sh -p chkupd
+          ./build.sh -p krep
+          ./build.sh -T krep
           mv out out-release
       
       - name: build (amd64) (debug)
         run: |
           ./build.sh -d -p kpkg
-          ./build.sh -d -p chkupd
+          ./build.sh -d -p krep
+          ./build.sh -T krep
           mv out out-debug
       
       - uses: actions/upload-artifact@v4
@@ -60,11 +66,15 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: chkupd-amd64-linux-debug
-          path: ${{ github.workspace }}/out-debug/chkupd
+          name: krep-amd64-linux-debug
+          path: |
+            ${{ github.workspace }}/out-debug/krep
+            ${{ github.workspace }}/out-debug/share/krep
 
       - uses: actions/upload-artifact@v4
         with:
-          name: chkupd-amd64-linux-release
-          path: ${{ github.workspace }}/out-release/chkupd
+          name: krep-amd64-linux-release
+          path: |
+            ${{ github.workspace }}/out-release/krep
+            ${{ github.workspace }}/out-release/share/krep
 

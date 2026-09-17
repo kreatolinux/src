@@ -8,5 +8,5 @@ if [ ! -d "/var/cache/kpkg/archives/arch" ]; then
 fi
 
 for i in /var/cache/kpkg/archives/arch/*/; do
-    chkupd cleanUp --dir="$i" || exit 1
+    krep clean --dir="$i" || exit 1
 done
