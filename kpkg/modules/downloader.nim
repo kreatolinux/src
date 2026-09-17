@@ -3,6 +3,13 @@ import std/typedthreads
 import std/locks
 import terminal, math, strutils, os, times, ../../common/logging
 
+# HttpClient.timeout is expressed in milliseconds, not seconds. Keep the
+# values explicit so large Klinux archives are not abandoned after a few
+# hundred milliseconds on a busy mirror.
+const
+  defaultDownloadTimeoutMs = 900_000
+  attemptsPerMirror = 3
+
 proc onProgressChanged(total, progress, speed: BiggestInt) =
   stdout.eraseLine
   var p = "Downloaded "&formatSize(progress)
@@ -28,26 +35,40 @@ proc onProgressChanged(total, progress, speed: BiggestInt) =
     stdout.write(p)
     stdout.flushFile
 
+proc downloadWithResume(client: HttpClient, url, tmpPath: string)
+
 proc download*(url: string, file: string, instantErrorIfFail = false,
     raiseWhenFail = false) =
+  ## Download one file with a bounded retry policy. Keep the partial file so
+  ## transient failures can resume instead of restarting large archives.
   debug "downloader ran, attempting to download file from '"&url&"' to '"&file&"'"
-  try:
-    var client = newHttpClient()
-    client.headers = newHttpHeaders({"Accept": "*/*"})
-    client.onProgressChanged = onProgressChanged
-    client.downloadFile(url, file&".partial")
-    moveFile(file&".partial", file)
-    echo ""
-  except Exception:
-    if instantErrorIfFail:
-      if raiseWhenFail or not defined(release):
-        raise getCurrentException()
-      else:
-        debug $(getCurrentException().getStackTrace())
-        fatal "download failed"
-    warn "download failed, retrying"
-    debug $(getCurrentException().getStackTrace())
-    download(url, file, true, raiseWhenFail)
+  var lastError = ""
+  var client: HttpClient
+  for attempt in 0 ..< attemptsPerMirror:
+    try:
+      client = newHttpClient(timeout = defaultDownloadTimeoutMs)
+      client.headers = newHttpHeaders({"Accept": "*/*"})
+      client.onProgressChanged = onProgressChanged
+      downloadWithResume(client, url, file & ".partial")
+      client.close()
+      moveFile(file & ".partial", file)
+      echo ""
+      return
+    except CatchableError:
+      lastError = getCurrentExceptionMsg()
+      try:
+        if client != nil:
+          client.close()
+      except CatchableError:
+        discard
+      debug "downloader: attempt " & $(attempt + 1) & " failed for '" & url &
+          "': " & lastError
+      if attempt + 1 < attemptsPerMirror:
+        warn "download failed, retrying"
+  if instantErrorIfFail or raiseWhenFail:
+    raise newException(IOError, "download failed for '" & url & "': " & lastError)
+  fatal("download failed for '" & url & "': " & lastError)
+
 
 # ---------------------- Parallel download support ---------------------------
 # Fan-out download helper used by the install command. Downloads run on
@@ -60,11 +81,11 @@ proc download*(url: string, file: string, instantErrorIfFail = false,
 
 type
   DownloadJob* = object
-    label*: string      # Short display name (usually the package name)
-    urls*: seq[string]  # Full URLs to try in order (first success wins)
-    destPath*: string   # Final path on disk
-    idx*: int           # Internal: index in the submitted batch
-    displayIdx*: int    # Progress row (may differ in a combined operation)
+    label*: string     # Short display name (usually the package name)
+    urls*: seq[string] # Full URLs to try in order (first success wins)
+    destPath*: string  # Final path on disk
+    idx*: int          # Internal: index in the submitted batch
+    displayIdx*: int   # Progress row (may differ in a combined operation)
     ok*: bool
     errorMsg*: string
 
@@ -243,7 +264,7 @@ proc downloadWithResume(client: HttpClient, url, tmpPath: string) =
 
 proc workerThread() {.thread.} =
   {.cast(gcsafe).}:
-    var client = newHttpClient(timeout = 300)
+    var client = newHttpClient(timeout = defaultDownloadTimeoutMs)
     client.headers = newHttpHeaders({"Accept": "*/*"})
 
     while true:
@@ -273,18 +294,17 @@ proc workerThread() {.thread.} =
       let tmpPath = job.destPath & ".partial"
       var success = false
 
-      # Mirror hedging: if a mirror stalls (no bytes for graceSeconds),
-      # abandon it early and try the next mirror instead of waiting out the
-      # full client timeout. The last available mirror always gets the full
-      # timeout since there is nothing to hedge to.
-      const graceSeconds = 8
-
+      # Try each mirror with a long inactivity timeout. Large Klinux archives
+      # must not be abandoned while a busy mirror is still serving bytes.
       let urlCount = job.urls.len
       var urlPos = 0
 
       for url in job.urls:
         inc urlPos
-        let perUrlTimeout = if urlPos < urlCount: graceSeconds else: 300
+        # The timeout is an inactivity/receive deadline in Nim's HTTP
+        # client. Do not use a short mirror hedge here: large archives can
+        # legitimately take longer than eight seconds between events on CI.
+        let perUrlTimeout = defaultDownloadTimeoutMs
         try:
           client.timeout = perUrlTimeout
         except CatchableError:
@@ -309,8 +329,9 @@ proc workerThread() {.thread.} =
         # One retry per URL: transient timeouts on a loaded mirror are common.
         # Retries resume from the bytes already on disk when the server
         # supports Range requests.
-        for attempt in 0 ..< 2:
-          debug "downloader: worker downloading '" & url & "' (attempt " & $attempt & ") to '" & tmpPath & "'"
+        for attempt in 0 ..< attemptsPerMirror:
+          debug "downloader: worker downloading '" & url & "' (attempt " &
+              $attempt & ") to '" & tmpPath & "'"
           try:
             downloadWithResume(client, url, tmpPath)
             # Atomic finalize: rename over any existing/identical file
@@ -318,7 +339,8 @@ proc workerThread() {.thread.} =
             success = true
             break
           except CatchableError:
-            debug "downloader: worker download failed for '" & url & "': " & getCurrentExceptionMsg()
+            debug "downloader: worker download failed for '" & url & "': " &
+                getCurrentExceptionMsg()
             # Keep the .partial file: the next attempt resumes via Range.
             # downloadWithResume restarts from scratch if the server
             # ignores Range requests.
@@ -329,7 +351,7 @@ proc workerThread() {.thread.} =
               client.close()
             except CatchableError:
               discard
-            client = newHttpClient(timeout = 300)
+            client = newHttpClient(timeout = defaultDownloadTimeoutMs)
             client.headers = newHttpHeaders({"Accept": "*/*"})
             client.onProgressChanged = onProgress
         if success:
