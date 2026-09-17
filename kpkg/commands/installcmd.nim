@@ -1082,6 +1082,21 @@ proc install_bin(packages: seq[string], binrepos: seq[string], root: string,
             keepTransaction: true, progressIndex: installItems.len,
             progressStart: 45, idx: installItems.len))
 
+      # A single requested package has no independent work to schedule. Keep
+      # this common path on the caller thread: successive rootfs installs must
+      # not carry parser/allocator state across a worker-thread teardown.
+      if installItems.len == 1:
+        let item = installItems[0]
+        if not downloadBatch(@[item.name], binrepos, versions, kTarget, offline,
+                forceDownloadPackages, forceDownload,
+                ignoreDownloadErrors):
+          raise newException(IOError, "one or more package downloads failed")
+        installPkg(item.repo, item.name, item.root,
+            manualInstallList = if item.manual: @[item.name] else: @[],
+            kTarget = item.kTarget, basePackage = item.basePackage,
+            version = item.version, keepTransaction = false)
+        return
+
       var progressRows = initTable[string, int]()
       for idx, name in itemNames:
         progressRows[name] = idx
