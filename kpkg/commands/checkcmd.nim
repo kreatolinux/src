@@ -3,6 +3,7 @@ import strutils
 import ../modules/sqlite
 import ../../common/logging
 import ../modules/checksums
+import ../modules/archivemeta
 
 proc reportCheckError(msg: string) =
   ## Report a check error - debug if debug mode, fatal otherwise.
@@ -15,6 +16,11 @@ proc checkInternal(package: Package, root: string, lines = getFilesPackage(
   for line in lines:
 
     let actPath = line.path.replace("\"", "")
+    # pkgsums.ini and pkgInfo.ini are archive transport metadata. They are
+    # registered in SQLite for package provenance but are not installed in
+    # roots copied into a sandbox, so they must not fail filesystem checks.
+    if isArchiveRootMetadata(actPath):
+      continue
     let fullPath = root&"/"&actPath
 
     if dirExists(fullPath):
