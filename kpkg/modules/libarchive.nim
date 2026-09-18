@@ -263,6 +263,13 @@ proc extractImpl(fileName: string, path = getCurrentDir(), ignoreFiles = @[""],
         debug(entryPath & " in ignoreFiles, ignoring")
         continue
 
+      # Some published Klinux archives contain repeated entries. The
+      # manifest describes the final occurrence, so remove an earlier
+      # non-directory payload before asking libarchive to write the entry.
+      if (fileExists(fullEntryPath) or symlinkExists(fullEntryPath)) and
+          not dirExists(fullEntryPath):
+        removeFile(fullEntryPath)
+
       r = archiveWriteHeader(ext, entry)
       if r != ARCHIVE_OK:
         # A failed header leaves libarchive's disk writer in its header state;
