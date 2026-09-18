@@ -38,6 +38,19 @@ suite "append-only transaction journal":
     if dirExists(root):
       removeDir(root)
 
+  test "loads large append-only journal without whole-file splitting":
+    if not isAdmin():
+      skip()
+    let root = "/tmp/kpkg-tx-large-" & $getpid()
+    createDir(root)
+    let tx = newTransaction("journal-large-test-" & $getpid(), root)
+    for i in 0 ..< 20000:
+      tx.recordFileCreated(root & "/file-" & $i)
+    let loaded = getActiveTransactions().filterIt(it.id == tx.id)[0]
+    check loaded.operations.len == 20000
+    tx.rollback()
+    removeDir(root)
+
   test "commit removes append-only journal":
     if not isAdmin():
       skip()

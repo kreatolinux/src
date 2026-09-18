@@ -8,7 +8,6 @@ import os
 import json
 import times
 import strutils
-import sequtils
 import posix
 import commonPaths
 import ../../common/logging
@@ -125,29 +124,39 @@ proc closeJournal(tx: Transaction) =
 
 proc loadTransaction(journalPath: string): Transaction =
   ## Load both legacy v1 whole-document journals and v2 append-only JSONL.
-  let content = readFile(journalPath)
-  let records = content.splitLines().filterIt(not isEmptyOrWhitespace(it))
-  if records.len == 0:
-    raise newException(ValueError, "empty transaction journal")
+  ## Stream v2 records instead of duplicating a potentially large journal in
+  ## readFile + splitLines allocations during batch finalization.
+  var journal: File
+  if not open(journal, journalPath, fmRead):
+    raise newException(IOError, "cannot open transaction journal " & journalPath)
+  defer: journal.close()
 
-  let first = parseJson(records[0])
-  if first.hasKey("operations"):
-    # Version 1 compatibility.
-    result = Transaction(id: first["id"].getStr(),
-        packageName: first["packageName"].getStr(), journalPath: journalPath,
-        root: first["root"].getStr(), operations: @[],
-        state: parseState(first["state"].getStr()))
-    for opNode in first["operations"]:
-      result.operations.add(parseOperation(opNode))
-    return
+  var line: string
+  var firstLine = true
+  while journal.readLine(line):
+    if isEmptyOrWhitespace(line):
+      continue
+    let record = parseJson(line)
+    if firstLine:
+      firstLine = false
+      if record.hasKey("operations"):
+        # Version 1 compatibility. Legacy journals are one JSON document.
+        result = Transaction(id: record["id"].getStr(),
+            packageName: record["packageName"].getStr(),
+            journalPath: journalPath, root: record["root"].getStr(),
+            operations: @[], state: parseState(record["state"].getStr()))
+        for opNode in record["operations"]:
+          result.operations.add(parseOperation(opNode))
+        return
 
-  if first.getOrDefault("record").getStr() != "header":
-    raise newException(ValueError, "invalid transaction journal header")
-  result = Transaction(id: first["id"].getStr(),
-      packageName: first["packageName"].getStr(), journalPath: journalPath,
-      root: first["root"].getStr(), operations: @[], state: tsActive)
-  for i in 1 ..< records.len:
-    let record = parseJson(records[i])
+      if record.getOrDefault("record").getStr() != "header":
+        raise newException(ValueError, "invalid transaction journal header")
+      result = Transaction(id: record["id"].getStr(),
+          packageName: record["packageName"].getStr(),
+          journalPath: journalPath, root: record["root"].getStr(),
+          operations: @[], state: tsActive)
+      continue
+
     case record.getOrDefault("record").getStr()
     of "operation":
       result.operations.add(parseOperation(record))
@@ -155,6 +164,9 @@ proc loadTransaction(journalPath: string): Transaction =
       result.state = parseState(record["state"].getStr())
     else:
       discard
+
+  if firstLine:
+    raise newException(ValueError, "empty transaction journal")
 
 proc newTransaction*(packageName: string, root: string): Transaction =
   ## Create a new transaction for package installation
