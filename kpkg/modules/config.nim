@@ -124,7 +124,7 @@ proc getInstallThreads*(): int =
   let explicit = getConfigValue("Parallelization", "installThreads", "")
   if not isEmptyOrWhitespace(explicit):
     try:
-      return max(1, min(parseInt(explicit.strip()), 16))
+      return max(0, min(parseInt(explicit.strip()), 16))
     except CatchableError:
       discard
   return getThreadsUsed()

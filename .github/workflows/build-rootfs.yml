@@ -116,6 +116,9 @@ jobs:
           # Use the master branch of kpkg-repo (stable lacks the aarch64 fixes)
           sed -i s/stable/master/g /etc/kpkg/kpkg.conf
           kpkg repl -a "set config.Upgrade.buildByDefault no"
+          # Binary rootfs assembly runs installs on the caller thread. This
+          # avoids crossing ORC-owned parser state through install workers.
+          kpkg repl -a "set config.Parallelization.installThreads 0"
           # Wipe the old repos and re-clone from master (has aarch64 fixes)
           rm -rf /etc/kpkg/repos/main /etc/kpkg/repos/lockin
           kpkg update
