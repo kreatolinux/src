@@ -100,9 +100,12 @@ type
     finished: bool
     ok: bool
 
+type
+  DownloadChannelState = object
+    workChan: Channel[DownloadJob]
+    progressChan: Channel[ProgressMsg]
+
 var
-  workChan: Channel[DownloadJob]
-  progressChan: Channel[ProgressMsg]
   statusLock: Lock
   latestStatus: seq[tuple[percent: int, speed: string, active: bool,
       finished: bool, ok: bool]]
@@ -262,19 +265,19 @@ proc downloadWithResume(client: HttpClient, url, tmpPath: string) =
 
   client.downloadFile(url, tmpPath)
 
-proc workerThread() {.thread.} =
+proc workerThread(state: ptr DownloadChannelState) {.thread, gcsafe.} =
   {.cast(gcsafe).}:
     var client = newHttpClient(timeout = defaultDownloadTimeoutMs)
     client.headers = newHttpHeaders({"Accept": "*/*"})
 
     while true:
-      let job = workChan.recv()
+      let job = state[].workChan.recv()
       if job.destPath == "\x00quit":
         break
 
       var lastProgress = 0.0
       let jobIdx = job.idx
-      discard progressChan.trySend(ProgressMsg(jobIdx: jobIdx,
+      discard state[].progressChan.trySend(ProgressMsg(jobIdx: jobIdx,
           displayIdx: job.displayIdx, percent: 0, speedBps: 0,
           started: true, finished: false, ok: false))
 
@@ -284,7 +287,7 @@ proc workerThread() {.thread.} =
           return
         lastProgress = now
         let percent = if total > 0: int(progress * 100 div total) else: 0
-        discard progressChan.trySend(ProgressMsg(
+        discard state[].progressChan.trySend(ProgressMsg(
           jobIdx: jobIdx, displayIdx: job.displayIdx,
           percent: percent, totalBytes: total, progressBytes: progress,
           speedBps: speed, finished: false, ok: false))
@@ -319,7 +322,7 @@ proc workerThread() {.thread.} =
             let lengthValue = head.headers.getOrDefault("content-length")
             if not isEmptyOrWhitespace(lengthValue):
               let expectedBytes = parseBiggestInt(lengthValue)
-              discard progressChan.trySend(ProgressMsg(jobIdx: jobIdx,
+              discard state[].progressChan.trySend(ProgressMsg(jobIdx: jobIdx,
                   displayIdx: job.displayIdx, percent: 0,
                   totalBytes: expectedBytes, progressBytes: 0,
                   speedBps: 0, started: true, finished: false, ok: false))
@@ -359,7 +362,7 @@ proc workerThread() {.thread.} =
 
       # Completion is not lossy: the coordinator must receive exactly one
       # terminal event per job or it could wait forever.
-      progressChan.send(ProgressMsg(
+      state[].progressChan.send(ProgressMsg(
         jobIdx: jobIdx, displayIdx: job.displayIdx,
         percent: 100, speedBps: 0, finished: true, ok: success))
 
@@ -392,12 +395,13 @@ proc downloadParallel*(jobsIn: seq[DownloadJob], threads = 4,
   # Buffered channels: a synchronous channel deadlocks when a worker blocks
   # on progressChan.send while the main thread is still blocked on
   # workChan.send handing out jobs.
-  workChan.open(result.len + workerCount + 8)
-  progressChan.open(4096)
+  var channelState: DownloadChannelState
+  channelState.workChan.open(result.len + workerCount + 8)
+  channelState.progressChan.open(4096)
 
-  var workers = newSeq[Thread[void]](workerCount)
+  var workers = newSeq[Thread[ptr DownloadChannelState]](workerCount)
   for i in 0 ..< workerCount:
-    createThread(workers[i], workerThread)
+    createThread(workers[i], workerThread, addr channelState)
 
   var pending = result.len
   var doneCount = 0
@@ -408,11 +412,11 @@ proc downloadParallel*(jobsIn: seq[DownloadJob], threads = 4,
   for i in 0 ..< result.len:
     observedAt[i] = epochTime()
   for j in result:
-    workChan.send(j)
+    channelState.workChan.send(j)
 
   # One sentinel per worker so they exit cleanly after the queue drains
   for i in 0 ..< workerCount:
-    workChan.send(DownloadJob(label: "", destPath: "\x00quit"))
+    channelState.workChan.send(DownloadJob(label: "", destPath: "\x00quit"))
 
   if onTick != nil:
     onTick()
@@ -420,8 +424,8 @@ proc downloadParallel*(jobsIn: seq[DownloadJob], threads = 4,
   while doneCount < pending:
     var drained = false
     # Drain all currently available progress messages
-    while progressChan.peek() > 0:
-      let msg = progressChan.recv()
+    while channelState.progressChan.peek() > 0:
+      let msg = channelState.progressChan.recv()
       drained = true
       let scaledPercent = progressStart +
           (msg.percent * (progressEnd - progressStart) div 100)
@@ -505,5 +509,5 @@ proc downloadParallel*(jobsIn: seq[DownloadJob], threads = 4,
   for w in workers.mitems:
     joinThread(w)
 
-  workChan.close()
-  progressChan.close()
+  channelState.workChan.close()
+  channelState.progressChan.close()
