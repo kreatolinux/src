@@ -1,6 +1,7 @@
 import std/os
 import commonPaths
 import ../../common/logging
+import ./checksums
 import std/strutils
 import norm/[model, sqlite]
 
@@ -341,6 +342,21 @@ proc getListPackagesType*(root = "/"): seq[Package] =
   kpkgDb.selectAll(packages)
 
   return packages
+
+proc refreshPackageChecksums*(packageName, root: string) =
+  ## Post-install hooks may generate or rewrite files owned by this package
+  ## (for example Python's pip scripts and RECORD). Refresh only this
+  ## package's regular-file rows after hooks complete; SQLite remains the
+  ## authoritative installed-state manifest.
+  let package = getPackage(packageName, root)
+  rootCheck(root)
+  for file in getFilesPackage(package, root):
+    let relative = file.path.replace("\"", "")
+    let fullPath = root & "/" & relative
+    if fileExists(fullPath) and not symlinkExists(fullPath):
+      let checksum = getSum(fullPath, "b2")
+      kpkgDb.exec(sql"UPDATE File SET blake2Checksum = ? WHERE id = ?",
+          checksum, $file.id)
 
 proc newPackageFromRoot*(root, package, destdir: string) =
   # Gets package from root, and adds it to destdir.

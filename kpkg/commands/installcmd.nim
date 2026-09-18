@@ -501,6 +501,11 @@ proc installPkgImpl(repo: string, package: string, root: string, runf = runFile(
             raise newException(IOError, "postupgrade failed")
           fatal("postupgrade failed")
 
+    # Hooks can generate files or rewrite package-owned metadata. Refresh
+    # their authoritative SQLite checksums before the package is exposed to
+    # sandbox validation.
+    refreshPackageChecksums(package, root)
+
     # Phase 9: Commit transaction (removes backups, deletes journal). In a
     # batch install, leave the journal and backups active until every package
     # succeeds; the batch coordinator then finalizes all transactions.
