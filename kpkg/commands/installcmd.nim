@@ -827,8 +827,8 @@ proc installWorkerThread() {.thread.} =
           break
         setProgressInfoSuppressed(true)
         try:
-          # Runfile parsing serializes itself; execute the package after the
-          # parsed value has been fully materialized in this worker.
+          # run3 parsing has process-global mutable state. Parse under a lock,
+          # then execute the package outside it.
           var parsedRunf: runFile
           parsedRunf = runparser.parseRunfile(item.repo & "/" & item.name)
           progressUpdate(item.progressIndex, item.progressStart,
@@ -1107,29 +1107,6 @@ proc install_bin(packages: seq[string], binrepos: seq[string], root: string,
           rollbackBatchInstall(batchState)
 
       let workerLimit = kpkgConfig.getInstallThreads()
-      # A zero installThreads value explicitly selects the caller-thread path.
-      # This is used by rootfs binary assembly where ORC-owned parser and
-      # transaction state must not cross a worker boundary.
-      if workerLimit <= 0:
-        let downloadOk = downloadBatch(itemNames, binrepos, versions, kTarget,
-            offline, forceDownloadPackages, forceDownload,
-            ignoreDownloadErrors, combinedProgress = true,
-            progressRows = progressRows, skipPackages = groupNames,
-            renderUpdates = true)
-        if not downloadOk:
-          raise newException(IOError, "one or more package downloads failed")
-        for item in installItems:
-          installPkg(item.repo, item.name, item.root,
-              manualInstallList = if item.manual: @[item.name] else: @[],
-              kTarget = item.kTarget, basePackage = item.basePackage,
-              version = item.version, keepTransaction = true,
-              progressIndex = item.progressIndex,
-              progressStart = item.progressStart)
-        progressFinish()
-        progressClosed = true
-        batchSucceeded = true
-        return
-
       let workerCount = max(1, min(workerLimit, installItems.len))
       installWorkChan.open(installItems.len + workerCount + 4)
       installResultChan.open(installItems.len + 4)
