@@ -254,7 +254,7 @@ proc extractImpl(fileName: string, path = getCurrentDir(), ignoreFiles = @[""],
       archiveEntrySetPathname(entry, fullEntryPath.cstring)
 
       if not (entryPath in resultStr):
-        resultStr = resultStr & entryPath
+        resultStr.add(entryPath)
 
       if not (isEmptyOrWhitespace(getFiles.join(""))) and (entryPath notin getFiles):
         continue
