@@ -5,6 +5,7 @@ import parsecfg
 import sequtils
 import strutils
 import tables
+import std/locks
 import run3/run3
 
 type
@@ -13,6 +14,9 @@ type
     sha256sum: string
     sha512sum: string
     b2sum: string
+
+var runfileParseLock: Lock
+initLock(runfileParseLock)
 
 type runFile* = object
   pkg*: string
@@ -45,7 +49,11 @@ proc packageDepsForMetadata*(pkg: runFile, useBootstrapDeps = false): seq[string
   return pkg.deps
 
 proc parseRunfile*(path: string, removeLockfileWhenErr = true): runFile =
-  ## Parse a run3 file into a runFile object.
+  ## Parse a run3 file into a runFile object. Kongue parsing and variable
+  ## substitution use process-global runtime state, so serialize every caller
+  ## rather than relying on selected command-level call sites.
+  acquire(runfileParseLock)
+  defer: release(runfileParseLock)
 
   var ret: runFile
   ret.functions = @[]

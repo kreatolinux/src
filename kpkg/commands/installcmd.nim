@@ -38,9 +38,6 @@ type
     isDir: bool      # Whether this is a directory
     isSymlink: bool  # Whether this is a symlink
 
-var runfileParseLock: Lock
-initLock(runfileParseLock)
-
 proc validateExtractedFiles(kpkgInstallTemp: string, extractTarball: seq[string],
                             dict: Config, pkg: runFile,
                             raiseErrors = false): seq[FileToInstall] =
@@ -833,11 +830,7 @@ proc installWorkerThread() {.thread.} =
           # run3 parsing has process-global mutable state. Parse under a lock,
           # then execute the package outside it.
           var parsedRunf: runFile
-          acquire(runfileParseLock)
-          try:
-            parsedRunf = runparser.parseRunfile(item.repo & "/" & item.name)
-          finally:
-            release(runfileParseLock)
+          parsedRunf = runparser.parseRunfile(item.repo & "/" & item.name)
           progressUpdate(item.progressIndex, item.progressStart,
               detail = "installing")
           installPkg(item.repo, item.name, item.root, runf = parsedRunf,
@@ -1053,11 +1046,7 @@ proc install_bin(packages: seq[string], binrepos: seq[string], root: string,
         let itemRepo = if pkgParsed.repo != "": pkgParsed.repo
                        else: findPkgRepo(pkgParsed.name)
         var itemRunf: runFile
-        acquire(runfileParseLock)
-        try:
-          itemRunf = runparser.parseRunfile(itemRepo & "/" & pkgParsed.name)
-        finally:
-          release(runfileParseLock)
+        itemRunf = runparser.parseRunfile(itemRepo & "/" & pkgParsed.name)
 
         var versionToUse = pkgParsed.version
         if pkgParsed.commit != "" and pkgParsed.name in commitContexts and
