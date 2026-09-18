@@ -218,57 +218,68 @@ proc extractImpl(fileName: string, path = getCurrentDir(), ignoreFiles = @[""],
   discard archiveReadSetOptions(a, "hdrcharset=binary")
   discard archiveWriteDiskSetStandardLookup(ext)
   r = archiveReadOpenFilename(a, filename, 10240)
+  if r != ARCHIVE_OK:
+    let message = if archiveErrorString(a) == nil: "could not open archive"
+                  else: $archiveErrorString(a)
+    discard archiveReadFree(a)
+    discard archiveWriteFree(ext)
+    raise newException(LibarchiveError, message)
 
-  # Do not chdir here: cwd is process-global and makes concurrent extraction
-  # unsafe. Each archive entry is rewritten to an absolute path below `path`.
-  let pathPrefix = if path.endsWith("/"): path else: path & "/"
+  try:
+    # Do not chdir here: cwd is process-global and makes concurrent extraction
+    # unsafe. Each archive entry is rewritten to an absolute path below `path`.
+    let pathPrefix = if path.endsWith("/"): path else: path & "/"
 
-  while true:
-    r = archiveReadNextHeader(a, addr(entry))
+    while true:
+      r = archiveReadNextHeader(a, addr(entry))
 
-    if r == ARCHIVE_EOF:
-      break
+      if r == ARCHIVE_EOF:
+        break
 
-    # Only fail on ARCHIVE_FAILED or ARCHIVE_FATAL, continue on ARCHIVE_WARN
-    if r < ARCHIVE_WARN:
-      raise newException(LibarchiveError, $archiveErrorString(a))
-    
-    if r != ARCHIVE_OK:
-      debugWarn("archiveReadNextHeader()", $archiveErrorString(a))
+      # Only fail on ARCHIVE_FAILED or ARCHIVE_FATAL, continue on ARCHIVE_WARN
+      if r < ARCHIVE_WARN:
+        raise newException(LibarchiveError, $archiveErrorString(a))
+      
+      if r != ARCHIVE_OK:
+        debugWarn("archiveReadNextHeader()", $archiveErrorString(a))
 
-    let entryPath = getEntryPathname(entry)
-    # Reject traversal before constructing the absolute destination.
-    let normalizedEntry = entryPath.replace("\\", "/")
-    if normalizedEntry == ".." or normalizedEntry.startsWith("../") or
-        normalizedEntry.contains("/../"):
-      raise newException(LibarchiveError, "archive entry escapes extraction directory: " & entryPath)
-    let fullEntryPath = pathPrefix & normalizedEntry
-    # Keep fullEntryPath alive until archiveWriteFinishEntry.
-    archiveEntrySetPathname(entry, fullEntryPath.cstring)
+      let entryPath = getEntryPathname(entry)
+      # Reject traversal before constructing the absolute destination.
+      let normalizedEntry = entryPath.replace("\\", "/")
+      if normalizedEntry == ".." or normalizedEntry.startsWith("../") or
+          normalizedEntry.contains("/../"):
+        raise newException(LibarchiveError, "archive entry escapes extraction directory: " & entryPath)
+      let fullEntryPath = pathPrefix & normalizedEntry
+      # Keep fullEntryPath alive until archiveWriteFinishEntry.
+      archiveEntrySetPathname(entry, fullEntryPath.cstring)
 
-    
-    if not (entryPath in resultStr):
-      resultStr = resultStr & entryPath
+      if not (entryPath in resultStr):
+        resultStr = resultStr & entryPath
 
-    if not (isEmptyOrWhitespace(getFiles.join(""))) and not (entryPath in getFiles):
-      continue
+      if not (isEmptyOrWhitespace(getFiles.join(""))) and (entryPath notin getFiles):
+        continue
 
-    if entryPath in ignoreFiles and fileExists(path & "/" & entryPath):
-      debug(entryPath & " in ignoreFiles, ignoring")
-      continue
+      if entryPath in ignoreFiles and fileExists(path & "/" & entryPath):
+        debug(entryPath & " in ignoreFiles, ignoring")
+        continue
 
-    r = archiveWriteHeader(ext, entry)
-    if r != ARCHIVE_OK:
-      debugWarn("archiveWriteHeader()", $archiveErrorString(ext))
-    discard copyData(a, ext)
-    r = archiveWriteFinishEntry(ext)
-    if r != ARCHIVE_OK:
-      raise newException(LibarchiveError, $archiveErrorString(ext))
+      r = archiveWriteHeader(ext, entry)
+      if r != ARCHIVE_OK:
+        # A failed header leaves libarchive's disk writer in its header state;
+        # calling archiveWriteDataBlock after that is invalid and can corrupt
+        # the surrounding threaded installer. Skip this entry instead.
+        debugWarn("archiveWriteHeader()", $archiveErrorString(ext))
+        continue
+      discard copyData(a, ext)
+      r = archiveWriteFinishEntry(ext)
+      if r != ARCHIVE_OK:
+        raise newException(LibarchiveError, $archiveErrorString(ext))
+  finally:
+    discard archiveReadClose(a)
+    discard archiveReadFree(a)
+    discard archiveWriteClose(ext)
+    discard archiveWriteFree(ext)
 
-  discard archiveReadClose(a)
-  discard archiveReadFree(a)
-  discard archiveWriteClose(ext)
-  discard archiveWriteFree(ext)
   return resultStr
 
 proc extract*(fileName: string, path = getCurrentDir(), ignoreFiles = @[""],
