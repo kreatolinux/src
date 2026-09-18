@@ -21,6 +21,11 @@ proc checkInternal(package: Package, root: string, lines = getFilesPackage(
     # roots copied into a sandbox, so they must not fail filesystem checks.
     if isArchiveRootMetadata(actPath):
       continue
+    # Multiple packages may own a shared generated file such as info/dir.
+    # Verify it only against the newest SQLite row, which is the authoritative
+    # owner after the package installation order has settled.
+    if not isAuthoritativeFileOwner(line.path, package, root):
+      continue
     let fullPath = root&"/"&actPath
 
     if dirExists(fullPath):

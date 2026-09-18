@@ -3,6 +3,7 @@ import commonPaths
 import ../../common/logging
 import ./checksums
 import std/strutils
+import std/options
 import norm/[model, sqlite]
 
 type
@@ -274,6 +275,16 @@ proc getPackage*(name: string, root: string): Package =
     kpkgDb.select(package, "name = ?", name)
 
   return package
+
+proc isAuthoritativeFileOwner*(path: string, package: Package,
+        root: string): bool =
+  ## A shared path can be listed by multiple packages (notably info/dir).
+  ## The newest File row is the authoritative owner after package installs.
+  rootCheck(root)
+  let row = kpkgDb.getRow(sql"SELECT package FROM File WHERE path = ? ORDER BY id DESC LIMIT 1", path)
+  if row.isNone:
+    return false
+  result = $row.get()[0] == $package.id
 
 proc getFile*(path: string, root: string): File =
   # Gets File from path.
