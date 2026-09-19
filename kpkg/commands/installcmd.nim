@@ -819,15 +819,40 @@ type
     errorMsg: string
     deferredLogs: seq[string]
 
-var
-  installWorkChan: Channel[InstallWorkItem]
-  installResultChan: Channel[InstallResult]
+type
+  InstallChannelState = object
+    workChan: Channel[InstallWorkItem]
+    resultChan: Channel[InstallResult]
 
-proc installWorkerThread() {.thread.} =
+proc openInstallChannels(state: var InstallChannelState, jobs, workers: int) =
+  ## Initialize a zeroed, batch-owned channel state in place. Never return or
+  ## copy this object: Channel contains synchronization/storage handles.
+  state.workChan.open(jobs + workers + 4)
+  state.resultChan.open(jobs + 4)
+
+proc closeInstallChannels(state: var InstallChannelState,
+        workers: var seq[Thread[ptr InstallChannelState]], started: int) =
+  ## Stop workers before closing batch-owned channels. The caller must invoke
+  ## this from a defer as well as its normal path; `started` handles partial
+  ## thread creation during exceptional setup.
+  for _ in 0 ..< started:
+    state.workChan.send(InstallWorkItem(name: "\x00quit"))
+  for i in 0 ..< started:
+    joinThread(workers[i])
+  # Channel.close releases the raw queue storage without running payload
+  # destructors. Drain both queues before closing on exceptional paths.
+  while state.workChan.peek() > 0:
+    discard state.workChan.recv()
+  while state.resultChan.peek() > 0:
+    discard state.resultChan.recv()
+  state.workChan.close()
+  state.resultChan.close()
+
+proc installWorkerThread(state: ptr InstallChannelState) {.thread.} =
   {.cast(gcsafe).}:
     try:
       while true:
-        let item = installWorkChan.recv()
+        let item = state[].workChan.recv()
         if item.name == "\x00quit":
           break
         setProgressInfoSuppressed(true)
@@ -846,13 +871,13 @@ proc installWorkerThread() {.thread.} =
               progressStart = item.progressStart)
           progressUpdate(item.progressIndex, 100, finished = true, ok = true,
               detail = "done")
-          installResultChan.send(InstallResult(idx: item.idx, ok: true,
+          state[].resultChan.send(InstallResult(idx: item.idx, ok: true,
               deferredLogs: takeDeferredProgressLogs()))
         except CatchableError:
           let errorMsg = getCurrentExceptionMsg()
           progressUpdate(item.progressIndex, 100, finished = true, ok = false,
               detail = "failed")
-          installResultChan.send(InstallResult(idx: item.idx, ok: false,
+          state[].resultChan.send(InstallResult(idx: item.idx, ok: false,
               errorMsg: errorMsg,
               deferredLogs: takeDeferredProgressLogs()))
         finally:
@@ -860,6 +885,75 @@ proc installWorkerThread() {.thread.} =
     finally:
       # Flush this thread's WAL connection before it exits.
       closeDb()
+
+
+when defined(kpkgInstallChannelTest):
+  proc installChannelProbeWorker(state: ptr InstallChannelState) {.thread.} =
+    while true:
+      let item = state[].workChan.recv()
+      if item.name == "\x00quit":
+        break
+      # Return string payload data too, so the probe covers ownership and
+      # destruction on both queue directions rather than only scalar fields.
+      state[].resultChan.send(InstallResult(idx: item.idx, ok: item.name.len >
+          0, deferredLogs: @[item.name & "-owned-result"]))
+
+  proc probeInstallChannelLifecycle*(batches: int): bool =
+    ## Exercise the installer channel ownership pattern without package I/O.
+    ## Each batch owns fresh channels and joins workers before closing them.
+    result = true
+    for batch in 0 ..< max(0, batches):
+      const jobs = 4
+      const workersCount = 2
+      var channelState: InstallChannelState
+      openInstallChannels(channelState, jobs, workersCount)
+      var workers = newSeq[Thread[ptr InstallChannelState]](workersCount)
+      for worker in workers.mitems:
+        createThread(worker, installChannelProbeWorker, addr channelState)
+      var seen = newSeq[bool](jobs)
+      for idx in 0 ..< jobs:
+        channelState.workChan.send(InstallWorkItem(name: "probe-" & $batch &
+            "-" & $idx, idx: idx))
+      for _ in 0 ..< jobs:
+        let itemResult = channelState.resultChan.recv()
+        if not itemResult.ok or itemResult.idx < 0 or itemResult.idx >= jobs or
+            seen[itemResult.idx] or itemResult.deferredLogs.len != 1 or
+            itemResult.deferredLogs[0].len <= 0:
+          result = false
+        else:
+          seen[itemResult.idx] = true
+      for found in seen:
+        if not found:
+          result = false
+      closeInstallChannels(channelState, workers, workersCount)
+
+  proc probeInstallChannelUnwind*(): bool =
+    ## Inject a coordinator exception after queueing work. The scoped defer
+    ## must join started workers and drain/close both queues before state dies.
+    const jobs = 4
+    const workersCount = 2
+    var cleaned = false
+    try:
+      block:
+        var channelState: InstallChannelState
+        openInstallChannels(channelState, jobs, workersCount)
+        var workers = newSeq[Thread[ptr InstallChannelState]](workersCount)
+        var startedWorkers = 0
+        var channelsOpen = true
+        defer:
+          if channelsOpen:
+            closeInstallChannels(channelState, workers, startedWorkers)
+            channelsOpen = false
+            cleaned = true
+        for worker in workers.mitems:
+          createThread(worker, installChannelProbeWorker, addr channelState)
+          inc startedWorkers
+        for idx in 0 ..< jobs:
+          channelState.workChan.send(InstallWorkItem(name: "unwind-" & $idx,
+              idx: idx))
+        raise newException(IOError, "injected coordinator failure")
+    except IOError:
+      result = cleaned
 
 proc installLayerParallel(layer: seq[InstallWorkItem], workerLimit: int,
         manageProgress = true): seq[InstallResult] =
@@ -875,23 +969,27 @@ proc installLayerParallel(layer: seq[InstallWorkItem], workerLimit: int,
     progressLabels.add(item.name)
   if manageProgress:
     progressBegin(progressLabels, "")
-  installWorkChan.open(layer.len + workerCount + 4)
-  installResultChan.open(layer.len + 4)
+  var channelState: InstallChannelState
+  openInstallChannels(channelState, layer.len, workerCount)
 
-  var workers = newSeq[Thread[void]](workerCount)
+  var workers = newSeq[Thread[ptr InstallChannelState]](workerCount)
+  var startedWorkers = 0
+  var channelsOpen = true
+  defer:
+    if channelsOpen:
+      closeInstallChannels(channelState, workers, startedWorkers)
   for i in 0 ..< workerCount:
-    createThread(workers[i], installWorkerThread)
+    createThread(workers[i], installWorkerThread, addr channelState)
+    inc startedWorkers
 
   for item in layer:
-    installWorkChan.send(item)
-  for i in 0 ..< workerCount:
-    installWorkChan.send(InstallWorkItem(name: "\x00quit"))
+    channelState.workChan.send(item)
 
   var completed = 0
   var deferredLogs: seq[string] = @[]
   while completed < layer.len:
-    while installResultChan.peek() > 0:
-      let itemResult = installResultChan.recv()
+    while channelState.resultChan.peek() > 0:
+      let itemResult = channelState.resultChan.recv()
       result.add(itemResult)
       deferredLogs.add(itemResult.deferredLogs)
       inc completed
@@ -899,8 +997,8 @@ proc installLayerParallel(layer: seq[InstallWorkItem], workerLimit: int,
     if completed < layer.len:
       sleep(100)
 
-  for worker in workers.mitems:
-    joinThread(worker)
+  closeInstallChannels(channelState, workers, startedWorkers)
+  channelsOpen = false
   if manageProgress:
     progressFinish()
     # Print worker warnings/errors only after the cursor is below the completed
@@ -909,8 +1007,6 @@ proc installLayerParallel(layer: seq[InstallWorkItem], workerLimit: int,
       stderr.writeLine(line)
     if deferredLogs.len > 0:
       stderr.flushFile()
-  installWorkChan.close()
-  installResultChan.close()
 
 
 type
@@ -1113,11 +1209,17 @@ proc install_bin(packages: seq[string], binrepos: seq[string], root: string,
 
       let workerLimit = kpkgConfig.getInstallThreads()
       let workerCount = max(1, min(workerLimit, installItems.len))
-      installWorkChan.open(installItems.len + workerCount + 4)
-      installResultChan.open(installItems.len + 4)
-      var workers = newSeq[Thread[void]](workerCount)
+      var channelState: InstallChannelState
+      openInstallChannels(channelState, installItems.len, workerCount)
+      var workers = newSeq[Thread[ptr InstallChannelState]](workerCount)
+      var startedWorkers = 0
+      var channelsOpen = true
+      defer:
+        if channelsOpen:
+          closeInstallChannels(channelState, workers, startedWorkers)
       for worker in workers.mitems:
-        createThread(worker, installWorkerThread)
+        createThread(worker, installWorkerThread, addr channelState)
+        inc startedWorkers
 
       var queued = newSeq[bool](installItems.len)
       var succeeded = newSeq[bool](installItems.len)
@@ -1167,12 +1269,12 @@ proc install_bin(packages: seq[string], binrepos: seq[string], root: string,
           inc inFlight
           progressUpdate(work.progressIndex, work.progressStart,
               detail = "installing")
-          installWorkChan.send(work)
+          channelState.workChan.send(work)
           inc result
 
       proc pumpInstalls() =
-        while installResultChan.peek() > 0:
-          let itemResult = installResultChan.recv()
+        while channelState.resultChan.peek() > 0:
+          let itemResult = channelState.resultChan.recv()
           batchDeferredLogs.add(itemResult.deferredLogs)
           dec inFlight
           let runningPos = running.find(itemResult.idx)
@@ -1221,12 +1323,8 @@ proc install_bin(packages: seq[string], binrepos: seq[string], root: string,
 
       # Stop and join installers before committing or rolling back staged
       # filesystem/database transactions.
-      for _ in 0 ..< workerCount:
-        installWorkChan.send(InstallWorkItem(name: "\x00quit"))
-      for worker in workers.mitems:
-        joinThread(worker)
-      installWorkChan.close()
-      installResultChan.close()
+      closeInstallChannels(channelState, workers, startedWorkers)
+      channelsOpen = false
 
       if not downloadOk and not batchFailed:
         batchFailed = true
