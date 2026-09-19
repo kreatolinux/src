@@ -269,11 +269,17 @@ jobs:
           # pushed by the docker job on full runs) or a manifest list from an
           # earlier multiarch run. Resolve the actual linux/amd64 image so
           # :latest keeps working x86_64 support after this update.
+          # buildx may publish both tags as manifest lists (provenance
+          # attestations), and docker manifest create rejects lists as
+          # --amend sources. Amend with the platform sub-manifest digests.
           docker manifest inspect ghcr.io/kreatolinux/builder:latest > /tmp/latest.json
           AMD64_REF=$(jq -r 'if .manifests then ([.manifests[] | select(.platform.os == "linux" and .platform.architecture == "amd64") | "ghcr.io/kreatolinux/builder@" + .digest] | .[0]) else "ghcr.io/kreatolinux/builder:latest" end' /tmp/latest.json)
+          docker manifest inspect ghcr.io/kreatolinux/builder:aarch64 > /tmp/aarch64.json
+          ARM64_REF=$(jq -r 'if .manifests then ([.manifests[] | select(.platform.os == "linux" and .platform.architecture == "arm64") | "ghcr.io/kreatolinux/builder@" + .digest] | .[0]) else "ghcr.io/kreatolinux/builder:aarch64" end' /tmp/aarch64.json)
           echo "amd64 source: $AMD64_REF"
+          echo "arm64 source: $ARM64_REF"
           docker manifest create ghcr.io/kreatolinux/builder:latest \
             --amend "$AMD64_REF" \
-            --amend ghcr.io/kreatolinux/builder:aarch64
+            --amend "$ARM64_REF"
           docker manifest inspect ghcr.io/kreatolinux/builder:latest
           docker manifest push ghcr.io/kreatolinux/builder:latest
