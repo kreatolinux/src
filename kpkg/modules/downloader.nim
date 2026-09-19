@@ -299,11 +299,7 @@ proc workerThread(state: ptr DownloadChannelState) {.thread, gcsafe.} =
 
       # Try each mirror with a long inactivity timeout. Large Klinux archives
       # must not be abandoned while a busy mirror is still serving bytes.
-      let urlCount = job.urls.len
-      var urlPos = 0
-
       for url in job.urls:
-        inc urlPos
         # The timeout is an inactivity/receive deadline in Nim's HTTP
         # client. Do not use a short mirror hedge here: large archives can
         # legitimately take longer than eight seconds between events on CI.
@@ -313,22 +309,11 @@ proc workerThread(state: ptr DownloadChannelState) {.thread, gcsafe.} =
         except CatchableError:
           discard
 
-        # Prime Content-Length and the keep-alive TLS connection before GET.
-        # This lets the coordinator calculate progress from the growing
-        # partial file even when HttpClient callbacks are sparse.
-        try:
-          let head = client.request(url, HttpHead)
-          if head.code.is2xx:
-            let lengthValue = head.headers.getOrDefault("content-length")
-            if not isEmptyOrWhitespace(lengthValue):
-              let expectedBytes = parseBiggestInt(lengthValue)
-              discard state[].progressChan.trySend(ProgressMsg(jobIdx: jobIdx,
-                  displayIdx: job.displayIdx, percent: 0,
-                  totalBytes: expectedBytes, progressBytes: 0,
-                  speedBps: 0, started: true, finished: false, ok: false))
-        except CatchableError:
-          discard
-
+        # Start the body transfer directly. The GET response already carries
+        # Content-Length when available, and the progress callback reports
+        # it without a separate request. A preflight HEAD can occupy a
+        # keep-alive connection indefinitely on a mirror and starve the
+        # bounded worker batch.
         # One retry per URL: transient timeouts on a loaded mirror are common.
         # Retries resume from the bytes already on disk when the server
         # supports Range requests.
