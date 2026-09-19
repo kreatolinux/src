@@ -260,6 +260,11 @@ jobs:
         with:
           context: /tmp/docker.tmp.aarch64
           push: true
+          # The rootfs payload is already aarch64; label the image correctly
+          # (buildx would otherwise use the amd64 runner's platform) and skip
+          # attestations so :aarch64 stays a plain arm64 manifest.
+          platforms: linux/arm64
+          provenance: false
           tags: ghcr.io/kreatolinux/builder:aarch64
 
       - name: Create and push the multiarch manifest
@@ -278,6 +283,7 @@ jobs:
           ARM64_REF=$(jq -r 'if .manifests then ([.manifests[] | select(.platform.os == "linux" and .platform.architecture == "arm64") | "ghcr.io/kreatolinux/builder@" + .digest] | .[0]) else "ghcr.io/kreatolinux/builder:aarch64" end' /tmp/aarch64.json)
           echo "amd64 source: $AMD64_REF"
           echo "arm64 source: $ARM64_REF"
+          test -n "$AMD64_REF" && test -n "$ARM64_REF"
           docker manifest create ghcr.io/kreatolinux/builder:latest \
             --amend "$AMD64_REF" \
             --amend "$ARM64_REF"
