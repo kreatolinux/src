@@ -1230,13 +1230,23 @@ proc install_bin(packages: seq[string], binrepos: seq[string], root: string,
       var failureMessage = ""
       var batchDeferredLogs: seq[string] = @[]
 
+      # The scheduler polls every ready item on each download tick. Parsing
+      # every dependency's pkginfo on each poll flooded the log with repeated
+      # "parsePkgInfo ran" lines and wasted I/O; parse each spec once per batch.
+      var depNameCache = initTable[string, string]()
+      proc depNameOf(dep: string): string =
+        result = depNameCache.getOrDefault(dep)
+        if result.len == 0:
+          result = parsePkgInfo(dep).name
+          depNameCache[dep] = result
+
       proc archivesReady(item: InstallWorkItem): bool =
         item.isGroup or fileExists(kpkgArchivesDir & "/system/" & kTarget &
             "/" & item.name & "-" & item.version & ".kpkg")
 
       proc depsSucceeded(item: InstallWorkItem): bool =
         for dep in item.deps:
-          let depName = parsePkgInfo(dep).name
+          let depName = depNameOf(dep)
           if progressRows.hasKey(depName) and depName != item.name and
               not succeeded[progressRows[depName]]:
             return false
