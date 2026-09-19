@@ -241,7 +241,8 @@ jobs:
         run: |
           mkdir -p /tmp/docker.tmp.aarch64
           cp $GITHUB_WORKSPACE/docker/Dockerfile /tmp/docker.tmp.aarch64/
-          tar -xpf /tmp/rootfs-aarch64/kreato-linux-builder-aarch64.tar.gz -C /tmp/docker.tmp.aarch64
+          # The uploaded artifact keeps the dated filename produced by the build step.
+          tar -xpf /tmp/rootfs-aarch64/kreato-linux-builder-aarch64-*.tar.gz -C /tmp/docker.tmp.aarch64
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
