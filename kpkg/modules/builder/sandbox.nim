@@ -132,16 +132,8 @@ proc buildPackageInSandboxImpl(pkgName: string, depGraph: dependencyGraph,
         )
         installPkgProc(installCfg)
     else:
-      # Collect all transitive runtime dependencies
-      var visited = initHashSet[string]()
-      allInstalledDeps = deduplicate(collectRuntimeDepsFromGraph(
-              sandboxDeps, depGraph, visited))
-
-      # Install build dependencies to upperDir
-      for d in sandboxDeps:
-        discard installFromRoot(d, sandboxCfg.root,
-                kpkgOverlayPath & "/upperDir",
-                ignorePostInstall = true)
+      # Resolve all direct roots first, then copy their union closure once.
+      var installRoots = sandboxDeps
 
       # If the package isn't in the dep graph (e.g. dynamically added consumer),
       # resolve its direct build deps and runtime closure from runfile metadata.
@@ -152,14 +144,15 @@ proc buildPackageInSandboxImpl(pkgName: string, depGraph: dependencyGraph,
             parseRunfile(findPkgRepo(pkg) & "/" & pkg))
           for dep in dynamicDeps:
             if packageExists(dep, sandboxCfg.root):
-              debug "buildPackageInSandbox: installing dynamic sandbox dep '" &
+              debug "buildPackageInSandbox: adding dynamic sandbox dep '" &
                   dep & "' for '" & pkgTmp.name & "'"
-              discard installFromRoot(dep, sandboxCfg.root,
-                      kpkgOverlayPath & "/upperDir",
-                      ignorePostInstall = true)
+              installRoots.add(dep)
         except:
           debug "buildPackageInSandbox: could not resolve dynamic sandbox deps for '" &
               pkgTmp.name & "'"
+
+      allInstalledDeps = installFromRoot(installRoots, sandboxCfg.root,
+              kpkgOverlayPath & "/upperDir", ignorePostInstall = true)
 
       # Install the package with changed SONAME into the env so consumers
       # build against the new library version. The env is the overlay lower

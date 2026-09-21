@@ -131,21 +131,29 @@ proc installFromRootInternal(package, root, destdir: string,
 
 
 
-proc installFromRoot*(package, root, destdir: string,
+proc dependencyFirstPackages*(sortOrder: seq[string]): seq[string] =
+  ## Keep resolver order while removing blank and repeated graph nodes.
+  return deduplicate(sortOrder.filterIt(not isEmptyOrWhitespace(it)))
+
+proc installFromRoot*(packages: seq[string], root, destdir: string,
         removeDestdirOnError = false, ignorePostInstall = false): seq[string] =
-  # A wrapper for installFromRootInternal that also resolves dependencies.
-  if isEmptyOrWhitespace(package):
+  ## Copy the union of all requested dependency closures exactly once.
+  ## Resolving each direct dependency separately repeats almost all metadata
+  ## checks and file copies for packages with overlapping closures.
+  let roots = deduplicate(packages.filterIt(not isEmptyOrWhitespace(it)))
+  if roots.len == 0:
     return
 
-  let depsUsed = deduplicate(dephandler(@[package], root = root,
-          chkInstalledDirInstead = true, forceInstallAll = true)&package)
+  let (_, _, sortResult) = dephandlerWithGraph(roots, root = root,
+          chkInstalledDirInstead = true, forceInstallAll = true)
+  let depsUsed = dependencyFirstPackages(sortResult.order)
   for dep in depsUsed:
-
     if isEmptyOrWhitespace(dep):
       continue
 
     try:
-      installFromRootInternal(dep, root, destdir, removeDestdirOnError, ignorePostInstall)
+      installFromRootInternal(dep, root, destdir, removeDestdirOnError,
+              ignorePostInstall)
     except:
       if removeDestdirOnError:
         info "removing unfinished environment"
@@ -158,22 +166,32 @@ proc installFromRoot*(package, root, destdir: string,
         raise getCurrentException()
   return depsUsed
 
+proc installFromRoot*(package, root, destdir: string,
+        removeDestdirOnError = false, ignorePostInstall = false): seq[string] =
+  ## Compatibility wrapper for one requested package.
+  return installFromRoot(@[package], root, destdir, removeDestdirOnError,
+          ignorePostInstall)
+
 proc createEnvCtrlC() {.noconv.} =
   info "removing unfinished environment"
   removeDir(kpkgEnvPath)
   quit()
 
 
-proc checkEnvPackageUpdates(name: string): bool =
-  ## Checks package updates on the environment.
-  let localPkgVer = getPackage(name, kpkgEnvPath).version
-  let repo = findPkgRepo(name)
-  let remotePkgVer = runparser.parseRunfile(repo&"/"&name).versionString
-
-  if localPkgVer != remotePkgVer:
+proc checkEnvPackageUpdates*(name, root: string, envRoot = kpkgEnvPath): bool =
+  ## Compare the reusable environment with the installed source root.
+  ## Repository HEAD can be newer than the root and split packages can have
+  ## identities that do not match their parent recipe.
+  if not packageExistsExact(name, root):
     return true
-  else:
-    return false
+  if not packageExistsExact(name, envRoot):
+    return true
+  let envPkg = getPackageExact(name, envRoot)
+  let sourcePkg = getPackageExact(name, root)
+  return envPkg.name != sourcePkg.name or
+      envPkg.version != sourcePkg.version or
+      envPkg.release != sourcePkg.release or
+      envPkg.epoch != sourcePkg.epoch
 
 
 proc createEnv(root: string, ignorePostInstall = false,
@@ -184,8 +202,6 @@ proc createEnv(root: string, ignorePostInstall = false,
   invalidateEnvSetup(kpkgEnvPath)
   initDirectories(kpkgEnvPath, hostCPU, true)
 
-  var depsTotal: seq[string]
-
   # The env has to carry a release file of its own: kpkgTarget() and friends read
   # it back out of kpkgEnvPath while a build is running. On a real Kreato host we
   # copy the host file, and on a foreign host we write the synthesized one so the
@@ -194,15 +210,28 @@ proc createEnv(root: string, ignorePostInstall = false,
   createDir(kpkgEnvPath & "/etc")
   dict.writeConfig(kpkgEnvPath / kreatoReleaseName)
 
-  discard installFromRoot(dict.getSectionValue("Core", "libc"), root,
-          kpkgEnvPath, ignorePostInstall = true)
+  let libc = dict.getSectionValue("Core", "libc")
   let compiler = dict.getSectionValue("Core", "compiler")
-  if compiler == "clang":
-    depsTotal.add installFromRoot("llvm", root, kpkgEnvPath,
-            ignorePostInstall = true)
-  else:
-    depsTotal.add installFromRoot(compiler, root, kpkgEnvPath,
-            ignorePostInstall = true)
+  var envRoots = @[libc]
+  envRoots.add(if compiler == "clang": "llvm" else: compiler)
+
+  case dict.getSectionValue("Core", "coreutils"):
+    of "gnu":
+      envRoots.add(["gnu-coreutils", "pigz", "xz-utils", "bash", "gsed",
+              "bzip2", "patch", "diffutils", "findutils", "util-linux",
+              "bc", "cpio", "which"])
+    of "busybox":
+      envRoots.add("busybox")
+
+  envRoots.add(dict.getSectionValue("Core", "tlsLibrary"))
+  let init = dict.getSectionValue("Core", "init")
+  envRoots.add(init)
+  if init == "systemd":
+    envRoots.add("dbus")
+  envRoots.add("kreato-fs-essentials git kpkg ca-certificates python python-pip gmake".split(" "))
+
+  let depsTotal = installFromRoot(envRoots, root, kpkgEnvPath,
+          ignorePostInstall = true)
 
   try:
     setDefaultCC(kpkgEnvPath, compiler)
@@ -213,38 +242,6 @@ proc createEnv(root: string, ignorePostInstall = false,
       quit(1)
     else:
       raise getCurrentException()
-
-  case dict.getSectionValue("Core", "coreutils"):
-    of "gnu":
-      for i in ["gnu-coreutils", "pigz", "xz-utils", "bash", "gsed",
-              "bzip2", "patch", "diffutils", "findutils", "util-linux",
-              "bc", "cpio", "which"]:
-        depsTotal.add installFromRoot(i, root, kpkgEnvPath,
-                ignorePostInstall = true)
-      #installFromRoot("gnu-core", root, kpkgEnvPath, ignorePostInstall = true)
-    of "busybox":
-      depsTotal.add installFromRoot("busybox", root, kpkgEnvPath,
-              ignorePostInstall = true)
-
-  depsTotal.add installFromRoot(dict.getSectionValue("Core", "tlsLibrary"),
-          root, kpkgEnvPath, ignorePostInstall = true)
-
-  case dict.getSectionValue("Core", "init"):
-    of "systemd":
-      depsTotal.add installFromRoot("systemd", root, kpkgEnvPath,
-              ignorePostInstall = true)
-      depsTotal.add installFromRoot("dbus", root, kpkgEnvPath,
-              ignorePostInstall = true)
-    else:
-      depsTotal.add installFromRoot(dict.getSectionValue("Core", "init"),
-              root, kpkgEnvPath, ignorePostInstall = true)
-
-  depsTotal.add installFromRoot(dict.getSectionValue("Core", "init"), root,
-          kpkgEnvPath, ignorePostInstall = true)
-
-  for i in "kreato-fs-essentials git kpkg ca-certificates python python-pip gmake".split(" "):
-    depsTotal.add installFromRoot(i, root, kpkgEnvPath,
-            ignorePostInstall = true)
 
 
   #let extras = dict.getSectionValue("Extras", "extraPackages").split(" ")
@@ -264,9 +261,9 @@ proc createEnv(root: string, ignorePostInstall = false,
       quit(1)
 
   proc postInstall() =
-    runPostInstall(dict.getSectionValue("Core", "libc"), kpkgEnvPath)
+    runPostInstall(libc, kpkgEnvPath)
     for dep in deduplicate(depsTotal):
-      if isEmptyOrWhitespace(dep):
+      if isEmptyOrWhitespace(dep) or dep == libc:
         continue
       runPostInstall(dep, kpkgEnvPath)
 
@@ -352,7 +349,7 @@ proc createOrUpgradeEnv*(root: string, ignorePostInstall = false,
       let envPkgList = getListPackages(kpkgEnvPath)
 
       for pkg in envPkgList:
-        if checkEnvPackageUpdates(pkg):
+        if checkEnvPackageUpdates(pkg, root):
           debug "upgradeEnv: base package '"&pkg&"' is mismatching with the system, reinitializing environment"
           needsReinit = true
 

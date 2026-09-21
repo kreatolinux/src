@@ -83,6 +83,18 @@ proc downloadSource*(url, filename, pkgName: string) =
 
 filename, raiseWhenFail = false)
 
+proc stageLocalSource*(sourcePath, sourceDir: string) =
+    ## Copy a recipe-local source into writable build storage.
+    let stagedPath = sourceDir / lastPathPart(sourcePath)
+    if symlinkExists(stagedPath) or fileExists(stagedPath):
+        removeFile(stagedPath)
+    elif dirExists(stagedPath):
+        removeDir(stagedPath)
+    if dirExists(sourcePath):
+        copyDirWithPermissions(sourcePath, stagedPath)
+    else:
+        copyFileWithPermissions(sourcePath, stagedPath)
+
 proc verifyChecksum*(relativeFilename: string, filename, sourceUrl: string,
         sourceEntry: SourceEntry, sourceDir: string, localFile: bool) =
     ## Verifies the checksum of a downloaded file
@@ -121,24 +133,33 @@ proc verifyChecksum*(relativeFilename: string, filename, sourceUrl: string,
                     actualDigest & "'")
                 quit(1)
 
-    # Always add symlink to buildRoot/filename so local files are available
-    createSymlink(filename, sourceDir&"/"&lastPathPart(filename))
+    let stagedPath = sourceDir / lastPathPart(filename)
+    if localFile:
+        # Local recipe sources may live in a read-only repository mount. Copy
+        # them into writable build storage because later ownership and mode
+        # setup must never mutate the repository through a symlink.
+        stageLocalSource(filename, sourceDir)
+    else:
+        createSymlink(filename, stagedPath)
+
+proc setSourceOwnerNoFollow*(path: string, uid = 999, gid = 999) =
+    ## Change ownership of an entry without following symbolic links.
+    discard posix.lchown(cstring(path), Uid(uid), Gid(gid))
 
 proc setSourcePermissions*() =
     ## Sets proper permissions for all source directories and their contents
     for path in toSeq(walkDir(".")):
-        if dirExists(path.path):
+        if dirExists(path.path) and not symlinkExists(path.path):
             debug "Setting permissions for " & path.path
             setFilePermissions(path.path, {fpUserExec, fpUserWrite, fpUserRead,
-                                          fpGroupExec, fpGroupRead,
-                                          fpOthersExec, fpOthersRead})
+                    fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
 
             try:
-                discard posix.chown(cstring(path.path), 999, 999)
+                setSourceOwnerNoFollow(path.path)
                 # Set permissions for all files in the directory
                 for subPath in toSeq(walkDirRec(path.path, {pcFile,
                         pcLinkToFile, pcDir, pcLinkToDir})):
-                    discard posix.chown(cstring(subPath), 999, 999)
+                    setSourceOwnerNoFollow(subPath)
             except:
                 debug "Failed to set owner for " & path.path
 
@@ -180,7 +201,7 @@ proc sourceDownloaderImpl(runf: runFile, pkgName: string, sourceDir: string,
         # Skip extraction for Git repositories as they're already in the correct format
         # And also skip localfiles
         if runf.extract and not (source.startsWith("git::") or isLocalFile):
-             extractSources(sourcePath, sourceDir)
+            extractSources(sourcePath, sourceDir)
 
 proc sourceDownloader*(runf: runFile, pkgName: string, sourceDir: string,
         runFilePath: string) =
@@ -199,18 +220,18 @@ proc setSourceOwnership*(sourceDir: string) =
 
     setFilePermissions(sourceDir, {fpUserExec, fpUserWrite, fpUserRead,
             fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
-    discard posix.chown(cstring(sourceDir), 999, 999)
+    setSourceOwnerNoFollow(sourceDir)
 
     for path in toSeq(walkDir(sourceDir)):
-        if dirExists(path.path):
+        if dirExists(path.path) and not symlinkExists(path.path):
             setFilePermissions(path.path, {fpUserExec, fpUserWrite, fpUserRead,
                     fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
-        discard posix.chown(cstring(path.path), 999, 999)
+        setSourceOwnerNoFollow(path.path)
 
-        if dirExists(path.path):
+        if dirExists(path.path) and not symlinkExists(path.path):
             for subPath in toSeq(walkDirRec(path.path, {pcFile, pcLinkToFile,
                     pcDir, pcLinkToDir})):
-                discard posix.chown(cstring(subPath), 999, 999)
+                setSourceOwnerNoFollow(subPath)
 
 
 proc countAndFindSourceFolders*(baseDir: string): tuple[count: int,
@@ -232,11 +253,13 @@ proc countAndFindSourceFolders*(baseDir: string): tuple[count: int,
         if dirExists(item.path):
             result.folder = absolutePath(item.path)
             result.count = result.count + 1
-            setFilePermissions(result.folder, {fpUserExec, fpUserWrite,
-                    fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
-        discard posix.chown(cstring(result.folder), 999, 999)
+            if not symlinkExists(result.folder):
+                setFilePermissions(result.folder, {fpUserExec, fpUserWrite,
+                        fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec,
+                        fpOthersRead})
+        setSourceOwnerNoFollow(result.folder)
 
-        if dirExists(result.folder):
+        if dirExists(result.folder) and not symlinkExists(result.folder):
             for subPath in toSeq(walkDirRec(result.folder, {pcFile,
                     pcLinkToFile, pcDir, pcLinkToDir})):
-                discard posix.chown(cstring(subPath), 999, 999)
+                setSourceOwnerNoFollow(subPath)

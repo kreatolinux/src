@@ -243,6 +243,18 @@ proc isReplaced*(name: string, root = "/"): tuple[replaced: bool,
 
   return (false, newPackageInternal())
 
+proc packageExistsExact*(name: string, root = "/"): bool =
+  ## Check for an exact package row, without replacement-provider fallback.
+  rootCheck(root)
+  return kpkgDb.exists(Package, "name = ?", name)
+
+proc getPackageExact*(name: string, root: string): Package =
+  ## Get an exact package row, without replacement-provider fallback.
+  rootCheck(root)
+  var package = newPackageInternal()
+  kpkgDb.select(package, "name = ?", name)
+  return package
+
 proc packageExists*(name: string, root = "/"): bool =
   # Check if a package exists in the database.
   rootCheck(root)
@@ -370,18 +382,21 @@ proc refreshPackageChecksums*(packageName, root: string) =
           checksum, $file.id)
 
 proc newPackageFromRoot*(root, package, destdir: string) =
-  # Gets package from root, and adds it to destdir.
+  ## Copy package metadata from root to destdir without creating duplicate
+  ## rows when overlapping dependency closures contain the same package.
   rootCheck(root)
-
-  var og = getPackage(package, root)
+  let sourcePkg = getPackage(package, root)
 
   rootCheck(destdir)
+  if packageExistsExact(sourcePkg.name, destdir):
+    return
 
-  var res = newPackageInternal(og.name, og.version, og.deps, og.bdeps,
-          og.backup, og.replaces, og.license, og.desc, og.release, og.epoch,
-          og.manualInstall, og.isGroup)
-
-  kpkgDb.insert(res)
+  var copiedPkg = newPackageInternal(sourcePkg.name, sourcePkg.version,
+          sourcePkg.deps, sourcePkg.bdeps, sourcePkg.backup,
+          sourcePkg.replaces, sourcePkg.license, sourcePkg.desc,
+          sourcePkg.release, sourcePkg.epoch, sourcePkg.manualInstall,
+          sourcePkg.isGroup, sourcePkg.basePackage)
+  kpkgDb.insert(copiedPkg)
 
 proc getListFiles*(packageName: string, root: string, package = getPackage(
         packageName, root)): seq[string] =
