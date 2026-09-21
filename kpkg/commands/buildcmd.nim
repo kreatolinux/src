@@ -74,12 +74,16 @@ proc builderImpl(cfg: var BuildConfig): bool =
       installPkg(cfg.repo, cfg.actualPackage, "/", state.pkg,
               cfg.manualInstallList,
               ignorePostInstall = cfg.ignorePostInstall,
-              deferPostInstall = cfg.deferPostInstall)
+              deferPostInstall = cfg.deferPostInstall,
+              tarballPath = cacheArchivePath(cfg.actualPackage, state.pkg,
+                  cfg.kTarget, cfg.isBootstrap))
 
     if not cfg.skipHostInstall and cfg.kTarget == kpkgTarget(cfg.destdir):
       installPkg(cfg.repo, cfg.actualPackage, cfg.destdir, state.pkg, cfg.manualInstallList,
               ignorePostInstall = cfg.ignorePostInstall,
-              deferPostInstall = cfg.deferPostInstall)
+              deferPostInstall = cfg.deferPostInstall,
+              tarballPath = cacheArchivePath(cfg.actualPackage, state.pkg,
+                  cfg.kTarget, cfg.isBootstrap))
     else:
       info "the package target doesn't match the one on '" & cfg.destdir & "', skipping installation"
 
@@ -190,9 +194,9 @@ proc builderImpl(cfg: var BuildConfig): bool =
     # Phase 3: Finalize the tarball with resolved dependencies, written
     # directly to the archives directory. If this fails, the archives
     # directory stays clean (no partial tarball).
-    let finalTarball = kpkgArchivesDir & "/system/" & cfg.kTarget & "/" &
-            cfg.actualPackage & "-" & state.pkg.versionString & ".kpkg"
-    createDir(kpkgArchivesDir & "/system/" & cfg.kTarget)
+    let finalTarball = cacheArchivePath(cfg.actualPackage, state.pkg,
+            cfg.kTarget, cfg.isBootstrap)
+    createDir(parentDir(finalTarball))
     finalizePackageDeps(cfg.actualPackage, state.pkg, cfg.kTarget,
             outputPath = finalTarball, useBootstrapDeps = cfg.isBootstrap)
 
@@ -325,12 +329,14 @@ proc build*(no = false, yes = false, root = "/",
             return bootstrapResult
           bootstrapSatisfied.incl(pkg)
 
-        # Retry the original build without bootstrap (now that packages are installed)
+        # Retry without bootstrap. Keep each cycle seed as an explicit root so
+        # it is rebuilt normally after its full build dependencies are ready.
         info "Bootstrap builds completed, retrying original build..."
         depCtx.useBootstrap = false
         depCtx.bootstrapSatisfied = bootstrapSatisfied
+        let finalPackages = finalRetryPackages(packages, pkgsWithBsdeps)
         (deps, depGraph, allDependents, sortResult) = resolveBuildOrder(
-          packages, depCtx, false, isInstallDir
+          finalPackages, depCtx, false, isInstallDir
         )
 
         # If still has cycle after bootstrap, error out

@@ -7,19 +7,20 @@ proc cleanPackageBinaries(packageName: string): bool =
   ## Remove all binary tarballs for a package across all targets.
   ## Returns true if any files were removed.
   result = false
-  let archivesSystemDir = kpkgArchivesDir & "/system"
-  if not dirExists(archivesSystemDir):
-    return false
-
-  for targetDir in walkDir(archivesSystemDir):
-    if targetDir.kind != pcDir:
+  for kind in ["system", "bootstrap"]:
+    let archivesKindDir = kpkgArchivesDir & "/" & kind
+    if not dirExists(archivesKindDir):
       continue
-    for file in walkDir(targetDir.path):
-      let filename = extractFilename(file.path)
-      if filename.startsWith(packageName & "-") and filename.endsWith(".kpkg"):
-        removeFile(file.path)
-        result = true
-        debug("Removed binary: " & file.path)
+
+    for targetDir in walkDir(archivesKindDir):
+      if targetDir.kind != pcDir:
+        continue
+      for file in walkDir(targetDir.path):
+        let filename = extractFilename(file.path)
+        if filename.startsWith(packageName & "-") and filename.endsWith(".kpkg"):
+          removeFile(file.path)
+          result = true
+          debug("Removed binary: " & file.path)
 
 proc clean*(packages: seq[string] = @[], sources = false, binaries = false,
     cache = false, environment = false) =

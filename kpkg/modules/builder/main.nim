@@ -103,6 +103,8 @@ proc initEnv*(actualPackage: string, kTarget: string) =
   discard existsOrCreateDir(kpkgSourcesDir&"/"&actualPackage)
   discard existsOrCreateDir(kpkgArchivesDir&"/system")
   discard existsOrCreateDir(kpkgArchivesDir&"/system/"&kTarget)
+  discard existsOrCreateDir(kpkgArchivesDir&"/bootstrap")
+  discard existsOrCreateDir(kpkgArchivesDir&"/bootstrap/"&kTarget)
 
   # Create required directories
   createDir(kpkgBuildRoot)

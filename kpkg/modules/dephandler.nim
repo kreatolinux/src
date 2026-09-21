@@ -275,8 +275,12 @@ proc addEdge(graph: var dependencyGraph, fromPkg: string, toPkg: string) =
 proc shouldSkipInstalledDependency*(isInstalled: bool, versionAction: string,
         depName: string, rootPkgNames: HashSet[string], forceInstallAll: bool,
         bootstrapSatisfied: HashSet[string]): bool =
-    isInstalled and versionAction != "upgrade" and depName notin rootPkgNames and
-            (not forceInstallAll or depName in bootstrapSatisfied)
+    ## An installed bootstrap seed closes the cycle even when it is also a
+    ## requested root. The root still remains explicitly queued for its final
+    ## non-bootstrap build; only this dependency back-edge is omitted.
+    isInstalled and versionAction != "upgrade" and
+            (depName in bootstrapSatisfied or
+             (depName notin rootPkgNames and not forceInstallAll))
 
 proc buildDependencyGraph*(pkgs: seq[string], ctx: dependencyContext,
                           ignoreDeps: seq[string] = @["  "],
@@ -372,8 +376,9 @@ proc buildDependencyGraph*(pkgs: seq[string], ctx: dependencyContext,
 
                 # Don't skip root packages. During a forced retry, only bootstrap
                 # packages are treated as satisfied to keep the broken cycle closed.
-                if shouldSkipInstalledDependency(packageExists(depName, ctx.root),
-                        chkVer[0], depName, rootPkgNames, ctx.forceInstallAll,
+                if shouldSkipInstalledDependency(packageExists(depName,
+                        ctx.root), chkVer[0], depName, rootPkgNames,
+                                ctx.forceInstallAll,
                         ctx.bootstrapSatisfied):
                     debug "dephandler: Package '"&depName&"' already installed, skipping"
                     continue
@@ -421,8 +426,9 @@ proc buildDependencyGraph*(pkgs: seq[string], ctx: dependencyContext,
 
                 # Don't skip root packages. During a forced retry, only bootstrap
                 # packages are treated as satisfied to keep the broken cycle closed.
-                if shouldSkipInstalledDependency(packageExists(depName, ctx.root),
-                        chkVer[0], depName, rootPkgNames, ctx.forceInstallAll,
+                if shouldSkipInstalledDependency(packageExists(depName,
+                        ctx.root), chkVer[0], depName, rootPkgNames,
+                                ctx.forceInstallAll,
                         ctx.bootstrapSatisfied):
                     debug "Package '"&depName&"' already installed, skipping"
                     continue
@@ -713,9 +719,17 @@ proc dephandlerWithGraph*(pkgs: seq[string], ignoreDeps = @["  "],
             $finalResult.len)&" packages): "&finalResult.join(", ")
     return (finalResult, graph, sortResult)
 
+proc finalRetryPackages*(requestedPackages, bootstrapPackages: seq[
+        string]): seq[string] =
+    ## Bootstrap seeds must remain explicit roots for the normal retry. This
+    ## preserves their normal build-dependency edges while bootstrapSatisfied
+    ## suppresses only the cycle-closing back-edge.
+    deduplicate(requestedPackages & bootstrapPackages)
+
 proc computeBuildQueue*(depGraph: dependencyGraph,
                         requestedPackages: seq[string],
-                        bootstrap: bool): seq[string]
+                        bootstrap: bool,
+                        bootstrapSatisfied = initHashSet[string]()): seq[string]
 
 proc collectRuntimeDepsFromGraph*(pkgs: seq[string], graph: dependencyGraph,
         visited: var HashSet[string]): seq[string] =
@@ -802,7 +816,8 @@ proc resolveBuildOrderImpl(packages: seq[string], ctx: dependencyContext,
     #
     # Build queue must be derived strictly from the dependency graph of the
     # originally requested packages.
-    deps = computeBuildQueue(depGraph, packages, bootstrap)
+    deps = computeBuildQueue(depGraph, packages, bootstrap,
+            ctx.bootstrapSatisfied)
 
     return (deps, depGraph, allDependents, sortResult)
 
@@ -817,7 +832,8 @@ proc resolveBuildOrder*(packages: seq[string], ctx: dependencyContext,
 
 proc computeBuildQueue*(depGraph: dependencyGraph,
                         requestedPackages: seq[string],
-                        bootstrap: bool): seq[string] =
+                        bootstrap: bool,
+                        bootstrapSatisfied: HashSet[string]): seq[string] =
     ## Compute the build execution queue from dependency graph.
     ## Queue ordering is dependencies first, dependents later.
     ##
@@ -833,8 +849,20 @@ proc computeBuildQueue*(depGraph: dependencyGraph,
             let pkgInfo = parsePkgInfo(pkg)
             let pkgName = pkgInfo.name
             if depGraph.nodes.hasKey(pkgName) and depGraph.nodes[
-                    pkgName].metadata.bsdeps.len > 0:
+                    pkgName].metadata.bsdeps.len > 0 and
+                    pkgName notin bootstrapSatisfied:
                 result = result.filterIt(it != pkgName) & pkgName
+
+proc collectInstalledDirectRuntimeDeps*(deps: seq[string],
+        depNameResolver: proc(dep: string): string,
+        installedResolver: proc(pkg: string): bool): seq[string] =
+    ## Installed dependencies can be omitted from the rebuild graph, but an
+    ## isolated sandbox still needs the package's declared runtime inputs.
+    for dep in deps:
+        let depName = depNameResolver(dep)
+        if not isEmptyOrWhitespace(depName) and installedResolver(depName):
+            result.add(depName)
+    return deduplicate(result)
 
 proc getSandboxDepsFromGraph*(pkg: string, graph: dependencyGraph,
         bootstrap: bool, root: string, forceInstallAll: bool,
@@ -863,10 +891,20 @@ proc getSandboxDepsFromGraph*(pkg: string, graph: dependencyGraph,
         let transitiveDeps = collectRuntimeDepsFromGraph(baseDeps, graph, visited)
         sandboxDeps = sandboxDeps & transitiveDeps
     else:
-        # Regular build: include all transitive runtime deps of the package being built
+        # Regular build: include the package runtime closure from the graph.
         let transitiveDeps = collectRuntimeDepsFromGraph(@[pkg], graph, visited)
-        # Filter out the package itself from its transitive deps
+        # Filter out the package itself from its transitive deps.
         sandboxDeps = sandboxDeps & transitiveDeps.filterIt(it != pkg)
+
+        # Installed dependencies are intentionally omitted from a rebuild graph,
+        # but they are still required inside this package's isolated sandbox.
+        # Add direct installed runtime dependencies explicitly. installFromRoot()
+        # will copy each one's registered runtime closure as well.
+        sandboxDeps = sandboxDeps & collectInstalledDirectRuntimeDeps(
+                node.metadata.deps,
+                proc(dep: string): string = checkVersions(root, dep, node.repo)[
+                        1],
+                proc(dep: string): bool = packageExists(dep, root))
 
     # Add optional dependencies if they're installed
     for optDep in node.metadata.optdeps:

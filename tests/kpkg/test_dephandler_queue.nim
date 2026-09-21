@@ -1,8 +1,10 @@
 import unittest
 import tables
 import sets
+import strutils
 import ../../kpkg/modules/dephandler
 import ../../kpkg/modules/builder/sandbox
+import ../../kpkg/modules/builder/cache
 import ../../kpkg/modules/runparser
 
 proc mkRunFile(name: string, deps: seq[string] = @[], bdeps: seq[string] = @[],
@@ -23,6 +25,30 @@ proc mkResolved(name: string, bsdeps: seq[string] = @[]): resolvedPackage =
       name, bsdeps = bsdeps))
 
 suite "dephandler build queue":
+  test "normal retry keeps bootstrap seeds as explicit roots":
+    let roots = finalRetryPackages(@["gnome"], @["glib"])
+
+    check roots == @["gnome", "glib"]
+
+    var graph: dependencyGraph
+    graph.nodes = initTable[string, resolvedPackage]()
+    graph.edges = initTable[string, seq[string]]()
+    graph.nodes["gobject-introspection"] = mkResolved("gobject-introspection")
+    graph.nodes["glib"] = mkResolved("glib", bsdeps = @["meson"])
+    graph.nodes["gnome"] = mkResolved("gnome")
+    # bootstrapSatisfied suppresses glib -> gobject-introspection, while
+    # the normal GLib build edge remains GI -> GLib.
+    graph.edges["gobject-introspection"] = @["glib"]
+    graph.edges["glib"] = @["gnome"]
+    graph.edges["gnome"] = @[]
+
+    var bootstrapSatisfied = initHashSet[string]()
+    bootstrapSatisfied.incl("glib")
+    let queue = computeBuildQueue(graph, roots, bootstrap = false,
+        bootstrapSatisfied = bootstrapSatisfied)
+    check queue.find("gobject-introspection") < queue.find("glib")
+    check queue.find("glib") < queue.find("gnome")
+
   test "computeBuildQueue keeps build dependencies before target":
     var graph: dependencyGraph
     graph.nodes = initTable[string, resolvedPackage]()
@@ -121,6 +147,14 @@ suite "dephandler build queue":
 
     check deps == @["gmake", "perl", "autoconf", "m4", "libtool"]
 
+  test "sandbox keeps installed runtime deps omitted from rebuild graph":
+    let deps = collectInstalledDirectRuntimeDeps(@["glib>=2.80", "dbus"],
+        proc(dep: string): string =
+      if dep.startsWith("glib"): "glib" else: dep,
+        proc(pkg: string): bool = pkg == "glib")
+
+    check deps == @["glib"]
+
   test "bootstrap package metadata uses bootstrap dependencies":
     let pkg = runFile(
       pkg: "gobject-introspection",
@@ -134,21 +168,38 @@ suite "dephandler build queue":
     )
 
     check packageDepsForMetadata(pkg, useBootstrapDeps = false) == @["python", "glib"]
-    check packageDepsForMetadata(pkg, useBootstrapDeps = true) == @["python", "meson", "ninja"]
+    check packageDepsForMetadata(pkg, useBootstrapDeps = true) == @["python",
+        "meson", "ninja"]
 
   test "forced resolution skips only bootstrap-satisfied installed dependencies":
     var rootPackages = initHashSet[string]()
     var bootstrapSatisfied = initHashSet[string]()
     bootstrapSatisfied.incl("gobject-introspection")
 
-    check shouldSkipInstalledDependency(true, "noupgrade", "gobject-introspection",
-        rootPackages, false, bootstrapSatisfied)
-    check not shouldSkipInstalledDependency(true, "noupgrade", "gobject-introspection",
-        rootPackages, true, initHashSet[string]())
-    check shouldSkipInstalledDependency(true, "noupgrade", "gobject-introspection",
-        rootPackages, true, bootstrapSatisfied)
+    check shouldSkipInstalledDependency(true, "noupgrade",
+        "gobject-introspection", rootPackages, false, bootstrapSatisfied)
+    check not shouldSkipInstalledDependency(true, "noupgrade",
+        "gobject-introspection", rootPackages, true, initHashSet[string]())
+    check shouldSkipInstalledDependency(true, "noupgrade",
+        "gobject-introspection", rootPackages, true, bootstrapSatisfied)
     check not shouldSkipInstalledDependency(true, "noupgrade", "glib",
         rootPackages, true, bootstrapSatisfied)
     rootPackages.incl("gobject-introspection")
-    check not shouldSkipInstalledDependency(true, "noupgrade", "gobject-introspection",
+    check shouldSkipInstalledDependency(true, "noupgrade",
+        "gobject-introspection", rootPackages, false, bootstrapSatisfied)
+    check shouldSkipInstalledDependency(true, "noupgrade",
+        "gobject-introspection", rootPackages, true, bootstrapSatisfied)
+    check not shouldSkipInstalledDependency(true, "noupgrade", "glib",
         rootPackages, true, bootstrapSatisfied)
+
+
+suite "builder cache identity":
+  test "bootstrap and normal archives have different paths":
+    let pkg = mkRunFile("glib")
+    let normal = cacheArchivePath("glib", pkg, "aarch64-linux-gnu")
+    let bootstrap = cacheArchivePath("glib", pkg, "aarch64-linux-gnu",
+        isBootstrap = true)
+
+    check normal != bootstrap
+    check "/system/aarch64-linux-gnu/glib-1-1.kpkg" in normal
+    check "/bootstrap/aarch64-linux-gnu/glib-1-1.kpkg" in bootstrap

@@ -22,6 +22,7 @@ import ../runparser
 import ../sqlite
 import ../../commands/installcmd
 import ../../modules/telemetry/main as telemetry
+import ./cache
 
 proc addPackageWithDepsToQueue*(queue: var seq[string], packageName: string,
                                 depResolver: proc(pkg: string): seq[string],
@@ -287,11 +288,17 @@ proc buildPackageInSandboxImpl(pkgName: string, depGraph: dependencyGraph,
       (sandboxCfg.target == "default" or
        sandboxCfg.target == kpkgTarget(sandboxCfg.root)):
     debug "buildPackageInSandbox: installing " & actualPkgName & " to host"
+    let archivePath = if isBootstrapBuild:
+      cacheArchivePath(actualPkgName, depGraph.nodes[pkgTmp.name].metadata,
+          sandboxKTarget, isBootstrap = true)
+    else:
+      ""
     installPkg(findPkgRepo(actualPkgName), actualPkgName,
             sandboxCfg.fullRootPath,
             manualInstallList = @[], kTarget = sandboxKTarget,
             ignorePostInstall = true,
-            deferPostInstall = sandboxCfg.deferPostInstall)
+            deferPostInstall = sandboxCfg.deferPostInstall,
+            tarballPath = archivePath)
 
   if overlayMounted:
     let cleanupResult = umountOverlay(silentMode = true)
