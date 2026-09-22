@@ -47,8 +47,8 @@ proc initDirectories*(buildDirectory: string, arch: string, silent = false) =
   createDir(buildDirectory&"/usr/include")
 
   # Set permissions for directories
-  setFilePermissions(buildDirectory, {fpUserExec, fpUserRead, fpGroupExec,
-          fpGroupRead, fpOthersExec, fpOthersRead})
+  setFilePermissions(buildDirectory, {fpUserExec, fpUserWrite, fpUserRead,
+          fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
 
   setFilePermissions(buildDirectory&"/etc", {fpUserExec, fpUserWrite,
           fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
@@ -56,11 +56,11 @@ proc initDirectories*(buildDirectory: string, arch: string, silent = false) =
   setFilePermissions(buildDirectory&"/usr", {fpUserExec, fpUserWrite,
           fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
 
-  setFilePermissions(buildDirectory&"/usr/bin", {fpUserExec, fpUserRead,
-          fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
+  setFilePermissions(buildDirectory&"/usr/bin", {fpUserExec, fpUserWrite,
+          fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
 
-  setFilePermissions(buildDirectory&"/usr/lib", {fpUserExec, fpUserRead,
-          fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
+  setFilePermissions(buildDirectory&"/usr/lib", {fpUserExec, fpUserWrite,
+          fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
 
   setFilePermissions(buildDirectory&"/var", {fpUserExec, fpUserWrite,
           fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
@@ -77,11 +77,11 @@ proc initDirectories*(buildDirectory: string, arch: string, silent = false) =
   setFilePermissions(buildDirectory&"/var/lib/kpkg", {fpUserExec,
           fpUserWrite, fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
 
-  setFilePermissions(buildDirectory&"/boot", {fpUserExec, fpUserRead,
-          fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
+  setFilePermissions(buildDirectory&"/boot", {fpUserExec, fpUserWrite,
+          fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
 
-  setFilePermissions(buildDirectory&"/root", {fpUserExec, fpUserRead,
-          fpGroupExec, fpGroupRead})
+  setFilePermissions(buildDirectory&"/root", {fpUserExec, fpUserWrite,
+          fpUserRead})
 
   setFilePermissions(buildDirectory&"/dev", {fpUserExec, fpUserWrite,
           fpUserRead, fpGroupExec, fpGroupRead, fpOthersExec, fpOthersRead})
