@@ -36,7 +36,6 @@ case $1 in
                 fi
 
                 #kpkg upgrade -y
-                kpkg install meson -y
                 #kpkg build kpkg -y
 
                 #kpkg build bzip2 -y || exit 1
