@@ -49,6 +49,28 @@ suite "dephandler build queue":
     check queue.find("gobject-introspection") < queue.find("glib")
     check queue.find("glib") < queue.find("gnome")
 
+  test "bootstrap retry breaks cyclic dependency between cmake, doxygen and libxml2":
+    let roots = finalRetryPackages(@["libxml2"], @["cmake"])
+    check roots == @["libxml2", "cmake"]
+
+    var graph: dependencyGraph
+    graph.nodes = initTable[string, resolvedPackage]()
+    graph.edges = initTable[string, seq[string]]()
+    graph.nodes["cmake"] = mkResolved("cmake", bsdeps = @["gmake"])
+    graph.nodes["doxygen"] = mkResolved("doxygen")
+    graph.nodes["libxml2"] = mkResolved("libxml2")
+
+    graph.edges["cmake"] = @[]
+    graph.edges["doxygen"] = @["libxml2"]
+    graph.edges["libxml2"] = @["cmake"]
+
+    var bootstrapSatisfied = initHashSet[string]()
+    bootstrapSatisfied.incl("cmake")
+    let queue = computeBuildQueue(graph, roots, bootstrap = false,
+        bootstrapSatisfied = bootstrapSatisfied)
+    check queue.find("doxygen") < queue.find("libxml2")
+    check queue.find("libxml2") < queue.find("cmake")
+
   test "computeBuildQueue keeps build dependencies before target":
     var graph: dependencyGraph
     graph.nodes = initTable[string, resolvedPackage]()
@@ -191,6 +213,12 @@ suite "dephandler build queue":
         "gobject-introspection", rootPackages, true, bootstrapSatisfied)
     check not shouldSkipInstalledDependency(true, "noupgrade", "glib",
         rootPackages, true, bootstrapSatisfied)
+    check shouldSkipInstalledDependency(false, "noupgrade",
+        "gobject-introspection", rootPackages, false, bootstrapSatisfied)
+    check shouldSkipInstalledDependency(false, "upgrade",
+        "gobject-introspection", rootPackages, true, bootstrapSatisfied)
+    check shouldSkipInstalledDependency(true, "upgrade",
+        "gobject-introspection", rootPackages, true, bootstrapSatisfied)
 
 
 suite "builder cache identity":

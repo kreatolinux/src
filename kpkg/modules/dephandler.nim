@@ -275,12 +275,13 @@ proc addEdge(graph: var dependencyGraph, fromPkg: string, toPkg: string) =
 proc shouldSkipInstalledDependency*(isInstalled: bool, versionAction: string,
         depName: string, rootPkgNames: HashSet[string], forceInstallAll: bool,
         bootstrapSatisfied: HashSet[string]): bool =
-    ## An installed bootstrap seed closes the cycle even when it is also a
+    ## A bootstrap seed closes the cycle even when it is also a
     ## requested root. The root still remains explicitly queued for its final
     ## non-bootstrap build; only this dependency back-edge is omitted.
-    isInstalled and versionAction != "upgrade" and
-            (depName in bootstrapSatisfied or
-             (depName notin rootPkgNames and not forceInstallAll))
+    if depName in bootstrapSatisfied:
+        return true
+    return isInstalled and versionAction != "upgrade" and
+            depName notin rootPkgNames and not forceInstallAll
 
 proc buildDependencyGraph*(pkgs: seq[string], ctx: dependencyContext,
                           ignoreDeps: seq[string] = @["  "],

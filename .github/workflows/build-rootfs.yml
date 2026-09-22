@@ -81,7 +81,7 @@ jobs:
   # (self-hosting). The container's kpkg-repo clone is reset to origin/master
   # so it always carries the current runfiles.
   build-arm64:
-    runs-on: ubuntu-24.04-arm
+    runs-on: ubuntu-26.04-arm
     timeout-minutes: 350
     container:
         image: ghcr.io/kreatolinux/builder:aarch64
