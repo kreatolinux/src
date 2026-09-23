@@ -77,10 +77,25 @@ jobs:
           path: ${{ github.workspace }}/kreato-linux-builder-repo-*.tar.gz
           if-no-files-found: error
 
-  # aarch64 builder rootfs: built inside the aarch64 builder container itself
+      - name: Build builder-systemd rootfs tarball
+        run: |
+          IS_ACTIONS=y sh $GITHUB_WORKSPACE/scripts/build-ci.sh build builder-systemd
+
+      - name: Upload builder-systemd Rootfs
+        uses: actions/upload-artifact@v7
+        with:
+          name: builder-systemd-rootfs
+          path: ${{ github.workspace }}/kreato-linux-builder-systemd-*.tar.gz
+          if-no-files-found: error
+
+  # Build each aarch64 rootfs inside the native builder container
   # (self-hosting). The container's kpkg-repo clone is reset to origin/master
   # so it always carries the current runfiles.
   build-arm64:
+    strategy:
+      fail-fast: false
+      matrix:
+        image: [nocc, builder, builder-gnu, builder-repo, builder-systemd]
     runs-on: ubuntu-26.04-arm
     timeout-minutes: 350
     container:
@@ -95,11 +110,11 @@ jobs:
         uses: actions/cache@v5
         with:
           path: /var/cache/kpkg/archives
-          key: binary-cache-aarch64-${{ github.run_id }}
+          key: binary-cache-aarch64-${{ matrix.image }}-${{ github.run_id }}
           restore-keys: |
             binary-cache-aarch64
 
-      - name: Init and build the builder rootfs tarball
+      - name: Init and build the ${{ matrix.image }} rootfs tarball
         run: |
           set -x
           rm -rf /work && ln -s $GITHUB_WORKSPACE /work
@@ -123,19 +138,16 @@ jobs:
           nim c -d:branch=master --deepcopy:on --passL:-larchive --passC:-no-pie \
               --threads:on -d:ssl -o=krep/krep krep/krep.nim
 
-          # Binary assembly does not compile packages or bypass the sandbox.
-          # Keep the checked-in config's source-build default for local users.
-          sed -i 's/^BuildPackages=yes$/BuildPackages=no/' krep/data/rootfs/arch/arm64/configs/builder.conf
-          ./krep/krep rootfs --dataDir=/work/krep/data/rootfs --buildType=builder --arch=arm64
+          ./krep/krep rootfs --dataDir=/work/krep/data/rootfs --buildType=${{ matrix.image }} --arch=arm64
 
           cd /out
-          tar -czf /work/kreato-linux-builder-aarch64-$(date +%d-%m-%Y).tar.gz --numeric-owner .
+          tar -czf /work/kreato-linux-${{ matrix.image }}-aarch64-$(date +%d-%m-%Y).tar.gz --numeric-owner .
 
-      - name: Upload aarch64 Builder Rootfs
+      - name: Upload aarch64 ${{ matrix.image }} Rootfs
         uses: actions/upload-artifact@v7
         with:
-          name: builder-rootfs-aarch64
-          path: ${{ github.workspace }}/kreato-linux-builder-aarch64-*.tar.gz
+          name: ${{ matrix.image }}-rootfs-aarch64
+          path: ${{ github.workspace }}/kreato-linux-${{ matrix.image }}-aarch64-*.tar.gz
           if-no-files-found: error
 
   docker:
@@ -161,6 +173,9 @@ jobs:
             tar -xvpf $GITHUB_WORKSPACE/builder-repo-rootfs/kreato-linux-builder-repo-*.tar.gz -C "/tmp/docker.tmp.builder-repo"
             tar -xvpf $GITHUB_WORKSPACE/builder-rootfs/kreato-linux-builder-*.tar.gz -C "/tmp/docker.tmp"
             tar -xvpf $GITHUB_WORKSPACE/nocc-rootfs/kreato-linux-nocc-*.tar.gz -C "/tmp/docker.tmp.nocc"
+            mkdir /tmp/docker.tmp.builder-systemd
+            cp $GITHUB_WORKSPACE/docker/Dockerfile /tmp/docker.tmp.builder-systemd || exit 1
+            tar -xvpf $GITHUB_WORKSPACE/builder-systemd-rootfs/kreato-linux-builder-systemd-*.tar.gz -C "/tmp/docker.tmp.builder-systemd"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -215,15 +230,33 @@ jobs:
           push: true
           tags: kreato/builder-gnu:latest,ghcr.io/kreatolinux/builder-gnu:latest
 
-  # Multiarch builder image: amd64 rootfs from the build job above, aarch64
-  # rootfs from build-arm64. One manifest on ghcr.io/kreatolinux/builder:latest.
-  # Also runs on arm64-only dispatches: the published linux/amd64 image is
-  # merged with the freshly built aarch64 image, refreshing both :aarch64
-  # and :latest without rebuilding the x86_64 rootfs.
+      - name: Build and push builder-systemd image
+        uses: docker/build-push-action@v7
+        with:
+          context: /tmp/docker.tmp.builder-systemd
+          push: true
+          tags: kreato/builder-systemd:latest,ghcr.io/kreatolinux/builder-systemd:latest
+
+  # Wait for AMD64 publication before merging manifests. On ARM64-only
+  # dispatches, retain the already-published AMD64 image.
   docker-multiarch:
-    needs: [build, build-arm64]
-    if: ${{ !cancelled() && needs.build-arm64.result == 'success' && (needs.build.result == 'success' || needs.build.result == 'skipped') }}
+    needs: [docker, build-arm64]
+    if: ${{ !cancelled() && needs.build-arm64.result == 'success' && (needs.docker.result == 'success' || needs.docker.result == 'skipped') }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: builder
+            dockerhub: builder
+          - image: nocc
+            dockerhub: linux
+          - image: builder-gnu
+            dockerhub: builder-gnu
+          - image: builder-repo
+            dockerhub: builder-repo
+          - image: builder-systemd
+            dockerhub: builder-systemd
     permissions:
       contents: read
       packages: write
@@ -234,58 +267,52 @@ jobs:
       - name: Download aarch64 rootfs
         uses: actions/download-artifact@v8
         with:
-          name: builder-rootfs-aarch64
+          name: ${{ matrix.image }}-rootfs-aarch64
           path: /tmp/rootfs-aarch64
 
       - name: Prepare aarch64 image context
         run: |
           mkdir -p /tmp/docker.tmp.aarch64
-          cp $GITHUB_WORKSPACE/docker/Dockerfile /tmp/docker.tmp.aarch64/
-          # The uploaded artifact keeps the dated filename produced by the build step.
-          tar -xpf /tmp/rootfs-aarch64/kreato-linux-builder-aarch64-*.tar.gz -C /tmp/docker.tmp.aarch64
+          cp "$GITHUB_WORKSPACE/docker/Dockerfile" /tmp/docker.tmp.aarch64/
+          tar -xpf /tmp/rootfs-aarch64/kreato-linux-${{ matrix.image }}-aarch64-*.tar.gz -C /tmp/docker.tmp.aarch64
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
-      # GITHUB_TOKEN lacks write access to the existing kreatolinux/builder
-      # ghcr package; the docker job has always pushed with CR_PAT.
       - name: Login to ghcr.io
         run: |
-          echo $CR_PAT | docker login ghcr.io -u kreatolinux --password-stdin
+          echo "$CR_PAT" | docker login ghcr.io -u kreatolinux --password-stdin
         env:
           CR_PAT: ${{ secrets.CR_PAT }}
 
-      - name: Push aarch64 builder image
+      - name: Login to Docker Hub
+        uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Push aarch64 image
         uses: docker/build-push-action@v7
         with:
           context: /tmp/docker.tmp.aarch64
           push: true
-          # The rootfs payload is already aarch64; label the image correctly
-          # (buildx would otherwise use the amd64 runner's platform) and skip
-          # attestations so :aarch64 stays a plain arm64 manifest.
           platforms: linux/arm64
           provenance: false
-          tags: ghcr.io/kreatolinux/builder:aarch64
+          tags: ghcr.io/kreatolinux/${{ matrix.image }}:aarch64,kreato/${{ matrix.dockerhub }}:aarch64
 
-      - name: Create and push the multiarch manifest
+      - name: Create and push multiarch manifests
+        env:
+          GHCR_IMAGE: ghcr.io/kreatolinux/${{ matrix.image }}
+          DOCKERHUB_IMAGE: kreato/${{ matrix.dockerhub }}
         run: |
           set -euo pipefail
-          # The published :latest is either a plain amd64 image (freshly
-          # pushed by the docker job on full runs) or a manifest list from an
-          # earlier multiarch run. Resolve the actual linux/amd64 image so
-          # :latest keeps working x86_64 support after this update.
-          # buildx may publish both tags as manifest lists (provenance
-          # attestations), and docker manifest create rejects lists as
-          # --amend sources. Amend with the platform sub-manifest digests.
-          docker manifest inspect ghcr.io/kreatolinux/builder:latest > /tmp/latest.json
-          AMD64_REF=$(jq -r 'if .manifests then ([.manifests[] | select(.platform.os == "linux" and .platform.architecture == "amd64") | "ghcr.io/kreatolinux/builder@" + .digest] | .[0]) else "ghcr.io/kreatolinux/builder:latest" end' /tmp/latest.json)
-          docker manifest inspect ghcr.io/kreatolinux/builder:aarch64 > /tmp/aarch64.json
-          ARM64_REF=$(jq -r 'if .manifests then ([.manifests[] | select(.platform.os == "linux" and .platform.architecture == "arm64") | "ghcr.io/kreatolinux/builder@" + .digest] | .[0]) else "ghcr.io/kreatolinux/builder:aarch64" end' /tmp/aarch64.json)
-          echo "amd64 source: $AMD64_REF"
-          echo "arm64 source: $ARM64_REF"
-          test -n "$AMD64_REF" && test -n "$ARM64_REF"
-          docker manifest create ghcr.io/kreatolinux/builder:latest \
-            --amend "$AMD64_REF" \
-            --amend "$ARM64_REF"
-          docker manifest inspect ghcr.io/kreatolinux/builder:latest
-          docker manifest push ghcr.io/kreatolinux/builder:latest
+          for image in "$GHCR_IMAGE" "$DOCKERHUB_IMAGE"; do
+            # Extract the platform manifest when :latest includes attestations
+            # or already contains both architectures.
+            docker manifest inspect "$image:latest" > /tmp/latest.json
+            AMD64_REF=$(jq -er --arg image "$image" 'if .manifests then ([.manifests[] | select(.platform.os == "linux" and .platform.architecture == "amd64") | $image + "@" + .digest] | .[0]) else $image + ":latest" end' /tmp/latest.json)
+            docker manifest create "$image:latest" \
+              --amend "$AMD64_REF" \
+              --amend "$image:aarch64"
+            docker manifest push "$image:latest"
+          done

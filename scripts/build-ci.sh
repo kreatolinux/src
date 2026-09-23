@@ -82,6 +82,6 @@ case $1 in
   
                 ./krep/krep rootfs --dataDir=/work/krep/data/rootfs --buildType="$2" --arch="$arch" || e
                 cd /out || exit 1
-                tar -czvf /work/kreato-linux-"$2"-glibc-"$(date +%d-%m-%Y)"-amd64.tar.gz *
+                tar -czvf /work/kreato-linux-"$2"-glibc-"$(date +%d-%m-%Y)"-"$arch".tar.gz .
         ;;
 esac
