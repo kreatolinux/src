@@ -13,17 +13,18 @@ on:
         type: boolean
 
 jobs:
-  build-amd64:
-    if: ${{ !inputs.arm64Only }}
+  build:
+    name: build (${{ matrix.arch }}, ${{ matrix.image }})
     strategy:
       fail-fast: false
       matrix:
+        arch: ${{ fromJson(inputs.arm64Only && '["arm64"]' || '["amd64", "arm64"]') }}
         image: [nocc, builder, builder-gnu, builder-repo, builder-systemd]
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-26.04-arm' || 'ubuntu-latest' }}
     timeout-minutes: 350
     container:
-        image: ghcr.io/kreatolinux/builder:latest
-        options: --privileged
+      image: ghcr.io/kreatolinux/builder:${{ matrix.arch == 'arm64' && 'aarch64' || 'latest' }}
+      options: --privileged
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -32,49 +33,18 @@ jobs:
         uses: actions/cache@v5
         with:
           path: /var/cache/kpkg/archives
-          key: binary-cache-amd64-${{ matrix.image }}-${{ github.run_id }}
+          key: binary-cache-${{ matrix.arch }}-${{ matrix.image }}-${{ github.run_id }}
           restore-keys: |
-            binary-cache-amd64-
+            binary-cache-${{ matrix.arch }}-
 
-      - name: Init and build the ${{ matrix.image }} rootfs tarball
+      - name: Init and build AMD64 rootfs
+        if: matrix.arch == 'amd64'
         run: |
           IS_ACTIONS=y sh "$GITHUB_WORKSPACE/scripts/build-ci.sh" init
           IS_ACTIONS=y sh "$GITHUB_WORKSPACE/scripts/build-ci.sh" build "${{ matrix.image }}" amd64
 
-      - name: Upload amd64 ${{ matrix.image }} Rootfs
-        uses: actions/upload-artifact@v7
-        with:
-          name: ${{ matrix.image }}-rootfs-amd64
-          path: ${{ github.workspace }}/kreato-linux-${{ matrix.image }}-glibc-*-amd64.tar.gz
-          if-no-files-found: error
-
-  # Build each aarch64 rootfs inside the native builder container
-  # (self-hosting). The container's kpkg-repo clone is reset to origin/master
-  # so it always carries the current runfiles.
-  build-arm64:
-    strategy:
-      fail-fast: false
-      matrix:
-        image: [nocc, builder, builder-gnu, builder-repo, builder-systemd]
-    runs-on: ubuntu-26.04-arm
-    timeout-minutes: 350
-    container:
-        image: ghcr.io/kreatolinux/builder:aarch64
-        options: --privileged
-    steps:
-
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Update cache on every commit
-        uses: actions/cache@v5
-        with:
-          path: /var/cache/kpkg/archives
-          key: binary-cache-aarch64-${{ matrix.image }}-${{ github.run_id }}
-          restore-keys: |
-            binary-cache-aarch64
-
-      - name: Init and build the ${{ matrix.image }} rootfs tarball
+      - name: Init and build ARM64 rootfs
+        if: matrix.arch == 'arm64'
         run: |
           set -x
           rm -rf /work && ln -s $GITHUB_WORKSPACE /work
@@ -103,18 +73,17 @@ jobs:
           cd /out
           tar -czf /work/kreato-linux-${{ matrix.image }}-aarch64-$(date +%d-%m-%Y).tar.gz --numeric-owner .
 
-      - name: Upload aarch64 ${{ matrix.image }} Rootfs
+      - name: Upload ${{ matrix.arch }} ${{ matrix.image }} Rootfs
         uses: actions/upload-artifact@v7
         with:
-          name: ${{ matrix.image }}-rootfs-aarch64
-          path: ${{ github.workspace }}/kreato-linux-${{ matrix.image }}-aarch64-*.tar.gz
+          name: ${{ matrix.image }}-rootfs-${{ matrix.arch }}
+          path: ${{ github.workspace }}/kreato-linux-${{ matrix.image }}-${{ matrix.arch == 'arm64' && 'aarch64-*.tar.gz' || 'glibc-*-amd64.tar.gz' }}
           if-no-files-found: error
 
   # Publish both architectures and merge :latest in one job per image.
   # ARM64-only runs retain the already-published AMD64 image.
   docker:
-    needs: [build-amd64, build-arm64]
-    if: ${{ !cancelled() && needs.build-arm64.result == 'success' && (needs.build-amd64.result == 'success' || needs.build-amd64.result == 'skipped') }}
+    needs: build
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -138,14 +107,14 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Download amd64 rootfs
-        if: needs.build-amd64.result == 'success'
+        if: ${{ !inputs.arm64Only }}
         uses: actions/download-artifact@v8
         with:
           name: ${{ matrix.image }}-rootfs-amd64
           path: /tmp/rootfs-amd64
 
       - name: Prepare amd64 image context
-        if: needs.build-amd64.result == 'success'
+        if: ${{ !inputs.arm64Only }}
         run: |
           mkdir -p /tmp/docker.tmp.amd64
           cp "$GITHUB_WORKSPACE/docker/Dockerfile" /tmp/docker.tmp.amd64/
@@ -154,7 +123,7 @@ jobs:
       - name: Download aarch64 rootfs
         uses: actions/download-artifact@v8
         with:
-          name: ${{ matrix.image }}-rootfs-aarch64
+          name: ${{ matrix.image }}-rootfs-arm64
           path: /tmp/rootfs-aarch64
 
       - name: Prepare aarch64 image context
@@ -179,7 +148,7 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Push amd64 image
-        if: needs.build-amd64.result == 'success'
+        if: ${{ !inputs.arm64Only }}
         uses: docker/build-push-action@v7
         with:
           context: /tmp/docker.tmp.amd64
@@ -199,7 +168,7 @@ jobs:
 
       - name: Create and push multiarch manifests
         env:
-          AMD64_BUILT: ${{ needs.build-amd64.result == 'success' }}
+          AMD64_BUILT: ${{ !inputs.arm64Only }}
           GHCR_IMAGE: ghcr.io/kreatolinux/${{ matrix.image }}
           DOCKERHUB_IMAGE: kreato/${{ matrix.dockerhub }}
         run: |
