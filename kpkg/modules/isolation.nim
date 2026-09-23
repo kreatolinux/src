@@ -3,7 +3,7 @@ import std/os
 import ../../common/logging
 import sqlite
 import envstate
-import archivemeta
+from libarchive import isArchiveRootMetadata
 import processes
 import dephandler
 import runparser

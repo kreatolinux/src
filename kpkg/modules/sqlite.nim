@@ -4,7 +4,55 @@ import ../../common/logging
 import ./checksums
 import std/strutils
 import std/options
+import std/posix
 import norm/[model, sqlite]
+
+# Coordinate live SQLite readers with exclusive package mutation/recovery.
+proc hasPendingHistoryRestore*(): bool =
+  if dirExists(kpkgJournalDir):
+    # Include malformed markers and symlinks: recovery must decide validity.
+    for kind, path in walkDir(kpkgJournalDir, checkDir = true):
+      if path.endsWith(".restore"):
+        return true
+
+proc requireNoPendingHistoryRestore*() =
+  if hasPendingHistoryRestore():
+    raise newException(IOError,
+      "history restore is pending; recover it before accessing the live database")
+
+const lockfilePath* {.strdefine.} = "/tmp/kpkg.lock"
+var mutationLockOwned {.threadvar.}: bool
+var liveGuardFd {.threadvar.}: cint
+var liveGuardHeld {.threadvar.}: bool
+var noFollow {.importc: "O_NOFOLLOW", header: "<fcntl.h>".}: cint
+proc guardFlock(fd, operation: cint): cint {.importc: "flock",
+    header: "<sys/file.h>".}
+
+proc ownsMutationLock*(): bool = mutationLockOwned
+
+proc setMutationLockOwned*(owned: bool) =
+  ## Caller holds the exclusive flock; workers must close before final release.
+  mutationLockOwned = owned
+
+proc acquireLiveDatabaseGuard*() =
+  if liveGuardHeld or mutationLockOwned:
+    return
+  let fd = posix.open((lockfilePath & ".guard").cstring,
+      O_CREAT or O_RDONLY or O_CLOEXEC or noFollow, Mode(0o644))
+  if fd < 0:
+    raiseOSError(osLastError(), "cannot open live database guard")
+  if guardFlock(fd, 1 or 4) != 0: # LOCK_SH | LOCK_NB
+    discard posix.close(fd)
+    raise newException(IOError, "package mutation blocks live database access")
+  liveGuardFd = fd
+  liveGuardHeld = true
+
+proc releaseLiveDatabaseGuard*() =
+  if liveGuardHeld:
+    discard guardFlock(liveGuardFd, 8) # LOCK_UN
+    discard posix.close(liveGuardFd)
+    liveGuardHeld = false
+
 
 type
   Package* = ref object of Model
@@ -74,16 +122,28 @@ proc closeDb*() =
     connOn = false
     currentRoot = ""
     inTransaction = false
+  releaseLiveDatabaseGuard()
 
 proc rootCheck(root: string) =
+  # The shared lease excludes restore intent publication for this connection.
+  if connOn and currentRoot != root:
+    closeDb()
+  acquireLiveDatabaseGuard()
+  try:
+    requireNoPendingHistoryRestore()
+  except:
+    closeDb()
+    raise
   # Root checks (internal)
   # Only close/reopen if the root path actually changed
   if connOn and currentRoot == root:
     return
 
-  # Close existing connection if root changed
-  if connOn:
-    closeDb()
+  # A failed open or migration must not leave an orphan shared lease.
+  var initialized = false
+  defer:
+    if not initialized:
+      closeDb()
 
   var firstTime = false
 
@@ -112,6 +172,7 @@ proc rootCheck(root: string) =
     except DbError:
       debug "Adding missing 'license' column to Package table"
       kpkgDb.exec(sql"ALTER TABLE Package ADD COLUMN license TEXT NOT NULL DEFAULT ''")
+  initialized = true
 
 
 proc beginTransaction*(root: string) =
@@ -448,3 +509,73 @@ proc getPackageByValueAll*(root: string, field = "") =
 
   for f in packages:
     echo getPackageByValue(f, field)&"\n"
+
+proc snapshotDatabase*(root, destination: string) =
+  ## SQLite creates a consistent standalone image, including WAL contents.
+  rootCheck(root)
+  if inTransaction:
+    raise newException(IOError, "cannot snapshot an active SQLite transaction")
+  kpkgDb.exec(sql"VACUUM INTO ?", destination)
+
+proc databaseFingerprint*(root: string): string =
+  ## Stable logical representation independent of SQLite page layout/WAL.
+  rootCheck(root)
+  for tableName in ["Package", "File"]:
+    for row in kpkgDb.getAllRows(SqlQuery("SELECT * FROM " & tableName &
+        " ORDER BY id")):
+      result.add($row & "\n")
+
+when defined(macosx):
+  const snapshotSqliteLib = "libsqlite3(|.0).dylib"
+elif defined(windows):
+  const snapshotSqliteLib = "sqlite3.dll"
+else:
+  const snapshotSqliteLib = "libsqlite3.so(|.0)"
+
+proc openSnapshotV2(filename: cstring, db: var DbConn, flags: cint,
+    vfs: cstring): cint {.cdecl, dynlib: snapshotSqliteLib,
+    importc: "sqlite3_open_v2".}
+
+proc openDatabaseSnapshot(path: string): DbConn =
+  ## No live-root access, schema migration, WAL recovery, or sidecar creation.
+  var st: Stat
+  if lstat(path.cstring, st) != 0 or not S_ISREG(st.st_mode):
+    raise newException(IOError, "history database snapshot is not a regular file: " & path)
+  if st.st_size < 100:
+    raise newException(IOError, "history database snapshot is truncated: " & path)
+  # Encode reserved URI bytes, retaining slash separators in the absolute path.
+  var uri = "file:"
+  for ch in absolutePath(path):
+    if ch in {'a'..'z', 'A'..'Z', '0'..'9', '/', '-', '_', '.', '~'}:
+      uri.add(ch)
+    else:
+      uri.add("%" & toHex(ord(ch), 2))
+  uri.add("?mode=ro&immutable=1")
+  # SQLITE_OPEN_READONLY | SQLITE_OPEN_URI. Do not rely on global URI settings.
+  if openSnapshotV2(uri.cstring, result, 0x00000001 or 0x00000040, nil) != 0:
+    if result != nil:
+      close(result)
+    raise newException(IOError, "cannot open history database snapshot: " & path)
+
+proc validateDatabaseSnapshot*(path: string) =
+  ## Validate standalone retained bytes, ignoring any accompanying WAL/SHM.
+  try:
+    let db = openDatabaseSnapshot(path)
+    defer: close(db)
+    let rows = db.getAllRows(sql"PRAGMA integrity_check")
+    if rows.len != 1 or rows[0].len != 1 or rows[0][0].s != "ok":
+      raise newException(IOError, "corrupt history database snapshot: " & path)
+    # An unrelated but valid SQLite image is not a package database snapshot.
+    discard db.getAllRows(sql"SELECT id, name, version, release, epoch FROM Package LIMIT 0")
+    discard db.getAllRows(sql"SELECT id, path, blake2Checksum, package FROM File LIMIT 0")
+  except DbError as exc:
+    raise newException(IOError, "invalid history database snapshot: " & path &
+        ": " & exc.msg)
+
+proc snapshotPackageVersions*(path: string): seq[tuple[name, version, release,
+    epoch: string]] =
+  ## Read a retained snapshot without opening or migrating the live database.
+  let db = openDatabaseSnapshot(path)
+  defer: close(db)
+  for row in db.getAllRows(sql"SELECT name, version, release, epoch FROM Package ORDER BY name"):
+    result.add((row[0].s, row[1].s, row[2].s, row[3].s))

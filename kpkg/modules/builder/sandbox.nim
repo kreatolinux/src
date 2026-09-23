@@ -1,3 +1,5 @@
+import ../transactions/barrier
+import ../lockfile
 #[
   This module handles sandbox/overlay setup and package building loop.
   
@@ -307,6 +309,14 @@ proc buildPackageInSandbox*(pkgName: string, depGraph: dependencyGraph,
                              sandboxCfg: SandboxConfig,
                              builderProc: BuilderProc,
                              installPkgProc: InstallPkgProc): seq[string] =
+  createLockfile()
+  defer: removeLockfile()
+  assertNoAbandonedHistory(if sandboxCfg.fullRootPath ==
+      "": "/" else: sandboxCfg.fullRootPath)
+  assertNoAbandonedHistory(if sandboxCfg.root == "": "/" else: sandboxCfg.root)
+  assertNoAbandonedHistory(kpkgEnvPath)
+  assertNoAbandonedHistory(kpkgOverlayPath & "/upperDir")
+
   telemetry.withSpan("kpkg.sandbox.lifecycle", {
     "package.name": parsePkgInfo(pkgName).name,
     "package.bootstrap": $sandboxCfg.bootstrap
@@ -322,6 +332,14 @@ proc buildAllPackagesInSandbox*(deps: var seq[string], depGraph: dependencyGraph
   ## Iterates over all packages and builds each in sandbox.
   ##
   ## Returns 0 on success.
+
+  createLockfile()
+  defer: removeLockfile()
+  assertNoAbandonedHistory(if sandboxCfg.fullRootPath ==
+      "": "/" else: sandboxCfg.fullRootPath)
+  assertNoAbandonedHistory(if sandboxCfg.root == "": "/" else: sandboxCfg.root)
+  assertNoAbandonedHistory(kpkgEnvPath)
+  assertNoAbandonedHistory(kpkgOverlayPath & "/upperDir")
 
   var sonameSourceMap = initTable[string, string]()
   var sonameSources: seq[string]

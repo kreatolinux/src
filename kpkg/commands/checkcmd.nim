@@ -3,7 +3,7 @@ import strutils
 import ../modules/sqlite
 import ../../common/logging
 import ../modules/checksums
-import ../modules/archivemeta
+from ../modules/libarchive import isArchiveRootMetadata
 
 proc reportCheckError(msg: string) =
   ## Report a check error - debug if debug mode, fatal otherwise.

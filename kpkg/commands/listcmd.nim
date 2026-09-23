@@ -18,6 +18,7 @@ proc getListPackagesRepo(root = "/", ignoreList = @[""]): seq[string] =
 
 
 proc list*(installed = false, color = true, showExcluded = false) =
+  ## List available packages, or installed packages with --installed.
   var packageList = getListPackages("/")
 
   if not installed:

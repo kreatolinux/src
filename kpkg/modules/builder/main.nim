@@ -17,7 +17,6 @@ import ../commonTasks
 proc cleanUp*() {.noconv.} =
   ## Cleans up.
   debug "builder-ng: clean up"
-  removeLockfile()
   quit(0)
 
 proc getArch*(target: string): string =
@@ -115,7 +114,6 @@ proc initEnv*(actualPackage: string, kTarget: string) =
           fpOthersExec, fpOthersWrite, fpOthersRead})
   setFilePermissions(kpkgSrcDir, {fpOthersWrite, fpOthersRead, fpOthersExec})
 
-  createLockfile()
   debug "builder-ng: initEnv done"
 
 
@@ -159,7 +157,6 @@ proc handleGroupPackage*(pkg: runFile, repo: string, actualPackage: string,
                  ignorePostInstall)
   removeDir(kpkgBuildRoot)
   removeDir(kpkgSrcDir)
-  removeLockfile()
   return true
 
 

@@ -5,6 +5,13 @@ import sequtils
 import telemetry/main as telemetry
 import tables
 
+# Archive-root transport metadata, not installed package payload.
+const archiveRootMetadata* = ["pkgsums.ini", "pkgInfo.ini"]
+
+proc isArchiveRootMetadata*(path: string): bool =
+  ## True only for archive-root metadata entries (no directory component).
+  result = path in archiveRootMetadata
+
 # libarchive bindings
 {.passL: "-larchive".}
 

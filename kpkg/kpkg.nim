@@ -35,9 +35,8 @@ import commands/providescmd
 import commands/checkcmd
 import commands/listcmd
 import commands/initcmd
-import commands/clearlockcmd
 import commands/stalecmd
-import modules/transaction
+import commands/historycmd
 import modules/config as kpkgConfig
 import modules/telemetry/config as telemetryConfig
 import modules/telemetry/main as telemetry
@@ -70,14 +69,6 @@ addExitProc(proc() =
 # fatal() aborts bypass normal span unwinding; report them as failures.
 setErrorCallback(telemetry.fatalExitCallback(commandSpan))
 
-# Check for and recover from any incomplete transactions from previous runs
-# This must happen early, before any other operations
-if isAdmin():
-  if recoverFromCrash():
-    info "Recovered from incomplete transaction(s)"
-  # Clean up old transaction journals periodically
-  cleanupOldTransactions(7)
-
 if commitVer != "unavailable":
   clCfg.version = "kpkg "&ver&", commit "&commitVer
 else:
@@ -88,9 +79,37 @@ dispatchMultiGen(["init"], [sandbox, mergeNames = @["kpkg", "init"]], [package,
     mergeNames = @["kpkg", "init"]], #[ insert system here ]#
 [override, mergeNames = @["kpkg", "init"]])
 
+dispatchMultiGen(["history", cmdName = "kpkg history"],
+  [historyList, cmdName = "list", dispatchName = "dispatchHistoryList",
+    mergeNames = @["kpkg", "history", "list"],
+    help = {"root": "Installation root",
+        "color": "Use terminal colors (respects NO_COLOR)"}],
+  [historyStatus, cmdName = "status", dispatchName = "dispatchHistoryStatus",
+    mergeNames = @["kpkg", "history", "status"],
+    help = {"root": "Installation root (read-only inspection)"}],
+  [historyRecover, cmdName = "recover", dispatchName = "dispatchHistoryRecover",
+    mergeNames = @["kpkg", "history", "recover"],
+    help = {"root": "Installation root",
+        "yes": "Recover without confirmation"}],
+  [historyInfo, cmdName = "info", dispatchName = "dispatchHistoryInfo",
+    mergeNames = @["kpkg", "history", "info"],
+    help = {"id": "Transaction boundary ID", "root": "Installation root",
+      "color": "Use terminal colors (respects NO_COLOR)"}],
+  [historyUndo, cmdName = "undo", dispatchName = "dispatchHistoryUndo",
+    mergeNames = @["kpkg", "history", "undo"],
+    help = {"id": "Transaction boundary ID", "root": "Installation root",
+      "yes": "Restore without confirmation",
+      "color": "Use terminal colors (respects NO_COLOR)"}],
+  [historyRollback, cmdName = "rollback",
+    dispatchName = "dispatchHistoryRollback",
+    mergeNames = @["kpkg", "history", "rollback"],
+    help = {"id": "Transaction boundary ID", "root": "Installation root",
+      "yes": "Restore without confirmation",
+      "color": "Use terminal colors (respects NO_COLOR)"}])
+
 dispatchMulti(
   [
-  build, help = {
+  build, doc = "Build and install packages.", help = {
     "packages": "The package names",
     "root": "The directory the package is gonna be installed to",
     "yes": "Automatically say 'yes' to every question",
@@ -101,7 +120,7 @@ dispatchMulti(
     "forceInstallAll": "Force reinstall every dependency",
     "isInstallDir": "Build package from specified path",
     "ignorePostInstall": "Ignore if postInstall fails",
-    "deferPostInstall": "Skip postinstall hooks and sandbox CA setup for repair; rebuild normally afterwards",
+    "deferPostInstall": "Repair only: skip postinstall hooks and sandbox CA setup. Rebuild normally after repair; reinstall affected packages to run skipped hooks.",
     "bootstrap": "Perform bootstrap build",
     "noSandbox": "Build directly in root without the bwrap/overlay sandbox (for chroot/seed builds)"
   },
@@ -172,7 +191,11 @@ dispatchMulti(
     "sources": "Remove source tarballs from cache",
     "binaries": "Remove binary tarballs from cache",
     "cache": "Remove ccache directory",
-    "environment": "Remove build environment directory"
+    "environment": "Remove build environment directory",
+    "transactions": "Remove history and backups older than DAYS (0: all, -1: disabled)",
+    "root": "Installation root whose transaction history to clean",
+    "yes": "Clean transactions without confirmation",
+    "clearLock": "Clear a stale lock and recover interrupted repository checkouts"
   }
   ],
 
@@ -203,11 +226,26 @@ dispatchMulti(
   }
   ],
   [
-  clearLock, doc = "Force clear the kpkg lockfile if it's stale"
-  ],
-  [
   init, doc = "Initialize multiple types of files", usage = "$doc\n",
   stopWords = @["sandbox", "package", "override", "hook"]
+  ],
+  [
+  history, doc = "Inspect and restore package transactions",
+  usage = """kpkg history <command> [options]
+
+$doc
+
+Commands:
+  list      List recorded transactions, newest first
+  status    Inspect interrupted history operations without changing files
+  recover   Recover interrupted history operations under the package lock
+  info      Show a transaction's action, packages, and state
+  undo      Revert the selected transaction and everything after it
+  rollback  Revert everything after the selected transaction; keep it
+
+Run kpkg history <command> --help for arguments and options.
+""",
+    stopWords = @["list", "info", "undo", "rollback", "status", "recover"]
   ],
   [
   stale, help = {}

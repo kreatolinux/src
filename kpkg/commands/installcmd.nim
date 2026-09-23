@@ -1,3 +1,4 @@
+import ../modules/transactions/barrier
 import os
 import osproc
 import std/httpclient
@@ -23,7 +24,8 @@ import ../modules/libarchive
 import ../modules/commonTasks
 import ../modules/commonPaths
 import ../modules/removeInternal
-import ../modules/transaction
+import ../modules/transactions/main
+import ../modules/transactions/history
 import ../modules/run3/run3
 import ../modules/staleprocs
 import ../modules/builder/commitctx
@@ -133,8 +135,8 @@ proc installFilesAtomic(tx: Transaction, filesToInstall: seq[FileToInstall],
   for f in filesToInstall:
     if f.isDir:
       if not (dirExists(f.destPath) or symlinkExists(f.destPath)):
-        createDirWithPermissionsAndOwnership(f.srcPath, f.destPath)
         tx.recordDirCreated(f.destPath)
+        createDirWithPermissionsAndOwnership(f.srcPath, f.destPath)
         debug "Installed directory: " & f.relPath
 
   # Second pass: install files and symlinks
@@ -152,18 +154,18 @@ proc installFilesAtomic(tx: Transaction, filesToInstall: seq[FileToInstall],
     let parentDir = f.destPath.parentDir()
     if not dirExists(parentDir):
       let srcParentDir = f.srcPath.parentDir()
-      createDirWithPermissionsAndOwnership(srcParentDir, parentDir)
       tx.recordDirCreated(parentDir)
+      createDirWithPermissionsAndOwnership(srcParentDir, parentDir)
 
     # Install through a same-directory temporary path and atomic rename.
     # This avoids exposing a partially copied file to other processes.
     if f.isSymlink:
-      copyFileAtomicWithPermissionsAndOwnership(f.srcPath, f.destPath)
       tx.recordSymlinkCreated(f.destPath)
+      copyFileAtomicWithPermissionsAndOwnership(f.srcPath, f.destPath)
       debug "Installed symlink: " & f.relPath
     else:
-      copyFileAtomicWithPermissionsAndOwnership(f.srcPath, f.destPath)
       tx.recordFileCreated(f.destPath)
+      copyFileAtomicWithPermissionsAndOwnership(f.srcPath, f.destPath)
       debug "Installed file: " & f.relPath
 
 proc installProgress(index, percent, progressStart: int) =
@@ -222,6 +224,30 @@ proc installPkgImpl(repo: string, package: string, root: string, runf = runFile(
   ctx.builtinEnv("DESTDIR", root)
   ctx.passthrough = true
 
+  # Check for conflicts
+  for i in pkg.conflicts:
+    if packageExists(i, root):
+      if keepTransaction:
+        raise newException(IOError, i&" conflicts with "&package)
+      fatal(i&" conflicts with "&package)
+
+  let historySession = if keepTransaction: nil else: beginHistory(root)
+  var historyReason = ""
+  for hook in ["preinstall", "postinstall", "preupgrade", "postupgrade"]:
+    if resolveHookFunction(pkg.run3Data.parsed, hook, package) != "":
+      historyReason = "package hooks may change untracked files"
+  # Recursive init-package removal has additional file effects not yet journaled.
+  let installedBase = root & "/var/cache/kpkg/installed"
+  for removed in pkg.replaces & @[package]:
+    if symlinkExists(installedBase / removed):
+      historyReason = "replacement through a package alias is not supported by rollback"
+  for kind, candidate in walkDir(installedBase):
+    for removed in pkg.replaces & @[package]:
+      if candidate.startsWith(installedBase & "/" & removed & "-"):
+        historyReason = "init-specific package removal is not supported by rollback"
+
+  markHistoryBarrier(root, historyReason)
+
   # Run preupgrade hook (before any changes)
   if isUpgradeActual:
     let preupgradeFunc = resolveHookFunction(pkg.run3Data.parsed, "preupgrade", package)
@@ -243,13 +269,6 @@ proc installPkgImpl(repo: string, package: string, root: string, runf = runFile(
 
   let isGroup = pkg.isGroup
 
-  # Check for conflicts
-  for i in pkg.conflicts:
-    if packageExists(i, root):
-      if keepTransaction:
-        raise newException(IOError, i&" conflicts with "&package)
-      fatal(i&" conflicts with "&package)
-
   # Setup temp directories
   removeDir("/tmp/kpkg/reinstall/"&package&"-old")
   createDir("/tmp")
@@ -270,6 +289,8 @@ proc installPkgImpl(repo: string, package: string, root: string, runf = runFile(
 
   # Create transaction for atomic installation
   var tx = newTransaction(package, root)
+  if historyReason.len > 0:
+    durableWrite(tx.journalPath & ".reason", historyReason)
 
   try:
     # Handle package replacements with transaction support
@@ -292,9 +313,10 @@ proc installPkgImpl(repo: string, package: string, root: string, runf = runFile(
             tx.recordDirDeleted(fullPath)
 
         if kTarget != kpkgTarget(root, releasePath = kreatoReleasePath):
-          removeInternal(i, root, initCheck = false)
+          removeInternal(i, root, initCheck = false, historyTx = tx)
         else:
-          removeInternal(i, root, kreatoPath = kreatoReleasePath)
+          removeInternal(i, root, kreatoPath = kreatoReleasePath,
+              historyTx = tx)
 
     # Handle reinstallation - backup old package files
     let wasInstalled = packageExists(package, root) and (not isGroup)
@@ -315,11 +337,11 @@ proc installPkgImpl(repo: string, package: string, root: string, runf = runFile(
       # Remove old package from database (but files are backed up)
       if kTarget != kpkgTarget(root, releasePath = kreatoReleasePath):
         removeInternal(package, root, ignoreReplaces = true,
-                noRunfile = true, initCheck = false)
+                noRunfile = true, initCheck = false, historyTx = tx)
       else:
         removeInternal(package, root, ignoreReplaces = true,
                 noRunfile = false, depCheck = false,
-                kreatoPath = kreatoReleasePath)
+                kreatoPath = kreatoReleasePath, historyTx = tx)
 
     discard existsOrCreateDir(root&"/var")
     discard existsOrCreateDir(root&"/var/cache")
@@ -346,7 +368,6 @@ proc installPkgImpl(repo: string, package: string, root: string, runf = runFile(
           fatal("extracting the tarball failed for "&package)
         else:
           tx.rollback()
-          removeLockfile()
           raise getCurrentException()
 
       installProgress(progressIndex, 22, progressStart)
@@ -512,6 +533,7 @@ proc installPkgImpl(repo: string, package: string, root: string, runf = runFile(
     if keepTransaction:
       debug "Transaction staged: " & tx.id
     else:
+      finishHistory(historySession, @[tx], historyReason)
       tx.commit()
 
     # Phase 10: Cleanup temp directories (AFTER successful commit)
@@ -538,6 +560,10 @@ proc installPkg*(repo: string, package: string, root: string, runf = runFile(
                 basePackage = false, version = "", tarballPath = "",
                 keepTransaction = false, progressIndex = -1,
                 progressStart = 0, deferPostInstall = false) =
+  createLockfile()
+  defer: removeLockfile()
+  assertNoAbandonedHistory(if root == "": "/" else: root)
+
   telemetry.withSpan("kpkg.install", {
     "package.name": package,
     "package.version": version
@@ -1016,29 +1042,28 @@ type
     dbBackupPath: string
     journalPath: string
     hadDatabase: bool
-    activeTransactionIds: seq[string]
+    historySession: HistorySession
 
 proc beginBatchInstall(root: string): BatchInstallState =
-  ## Snapshot metadata and remember pre-existing journals before staging the
-  ## package transactions. The database is restored only after all workers
+  ## Snapshot metadata before staging the linked package transactions. The database is restored only after all workers
   ## have stopped, so no SQLite connection is copied while it is in use.
   result.root = root
+  result.historySession = beginHistory(root)
   result.dbPath = root & "/" & kpkgDbPath
   result.hadDatabase = fileExists(result.dbPath)
-  for tx in getActiveTransactions():
-    result.activeTransactionIds.add(tx.id)
   if result.hadDatabase:
     closeDb()
     result.dbBackupPath = kpkgTempDir2 & "/batch-db-" & $getpid() & "-" &
         $int(epochTime() * 1_000_000)
     createDir(kpkgTempDir2)
-    copyFile(result.dbPath, result.dbBackupPath)
+    atomicHistoryCopy(result.dbPath, result.dbBackupPath)
   let batchId = $getpid() & "-" & $int(epochTime() * 1_000_000)
   result.journalPath = beginBatchJournal(batchId, root, result.dbPath,
       result.dbBackupPath, result.hadDatabase)
 
 proc isBatchTransaction(state: BatchInstallState, id: string): bool =
-  id notin state.activeTransactionIds
+  loadTransaction(kpkgJournalDir / (id & ".journal")).historyPath ==
+      state.historySession.path
 
 proc rollbackBatchInstall(state: BatchInstallState) =
   ## Roll back all package journals created by this batch, then restore the
@@ -1048,24 +1073,36 @@ proc rollbackBatchInstall(state: BatchInstallState) =
       tx.rollback()
 
   closeDb()
-  if fileExists(state.dbPath):
-    removeFile(state.dbPath)
+  if state.hadDatabase and not fileExists(state.dbBackupPath):
+    raise newException(IOError, "missing batch database backup; pending history retained")
   for suffix in ["-wal", "-shm"]:
     let sidecar = state.dbPath & suffix
     if fileExists(sidecar):
       removeFile(sidecar)
-  if state.hadDatabase and fileExists(state.dbBackupPath):
-    copyFile(state.dbBackupPath, state.dbPath)
-  if state.dbBackupPath != "" and fileExists(state.dbBackupPath):
-    removeFile(state.dbBackupPath)
-  finishBatchJournal(state.journalPath)
+  if state.hadDatabase:
+    atomicHistoryCopy(state.dbBackupPath, state.dbPath)
+  elif fileExists(state.dbPath):
+    removeFile(state.dbPath)
+  if dirExists(parentDir(state.dbPath)):
+    syncAncestors(parentDir(state.dbPath))
+  # Pending history also owns the cache snapshot. Recovery restores that state
+  # and verifies hook barriers before clearing the pending marker. Do not cancel
+  # here merely because the tracked package and database rollback completed.
+
 
 proc finalizeBatchInstall(state: BatchInstallState) =
   ## Make all staged package journals durable only after the complete batch
   ## has succeeded.
+  var transactions: seq[Transaction]
+  var reason = ""
   for tx in getActiveTransactions():
-    if state.isBatchTransaction(tx.id):
-      tx.commit()
+    if state.isBatchTransaction(tx.id) and tx.root == state.root:
+      transactions.add(tx)
+      if fileExists(tx.journalPath & ".reason"):
+        reason = readFile(tx.journalPath & ".reason")
+  finishHistory(state.historySession, transactions, reason)
+  for tx in transactions:
+    tx.commit()
   if state.dbBackupPath != "" and fileExists(state.dbBackupPath):
     removeFile(state.dbBackupPath)
   finishBatchJournal(state.journalPath)
@@ -1373,6 +1410,10 @@ proc install*(promptPackages: seq[string], root = "/", yes: bool = false,
   ## Supports commit-based installation with syntax: package#commit
   ## When a commit hash is specified, the version at that commit is used
   ## to find the binary. If binary not found, suggests using kpkg build.
+
+  createLockfile()
+  defer: removeLockfile()
+  assertNoAbandonedHistory(if root == "": "/" else: root)
 
   if promptPackages.len == 0:
     error("please enter a package name")

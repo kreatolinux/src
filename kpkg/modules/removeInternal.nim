@@ -1,3 +1,5 @@
+import lockfile
+import transactions/barrier
 import os
 import sqlite
 import ../../common/logging
@@ -7,6 +9,7 @@ import dephandler
 import commonTasks
 import runparser
 import run3/run3
+import transactions/main
 
 proc dependencyCheck(package: string, root: string, force: bool,
     noWarnErr = false, ignorePackage: seq[string]): bool =
@@ -51,25 +54,37 @@ proc removeInternal*(package: string, root = "",
         installedDir = root&"/var/cache/kpkg/installed",
         ignoreReplaces = false, force = true, depCheck = false,
             noRunfile = false, fullPkgList = @[""], removeConfigs = false,
-                runPostRemove = false, initCheck = true, kreatoPath = "") =
+                runPostRemove = false, initCheck = true, kreatoPath = "",
+                historyTx: Transaction = nil) =
+
+  createLockfile()
+  defer: removeLockfile()
+  assertNoAbandonedHistory(if root == "": "/" else: root)
 
   if initCheck:
     let init = getInit(root, kreatoPath)
 
     if dirExists(installedDir&"/"&package&"-"&init):
+      if historyTx != nil:
+        markHistoryBarrier(root, "init-specific package removal is not supported by rollback")
       removeInternal(package&"-"&init, root, installedDir, ignoreReplaces,
           force, depCheck, noRunfile, fullPkgList, removeConfigs, runPostRemove,
-          kreatoPath = kreatoPath)
+          kreatoPath = kreatoPath, historyTx = historyTx)
 
   var actualPackage: string
 
   if symlinkExists(installedDir&"/"&package):
+    if historyTx != nil:
+      markHistoryBarrier(root, "removal through a package alias is not supported by rollback")
     actualPackage = expandSymlink(installedDir&"/"&package)
   else:
     actualPackage = package
 
   if not packageExists(actualPackage, root):
     fatal("package "&package&" is not installed")
+
+  if historyTx != nil:
+    historyTx.recordTreeDeleted(installedDir & "/" & package)
 
   var pkg = getPackage(actualPackage, root)
   debug "removeInternal: getPackage completed for '"&actualPackage&"'"
@@ -111,6 +126,8 @@ proc removeInternal*(package: string, root = "",
   if not ignoreReplaces and not noRunfile:
     for i in pkg.replaces.split("!!k!!"):
       if symlinkExists(installedDir&"/"&i):
+        if historyTx != nil:
+          historyTx.recordTreeDeleted(installedDir & "/" & i)
         removeFile(installedDir&"/"&i)
 
   rmPackage(actualPackage, root)
@@ -123,6 +140,10 @@ proc removeInternal*(package: string, root = "",
       run3Path = installedDir&"/"&actualPackage&"/run"
 
     if fileExists(run3Path):
+      # Keep barrier publication outside the hook error handler: a failed fsync
+      # must abort, not become a warning followed by untracked execution.
+      if currentHistoryPath(root).len > 0:
+        markHistoryBarrier(root, "package hooks may change untracked files")
       try:
         # We use parseRunfile to get the parsed Run3 object
         let parsedPkg = runparser.parseRunfile(installedDir&"/"&actualPackage)

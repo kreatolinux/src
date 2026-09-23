@@ -1,3 +1,4 @@
+import ../modules/transactions/barrier
 import os
 import sets
 import tables
@@ -100,7 +101,6 @@ proc builderImpl(cfg: var BuildConfig): bool =
             deferPostInstall = cfg.deferPostInstall)
     removeDir(kpkgBuildRoot)
     removeDir(kpkgSrcDir)
-    removeLockfile()
     return true
 
   createDir(kpkgTempDir2)
@@ -203,7 +203,6 @@ proc builderImpl(cfg: var BuildConfig): bool =
   finally:
     removeFile(tempTarball)
 
-  removeLockfile()
 
   when defined(release):
     removeDir(kpkgSrcDir)
@@ -212,6 +211,10 @@ proc builderImpl(cfg: var BuildConfig): bool =
   return false
 
 proc builder*(cfg: var BuildConfig): bool =
+  createLockfile()
+  defer: removeLockfile()
+  assertNoAbandonedHistory(if cfg.destdir == "": "/" else: cfg.destdir)
+
   telemetry.withSpan("kpkg.package.build", {
     "package.name": cfg.package,
     "package.bootstrap": $cfg.isBootstrap,
@@ -246,22 +249,23 @@ proc build*(no = false, yes = false, root = "/",
                             bootstrap = false, noSandbox = false,
                             deferPostInstall = false): int =
   ## Build and install packages.
-  ## deferPostInstall skips postinstall hooks for sandbox repair, not failures.
-  ## A later build without this flag recreates and fully initializes the env.
-  ## Package hooks outside the env must be rerun by reinstalling the package.
   ##
-  ## With noSandbox, kpkg skips the bwrap/overlay sandbox and the kpkg build
-  ## env entirely and builds directly in root. Use this inside a chroot or
-  ## seed image (e.g. bootstrapping a foreign arch): the chroot is the
-  ## isolation boundary there.
-  ## Build and install packages.
+  ## Use package#commit to build a specific repository revision.
+  ## The repository is restored to its original revision afterwards.
   ##
-  ## Supports commit-based builds with syntax: package#commit
-  ## When a commit hash is specified, the repo containing that commit
-  ## is checked out to that commit for the build, then restored.
+  ## deferPostInstall is for repair: it skips postinstall hooks and sandbox
+  ## CA setup. Rebuild normally after repair to initialize the sandbox.
+  ## Reinstall affected packages to run hooks skipped outside the sandbox.
   ##
-  ## Automatically detects circular dependencies and bootstraps packages
-  ## that have bootstrap dependencies (bsdeps) to break the cycle.
+  ## noSandbox builds directly in root without bwrap or overlays.
+  ## Use it inside a chroot or seed image that provides its own isolation.
+  ##
+  ## Circular dependencies with bootstrap dependencies (bsdeps) are
+  ## bootstrapped automatically.
+
+  createLockfile()
+  defer: removeLockfile()
+  assertNoAbandonedHistory(if root == "": "/" else: root)
 
   if packages.len == 0:
     error("please enter a package name")

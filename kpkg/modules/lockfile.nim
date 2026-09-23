@@ -1,10 +1,13 @@
 import os
 import strutils
 import posix
+import locks
 import ../../common/logging
-import processes
+import transactions/main
+import sqlite
+import transactions/barrier
+export sqlite.lockfilePath
 
-const lockfilePath* = "/tmp/kpkg.lock"
 
 proc getCurrentPid(): int =
   ## Get current process ID using POSIX getpid()
@@ -20,41 +23,79 @@ proc isProcessRunning(pid: int): bool =
     # Signal 0 doesn't send anything but checks if process exists
     return kill(Pid(pid), 0) == 0 or errno == EPERM
 
+var noFollow {.importc: "O_NOFOLLOW", header: "<fcntl.h>".}: cint
+
+proc flock(fd: cint, operation: cint): cint {.importc, header: "<sys/file.h>".}
+var packageLockFd: cint = -1
+var packageLockDepth = 0
+var localLockDepth {.threadvar.}: int
+var packageLockMutex: Lock
+initLock(packageLockMutex)
+
 proc removeLockfile*() =
-  ## Remove the lockfile if it exists
-  if fileExists(lockfilePath):
-    removeFile(lockfilePath)
-
-var previousErrorCallback: ErrorCallback
-var lockfileCallbackActive = false
-
-proc lockfileErrorCallback(msg: string) =
-  ## Error callback that removes lockfile on fatal errors, then forwards
-  ## to the callback that was registered before the lockfile was taken.
-  ##
-  ## Re-entrant calls are ignored: sandbox bootstrap installs run kpkg
-  ## in-process, so createLockfile() can register this callback twice.
-  ## Without the guard, the forwarded callback re-enters here and recurses
-  ## until the call depth limit kills the process.
-  if lockfileCallbackActive:
+  ## Release only this thread's lease. Other nested/worker leases stay held.
+  acquire(packageLockMutex)
+  defer: release(packageLockMutex)
+  if localLockDepth == 0:
     return
-  lockfileCallbackActive = true
-  info("lockfile", "removing lockfile due to error")
-  removeLockfile()
-  let cb = previousErrorCallback
-  previousErrorCallback = nil
-  if cb != nil:
-    cb(msg)
+  if localLockDepth == 1:
+    closeDb() # Connections opened under exclusivity must not outlive it.
+    setMutationLockOwned(false)
+  dec localLockDepth
+  dec packageLockDepth
+  if packageLockDepth == 0:
+    try:
+      releaseHistoryOwnership()
+      if fileExists(lockfilePath):
+        removeFile(lockfilePath)
+    finally:
+      setMutationLockOwned(false)
+      discard flock(packageLockFd, 8) # LOCK_UN
+      discard posix.close(packageLockFd)
+      packageLockFd = -1
 
 proc createLockfile*() =
-  ## Create lockfile with PID and set up error callback
-  let pid = getCurrentPid()
-  writeFile(lockfilePath, $pid)
-  previousErrorCallback = getErrorCallback()
-  setErrorCallback(lockfileErrorCallback)
+  ## Process-wide mutation lease. Parallel install workers deliberately share
+  ## ownership; only the first lease runs recovery, before admitting workers.
+  acquire(packageLockMutex)
+  defer: release(packageLockMutex)
+  if packageLockDepth > 0:
+    setMutationLockOwned(true)
+    inc packageLockDepth
+    inc localLockDepth
+    return
+  closeDb() # Drop this thread's read lease before requesting exclusivity.
+  let fd = posix.open((lockfilePath & ".guard").cstring,
+      O_CREAT or O_RDWR or O_CLOEXEC or noFollow, Mode(0o644))
+  if fd < 0: raiseOSError(osLastError(), "cannot open package lock")
+  if flock(fd, 2 or 4) != 0: # LOCK_EX | LOCK_NB
+    discard posix.close(fd)
+    raise newException(IOError, "another package mutation holds the lock")
+  setMutationLockOwned(true)
+  try:
+    if fchmod(fd, Mode(0o644)) != 0:
+      raiseOSError(osLastError(), "cannot set package guard permissions")
+    writeFile(lockfilePath, $getCurrentPid())
+    closeDb()
+    discard recoverFromCrash()
+  except:
+    # Keep exclusion until recovery has unwound, even when logging errors.
+    try:
+      closeDb()
+      if fileExists(lockfilePath): removeFile(lockfilePath)
+    finally:
+      setMutationLockOwned(false)
+      discard flock(fd, 8)
+      discard posix.close(fd)
+    raise
+  packageLockFd = fd
+  packageLockDepth = 1
+  localLockDepth = 1
 
 proc checkLockfile*() =
   ## Check if lockfile exists. Auto-removes stale locks from dead processes.
+  if localLockDepth > 0:
+    return
   if fileExists(lockfilePath):
     try:
       let content = readFile(lockfilePath).strip()
@@ -66,61 +107,45 @@ proc checkLockfile*() =
         else:
           # Process is dead - stale lock, auto-remove
           warn("lockfile", "removing stale lockfile from dead process " & $pid)
-          removeLockfile()
+          removeFile(lockfilePath)
       else:
         # Empty lockfile (old format) - treat as stale
         warn("lockfile", "removing stale lockfile (empty, old format)")
-        removeLockfile()
+        removeFile(lockfilePath)
     except ValueError:
       # Invalid PID in lockfile - treat as stale
       warn("lockfile", "removing stale lockfile (invalid content)")
-      removeLockfile()
+      removeFile(lockfilePath)
     except IOError:
       # Can't read lockfile - treat as stale
       warn("lockfile", "removing stale lockfile (unreadable)")
-      removeLockfile()
+      removeFile(lockfilePath)
 
 proc forceClearLockfile*() =
-  ## Force clear the lockfile regardless of state (for manual unlock)
+  ## Clear only an unowned PID marker. Never bypass the kernel mutation lock.
+  acquire(packageLockMutex)
+  defer: release(packageLockMutex)
+  if packageLockDepth > 0:
+    raise newException(IOError, "cannot clear an active package lock")
+  let fd = posix.open((lockfilePath & ".guard").cstring,
+      O_CREAT or O_RDWR or O_CLOEXEC or noFollow, Mode(0o644))
+  if fd < 0: raiseOSError(osLastError(), "cannot open package lock")
+  defer: discard posix.close(fd)
+  if flock(fd, 2 or 4) != 0:
+    raise newException(IOError, "cannot clear another process's package lock")
+  defer: discard flock(fd, 8)
   if fileExists(lockfilePath):
-    try:
-      let content = readFile(lockfilePath).strip()
-      if content != "":
-        let pid = try: parseInt(content) except ValueError: 0
-        if pid > 0:
-          info("lockfile", "force clearing lockfile (was owned by PID " & $pid & ")")
-        else:
-          info("lockfile", "force clearing lockfile")
-      else:
-        info("lockfile", "force clearing lockfile (empty)")
-    except IOError:
-      info("lockfile", "force clearing lockfile")
-    removeLockfile()
+    removeFile(lockfilePath)
+    info("lockfile", "cleared stale lockfile")
   else:
     info("lockfile", "no lockfile exists")
 
 proc clearErrorCallback*() =
-  ## Restore the callback that the lockfile callback replaced.
-  setErrorCallback(previousErrorCallback)
-  previousErrorCallback = nil
+  ## Kept for callers of the old API. Logging must never release mutation
+  ## ownership before exception rollback and cleanup finish.
+  discard
 
 template withLockfile*(body: untyped) =
-  ## Context manager for lockfile-protected operations.
-  ##
-  ## Handles:
-  ## - Checking if another kpkg instance is running
-  ## - Checking for existing lockfile (removes stale ones)
-  ## - Creating lockfile before operation
-  ## - Removing lockfile after operation (success or failure)
-  ##
-  ## Usage:
-  ##   withLockfile:
-  ##     # your protected code here
-  ##     installPackage(...)
-
-  # Import is needed for isKpkgRunning - caller must have it imported
-  isKpkgRunning()
-  checkLockfile()
   createLockfile()
   try:
     body

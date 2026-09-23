@@ -119,7 +119,11 @@ runTests() {
 	fi
 
 	# Find all test files
-	testFiles=$(find "$testDir" -name 'test_*.nim' -type f 2>/dev/null)
+	if [ "$project" = "kpkg" ]; then
+		testFiles=$(find "$testDir" -name '*.nim' -type f 2>/dev/null | sort)
+	else
+		testFiles=$(find "$testDir" -name 'test_*.nim' -type f 2>/dev/null | sort)
+	fi
 	if [ -z "$testFiles" ]; then
 		err "No test files found in $testDir"
 	fi
@@ -131,7 +135,8 @@ runTests() {
 	failCount=0
 
 	for testFile in $testFiles; do
-		testName=$(basename "$testFile" .nim)
+		testRelative=${testFile#"$testDir"/}
+		testName=${testRelative%.nim}
 		testBinary="$srcdir/out/tests/$project/$testName"
 
 		echo ""

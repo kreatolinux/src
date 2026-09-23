@@ -9,7 +9,6 @@
 import os
 import ./types
 import ../runparser
-import ../lockfile
 import ../commonPaths
 
 proc cacheArchivePath*(actualPackage: string, pkg: runFile,
@@ -51,4 +50,3 @@ proc cleanupAfterCacheInstall*() =
 
   removeDir(kpkgBuildRoot)
   removeDir(kpkgSrcDir)
-  removeLockfile()
