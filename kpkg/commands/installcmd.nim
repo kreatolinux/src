@@ -1345,15 +1345,20 @@ proc install_bin(packages: seq[string], binrepos: seq[string], root: string,
         discard queueReady()
         progressRender()
 
-      # downloadParallel invokes pumpInstalls on every progress/completion
-      # drain. Atomic archive rename makes newly completed packages visible to
-      # this scheduler immediately; independent installs start without waiting
-      # for unrelated downloads.
+      # Complete downloads and validate the entire batch before queueing any
+      # installation. Otherwise a missing binary can arrive after another
+      # package ran hooks, leaving a recovery barrier despite file rollback.
       let downloadOk = downloadBatch(itemNames, binrepos, versions, kTarget,
           offline, forceDownloadPackages, forceDownload,
           ignoreDownloadErrors, combinedProgress = true,
           progressRows = progressRows, skipPackages = groupNames,
-          renderUpdates = true, onTick = pumpInstalls)
+          renderUpdates = true)
+      if not downloadOk:
+        raise newException(IOError, "one or more package downloads failed")
+      for item in installItems:
+        if not archivesReady(item):
+          raise newException(IOError,
+              "download batch completed with missing archives: " & item.name)
 
       while inFlight > 0 or (completed < installItems.len and not batchFailed):
         pumpInstalls()
