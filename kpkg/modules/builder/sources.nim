@@ -142,8 +142,12 @@ proc verifyChecksum*(relativeFilename: string, filename, sourceUrl: string,
     else:
         createSymlink(filename, stagedPath)
 
-proc setSourceOwnerNoFollow*(path: string, uid = 999, gid = 999) =
-    ## Change ownership of an entry without following symbolic links.
+proc setSourceOwnerNoFollow*(path: string, uid = int(geteuid()),
+        gid = int(getegid())) =
+    ## Match the process identity inherited by execEnv (root for kpkg builds).
+    ## Bubblewrap drops capabilities, so a root build cannot rely on bypassing
+    ## write permissions on sources owned by the former build user (999).
+    ## Never follow symbolic links into repositories or the source cache.
     discard posix.lchown(cstring(path), Uid(uid), Gid(gid))
 
 proc setSourcePermissions*() =
