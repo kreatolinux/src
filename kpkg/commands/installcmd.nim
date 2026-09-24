@@ -1234,15 +1234,18 @@ proc install_bin(packages: seq[string], binrepos: seq[string], root: string,
           progressRender()
           progressFinish()
 
-      # Snapshot the database before installations can begin. Filesystem
-      # journals stay staged until every download and install succeeds.
-      var batchState = beginBatchInstall(root)
+      # Downloads alone do not mutate installed state. Start history lazily
+      # when the first package is queued, so download-only failures cannot
+      # leave a pending operation that blocks subsequent commands.
+      var batchState: BatchInstallState
+      var batchStarted = false
       var batchSucceeded = false
       defer:
-        if batchSucceeded:
-          finalizeBatchInstall(batchState)
-        else:
-          rollbackBatchInstall(batchState)
+        if batchStarted:
+          if batchSucceeded:
+            finalizeBatchInstall(batchState)
+          else:
+            rollbackBatchInstall(batchState)
 
       let workerLimit = kpkgConfig.getInstallThreads()
       let workerCount = max(1, min(workerLimit, installItems.len))
@@ -1309,6 +1312,11 @@ proc install_bin(packages: seq[string], binrepos: seq[string], root: string,
             continue
           if not compatibleWithRunning(item):
             continue
+          # Snapshot before sending any work: workers must never mutate the
+          # root before the batch's history and database backup are durable.
+          if not batchStarted:
+            batchState = beginBatchInstall(root)
+            batchStarted = true
           var work = item
           work.idx = idx
           queued[idx] = true
@@ -1398,6 +1406,12 @@ proc install_bin(packages: seq[string], binrepos: seq[string], root: string,
       if batchDeferredLogs.len > 0:
         stderr.flushFile()
       batchSucceeded = true
+
+when defined(kpkgInstallFailureTest):
+  proc probeMissingInstallArchives*(packages: seq[string], root: string) =
+    ## Exercise the real scheduler with no mirrors or cached archives.
+    install_bin(packages, @[], root, offline = true,
+        manualInstallList = packages, kTarget = "kpkg-missing-archive-test")
 
 proc install*(promptPackages: seq[string], root = "/", yes: bool = false,
         no: bool = false, forceDownload = false, offline = false,
