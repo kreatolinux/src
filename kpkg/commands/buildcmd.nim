@@ -40,6 +40,14 @@ proc builderImpl(cfg: var BuildConfig): bool =
   ## It handles: path resolution, runfile parsing, cache checking,
   ## source downloading, environment setup, build execution, and packaging.
 
+  # Building changes into kpkgSrcDir (and sometimes an extracted source
+  # directory). Always leave callers in the directory from which they invoked
+  # the builder. In particular, cache-hit and release cleanup remove
+  # kpkgSrcDir; returning while it is still the process CWD makes the next
+  # absolutePath/getCurrentDir call fail with ENOENT.
+  let originalWorkingDir = getCurrentDir()
+  defer: setCurrentDir(originalWorkingDir)
+
   debug "builder ran, package: '" & cfg.package & "', destdir: '" & cfg.destdir & "' root: '" & kpkgSrcDir & "', useCacheIfAvailable: '" & (
           $cfg.useCacheIfAvailable) & "'"
 
@@ -88,6 +96,7 @@ proc builderImpl(cfg: var BuildConfig): bool =
     else:
       info "the package target doesn't match the one on '" & cfg.destdir & "', skipping installation"
 
+    setCurrentDir(originalWorkingDir)
     cleanupAfterCacheInstall()
     return true
 
@@ -99,6 +108,7 @@ proc builderImpl(cfg: var BuildConfig): bool =
     installPkg(cfg.repo, cfg.actualPackage, cfg.destdir, state.pkg, cfg.manualInstallList,
             ignorePostInstall = cfg.ignorePostInstall,
             deferPostInstall = cfg.deferPostInstall)
+    setCurrentDir(originalWorkingDir)
     removeDir(kpkgBuildRoot)
     removeDir(kpkgSrcDir)
     return true
@@ -205,6 +215,7 @@ proc builderImpl(cfg: var BuildConfig): bool =
 
 
   when defined(release):
+    setCurrentDir(originalWorkingDir)
     removeDir(kpkgSrcDir)
     removeDir(kpkgTempDir2)
 
