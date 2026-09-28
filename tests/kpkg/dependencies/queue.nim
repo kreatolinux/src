@@ -179,46 +179,56 @@ suite "dephandler build queue":
 
   test "bootstrap package metadata uses bootstrap dependencies":
     let pkg = runFile(
-      pkg: "gobject-introspection",
-      version: "1.86.0",
-      release: "4",
+      pkg: "glib",
+      version: "2.86.3",
+      release: "2",
       epoch: "",
-      versionString: "1.86.0-4",
-      deps: @["python", "glib"],
-      bdeps: @["meson", "ninja"],
-      bsdeps: @["python", "meson", "ninja"]
+      versionString: "2.86.3-2",
+      deps: @[],
+      bdeps: @["meson", "ninja", "gobject-introspection"],
+      bsdeps: @["meson", "ninja"]
     )
 
-    check packageDepsForMetadata(pkg, useBootstrapDeps = false) == @["python", "glib"]
-    check packageDepsForMetadata(pkg, useBootstrapDeps = true) == @["python",
-        "meson", "ninja"]
+    check packageDepsForMetadata(pkg, useBootstrapDeps = false) == newSeq[string]()
+    check packageDepsForMetadata(pkg, useBootstrapDeps = true) == @["meson",
+        "ninja"]
 
-  test "forced resolution skips only bootstrap-satisfied installed dependencies":
+  test "forced resolution skips only the satisfied cycle edge":
     var rootPackages = initHashSet[string]()
-    var bootstrapSatisfied = initHashSet[string]()
-    bootstrapSatisfied.incl("gobject-introspection")
+    var bootstrapEdges = initHashSet[DependencyEdge]()
+    bootstrapEdges.incl((dependency: "glib",
+        dependent: "gobject-introspection"))
 
-    check shouldSkipInstalledDependency(true, "noupgrade",
-        "gobject-introspection", rootPackages, false, bootstrapSatisfied)
+    check shouldSkipInstalledDependency(false, "upgrade", "glib",
+        "gobject-introspection", rootPackages, true, bootstrapEdges)
+    check not shouldSkipInstalledDependency(true, "noupgrade", "glib",
+        "gnome", rootPackages, true, bootstrapEdges)
     check not shouldSkipInstalledDependency(true, "noupgrade",
-        "gobject-introspection", rootPackages, true, initHashSet[string]())
-    check shouldSkipInstalledDependency(true, "noupgrade",
-        "gobject-introspection", rootPackages, true, bootstrapSatisfied)
-    check not shouldSkipInstalledDependency(true, "noupgrade", "glib",
-        rootPackages, true, bootstrapSatisfied)
-    rootPackages.incl("gobject-introspection")
-    check shouldSkipInstalledDependency(true, "noupgrade",
-        "gobject-introspection", rootPackages, false, bootstrapSatisfied)
-    check shouldSkipInstalledDependency(true, "noupgrade",
-        "gobject-introspection", rootPackages, true, bootstrapSatisfied)
-    check not shouldSkipInstalledDependency(true, "noupgrade", "glib",
-        rootPackages, true, bootstrapSatisfied)
-    check shouldSkipInstalledDependency(false, "noupgrade",
-        "gobject-introspection", rootPackages, false, bootstrapSatisfied)
-    check shouldSkipInstalledDependency(false, "upgrade",
-        "gobject-introspection", rootPackages, true, bootstrapSatisfied)
-    check shouldSkipInstalledDependency(true, "upgrade",
-        "gobject-introspection", rootPackages, true, bootstrapSatisfied)
+        "gobject-introspection", "glib", rootPackages, true, bootstrapEdges)
+
+  test "bootstrap cycle edges preserve external consumer ordering":
+    let cyclePath = @["glib", "gobject-introspection", "glib"]
+    var seeds = initHashSet[string]()
+    seeds.incl("glib")
+    let edges = getBootstrapEdgesForCycle(cyclePath, seeds)
+
+    check (dependency: "glib", dependent: "gobject-introspection") in edges
+    check (dependency: "glib", dependent: "gnome") notin edges
+    check (dependency: "gobject-introspection", dependent: "glib") notin edges
+
+  test "bootstrap edges accumulate across independent cycles":
+    var seeds = initHashSet[string]()
+    seeds.incl("cmake")
+    var edges = getBootstrapEdgesForCycle(
+        @["cmake", "doxygen", "libxml2", "cmake"], seeds)
+    seeds.incl("glib")
+    for edge in getBootstrapEdgesForCycle(
+        @["glib", "gobject-introspection", "glib"], seeds):
+      edges.incl(edge)
+
+    check (dependency: "cmake", dependent: "doxygen") in edges
+    check (dependency: "glib", dependent: "gobject-introspection") in edges
+    check edges.len == 2
 
 
 suite "builder cache identity":

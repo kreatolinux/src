@@ -23,6 +23,8 @@ type
         hasCycle*: bool
         cyclePath*: seq[string]
 
+    DependencyEdge* = tuple[dependency: string, dependent: string]
+
     dependencyContext* = object
         root*: string
         isBuild*: bool
@@ -37,6 +39,7 @@ type
         commitRepo*: string ## The repo that was checked out to the commit
         headRunfileCache*: Table[string, runFile] ## Cached runfiles at HEAD (before checkout)
         bootstrapSatisfied*: HashSet[string]
+        bootstrapSatisfiedEdges*: HashSet[DependencyEdge]
 
     resolvedPackage* = object
         name*: string
@@ -273,12 +276,13 @@ proc addEdge(graph: var dependencyGraph, fromPkg: string, toPkg: string) =
         graph.edges[fromPkg].add(toPkg)
 
 proc shouldSkipInstalledDependency*(isInstalled: bool, versionAction: string,
-        depName: string, rootPkgNames: HashSet[string], forceInstallAll: bool,
-        bootstrapSatisfied: HashSet[string]): bool =
-    ## A bootstrap seed closes the cycle even when it is also a
-    ## requested root. The root still remains explicitly queued for its final
-    ## non-bootstrap build; only this dependency back-edge is omitted.
-    if depName in bootstrapSatisfied:
+        depName, dependentName: string, rootPkgNames: HashSet[string],
+        forceInstallAll: bool,
+        bootstrapSatisfiedEdges: HashSet[DependencyEdge]): bool =
+    ## Omit only an edge that was explicitly broken by a successful bootstrap
+    ## build. Other consumers of the seed must retain their ordering edge so
+    ## they build after the final, non-bootstrap package.
+    if (dependency: depName, dependent: dependentName) in bootstrapSatisfiedEdges:
         return true
     return isInstalled and versionAction != "upgrade" and
             depName notin rootPkgNames and not forceInstallAll
@@ -375,12 +379,12 @@ proc buildDependencyGraph*(pkgs: seq[string], ctx: dependencyContext,
                 let chkVer = checkVersions(ctx.root, bdep, repo)
                 let depName = chkVer[1]
 
-                # Don't skip root packages. During a forced retry, only bootstrap
-                # packages are treated as satisfied to keep the broken cycle closed.
+                # Preserve installed-package behavior, except for an exact edge
+                # explicitly removed after a successful bootstrap build.
                 if shouldSkipInstalledDependency(packageExists(depName,
-                        ctx.root), chkVer[0], depName, rootPkgNames,
+                        ctx.root), chkVer[0], depName, pkg, rootPkgNames,
                                 ctx.forceInstallAll,
-                        ctx.bootstrapSatisfied):
+                        ctx.bootstrapSatisfiedEdges):
                     debug "dephandler: Package '"&depName&"' already installed, skipping"
                     continue
 
@@ -425,12 +429,12 @@ proc buildDependencyGraph*(pkgs: seq[string], ctx: dependencyContext,
                 let chkVer = checkVersions(ctx.root, dep, repo)
                 let depName = chkVer[1]
 
-                # Don't skip root packages. During a forced retry, only bootstrap
-                # packages are treated as satisfied to keep the broken cycle closed.
+                # Preserve installed-package behavior, except for an exact edge
+                # explicitly removed after a successful bootstrap build.
                 if shouldSkipInstalledDependency(packageExists(depName,
-                        ctx.root), chkVer[0], depName, rootPkgNames,
+                        ctx.root), chkVer[0], depName, pkg, rootPkgNames,
                                 ctx.forceInstallAll,
-                        ctx.bootstrapSatisfied):
+                        ctx.bootstrapSatisfiedEdges):
                     debug "Package '"&depName&"' already installed, skipping"
                     continue
 
@@ -666,7 +670,8 @@ proc dephandlerWithGraph*(pkgs: seq[string], ignoreDeps = @["  "],
                          useCacheIfAvailable = false,
                          commit = "", commitRepo = "",
                          headRunfileCache = initTable[string, runFile](),
-                         bootstrapSatisfied = initHashSet[string]()): (seq[
+                         bootstrapSatisfied = initHashSet[string](),
+                         bootstrapSatisfiedEdges = initHashSet[DependencyEdge]()): (seq[
                                 string],
                         dependencyGraph, SortResult) =
     ## Takes packages and returns what to install in correct dependency order PLUS the dependency graph
@@ -696,7 +701,8 @@ proc dephandlerWithGraph*(pkgs: seq[string], ignoreDeps = @["  "],
         commit: commit,
         commitRepo: commitRepo,
         headRunfileCache: headRunfileCache,
-        bootstrapSatisfied: bootstrapSatisfied
+        bootstrapSatisfied: bootstrapSatisfied,
+        bootstrapSatisfiedEdges: bootstrapSatisfiedEdges
     )
 
     # Build the dependency graph
@@ -793,7 +799,8 @@ proc resolveBuildOrderImpl(packages: seq[string], ctx: dependencyContext,
             useCacheIfAvailable = ctx.useCacheIfAvailable,
             commit = ctx.commit, commitRepo = ctx.commitRepo,
             headRunfileCache = ctx.headRunfileCache,
-            bootstrapSatisfied = ctx.bootstrapSatisfied)
+            bootstrapSatisfied = ctx.bootstrapSatisfied,
+            bootstrapSatisfiedEdges = ctx.bootstrapSatisfiedEdges)
 
     # Get packages that depend on what we're building (build dependents)
     let gD = getDependents(deps)
@@ -914,6 +921,18 @@ proc getSandboxDepsFromGraph*(pkg: string, graph: dependencyGraph,
             sandboxDeps.add(optDepName)
 
     return deduplicate(sandboxDeps)
+
+proc getBootstrapEdgesForCycle*(cyclePath: seq[string],
+        bootstrapPackages: HashSet[string]): HashSet[DependencyEdge] =
+    ## Return only the dependency edges in this cycle that originate at a
+    ## successfully bootstrapped seed. Suppressing these exact edges breaks the
+    ## cycle without dropping ordering constraints for unrelated consumers.
+    if cyclePath.len < 2:
+        return
+    for i in 0 ..< cyclePath.len - 1:
+        let dependency = cyclePath[i]
+        if dependency in bootstrapPackages:
+            result.incl((dependency: dependency, dependent: cyclePath[i + 1]))
 
 proc getPackagesWithBsdeps*(graph: dependencyGraph, cyclePath: seq[
         string]): seq[string] =

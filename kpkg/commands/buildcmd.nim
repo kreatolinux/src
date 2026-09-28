@@ -310,60 +310,80 @@ proc build*(no = false, yes = false, root = "/",
       packages, depCtx, bootstrap, isInstallDir
     )
 
-    # Handle circular dependency detection
-    if sortResult.hasCycle and not bootstrap:
-      # Check which packages in cycle have bsdeps
-      let pkgsWithBsdeps = getPackagesWithBsdeps(depGraph, sortResult.cyclePath)
+    # Resolve every bootstrap-capable cycle. The graph reports one cycle at a
+    # time, so a successful bootstrap round can expose a separate cycle that
+    # also needs a seed before the final build order is acyclic.
+    if sortResult.hasCycle and bootstrap:
+      fatal "Bootstrap dependency graph is still circular: " &
+            formatCycleDisplay(sortResult.cyclePath)
+      return 1
 
-      if pkgsWithBsdeps.len > 0:
-        # Format cycle for display
-        let cycleDisplay = formatCycleDisplay(sortResult.cyclePath)
-        warn "Circular dependency detected: " & cycleDisplay &
-             ". Kpkg will attempt to bootstrap and install this package automatically."
-
-        # Build each package with bsdeps using bootstrap
-        var bootstrapSatisfied = initHashSet[string]()
-        for pkg in pkgsWithBsdeps:
-          let bootstrapResult = build(
-            no = no, yes = yes, root = root,
-            packages = @[pkg],
-            useCacheIfAvailable = useCacheIfAvailable,
-            forceInstallAll = forceInstallAll,
-            dontInstall = dontInstall,
-            tests = tests,
-            ignorePostInstall = ignorePostInstall,
-            deferPostInstall = deferPostInstall,
-            isInstallDir = isInstallDir,
-            isUpgrade = isUpgrade,
-            target = target,
-            bootstrap = true,
-            noSandbox = noSandbox
-          )
-          if bootstrapResult != 0:
-            fatal "Bootstrap build failed for '" & pkg & "'"
-            return bootstrapResult
-          bootstrapSatisfied.incl(pkg)
-
-        # Retry without bootstrap. Keep each cycle seed as an explicit root so
-        # it is rebuilt normally after its full build dependencies are ready.
-        info "Bootstrap builds completed, retrying original build..."
-        depCtx.useBootstrap = false
-        depCtx.bootstrapSatisfied = bootstrapSatisfied
-        let finalPackages = finalRetryPackages(packages, pkgsWithBsdeps)
-        (deps, depGraph, allDependents, sortResult) = resolveBuildOrder(
-          finalPackages, depCtx, false, isInstallDir
-        )
-
-        # If still has cycle after bootstrap, error out
-        if sortResult.hasCycle:
-          fatal "Circular dependency detected: " & formatCycleDisplay(sortResult.cyclePath) &
-                ". Use bootstrap dependencies (bsdeps) to break the cycle."
-          quit(1)
-      else:
-        # No bsdeps available, show original error
-        fatal "Circular dependency detected: " & formatCycleDisplay(sortResult.cyclePath) &
+    var bootstrapSatisfied = initHashSet[string]()
+    var bootstrapSeeds: seq[string] = @[]
+    var bootstrapSatisfiedEdges = initHashSet[DependencyEdge]()
+    while sortResult.hasCycle:
+      let cyclePath = sortResult.cyclePath
+      let pkgsWithBsdeps = getPackagesWithBsdeps(depGraph, cyclePath)
+      if pkgsWithBsdeps.len == 0:
+        fatal "Circular dependency detected: " & formatCycleDisplay(cyclePath) &
               ". Use bootstrap dependencies (bsdeps) to break the cycle."
-        quit(1)
+        return 1
+
+      warn "Circular dependency detected: " & formatCycleDisplay(cyclePath) &
+           ". Kpkg will attempt to bootstrap and install its cycle seed."
+
+      var madeProgress = false
+      for pkg in pkgsWithBsdeps:
+        if pkg in bootstrapSatisfied:
+          continue
+        let bootstrapSpec = if isInstallDir:
+          depGraph.nodes[pkg].repo / pkg
+        else:
+          pkg
+        let bootstrapResult = build(
+          no = no, yes = yes, root = root,
+          packages = @[bootstrapSpec],
+          useCacheIfAvailable = useCacheIfAvailable,
+          forceInstallAll = forceInstallAll,
+          # The seed must be installed into the build root even when the final
+          # requested package is build-only.
+          dontInstall = false,
+          tests = tests,
+          ignorePostInstall = ignorePostInstall,
+          deferPostInstall = deferPostInstall,
+          isInstallDir = isInstallDir,
+          isUpgrade = isUpgrade,
+          target = target,
+          bootstrap = true,
+          noSandbox = noSandbox
+        )
+        if bootstrapResult != 0:
+          fatal "Bootstrap build failed for '" & pkg & "'"
+          return bootstrapResult
+        bootstrapSatisfied.incl(pkg)
+        bootstrapSeeds.add(bootstrapSpec)
+        madeProgress = true
+
+      let cycleEdges = getBootstrapEdgesForCycle(cyclePath,
+              bootstrapSatisfied)
+      for edge in cycleEdges:
+        if edge notin bootstrapSatisfiedEdges:
+          bootstrapSatisfiedEdges.incl(edge)
+          madeProgress = true
+
+      if not madeProgress:
+        fatal "Circular dependency bootstrap made no progress: " &
+              formatCycleDisplay(cyclePath)
+        return 1
+
+      info "Bootstrap build completed, resolving remaining dependency cycles..."
+      depCtx.useBootstrap = false
+      depCtx.bootstrapSatisfied = bootstrapSatisfied
+      depCtx.bootstrapSatisfiedEdges = bootstrapSatisfiedEdges
+      let finalPackages = finalRetryPackages(packages, bootstrapSeeds)
+      (deps, depGraph, allDependents, sortResult) = resolveBuildOrder(
+        finalPackages, depCtx, false, isInstallDir
+      )
 
     # Build package list with init variants
     var p: seq[string]
