@@ -62,6 +62,10 @@ proc addPackageWithDepsToQueue*(queue: var seq[string], packageName: string,
   for pkg in ordered:
     queue.add(pkg)
 
+proc shouldRunSandboxPostInstall*(deferPostInstall,
+        ignorePostInstall: bool): bool =
+  not deferPostInstall and not ignorePostInstall
+
 proc buildPackageInSandboxImpl(pkgName: string, depGraph: dependencyGraph,
                             sandboxCfg: SandboxConfig,
                             builderProc: BuilderProc,
@@ -190,7 +194,8 @@ proc buildPackageInSandboxImpl(pkgName: string, depGraph: dependencyGraph,
       fatal("mounting overlay filesystem failed")
 
     # Run postinstall scripts in merged overlay
-    if not sandboxCfg.deferPostInstall and
+    if shouldRunSandboxPostInstall(sandboxCfg.deferPostInstall,
+        sandboxCfg.ignorePostInstall) and
         (sandboxCfg.target == "default" or sandboxCfg.target == kpkgTarget("/")):
       debug "builder-ng: postinstall is running"
       for d in deduplicate(allInstalledDeps):
@@ -207,7 +212,8 @@ proc buildPackageInSandboxImpl(pkgName: string, depGraph: dependencyGraph,
     allInstalledDeps = deduplicate(collectRuntimeDepsFromGraph(
             sandboxDeps, depGraph, visited))
 
-    if not sandboxCfg.deferPostInstall:
+    if shouldRunSandboxPostInstall(sandboxCfg.deferPostInstall,
+        sandboxCfg.ignorePostInstall):
       for d in allInstalledDeps:
         if not isEmptyOrWhitespace(d):
           runPostInstall(d, sandboxCfg.root, passthrough = true)

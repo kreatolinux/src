@@ -231,6 +231,14 @@ suite "dephandler build queue":
     check edges.len == 2
 
 
+suite "sandbox postinstall policy":
+  test "ignorePostInstall suppresses dependency hooks":
+    check shouldRunSandboxPostInstall(false, false)
+    check not shouldRunSandboxPostInstall(false, true)
+    check not shouldRunSandboxPostInstall(true, false)
+    check not shouldRunSandboxPostInstall(true, true)
+
+
 suite "builder cache identity":
   test "bootstrap and normal archives have different paths":
     let pkg = mkRunFile("glib")
