@@ -45,8 +45,9 @@ proc replaceChecksumAtIndex(content, key: string, index: int,
       inc item
   if not replaced:
     raise newException(ValueError, "checksum " & $index & " was not found")
+  # splitLines retains the terminal empty element, so join preserves the exact
+  # final-newline shape. Appending another newline here created a blank EOF line.
   result = lines.join("\n")
-  if content.endsWith("\n"): result.add("\n")
 
 proc replaceMetadata(content, key, oldValue, newValue: string): string =
   ## Replace one complete run3 scalar, retaining its original quoting.

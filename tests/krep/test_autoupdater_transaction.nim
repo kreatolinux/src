@@ -137,3 +137,6 @@ sha256sum:
     check updated.getSha256sum()[0] != "same-old-sum"
     check updated.getSha256sum()[1] != "same-old-sum"
     check updated.getSha256sum()[0] != updated.getSha256sum()[1]
+    let bytes = readFile(packageDir / "run3")
+    check bytes.endsWith("\n")
+    check not bytes.endsWith("\n\n")
