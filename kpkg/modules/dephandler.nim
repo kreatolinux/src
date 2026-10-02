@@ -11,6 +11,7 @@ import runparser
 import commonTasks
 import commonPaths
 import algorithm
+import std/json
 import versioncmp
 import gitutils
 import telemetry/main as telemetry
@@ -603,6 +604,57 @@ proc generateMermaidChart*(graph: dependencyGraph, rootPackages: seq[
                     output &= "    " & fromId & " --> " & toId & "\n"
 
     return output
+
+
+proc generateDependencyJson*(graph: dependencyGraph, rootPackages: seq[
+        string]): string =
+    ## Generate the stable, machine-readable dependency graph schema.
+    ## Edges use the graph's native dependency -> dependent direction.
+    var roots = rootPackages
+    roots.sort()
+    roots = roots.deduplicate()
+
+    var nodeNames = toSeq(graph.nodes.keys)
+    nodeNames.sort()
+    var nodes = newJArray()
+    for name in nodeNames:
+        let pkg = graph.nodes[name]
+        let runtimeDependencies = pkg.metadata.deps.sorted()
+        let buildDependencies = pkg.metadata.bdeps.sorted()
+        let bootstrapDependencies = pkg.metadata.bsdeps.sorted()
+        nodes.add(%*{
+            "name": name,
+            "repo": pkg.repo,
+            "depends": runtimeDependencies,
+            "build_depends": buildDependencies,
+            "bootstrap_depends": bootstrapDependencies
+        })
+
+    var dependencyEdges: seq[DependencyEdge] = @[]
+    for dependency, dependents in graph.edges.pairs:
+        if graph.nodes.hasKey(dependency):
+            for dependent in dependents:
+                if graph.nodes.hasKey(dependent):
+                    dependencyEdges.add((dependency: dependency,
+                            dependent: dependent))
+    dependencyEdges.sort(proc(a, b: DependencyEdge): int =
+        result = cmp(a.dependency, b.dependency)
+        if result == 0:
+            result = cmp(a.dependent, b.dependent)
+    )
+
+    var edges = newJArray()
+    for edge in dependencyEdges:
+        edges.add(%*{"dependency": edge.dependency,
+                "dependent": edge.dependent})
+
+    let document = %*{
+        "schema_version": 1,
+        "roots": roots,
+        "nodes": nodes,
+        "edges": edges
+    }
+    return $document
 
 
 proc dephandler*(pkgs: seq[string], ignoreDeps = @["  "],

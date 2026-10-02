@@ -28,6 +28,12 @@ suite "REPL tab completion":
     check replCompletionCandidates("get depends.bash.install.g",
         repositoryPackages, installedPackages) == @[
           "get depends.bash.install.graph"]
+    check replCompletionCandidates("get depends.bash.build.j",
+        repositoryPackages, installedPackages) == @[
+          "get depends.bash.build.json"]
+    check replCompletionCandidates("get depends.bash.install.j",
+        repositoryPackages, installedPackages) == @[
+          "get depends.bash.install.json"]
 
   test "uses installed packages for database queries":
     check replCompletionCandidates("get db.package.gl", repositoryPackages,

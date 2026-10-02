@@ -74,7 +74,9 @@ proc buildCompletionCatalog(packageNames,
   for packageName in packageNames:
     result.addPath(["get", "set"], ["overrides", packageName])
     for dependencyKind in ["build", "install"]:
-      result.addPath(["get"], ["depends", packageName, dependencyKind, "graph"])
+      for outputFormat in ["graph", "json"]:
+        result.addPath(["get"], ["depends", packageName, dependencyKind,
+                outputFormat])
 
   result.topLevel.sort()
   for command, tokens in result.commandTokens.mpairs:
@@ -143,6 +145,15 @@ proc displayConfigQuery*(section, key, value: string): string =
   if key.toLowerAscii() in ["password", "bearertoken"]:
     return "REDACTED"
   value
+
+
+proc dependencyQueryPackages*(value: string): seq[string] =
+  ## Preserve a literal package name, including commas, when it exists.
+  if findPkgRepo(value) != "":
+    return @[value]
+  result = value.split(',')
+  if result.anyIt(it.len == 0):
+    return @[]
 
 proc get(args: seq[string]) =
   ## Gets a kpkg value. See kpkg_get(5) for more information.
@@ -213,28 +224,30 @@ proc get(args: seq[string]) =
       of "depends":
         case invocSplit.len:
           of 3:
-            let packageName = invocSplit[1]
+            let packageNames = dependencyQueryPackages(invocSplit[1])
             let depType = invocSplit[2]
 
-            # Check if package exists in repos
-            let repo = findPkgRepo(packageName)
-            if repo == "":
-              error("'"&packageName&"': package not found")
+            if packageNames.len == 0:
+              error("no package names specified")
               return
+            for packageName in packageNames:
+              if findPkgRepo(packageName) == "":
+                error("'"&packageName&"': package not found")
+                return
 
             var deps: seq[string]
             try:
               case depType:
                 of "build":
-                  deps = dephandler(@[packageName],
+                  deps = dephandler(packageNames,
                           isBuild = true, root = "/",
-                          prevPkgName = packageName,
+                          prevPkgName = packageNames[0],
                           ignoreCircularDeps = true,
                           forceInstallAll = showAll)
                 of "install":
-                  deps = dephandler(@[packageName],
+                  deps = dephandler(packageNames,
                           root = "/",
-                          prevPkgName = packageName,
+                          prevPkgName = packageNames[0],
                           ignoreCircularDeps = true,
                           forceInstallAll = showAll)
                 else:
@@ -245,22 +258,23 @@ proc get(args: seq[string]) =
               for dep in deps:
                 echo dep
             except CatchableError:
-              error("failed to resolve dependencies for '"&packageName&"'")
+              error("failed to resolve dependencies for '"&packageNames.join(",")&"'")
           of 4:
-            let packageName = invocSplit[1]
+            let packageNames = dependencyQueryPackages(invocSplit[1])
             let depType = invocSplit[2]
             let outputFormat = invocSplit[3]
 
-            # Only support .graph output format
-            if outputFormat != "graph":
-              error("'"&outputFormat&"': invalid output format. Use 'graph'")
+            if outputFormat notin ["graph", "json"]:
+              error("'"&outputFormat&"': invalid output format. Use 'graph' or 'json'")
               return
 
-            # Check if package exists in repos
-            let repo = findPkgRepo(packageName)
-            if repo == "":
-              error("'"&packageName&"': package not found")
+            if packageNames.len == 0:
+              error("no package names specified")
               return
+            for packageName in packageNames:
+              if findPkgRepo(packageName) == "":
+                error("'"&packageName&"': package not found")
+                return
 
             try:
               # Build the dependency graph
@@ -278,22 +292,25 @@ proc get(args: seq[string]) =
               case depType:
                 of "build":
                   # Build graph with build dependencies
-                  graph = buildDependencyGraph(@[packageName],
-                          ctx, @["  "], false, false, packageName)
+                  graph = buildDependencyGraph(packageNames,
+                          ctx, @["  "], false, false, packageNames[0])
                 of "install":
                   # Build graph with install dependencies only
-                  graph = buildDependencyGraph(@[packageName],
-                          ctx, @["  "], false, false, packageName)
+                  graph = buildDependencyGraph(packageNames,
+                          ctx, @["  "], false, false, packageNames[0])
                 else:
                   error("'"&depType&"': invalid dependency type. Use 'build' or 'install'")
                   return
 
-              # Generate and output Mermaid chart
-              echo generateMermaidChart(graph, @[packageName])
+              if outputFormat == "json":
+                echo generateDependencyJson(graph, packageNames)
+              else:
+                # Keep the existing Mermaid output for .graph queries.
+                echo generateMermaidChart(graph, packageNames)
             except CatchableError:
-              error("failed to generate dependency graph for '"&packageName&"'")
+              error("failed to generate dependency graph for '"&packageNames.join(",")&"'")
           else:
-            error("'"&invoc&"': invalid invocation. Usage: get [--all] depends.packageName.build[.graph] or depends.packageName.install[.graph]")
+            error("'"&invoc&"': invalid invocation. Usage: get [--all] depends.packageName[,packageName...].build[.graph|.json] or depends.packageName[,packageName...].install[.graph|.json]")
       else:
         error("'"&invoc&"': invalid invocation. Available invocations: db, config, overrides, depends. See kpkg_get(5) for more information.")
 

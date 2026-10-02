@@ -31,7 +31,7 @@ Retrieves values from the database, configuration, overrides, or dependency grap
 * `db`: Get values from the database.
 * `config`: Get values from the config.
 * `overrides`: Get value from a package override.
-* `depends`: Get dependency list for a package.
+* `depends`: Get dependency data for one package or a comma-separated package list. Append `.graph` for Mermaid or `.json` for deterministic JSON topology output.
 
 **EXAMPLES**:
 ```sh
@@ -52,7 +52,16 @@ kpkg> get --all depends.bash.build
 
 # --all can also be placed after depends
 kpkg> get depends.bash.build --all
+
+# Get one authoritative build topology for multiple roots
+kpkg> get --all depends.bash,coreutils.build.json
 ```
+
+The JSON document has `schema_version`, sorted `roots`, sorted `nodes`, and
+sorted `edges`. Each node includes `name`, `repo`, `depends`, `build_depends`,
+and `bootstrap_depends`. Edges are directed from `dependency` to `dependent`.
+Use `.graph` instead of `.json` for Mermaid output.
+
 
 ### set [INVOCATION] [VALUE]
 Sets values in the configuration or overrides.

@@ -35,7 +35,7 @@ kpkg get [OPTION]\&...
 .IP \[bu] 2
 \f[V]overrides\f[R]: Get value from a package override.
 .IP \[bu] 2
-\f[V]depends\f[R]: Get dependency list for a package.
+\f[V]depends\f[R]: Get dependency data for one package or a comma-separated package list. Append .graph for Mermaid or .json for deterministic topology JSON; JSON edges point from dependency to dependent.
 .SS EXAMPLES
 .IP
 .nf
@@ -60,6 +60,9 @@ kpkg get depends.bash.build
 
 # Get install/runtime dependencies for bash
 kpkg get depends.bash.install
+
+# Get a deterministic multi-root build topology as JSON
+kpkg get --all depends.bash,coreutils.build.json
 \f[R]
 .fi
 .SH AUTHOR
