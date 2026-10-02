@@ -41,3 +41,13 @@ suite "krep update eligibility":
     discard writeRun3(repo, "disabled-two", "no_chkupd: true\n")
     checkcmd.check("disabled-*", repo, "githubReleases", autoUpdate = false)
     checkcmd.check("disabled-*", repo, "githubReleases", autoUpdate = true)
+
+  test "wildcard failures do not stop later package checks":
+    let broken = repo / "a-broken"
+    createDir(broken)
+    writeFile(broken / "run3", "name: a-broken\nversion: 1.0\nrelease: 1\n")
+    writeFile(broken / "chkupd.cfg", "[autoUpdater]\nmechanism=githubReleases\n[githubReleases]\nrepo=invalid\n")
+    discard writeRun3(repo, "z-disabled", "no_chkupd: true\n")
+    # The malformed package is reported, then the later disabled package is
+    # still evaluated without configuring or contacting the backend.
+    checkcmd.check("*", repo, "githubReleases", autoUpdate = false)

@@ -70,10 +70,19 @@ proc check*(package: string, repo: string, backend: string, autoUpdate = true,
       echo "No packages found matching pattern: " & package
       return
 
-    # Check each matching package
+    # Isolate backend or recipe failures to one package. A wildcard repository
+    # maintenance pass should retain safe updates from other packages.
+    var failedPackages: seq[string] = @[]
     for matchedPkg in matchedPackages:
       echo "Checking package: " & matchedPkg
-      check(matchedPkg, repo, backend, autoUpdate, skipIfDownloadFails, verbose)
+      try:
+        check(matchedPkg, repo, backend, autoUpdate, skipIfDownloadFails, verbose)
+      except CatchableError as failure:
+        failedPackages.add(matchedPkg)
+        echo "WARN: upstream check failed for '" & matchedPkg & "': " & failure.msg
+    if failedPackages.len > 0:
+      echo "WARN: upstream checks failed for " & $failedPackages.len &
+        " package(s): " & failedPackages.join(", ")
     return
 
   # Eligibility is a local policy. Evaluate it before backend configuration or
