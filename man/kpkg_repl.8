@@ -62,7 +62,10 @@ handler.
 \f[B]TYPES\f[R]: * \f[V]db\f[R]: Get values from the database.
 * \f[V]config\f[R]: Get values from the config.
 * \f[V]overrides\f[R]: Get value from a package override.
-* \f[V]depends\f[R]: Get dependency list for a package.
+* \f[V]depends\f[R]: Get dependency data for one package or a
+comma-separated package list.
+Append \f[V].graph\f[R] for Mermaid or \f[V].json\f[R] for deterministic
+JSON topology output.
 .PP
 \f[B]EXAMPLES\f[R]:
 .IP
@@ -85,8 +88,18 @@ kpkg> get --all depends.bash.build
 
 # --all can also be placed after depends
 kpkg> get depends.bash.build --all
+
+# Get one authoritative build topology for multiple roots
+kpkg> get --all depends.bash,coreutils.build.json
 \f[R]
 .fi
+.PP
+The JSON document has \f[V]schema_version\f[R], sorted \f[V]roots\f[R],
+sorted \f[V]nodes\f[R], and sorted \f[V]edges\f[R].
+Each node includes \f[V]name\f[R], \f[V]repo\f[R], \f[V]depends\f[R],
+\f[V]build_depends\f[R], and \f[V]bootstrap_depends\f[R].
+Edges are directed from \f[V]dependency\f[R] to \f[V]dependent\f[R].
+Use \f[V].graph\f[R] instead of \f[V].json\f[R] for Mermaid output.
 .SS set [INVOCATION] [VALUE]
 .PP
 Sets values in the configuration or overrides.
