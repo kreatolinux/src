@@ -1,125 +1,77 @@
-# chkupd v3 githubReleases backend
-import json, strutils, os
+# chkupd v3 GitHub releases backend
+import std/[json, strutils, os, httpclient, uri, sequtils]
+import regex
 import ../../../kpkg/modules/run3/run3
-import ../autoupdater
+import ../[autoupdater, upstreamVersions]
 import ../../../common/version
-import httpclient
+
+proc normalizeGithubTag*(tag: string; configuredPrefix = ""): string =
+  ## Remove the configured prefix once, and only at the beginning.
+  result = tag.strip
+  if configuredPrefix.len > 0 and result.startsWith(configuredPrefix):
+    result = result[configuredPrefix.len .. ^1]
+  result = result.strip
+
+proc releaseForPython*(release, pythonVersion: string): string =
+  ## Keep exactly one trailing interpreter version across Python upgrades.
+  if release.endsWith("-" & pythonVersion): return release
+  let pythonSuffix = re2("-[0-9]+\\.[0-9]+(?:\\.[0-9]+)?(?:[A-Za-z]+[0-9]*)?$")
+  release.replace(pythonSuffix, "") & "-" & pythonVersion
 
 proc githubReleasesCheck*(package: string, repo: string,
                 githubReleasesRepo: string, autoUpdate = false,
                 skipIfDownloadFails = true, trimString = "", verbose = false) =
-  # Check against GitHub Releases.
   let pkgName = lastPathPart(package)
-  var client = newHttpClient(userAgent = "Klinux chkupd/"&ver&" (issuetracker: https://github.com/kreatolinux/src/issues)")
-  var version = $(parseJson(client.getContent(
-                  "https://api.github.com/repos/"&githubReleasesRepo&"/releases/latest"))["tag_name"])
+  let packageDir = repo / pkgName
+  var client = newHttpClient(timeout = 30_000, userAgent = "Klinux chkupd/" & ver &
+    " (issuetracker: https://github.com/kreatolinux/src/issues)")
+  defer: client.close()
+  let repoParts = githubReleasesRepo.split('/')
+  if repoParts.len != 2 or repoParts.anyIt(it.len == 0):
+    raise newException(ValueError, "GitHub repository must be owner/name: " & githubReleasesRepo)
+  let encodedRepo = repoParts.mapIt(encodeUrl(it, usePlus = false)).join("/")
+  var response: string
+  try:
+    response = client.getContent("https://api.github.com/repos/" &
+      encodedRepo & "/releases/latest")
+  except CatchableError as e:
+    raise newException(IOError, "GitHub releases request failed for " &
+      githubReleasesRepo & ": " & e.msg)
 
-  if not isEmptyOrWhitespace(trimString):
-    version = replace(version, trimString, "")
+  var document: JsonNode
+  try: document = parseJson(response)
+  except JsonParsingError as e:
+    raise newException(ValueError, "GitHub returned invalid JSON for " &
+      githubReleasesRepo & ": " & e.msg)
+  if document.kind != JObject or not document.hasKey("tag_name") or
+      document["tag_name"].kind != JString:
+    raise newException(ValueError, "GitHub response for " & githubReleasesRepo &
+      " has no string tag_name")
+  let upstream = normalizeGithubTag(document["tag_name"].getStr, trimString)
+  if upstream.len == 0:
+    raise newException(ValueError, "GitHub release tag became empty after normalization")
 
+  let pkg = parseRun3(packageDir)
+  let local = pkg.getVersion()
+  var pkgRelease = pkg.getRelease()
+  if "python" in pkg.getDepends():
+    let pythonVersion = parseRun3(repo / "python").getVersion()
+    pkgRelease = releaseForPython(pkgRelease, pythonVersion)
 
-  version = replace(version, "'", "")
-  version = replace(version, "\"", "")
-
-  var counter = 0
-  let packageDir = repo&"/"&pkgName
-  var newestOrNot: string
-
+  let outdated = compareUpstreamVersions(upstream, local) > 0
   if verbose:
     echo "chkupd v3 GitHub Releases backend"
     echo "Repository: " & githubReleasesRepo
-    echo "Latest release tag: " & version
-
-
-  if isEmptyOrWhitespace(version):
-    return
-
-  var isOutdated = false
-  let pkg = parseRun3(packageDir)
-  let pkgVersion = pkg.getVersion()
-  var pkgRelease = pkg.getRelease()
-  let pkgDeps = pkg.getDepends()
-  let isSemverStr = pkg.getVariable("is_semver")
-  let isSemver = isSemverStr.toLowerAscii() in ["true", "1", "yes", "y", "on"]
-
-  if "python" in pkgDeps:
-    # Append the current python version to the release exactly once per
-    # python version, so the package is rebuilt when python changes but the
-    # release does not grow unbounded on every autoupdate run.
-    let pythonVersion = parseRun3(repo & "/python").getVersion()
-    if not pkgRelease.endsWith("-" & pythonVersion):
-      pkgRelease = pkgRelease&"-"&pythonVersion
-
-  if isSemver:
-    if verbose:
-      echo "Package is using semver."
-    let pkgVerSplit = split(pkgVersion, ".")
-    let versionSplit = split(version, ".")
-
-    # MAJOR
-    try:
-      let vMajor = parseInt(versionSplit[0])
-      let pkgMajor = parseInt(pkgVerSplit[0])
-      if vMajor > pkgMajor:
-        isOutdated = true
-      elif vMajor == pkgMajor:
-        # MINOR
-        if versionSplit.len > 1 and pkgVerSplit.len > 1:
-          let vMinor = parseInt(versionSplit[1])
-          let pkgMinor = parseInt(pkgVerSplit[1])
-          if vMinor > pkgMinor:
-            isOutdated = true
-          elif vMinor == pkgMinor:
-            # PATCH
-            if versionSplit.len > 2 and pkgVerSplit.len > 2:
-              let vPatch = parseInt(versionSplit[2])
-              let pkgPatch = parseInt(pkgVerSplit[2])
-              if vPatch > pkgPatch:
-                isOutdated = true
-    except ValueError:
-      # Fallback to string comparison if parsing fails
-      if versionSplit[0] > pkgVerSplit[0]:
-        isOutdated = true
-      elif versionSplit[0] == pkgVerSplit[0]:
-        if versionSplit.len > 1 and pkgVerSplit.len > 1:
-          if versionSplit[1] > pkgVerSplit[1]:
-            isOutdated = true
-          elif versionSplit[1] == pkgVerSplit[1]:
-            if versionSplit.len > 2 and pkgVerSplit.len > 2:
-              if versionSplit[2] > pkgVerSplit[2]:
-                isOutdated = true
-  else:
-    if verbose:
-      echo "Package is not using semver."
-    try:
-      let versionInt = parseInt(replace(version, ".", ""))
-      let pkgVersionInt = parseInt(replace(pkgVersion, ".", ""))
-
-      if versionInt > pkgVersionInt:
-        isOutdated = true
-    except Exception:
-      if version > pkgVersion:
-        isOutdated = true
-
-
+    echo "Latest release tag: " & upstream
   if autoUpdate:
-    if pkg.getRelease() == pkgRelease and not isOutdated:
+    if not outdated and pkg.getRelease() == pkgRelease:
       echo "Package is already up-to-date."
-      return
     else:
       echo "Package is outdated. Updating..."
-      if not isOutdated:
-        version = pkgVersion
-
-    autoUpdater(pkg, absolutePath(packageDir), version,
-                    skipIfDownloadFails, pkgRelease)
-
-    return
+      autoUpdater(pkg, absolutePath(packageDir),
+        (if outdated: upstream else: local), skipIfDownloadFails, pkgRelease)
   else:
-    if verbose or isOutdated:
-      echo "Latest version found: " & version
-    if isOutdated:
-      echo "Package is outdated (current: " & pkgVersion &
-                      ", latest: " & version & ")"
-    elif verbose:
-      echo "Package is up-to-date (version: " & pkgVersion & ")"
+    if verbose or outdated: echo "Latest version found: " & upstream
+    if outdated:
+      echo "Package is outdated (current: " & local & ", latest: " & upstream & ")"
+    elif verbose: echo "Package is up-to-date (version: " & local & ")"

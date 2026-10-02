@@ -1,12 +1,11 @@
-import os
-import strutils
+import std/[os, strutils, tempfiles]
 import regex
 import ../../kpkg/modules/checksums
 import ../../kpkg/modules/run3/run3
 import ../../kpkg/modules/downloader
 
 proc escapeRegex(s: string): string =
-  ## Escape special regex characters in a string
+  ## Escape special regex characters in a string.
   result = ""
   for c in s:
     case c
@@ -16,89 +15,153 @@ proc escapeRegex(s: string): string =
     else:
       result.add(c)
 
-proc autoUpdater*(pkg: Run3File, packageDir: string, newVersion: string,
-                skipIfDownloadFails: bool, release: string = "") =
-  # Autoupdates packages.
+proc replaceChecksumAtIndex(content, key: string, index: int,
+                                oldValue, newValue: string): string =
+  ## Replace one checksum list entry by position. Duplicate checksum values are
+  ## valid, so global value replacement is not safe.
+  var lines = content.splitLines()
+  var inField = false
+  var item = 0
+  var replaced = false
+  for lineIndex in 0 ..< lines.len:
+    let stripped = lines[lineIndex].strip
+    if not inField:
+      if stripped == key & ":": inField = true
+      continue
+    if stripped.len > 0 and not lines[lineIndex][0].isSpaceAscii:
+      break
+    if stripped.startsWith("-"):
+      if item == index:
+        let pattern = "^(\\s*-\\s*\"?)" & escapeRegex(oldValue) &
+          "(\"?\\s*)$"
+        let expression = re2(pattern)
+        if not lines[lineIndex].match(expression):
+          raise newException(ValueError, "checksum " & $index &
+            " does not match parsed metadata")
+        lines[lineIndex] = lines[lineIndex].replace(expression,
+          "${1}" & newValue & "${2}")
+        replaced = true
+        break
+      inc item
+  if not replaced:
+    raise newException(ValueError, "checksum " & $index & " was not found")
+  result = lines.join("\n")
+  if content.endsWith("\n"): result.add("\n")
+
+proc replaceMetadata(content, key, oldValue, newValue: string): string =
+  ## Replace one complete run3 scalar, retaining its original quoting.
+  let pattern = "^(" & escapeRegex(key) & ":\\s*\"?)" &
+    escapeRegex(oldValue) & "(\"?\\s*)$"
+  let expression = re2(pattern, {regexMultiline})
+  var matches = 0
+  for ignored in content.findAll(expression):
+    discard ignored
+    inc matches
+  if matches != 1:
+    raise newException(ValueError, key & " metadata does not occur exactly once")
+  result = content.replace(expression, "${1}" & newValue & "${2}")
+
+type SourceFetcher* = proc(source, destination: string) {.closure.}
+
+proc autoUpdaterWithFetcher*(pkg: Run3File, packageDir: string,
+                newVersion: string, skipIfDownloadFails: bool,
+                release: string, fetcher: SourceFetcher) =
+  ## Update a run3 recipe as one transaction. All downloads, checksums, and
+  ## validation finish before the recipe is atomically replaced.
   echo "Autoupdating.."
 
-  let previousDir = getCurrentDir()
   let packageDir = absolutePath(packageDir)
-  defer: setCurrentDir(previousDir)
-  setCurrentDir("/tmp")
-  var c = 0
-  var source: string
-  var filename: string
+  let runPath = packageDir / "run3"
+  if not fileExists(runPath):
+    raise newException(IOError, "run3 file not found at: " & runPath)
 
-  var splitSum: seq[string]
-  var sumType: string
+  # Parse the file that will actually be replaced. This avoids using stale
+  # metadata supplied by a caller while still retaining the public signature.
+  discard pkg
+  let recipe = parseRun3(packageDir)
+  let sources = recipe.getSourcesWithVersion(newVersion)
+  let version = recipe.getVersion()
+  let pkgRelease = recipe.getRelease()
+  let pkgName = recipe.getName()
 
-  let b2sum = pkg.getB2sum()
-  let sha512sum = pkg.getSha512sum()
-  let sha256sum = pkg.getSha256sum()
-  let newSources = pkg.getSourcesWithVersion(newVersion)
-  let version = pkg.getVersion()
-  let pkgRelease = pkg.getRelease()
-  let pkgName = pkg.getName()
-
-  if b2sum.len > 0:
-    splitSum = b2sum
+  var oldSums: seq[string]
+  var sumType = ""
+  let checksumFamilies = int(recipe.getB2sum().len > 0) +
+    int(recipe.getSha512sum().len > 0) + int(recipe.getSha256sum().len > 0)
+  if checksumFamilies != 1:
+    raise newException(ValueError, "recipe must define exactly one checksum family for '" & pkgName & "'")
+  if recipe.getB2sum().len > 0:
+    oldSums = recipe.getB2sum()
     sumType = "b2"
-  elif sha512sum.len > 0:
-    splitSum = sha512sum
+  elif recipe.getSha512sum().len > 0:
+    oldSums = recipe.getSha512sum()
     sumType = "sha512"
-  elif sha256sum.len > 0:
-    splitSum = sha256sum
+  elif recipe.getSha256sum().len > 0:
+    oldSums = recipe.getSha256sum()
     sumType = "sha256"
 
-  var runFileName = "run3"
-  if not fileExists(packageDir & "/run3") and fileExists(packageDir & "/run"):
-    runFileName = "run"
+  if sources.len != oldSums.len:
+    raise newException(ValueError, "source/checksum count mismatch for '" &
+      pkgName & "': " & $sources.len & " sources, " & $oldSums.len &
+      " checksums")
 
-  for i in splitSum:
-    source = newSources[c]
-    filename = extractFilename(source).strip()
+  let workDir = createTempDir("krep-autoupdate-", "")
+  defer:
+    if dirExists(workDir):
+      removeDir(workDir)
 
-    # Check if this is a local file (not a URL)
-    # Local files don't have a URI scheme and exist in the package directory
-    let localPath = packageDir & "/" & source
-    let isLocalFile = not source.contains("://") and (fileExists(localPath) or
-        dirExists(localPath))
-
-    if isLocalFile:
-      # Skip local files - they don't change with version updates
-      c = c+1
+  var newSums = oldSums
+  for index, source in sources:
+    # Local entries and SKIP are intentionally not fetched or rewritten.
+    if not source.contains("://") or oldSums[index] == "SKIP":
       continue
 
-    # Download the source
+    let downloadPath = workDir / ($index & "-" & extractFilename(source).strip())
     try:
-      download(source, filename, raiseWhenFail = true)
-    except Exception as e:
+      fetcher(source, downloadPath)
+      newSums[index] = getSum(downloadPath, sumType)
+    except CatchableError as failure:
       if skipIfDownloadFails:
-        echo "WARN: '"&pkgName&"' failed because of download. Skipping."
+        echo "WARN: '" & pkgName & "' failed because of download. Skipping."
         return
-      else:
-        echo "ERROR: '"&pkgName&"' failed because of download: " & e.msg
-        raise
+      raise newException(IOError, "'" & pkgName &
+        "' failed because of download: " & failure.msg)
 
-    # Replace the sum
-    writeFile(packageDir&"/"&runFileName, readFile(
-                    packageDir&"/"&runFileName).replace(splitSum[c],
-                    getSum(filename, sumType)))
-    c = c+1
-
-  # Replace the version (only the version: line to avoid corrupting other fields)
-  # Handle both quoted and unquoted version values
-  let versionPattern = "^(version:\\s*\"?)" & escapeRegex(version) & "(\"?)$"
-  var content = readFile(packageDir&"/"&runFileName)
-  content = content.replace(re2(versionPattern, {regexMultiline}), "${1}" &
-      newVersion & "${2}")
-  writeFile(packageDir&"/"&runFileName, content)
-
-  # Replace the release (only the release: line to avoid corrupting other fields)
+  # Build and validate the complete new recipe in memory.
+  var content = readFile(runPath)
+  content = replaceMetadata(content, "version", version, newVersion)
   if not isEmptyOrWhitespace(release):
-    let releasePattern = "^(release:\\s*\"?)" & escapeRegex(pkgRelease) & "(\"?)$"
-    content = readFile(packageDir&"/"&runFileName)
-    content = content.replace(re2(releasePattern, {regexMultiline}), "${1}" &
-        release & "${2}")
-    writeFile(packageDir&"/"&runFileName, content)
-    echo "Autoupdate complete. As always, you should check if the package does build or not."
+    content = replaceMetadata(content, "release", pkgRelease, release)
+
+  for index in 0 ..< oldSums.len:
+    if newSums[index] != oldSums[index]:
+      content = replaceChecksumAtIndex(content, sumType & "sum", index,
+        oldSums[index], newSums[index])
+
+  # The temporary file is in the package directory, so rename is atomic and
+  # can never cross filesystems.
+  let (temporary, temporaryPath) = createTempFile(".run3-autoupdate-", ".tmp",
+    packageDir)
+  temporary.close()
+  var installed = false
+  defer:
+    if not installed and fileExists(temporaryPath):
+      removeFile(temporaryPath)
+  writeFile(temporaryPath, content)
+  let validationDir = createTempDir("krep-validate-", "")
+  defer:
+    if dirExists(validationDir): removeDir(validationDir)
+  writeFile(validationDir / "run3", content)
+  discard parseRun3(validationDir)
+  setFilePermissions(temporaryPath, getFilePermissions(runPath))
+  moveFile(temporaryPath, runPath)
+  installed = true
+
+  echo "Autoupdate complete. As always, you should check if the package does build or not."
+
+
+proc autoUpdater*(pkg: Run3File, packageDir: string, newVersion: string,
+                skipIfDownloadFails: bool, release: string = "") =
+  autoUpdaterWithFetcher(pkg, packageDir, newVersion, skipIfDownloadFails,
+    release, proc(source, destination: string) =
+      download(source, destination, raiseWhenFail = true))

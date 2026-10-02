@@ -1,8 +1,19 @@
 import os
 import parsecfg
+import strutils
+import ../../kpkg/modules/run3/run3
 import ../modules/backends/arch
 import ../modules/backends/repology
 import ../modules/backends/githubReleases
+
+proc isUpstreamCheckEligible*(packageDir: string): bool =
+  ## Return false only when a run3 package explicitly disables upstream checks.
+  ## Legacy `run` packages keep their existing behavior and are not parsed here.
+  if not fileExists(packageDir / "run3"):
+    return true
+
+  let noChkupd = parseRun3(packageDir).getVariable("no_chkupd")
+  return noChkupd.strip.toLowerAscii notin ["true", "1", "yes", "y", "on"]
 
 proc matchesWildcard*(text: string, pattern: string): bool =
   ## Check if text matches a wildcard pattern.
@@ -63,6 +74,14 @@ proc check*(package: string, repo: string, backend: string, autoUpdate = true,
     for matchedPkg in matchedPackages:
       echo "Checking package: " & matchedPkg
       check(matchedPkg, repo, backend, autoUpdate, skipIfDownloadFails, verbose)
+    return
+
+  # Eligibility is a local policy. Evaluate it before backend configuration or
+  # client creation so disabled run3 packages never cause a network request.
+  let packageDir = absolutePath(repo / package)
+  if not isUpstreamCheckEligible(packageDir):
+    if verbose:
+      echo "Skipping package with no_chkupd enabled: " & package
     return
 
   # No wildcards - proceed with normal check
