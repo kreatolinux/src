@@ -76,7 +76,7 @@ suite "native target variants":
   setup:
     createDir(root / "etc")
     writeFile(root / "etc/kreato-release",
-      "[Core]\nlibc=glibc\ncoreutils=busybox\ninit=jumpstart\ntlsLibrary=openssl\n")
+      "[Core]\nlibc=glibc\ncompiler=gcc\ncoreutils=busybox\ninit=jumpstart\ntlsLibrary=openssl\n")
 
   teardown:
     removeDir(root)
@@ -123,5 +123,5 @@ suite "native target variants":
 
   test "systemd host already supplies systemd and dbus":
     writeFile(root / "etc/kreato-release",
-      "[Core]\nlibc=glibc\ncoreutils=gnu\ninit=systemd\ntlsLibrary=openssl\n")
+      "[Core]\nlibc=glibc\ncompiler=gcc\ncoreutils=gnu\ninit=systemd\ntlsLibrary=openssl\n")
     check targetSandboxPackages(systemTarget(root) & "-systemd-openssl", root).len == 0
