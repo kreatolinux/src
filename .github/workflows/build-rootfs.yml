@@ -169,23 +169,24 @@ jobs:
           provenance: false
           tags: ghcr.io/kreatolinux/${{ matrix.image }}:aarch64,kreato/${{ matrix.dockerhub }}:aarch64
 
-      - name: Create and push multiarch manifests
+      - name: Create and verify multiarch latest tags
         env:
-          AMD64_BUILT: ${{ !inputs.arm64Only }}
           GHCR_IMAGE: ghcr.io/kreatolinux/${{ matrix.image }}
           DOCKERHUB_IMAGE: kreato/${{ matrix.dockerhub }}
         run: |
           set -euo pipefail
           for image in "$GHCR_IMAGE" "$DOCKERHUB_IMAGE"; do
-            if [ "$AMD64_BUILT" = "true" ]; then
-              AMD64_REF="$image:amd64"
-            else
-              # ARM64-only runs preserve the AMD64 platform from :latest.
-              docker manifest inspect "$image:latest" > /tmp/latest.json
-              AMD64_REF=$(jq -er --arg image "$image" 'if .manifests then ([.manifests[] | select(.platform.os == "linux" and .platform.architecture == "amd64") | $image + "@" + .digest] | .[0]) else $image + ":latest" end' /tmp/latest.json)
-            fi
-            docker manifest create "$image:latest" \
-              --amend "$AMD64_REF" \
-              --amend "$image:aarch64"
-            docker manifest push "$image:latest"
+            # Architecture tags persist across ARM64-only runs. Write the OCI
+            # index remotely instead of relying on `docker manifest` state.
+            docker buildx imagetools create \
+              --tag "$image:latest" \
+              "$image:amd64" \
+              "$image:aarch64"
+
+            docker buildx imagetools inspect --raw "$image:latest" \
+              > /tmp/latest-index.json
+            jq -e '
+              [.manifests[].platform | select(.os == "linux") | .architecture]
+              | (index("amd64") != null and index("arm64") != null)
+            ' /tmp/latest-index.json >/dev/null
           done
