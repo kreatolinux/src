@@ -190,6 +190,12 @@ those):
 .IP \[bu] 2
 \f[B]exec\f[R]: Execute a command as the service process.
 Required.
+.IP \[bu] 2
+\f[B]terminal\f[R]: Set to \f[V]true\f[R] for interactive services such
+as getty.
+The service inherits init\[cq]s terminal and remains in its foreground
+process group.
+Defaults to \f[V]false\f[R].
 .SS Example Service
 .IP
 .nf
@@ -199,6 +205,20 @@ type: \[dq]simple\[dq]
 
 service {
     exec \[dq]/usr/bin/example-daemon\[dq]
+}
+\f[R]
+.fi
+.PP
+Interactive getty example:
+.IP
+.nf
+\f[C]
+description: \[dq]Login on tty1\[dq]
+type: \[dq]simple\[dq]
+
+service {
+    terminal true
+    exec \[dq]/sbin/agetty --noclear tty1 linux\[dq]
 }
 \f[R]
 .fi
