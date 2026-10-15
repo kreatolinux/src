@@ -110,6 +110,7 @@ Services are units that run processes. To create a service, set `type` to `simpl
 The following commands are available inside `service` blocks, in addition to the default Kongue built-in commands (see kongue(5) for those):
 
 * **exec**: Execute a command as the service process. Required.
+* **terminal**: Set to `true` for interactive services such as getty. The service inherits init's terminal and remains in its foreground process group. Defaults to `false`.
 
 ## Example Service
 
@@ -119,6 +120,18 @@ type: "simple"
 
 service {
     exec "/usr/bin/example-daemon"
+}
+```
+
+Interactive getty example:
+
+```bash
+description: "Login on tty1"
+type: "simple"
+
+service {
+    terminal true
+    exec "/sbin/agetty --noclear tty1 linux"
 }
 ```
 

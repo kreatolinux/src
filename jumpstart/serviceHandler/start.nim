@@ -65,16 +65,16 @@ proc startService*(serviceName: string) =
     processPre = execDirect(serviceConfig.execPre, options = {poUsePath})
     discard waitForExit(processPre) # Wait for pre-exec to complete
 
-  # Services inherit PID 1's standard streams. In particular, getty must
-  # write its login prompt to the active virtual terminal and accept keyboard
-  # input; osproc's default anonymous pipes have no reader in Jumpstart.
-  let process = execDirect(serviceConfig.exec, options = serviceProcessOptions)
+  # Only explicitly interactive services inherit PID 1's terminal. Ordinary
+  # daemons retain their separate process group and cannot consume console input.
+  let processOptions = processOptionsForService(serviceConfig.terminal)
+  let process = execDirect(serviceConfig.exec, options = processOptions)
 
   let statusThread = cast[ptr Thread[StatusThreadArgs]](
       allocShared0(sizeof(Thread[StatusThreadArgs])))
   createThread(statusThread[], statusThreadMain, (process: process,
       serviceName: serviceName, command: serviceConfig.execPost,
-      options: serviceProcessOptions))
+      options: processOptions))
 
   services.add((serviceName: serviceName, process: process,
       processPre: processPre, statusThread: statusThread))

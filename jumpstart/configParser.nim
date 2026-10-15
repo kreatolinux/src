@@ -26,6 +26,7 @@ type
     exec*: string
     execPre*: string
     execPost*: string
+    terminal*: bool
 
   TimerConfig* = object
     name*: string
@@ -99,6 +100,9 @@ proc parseServiceBlock(funcNode: AstNode): ServiceConfig =
       of "exec_post", "execPost":
         if stmt.callArgs.len > 0:
           result.execPost = stmt.callArgs[0]
+      of "terminal":
+        if stmt.callArgs.len > 0:
+          result.terminal = stmt.callArgs[0].toLowerAscii() in ["true", "yes", "1", "on"]
       else:
         discard
     else:
