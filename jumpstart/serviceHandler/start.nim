@@ -1,7 +1,6 @@
 import osproc
 import os
 import strutils
-import std/threadpool
 import status
 import ../../common/logging
 include ../commonImports
@@ -66,11 +65,17 @@ proc startService*(serviceName: string) =
     processPre = execDirect(serviceConfig.execPre, options = {poUsePath})
     discard waitForExit(processPre) # Wait for pre-exec to complete
 
-  let process = execDirect(serviceConfig.exec, options = {poUsePath, poDaemon})
+  # Services inherit PID 1's standard streams. In particular, getty must
+  # write its login prompt to the active virtual terminal and accept keyboard
+  # input; osproc's default anonymous pipes have no reader in Jumpstart.
+  let process = execDirect(serviceConfig.exec, options = serviceProcessOptions)
 
-  services = services&(serviceName: serviceName, process: process,
-          processPre: processPre)
+  let statusThread = cast[ptr Thread[StatusThreadArgs]](
+      allocShared0(sizeof(Thread[StatusThreadArgs])))
+  createThread(statusThread[], statusThreadMain, (process: process,
+      serviceName: serviceName, command: serviceConfig.execPost,
+      options: serviceProcessOptions))
 
-  spawn statusDaemon(process, serviceName, serviceConfig.execPost,
-          options = {poUsePath, poDaemon})
+  services.add((serviceName: serviceName, process: process,
+      processPre: processPre, statusThread: statusThread))
   ok "Started "&serviceName

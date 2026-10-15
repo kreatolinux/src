@@ -33,6 +33,10 @@ proc stopService*(serviceName: string) =
       except:
         discard
 
+      if service.statusThread != nil:
+        joinThread(service.statusThread[])
+        deallocShared(service.statusThread)
+
       debug "Closing process"
       close(service.process)
 

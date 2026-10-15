@@ -8,6 +8,10 @@ import osproc
 import os
 import strutils
 
+const serviceProcessOptions* = {poUsePath, poDaemon, poParentStreams}
+  ## Long-running services inherit PID 1's terminal instead of writing to
+  ## unread anonymous pipes. This is required for interactive getty services.
+
 proc execDirect*(cmd: string, options: set[ProcessOption] = {}): Process =
   ## Execute a command without shell interpretation.
   ## Parses the command string and calls startProcess directly.

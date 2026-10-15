@@ -1,9 +1,17 @@
 import osproc
 
-type Service* = tuple
-  serviceName: string
-  process: Process
-  processPre: Process
+type
+  StatusThreadArgs* = tuple
+    process: Process
+    serviceName: string
+    command: string
+    options: set[ProcessOption]
+
+  Service* = tuple
+    serviceName: string
+    process: Process
+    processPre: Process
+    statusThread: ptr Thread[StatusThreadArgs]
 
 type TimerData* = tuple
   timerName: string

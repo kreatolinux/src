@@ -3,6 +3,7 @@ import os
 import posix
 import strutils
 import ../commonImports
+import globalVariables
 
 proc statusDaemon*(process: Process, serviceName: string, command: string,
         options: set[ProcessOption]) =
@@ -30,3 +31,6 @@ proc statusDaemon*(process: Process, serviceName: string, command: string,
               "stopped with an exit code "&intToStr(exited))
   except CatchableError:
     writeFile(serviceHandlerPath&"/"&serviceName&"/status", "stopped")
+
+proc statusThreadMain*(args: StatusThreadArgs) {.thread.} =
+  statusDaemon(args.process, args.serviceName, args.command, args.options)
