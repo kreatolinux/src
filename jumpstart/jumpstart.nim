@@ -44,56 +44,26 @@ proc ctrlc() {.noconv.} =
 
 setControlCHook(ctrlc)
 
-proc getUnitKind(name: string): UnitKind {.gcsafe.} =
-  case splitFile(name).ext:
-    of ".mount": ukMount
-    of ".timer": ukTimer
-    else: ukService
-
 var client: Socket
 var address = ""
 serviceHandlerInit()
 while true:
   socket.acceptAddr(client, address)
   var json = parseJson(client.recvLine())
-  let unitKind = getUnitKind(getStr(json["service"]["name"], ""))
+  let unitName = getStr(json["service"]["name"], "")
 
   case getStr(json["service"]["action"], ""):
     of "stop":
-      case unitKind:
-        of ukMount:
-          stopMount(getStr(json["service"]["name"], ""))
-        of ukTimer:
-          stopTimer(getStr(json["service"]["name"], ""))
-        of ukService:
-          stopService(getStr(json["service"]["name"], ""))
+      stopRequestedUnit(unitName)
     of "start":
-      case unitKind:
-        of ukMount:
-          startMount(getStr(json["service"]["name"], ""))
-        of ukTimer:
-          startTimer(getStr(json["service"]["name"], ""))
-        of ukService:
-          startService(getStr(json["service"]["name"], ""))
+      startRequestedUnit(unitName)
     of "enable":
-      enableUnit(getStr(json["service"]["name"], ""), unitKind)
+      enableUnit(unitName)
       if getStr(json["service"]["now"], "") == "true":
-        case unitKind:
-          of ukMount:
-            startMount(getStr(json["service"]["name"], ""))
-          of ukTimer:
-            startTimer(getStr(json["service"]["name"], ""))
-          of ukService:
-            startService(getStr(json["service"]["name"], ""))
+        startRequestedUnit(unitName)
     of "disable":
-      disableUnit(getStr(json["service"]["name"], ""), unitKind)
+      disableUnit(unitName)
       if getStr(json["service"]["now"], "") == "true":
-        case unitKind:
-          of ukMount:
-            stopMount(getStr(json["service"]["name"], ""))
-          of ukTimer:
-            stopTimer(getStr(json["service"]["name"], ""))
-          of ukService:
-            stopService(getStr(json["service"]["name"], ""))
-
-
+        stopRequestedUnit(unitName)
+    else:
+      warn "Unknown unit action"

@@ -84,6 +84,9 @@ jobs:
   # ARM64-only runs retain the already-published AMD64 image.
   docker:
     needs: build
+    # Publish image variants whose artifacts completed even if another matrix
+    # variant failed. Missing artifacts still fail only the affected image job.
+    if: ${{ always() && (needs.build.result == 'success' || needs.build.result == 'failure') }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false

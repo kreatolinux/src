@@ -3,6 +3,8 @@
 include ../commonImports
 import ../types
 import ../configParser
+import ../unitname
+import ../unitdispatch
 import ../dephandler
 import ../mounts
 import ../exec
@@ -92,6 +94,51 @@ proc startUnit(config: UnitConfig, unitName: string) =
     # Then timers
     for tmr in config.timers:
       startTimer(unitName & "::" & tmr.name)
+
+proc startRequestedUnit*(requestedName: string) =
+  let normalized = normalizeUnitName(requestedName)
+  try:
+    let config = parseUnit(configPath, unitBaseName(normalized))
+    if "::" notin normalized:
+      startUnit(config, normalized)
+    else:
+      case requestedUnitKind(config, normalized)
+      of ukMount: startMount(normalized)
+      of ukTimer: startTimer(normalized)
+      of ukService: startService(normalized)
+  except CatchableError as e:
+    warn "Couldn't start unit " & normalized & ": " & e.msg
+
+proc stopUnit(config: UnitConfig, unitName: string) =
+  case config.unitType
+  of utSimple, utOneshot:
+    stopService(unitName)
+  of utTimer:
+    stopTimer(unitName)
+  of utMount:
+    stopMount(unitName)
+  of utMulti:
+    # Reverse startup order when stopping a complete multi-unit.
+    for i in countdown(config.timers.high, 0):
+      stopTimer(unitName & "::" & config.timers[i].name)
+    for i in countdown(config.services.high, 0):
+      stopService(unitName & "::" & config.services[i].name)
+    for i in countdown(config.mounts.high, 0):
+      stopMount(unitName & "::" & config.mounts[i].name)
+
+proc stopRequestedUnit*(requestedName: string) =
+  let normalized = normalizeUnitName(requestedName)
+  try:
+    let config = parseUnit(configPath, unitBaseName(normalized))
+    if "::" notin normalized:
+      stopUnit(config, normalized)
+    else:
+      case requestedUnitKind(config, normalized)
+      of ukMount: stopMount(normalized)
+      of ukTimer: stopTimer(normalized)
+      of ukService: stopService(normalized)
+  except CatchableError as e:
+    warn "Couldn't stop unit " & normalized & ": " & e.msg
 
 proc serviceHandlerInit() =
   ## Initialize serviceHandler.

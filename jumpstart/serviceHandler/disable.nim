@@ -1,18 +1,18 @@
 import os
 include ../commonImports
-import ../types
+import ../unitname
 import ../../common/logging
 
-proc disableUnit*(unit: string, kind: UnitKind) =
+proc disableUnit*(unit: string) =
   ## Disables a unit (service, mount, or timer).
   ## With the new .kg format, all units are in configPath
-  ## The 'kind' parameter is kept for API compatibility but is now optional
 
-  let unitFile = unit & ".kg"
+  let definitionName = unitBaseName(unit)
+  let unitFile = definitionName & ".kg"
   let enabledPath = configPath & "/enabled/" & unitFile
 
   if fileExists(enabledPath) or symlinkExists(enabledPath):
     removeFile(enabledPath)
-    ok "Disabled unit " & unit
+    ok "Disabled unit " & definitionName
   else:
-    info "Unit " & unit & " is already disabled"
+    info "Unit " & definitionName & " is already disabled"

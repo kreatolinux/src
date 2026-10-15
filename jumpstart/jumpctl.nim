@@ -1,25 +1,21 @@
 import cligen
 import std/net
 include commonImports
-import types
 import strutils
+import unitname
 import json
 
 let socket = newSocket(AF_UNIX, SOCK_STREAM, IPPROTO_IP)
 
 ## Tool to control Jumpstart.
 
-proc unitName(service: seq[string]): tuple[name: string, kind: UnitKind] =
-  ## Convenience proc to check the reported unit name.
-  case splitFile(service[0]).ext:
-    of "":
-      return (name: service[0]&".service", kind: ukService)
-    of ".service":
-      return (name: service[0], kind: ukService)
-    of ".mount":
-      return (name: service[0], kind: ukMount)
-    of ".timer":
-      return (name: service[0], kind: ukTimer)
+proc unitName(service: seq[string]): string =
+  ## Normalize names to the unified .kg definition name. Legacy suffixes are
+  ## accepted for compatibility but are not sent to the daemon.
+  if service.len == 0 or isEmptyOrWhitespace(service[0]):
+    echo "jumpstart: please enter unit name"
+    quit(1)
+  result = normalizeUnitName(service[0])
 
 proc buildMessage(unitName: string, action: string, now: string): string =
   ## Build JSON message for socket communication.
@@ -59,7 +55,7 @@ proc enable(service: seq[string], now = false) =
   let unit = unitName(service)
 
   let nowStr = if now: "true" else: "false"
-  sendSock(buildMessage(unit.name, "enable", nowStr))
+  sendSock(buildMessage(unit, "enable", nowStr))
   echo("jumpstart: enabled unit "&service[0])
 
 proc disable(service: seq[string], now = false) =
@@ -69,7 +65,7 @@ proc disable(service: seq[string], now = false) =
   let unit = unitName(service)
 
   let nowStr = if now: "true" else: "false"
-  sendSock(buildMessage(unit.name, "disable", nowStr))
+  sendSock(buildMessage(unit, "disable", nowStr))
   echo("jumpstart: disabled unit "&service[0])
 
 proc start(service: seq[string]) =
@@ -78,7 +74,7 @@ proc start(service: seq[string]) =
 
   let unit = unitName(service)
 
-  sendSock(buildMessage(unit.name, "start", "false"))
+  sendSock(buildMessage(unit, "start", "false"))
   echo("jumpstart: started unit "&service[0])
 
 proc stop(service: seq[string]) =
@@ -87,7 +83,7 @@ proc stop(service: seq[string]) =
 
   let unit = unitName(service)
 
-  sendSock(buildMessage(unit.name, "stop", "false"))
+  sendSock(buildMessage(unit, "stop", "false"))
   echo("jumpstart: stopped unit "&service[0])
 
 proc status(service: seq[string]) =
@@ -95,21 +91,20 @@ proc status(service: seq[string]) =
 
   let unit = unitName(service)
 
-  var status: string
-  var statusPath: string
-
-  case unit.kind:
-    of ukMount:
-      statusPath = serviceHandlerPath&"/mounts/"&unit.name&"/status"
-    of ukTimer:
-      statusPath = serviceHandlerPath&"/timers/"&unit.name&"/status"
-    of ukService:
-      statusPath = serviceHandlerPath&"/"&unit.name&"/status"
-
-  try:
-    status = readFile(statusPath)
-  except CatchableError:
-    status = "stopped"
+  var status = "stopped"
+  # Running state already records the unit kind in its directory. Checking all
+  # three locations also makes status work for bare .kg unit names.
+  for statusPath in [
+    serviceHandlerPath&"/"&unit&"/status",
+    serviceHandlerPath&"/mounts/"&unit&"/status",
+    serviceHandlerPath&"/timers/"&unit&"/status"
+  ]:
+    try:
+      if fileExists(statusPath):
+        status = readFile(statusPath)
+        break
+    except CatchableError:
+      discard
 
   echo "jumpstart: unit is reporting status as '"&status&"'"
 

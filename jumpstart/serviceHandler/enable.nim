@@ -1,14 +1,14 @@
 import os
 include ../commonImports
-import ../types
+import ../unitname
 import ../../common/logging
 
-proc enableUnit*(unit: string, kind: UnitKind) =
+proc enableUnit*(unit: string) =
   ## Enables a unit (service, mount, or timer).
   ## With the new .kg format, all units are in configPath
-  ## The 'kind' parameter is kept for API compatibility but is now optional
 
-  let unitFile = unit & ".kg"
+  let definitionName = unitBaseName(unit)
+  let unitFile = definitionName & ".kg"
   let unitPath = configPath & "/" & unitFile
   let enabledPath = configPath & "/enabled/" & unitFile
 
@@ -17,12 +17,12 @@ proc enableUnit*(unit: string, kind: UnitKind) =
     return
 
   if fileExists(enabledPath) or symlinkExists(enabledPath):
-    info "Unit " & unit & " is already enabled, no need to re-enable"
+    info "Unit " & definitionName & " is already enabled, no need to re-enable"
     return
 
   try:
     discard existsOrCreateDir(configPath & "/enabled")
     createSymlink(unitPath, enabledPath)
-    ok "Enabled " & unit
+    ok "Enabled " & definitionName
   except CatchableError as e:
     warn "Couldn't enable " & unit & ": " & e.msg
