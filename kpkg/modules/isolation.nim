@@ -3,6 +3,7 @@ import std/os
 import ../../common/logging
 import sqlite
 import envstate
+import rootfs/state as rootfsState
 from libarchive import isArchiveRootMetadata
 import processes
 import dephandler
@@ -194,12 +195,14 @@ proc checkEnvPackageUpdates*(name, root: string, envRoot = kpkgEnvPath): bool =
       envPkg.epoch != sourcePkg.epoch
 
 
+proc requestedSandboxTarget(target, root: string): string =
+  if target == "default": kpkgTarget(root) else: target
+
 proc createEnv(root: string, ignorePostInstall = false,
                deferPostInstall = false, target = "default") =
   # TODO: cross-compilation support
   info "initializing sandbox, this might take a while..."
   setControlCHook(createEnvCtrlC)
-  invalidateEnvSetup(kpkgEnvPath)
   initDirectories(kpkgEnvPath, hostCPU, true)
 
   # The env has to carry a release file of its own: kpkgTarget() and friends read
@@ -209,11 +212,13 @@ proc createEnv(root: string, ignorePostInstall = false,
   var dict = resolveRelease(root)
   let rootInit = dict.getSectionValue("Core", "init")
   let rootTls = dict.getSectionValue("Core", "tlsLibrary")
+  let rootCoreutils = dict.getSectionValue("Core", "coreutils")
   if target != "default" and not isCrossTarget(target, root):
     let parts = target.split("-")
     if parts.len == 5:
       dict.setSectionKey("Core", "init", parts[3])
       dict.setSectionKey("Core", "tlsLibrary", parts[4])
+      dict.setSectionKey("Core", "coreutils", targetCoreutils(target, root))
   createDir(kpkgEnvPath & "/etc")
   dict.writeConfig(kpkgEnvPath / kreatoReleaseName)
 
@@ -222,13 +227,11 @@ proc createEnv(root: string, ignorePostInstall = false,
   var envRoots = @[libc]
   envRoots.add(if compiler == "clang": "llvm" else: compiler)
 
-  case dict.getSectionValue("Core", "coreutils"):
-    of "gnu":
-      envRoots.add(["gnu-coreutils", "pigz", "xz-utils", "bash", "gsed",
-              "bzip2", "patch", "diffutils", "findutils", "util-linux",
-              "bc", "cpio", "which"])
-    of "busybox":
-      envRoots.add("busybox")
+  # Seed from the source root first. Variant packages are downloaded after
+  # this minimal environment is usable, then replace this source profile.
+  case rootCoreutils:
+    of "gnu": envRoots.add("gnu-core")
+    of "busybox": envRoots.add("busybox")
 
   envRoots.add(rootTls)
   # Do not copy the host init when an explicit native target requests another
@@ -239,6 +242,10 @@ proc createEnv(root: string, ignorePostInstall = false,
     if rootInit == "systemd":
       envRoots.add("dbus")
   envRoots.add("kreato-fs-essentials git kpkg ca-certificates python python-pip gmake".split(" "))
+
+  let desiredProfile = sandboxProfileForTarget(target, root)
+  initializeEnvState(kpkgEnvPath, desiredProfile,
+      desiredProfile.packageRoots)
 
   let depsTotal = installFromRoot(envRoots, root, kpkgEnvPath,
           ignorePostInstall = true)
@@ -300,7 +307,8 @@ proc createEnv(root: string, ignorePostInstall = false,
     warn "sandbox postinstall and CA setup deferred for repair; rebuild without deferPostInstall to initialize normally"
   finishEnvSetup(kpkgEnvPath, updateTrust, postInstall,
       deferPostInstall = deferPostInstall,
-      ignorePostInstall = ignorePostInstall)
+      ignorePostInstall = ignorePostInstall,
+      publishReady = targetSandboxPackages(target, root).len == 0)
 
 
 proc umountOverlay*(error = "none", silentMode = false, merged = kpkgMergedPath,
@@ -351,22 +359,40 @@ proc umountOverlay*(error = "none", silentMode = false, merged = kpkgMergedPath,
 proc createOrUpgradeEnv*(root: string, ignorePostInstall = false,
                          deferPostInstall = false, target = "default") =
   ## Creates and upgrades environment (if needed).
-  ## Deferred or incomplete environments are never reused by normal builds.
+  ## A persistent sandbox is target-specific. Changing target requires an
+  ## explicit clean instead of silently destroying the existing environment.
+  let desiredEnvTarget = requestedSandboxTarget(target, root)
+  if fileExists(kpkgEnvPath / kreatoReleaseName):
+    var existingEnvTarget = kpkgTarget(kpkgEnvPath)
+    var existingFingerprint = ""
+    if fileExists(kpkgEnvPath / rootfsStateFile):
+      try:
+        let existingState = loadRootfsState(kpkgEnvPath / rootfsStateFile)
+        existingEnvTarget = existingState.target
+        existingFingerprint = existingState.profileFingerprint
+      except CatchableError:
+        discard
+    let desiredProfile = sandboxProfileForTarget(target, root)
+    if existingEnvTarget != desiredEnvTarget or
+        (existingFingerprint.len > 0 and
+          existingFingerprint != desiredProfile.fingerprint):
+      raise newException(ValueError, "build sandbox profile mismatch (existing target '" &
+          existingEnvTarget & "', requested target '" & desiredEnvTarget &
+          "'); run 'kpkg clean --environment' before changing --target or profile")
 
   if canReuseEnv(kpkgEnvPath, deferPostInstall, ignorePostInstall):
     try:
-      let desiredEnvTarget = if target != "default" and
-          not isCrossTarget(target, root) and target.split("-").len == 5:
-        target
-      else:
-        kpkgTarget(root)
-      var needsReinit = kpkgTarget(kpkgEnvPath) != desiredEnvTarget
+      var needsReinit = false
       let envPkgList = getListPackages(kpkgEnvPath)
-      let variantPackages = targetSandboxPackages(target, root)
+      let explicitNativeTarget = target != "default" and
+          not isCrossTarget(target, root)
 
       for pkg in envPkgList:
-        # Explicit target variants can be absent from the host by design.
-        if pkg notin variantPackages and checkEnvPackageUpdates(pkg, root):
+        # A target-profile package may intentionally not exist in the source
+        # root. Packages shared with it must still match its installed version.
+        if explicitNativeTarget and not packageExistsExact(pkg, root):
+          continue
+        if checkEnvPackageUpdates(pkg, root):
           debug "upgradeEnv: base package '"&pkg&"' is mismatching with the system, reinitializing environment"
           needsReinit = true
 

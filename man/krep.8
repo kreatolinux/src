@@ -135,8 +135,8 @@ Use only when an external chroot or other suitable isolation boundary is
 already in place.
 .TP
 \f[B]\[en]configPath=FILE\f[R]
-Use an explicit rootfs INI configuration instead of the selected
-resource directory\[cq]s \f[V]arch/ARCH/configs/TYPE.conf\f[R].
+Use an explicit declarative Kongue rootfs configuration instead of the
+selected resource directory\[cq]s \f[V]arch/ARCH/configs/TYPE.kg\f[R].
 .TP
 \f[B]\[en]overlayPath=DIRECTORY\f[R]
 Use an explicit rootfs overlay directory instead of the selected
@@ -260,8 +260,8 @@ Installed executable and image resources.
 For example, \f[B]make install_krep PREFIX=/usr
 DESTDIR=/tmp/package\f[R].
 .TP
-\f[V]share/krep/rootfs/arch/ARCH/configs/TYPE.conf\f[R]
-Existing kreastrap INI configuration, described in kreastrap.conf(5).
+\f[V]share/krep/rootfs/arch/ARCH/configs/TYPE.kg\f[R]
+Declarative Kongue rootfs configuration, described in kreastrap.kg(5).
 .SH EXAMPLES
 .PP
 Check versions without updating packages:
@@ -371,7 +371,7 @@ handoff, console login, and shutdown.
 See \f[V]krep/ISO.md\f[R] for detailed requirements.
 .SH SEE ALSO
 .PP
-kpkg(8), kreastrap.conf(5), chkupd.cfg(5)
+kpkg(8), kreastrap.kg(5), chkupd.cfg(5)
 .SH COPYRIGHT
 .PP
 Copyright (C) Kreato Linux contributors.

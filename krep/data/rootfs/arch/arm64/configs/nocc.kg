@@ -1,0 +1,14 @@
+schema_version: "1"
+build_directory: "/out"
+package_mode: "binary"
+use_overlay: "true"
+
+arch: "aarch64"
+os: "linux"
+libc: "glibc"
+compiler: "no"
+coreutils: "busybox"
+init: "jumpstart"
+tls_library: "openssl"
+
+extra_packages:

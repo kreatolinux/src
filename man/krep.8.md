@@ -89,8 +89,8 @@ Requires **--file** and **--output**. This does not generate roff output.
 external chroot or other suitable isolation boundary is already in place.
 
 **--configPath=FILE**
-: Use an explicit rootfs INI configuration instead of the selected resource
- directory's `arch/ARCH/configs/TYPE.conf`.
+: Use an explicit declarative Kongue rootfs configuration instead of the selected
+ resource directory's `arch/ARCH/configs/TYPE.kg`.
 
 **--overlayPath=DIRECTORY**
 : Use an explicit rootfs overlay directory instead of the selected resource
@@ -180,8 +180,8 @@ When using sudo, ensure the variable is passed to the privileged process.
 `PREFIX=/usr/local`. **DESTDIR** stages a package without changing the runtime
 prefix. For example, **make install_krep PREFIX=/usr DESTDIR=/tmp/package**.
 
-`share/krep/rootfs/arch/ARCH/configs/TYPE.conf`
-: Existing kreastrap INI configuration, described in kreastrap.conf(5).
+`share/krep/rootfs/arch/ARCH/configs/TYPE.kg`
+: Declarative Kongue rootfs configuration, described in kreastrap.kg(5).
 
 # EXAMPLES
 Check versions without updating packages:
@@ -262,7 +262,7 @@ Inspect the initramfs and test each intended BIOS/UEFI mode, live-root handoff,
 console login, and shutdown. See `krep/ISO.md` for detailed requirements.
 
 # SEE ALSO
-kpkg(8), kreastrap.conf(5), chkupd.cfg(5)
+kpkg(8), kreastrap.kg(5), chkupd.cfg(5)
 
 # COPYRIGHT
 Copyright (C) Kreato Linux contributors.

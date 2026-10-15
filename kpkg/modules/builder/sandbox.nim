@@ -16,6 +16,12 @@ import ./types
 import ../../../common/logging
 import ../config
 import ../isolation
+import ../envstate
+import ../removeInternal
+import ../rootfs/finalize as rootfsFinalize
+import ../rootfs/profile as rootfsProfile
+import ../rootfs/types
+import ../rootfs/provision as rootfsProvision
 import ../dephandler
 import ../processes
 import ../commonPaths
@@ -81,6 +87,8 @@ proc buildPackageInSandboxImpl(pkgName: string, depGraph: dependencyGraph,
   ##   builderProc: Callback to builder() function
   ##   installPkgProc: Callback for installing packages to overlay
 
+  let pkgTmp = parsePkgInfo(pkgName)
+
   if sandboxCfg.noSandbox:
     # The root itself (a chroot or seed image) is the isolation boundary.
     # There is no kpkg env to create: createEnv() copies the host system into
@@ -94,32 +102,61 @@ proc buildPackageInSandboxImpl(pkgName: string, depGraph: dependencyGraph,
     # createEnv copies packages installed in the host root. A requested native
     # init variant may not be installed there, so complete the persistent
     # sandbox from that target's binary repository.
+    let profileExclusions = @[pkgTmp.name]
     let targetPackages = targetSandboxPackages(sandboxCfg.target,
-        sandboxCfg.root)
+        sandboxCfg.root, profileExclusions)
     if targetPackages.len > 0:
       # Resolve runtime dependencies as well: installPkg only extracts a cached
       # archive and neither downloads it nor installs its dependency closure.
       let variantDeps = dephandler(targetPackages, root = kpkgEnvPath)
-      for targetPackage in variantDeps:
-        if isEmptyOrWhitespace(targetPackage) or
-            packageExists(targetPackage, kpkgEnvPath):
-          continue
-        down_bin(targetPackage,
-            getConfigValue("Repositories", "binRepos").split(" "),
-            kpkgEnvPath, offline = false, kTarget = sandboxCfg.target)
-        installPkgProc(InstallConfig(
-          repo: findPkgRepo(targetPackage),
-          package: targetPackage,
-          root: kpkgEnvPath,
-          isUpgrade: false,
-          kTarget: sandboxCfg.target,
-          manualInstallList: @[],
-          disablePkgInfo: false,
-          ignorePostInstall: true,
-          deferPostInstall: sandboxCfg.deferPostInstall
-        ))
+      let missingVariantDeps = variantDeps.filterIt(
+          not isEmptyOrWhitespace(it) and not packageExists(it, kpkgEnvPath))
+      if missingVariantDeps.len > 0:
+        # Do not publish a partly converted sandbox as reusable. Source-profile
+        # packages are removed only after every target archive is available.
+        invalidateEnvSetup(kpkgEnvPath)
+        let desiredProfile = sandboxProfileForTarget(sandboxCfg.target,
+            sandboxCfg.root)
+        let conversion = RootfsPlan(profile: desiredProfile,
+          mode: rmSeeded, acquire: missingVariantDeps,
+          remove: targetSandboxReplacedPackages(sandboxCfg.target,
+            sandboxCfg.root, profileExclusions),
+          install: missingVariantDeps, exclusions: profileExclusions)
+        try:
+          rootfsProvision.provision(conversion,
+            proc(package, target: string) =
+              down_bin(package,
+                getConfigValue("Repositories", "binRepos").split(" "),
+                kpkgEnvPath, offline = false, kTarget = target),
+            proc(package: string) =
+              if packageExists(package, kpkgEnvPath):
+                removeInternal(package, kpkgEnvPath, initCheck = false),
+            proc(package: string) =
+              installPkgProc(InstallConfig(repo: findPkgRepo(package),
+                package: package, root: kpkgEnvPath, isUpgrade: false,
+                kTarget: sandboxCfg.target, manualInstallList: @[],
+                disablePkgInfo: false, ignorePostInstall: true,
+                deferPostInstall: sandboxCfg.deferPostInstall)),
+            proc(phase: ProvisionPhase, pending, completed: seq[string]) =
+              markEnvProvisioning(kpkgEnvPath, phase, pending, completed))
+        except CatchableError:
+          markEnvFailed(kpkgEnvPath, "profile_conversion")
+          raise
+      # Variant installation deliberately skips hooks here. Publish readiness
+      # only after profile links/finalizers are complete.
+      if sandboxCfg.deferPostInstall:
+        markEnvDeferred(kpkgEnvPath)
+      else:
+        let desiredProfile = sandboxProfileForTarget(sandboxCfg.target,
+            sandboxCfg.root)
+        let excludedIdentity = profileExclusions.anyIt(it in
+            rootfsProfile.sourceProfileRoots(desiredProfile))
+        if excludedIdentity:
+          markEnvProvisioning(kpkgEnvPath, rpInstalling, profileExclusions)
+        else:
+          rootfsFinalize.finalizeProfileLinks(kpkgEnvPath, desiredProfile)
+          markEnvReady(kpkgEnvPath)
 
-  let pkgTmp = parsePkgInfo(pkgName)
 
   # Extract sandbox dependencies from the graph
   let sandboxDeps = getSandboxDepsFromGraph(pkgTmp.name, depGraph,

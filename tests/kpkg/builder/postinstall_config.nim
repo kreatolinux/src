@@ -51,7 +51,7 @@ suite "native target variants":
   setup:
     createDir(root / "etc")
     writeFile(root / "etc/kreato-release",
-      "[Core]\nlibc=glibc\ninit=jumpstart\ntlsLibrary=openssl\n")
+      "[Core]\nlibc=glibc\ncoreutils=busybox\ninit=jumpstart\ntlsLibrary=openssl\n")
 
   teardown:
     removeDir(root)
@@ -71,7 +71,11 @@ suite "native target variants":
 
   test "systemd native target adds its sandbox base packages":
     let target = systemTarget(root) & "-systemd-openssl"
-    check targetSandboxPackages(target, root) == @["dbus", "systemd"]
+    check targetCoreutils(target, root) == "gnu"
+    check targetSandboxPackages(target, root) ==
+      @["gnu-core", "dbus", "systemd"]
+    check targetSandboxReplacedPackages(target, root) ==
+      @["busybox", "jumpstart"]
 
   test "cross target does not use host sandbox packages":
     let hostSystem = systemTarget(root)
@@ -94,5 +98,5 @@ suite "native target variants":
 
   test "systemd host already supplies systemd and dbus":
     writeFile(root / "etc/kreato-release",
-      "[Core]\nlibc=glibc\ninit=systemd\ntlsLibrary=openssl\n")
+      "[Core]\nlibc=glibc\ncoreutils=gnu\ninit=systemd\ntlsLibrary=openssl\n")
     check targetSandboxPackages(systemTarget(root) & "-systemd-openssl", root).len == 0

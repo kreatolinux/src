@@ -1,0 +1,17 @@
+schema_version: "1"
+build_directory: "/out"
+package_mode: "binary"
+use_overlay: "true"
+
+arch: "aarch64"
+os: "linux"
+libc: "glibc"
+compiler: "gcc"
+coreutils: "gnu"
+init: "systemd"
+tls_library: "openssl"
+
+extra_packages:
+  - "gmake"
+  - "nim"
+  - "gtar"

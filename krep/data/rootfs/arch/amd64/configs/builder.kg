@@ -1,0 +1,17 @@
+schema_version: "1"
+build_directory: "/out"
+package_mode: "binary"
+use_overlay: "true"
+
+arch: "x86_64"
+os: "linux"
+libc: "glibc"
+compiler: "gcc"
+coreutils: "busybox"
+init: "jumpstart"
+tls_library: "openssl"
+
+extra_packages:
+  - "gmake"
+  - "nim"
+  - "gtar"

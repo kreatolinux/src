@@ -92,7 +92,7 @@ Image task options include:
 
 - `rootfs`: `--buildType` (default `builder`), `--arch` (default `amd64`),
   `--useCacheIfPossible` (default true), and `--noSandbox` (default false).
-- `rootfs` also accepts `--configPath` to select an explicit INI configuration
+- `rootfs` also accepts `--configPath` to select an explicit Kongue configuration
   file and `--overlayPath` to select an explicit overlay directory. These override
   the corresponding paths beneath the selected resource directory. The
   configuration's `useOverlay` setting still controls whether the overlay is used.
@@ -121,7 +121,7 @@ target copies this layout:
 ```text
 share/krep/
   rootfs/
-    arch/<architecture>/configs/<buildType>.conf
+    arch/<architecture>/configs/<buildType>.kg
     overlay/                 # optional, copied if krep/data/rootfs/overlay exists
   iso/
     overlay/                 # common live-root files
@@ -140,8 +140,8 @@ variable explicitly if your sudo configuration does not preserve it:
 sudo env KREP_DATA_DIR=/opt/krep-assets /usr/local/bin/krep rootfs --arch=amd64
 ```
 
-Rootfs configuration remains the kreastrap INI format documented in
-[kreastrap.conf(5)](../man/kreastrap.conf.5.md). Existing chkupd configuration,
+Rootfs configuration uses the strict declarative Kongue format documented in
+[kreastrap.kg(5)](../man/kreastrap.kg.5.md). Existing chkupd configuration,
 kpkg configuration, and runfile formats remain unchanged. Source resource
 fallbacks are `krep/data/rootfs` and `krep/data/iso`.
 

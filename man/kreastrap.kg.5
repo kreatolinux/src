@@ -1,0 +1,37 @@
+.TH "kreastrap.kg" "5" "" "" ""
+.SH NAME
+kreastrap.kg \- declarative Kongue configuration for krep rootfs
+.SH DESCRIPTION
+Rootfs configurations are declarative Kongue documents stored as
+.B share/krep/rootfs/arch/ARCH/configs/BUILD_TYPE.kg.
+Only literal scalar and list fields are accepted. Functions, commands,
+interpolation, mutation, qualifiers, duplicate fields, and unknown fields are
+rejected. Only .kg Kongue rootfs configurations are supported.
+.SH FIELDS
+.TP
+.B schema_version
+Schema version; currently 1.
+.TP
+.B build_directory
+Rootfs output directory.
+.TP
+.B package_mode
+Either binary or build.
+.TP
+.B use_overlay
+Whether to copy the selected rootfs overlay.
+.TP
+.B arch, os, libc, compiler, coreutils, init, tls_library
+Rootfs profile fields.
+.TP
+.B package_roots
+Optional explicit resolved package roots.
+.TP
+.B extra_packages
+Additional packages installed after core profile roots.
+.SH STATE
+Provisioning writes
+.B rootfs-state.kg
+into the root. Only status ready with phase complete is reusable.
+.SH COPYRIGHT
+Copyright Kreato contributors. Licensed under GPL-3.0-or-later.

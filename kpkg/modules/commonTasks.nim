@@ -11,6 +11,9 @@ import posix_utils
 import gitutils
 import times
 import hostSystem
+import rootfs/types as rootfsTypes
+import rootfs/profile as rootfsProfile
+import rootfs/plan as rootfsPlan
 
 export hostSystem
 
@@ -211,19 +214,66 @@ proc isCrossTarget*(target: string, root = "/"): bool =
   ## A different package variant is native when its system triplet matches.
   target != "default" and targetSystem(target, root) != systemTarget(root)
 
-proc targetSandboxPackages*(target: string, root = "/"): seq[string] =
-  ## Extra base packages required by an explicit native init variant.
-  if target == "default" or isCrossTarget(target, root):
-    return
-  let requestedInit = targetInit(target, root)
-  if requestedInit != getInit(root):
-    if requestedInit == "systemd":
-      result.add("dbus")
-    result.add(requestedInit)
-  let parts = target.split("-")
-  if parts.len == 5 and parts[4] != resolveRelease(root).getSectionValue(
-      "Core", "tlsLibrary"):
-    result.add(parts[4])
+proc rootfsProfileForTarget*(target: string, root = "/",
+    extraPackages: seq[string] = @[]): rootfsTypes.RootfsProfile =
+  let release = resolveRelease(root)
+  let requested = if target == "default": kpkgTarget(root) else: target
+  let parsed = rootfsProfile.parseTarget(requested)
+  var coreutils = release.getSectionValue("Core", "coreutils")
+  if parsed.init == "systemd": coreutils = "gnu"
+  result = rootfsTypes.RootfsProfile(schemaVersion: 1, arch: parsed.arch,
+    os: parsed.os, libc: parsed.libc,
+    compiler: release.getSectionValue("Core", "compiler"),
+    coreutils: coreutils, init: parsed.init, tlsLibrary: parsed.tlsLibrary,
+    extraPackages: extraPackages)
+  rootfsProfile.validateProfile(result)
+  result.packageRoots = rootfsProfile.resolvedPackageRoots(result)
+  rootfsProfile.finalizeProfile(result)
+
+proc sandboxProfileForTarget*(target: string, root = "/"): rootfsTypes.RootfsProfile =
+  result = rootfsProfileForTarget(target, root,
+      @["git", "kpkg", "ca-certificates", "python", "python-pip", "gmake"])
+  var roots = @[result.libc]
+  roots.add(if result.compiler == "clang": "llvm" else: result.compiler)
+  case result.coreutils
+  of "gnu": roots.add("gnu-core")
+  of "busybox": roots.add("busybox")
+  else: discard
+  roots.add(result.tlsLibrary)
+  case result.init
+  of "systemd": roots.add(["dbus", "systemd"])
+  of "busybox": discard
+  else: roots.add(result.init)
+  roots.add(["kreato-fs-essentials", "git", "kpkg", "ca-certificates",
+    "python", "python-pip", "gmake"])
+  result.packageRoots = roots.filterIt(it.len > 0).deduplicate()
+  rootfsProfile.finalizeProfile(result)
+
+proc targetCoreutils*(target: string, root = "/"): string =
+  rootfsProfileForTarget(target, root).coreutils
+
+proc targetSandboxPackages*(target: string, root = "/",
+    exclusions: seq[string] = @[]): seq[string] =
+  if target == "default" or isCrossTarget(target, root): return
+  let source = rootfsProfileForTarget("default", root)
+  let desired = rootfsProfileForTarget(target, root)
+  let plan = rootfsPlan.makeRootfsPlan(desired, rootfsTypes.rmSeeded, source,
+      exclusions)
+  let sourceRoots = rootfsProfile.sourceProfileRoots(source)
+  for package in plan.install:
+    if package in rootfsProfile.sourceProfileRoots(desired) and
+        package notin sourceRoots:
+      result.add(package)
+
+proc targetSandboxReplacedPackages*(target: string, root = "/",
+    exclusions: seq[string] = @[]): seq[string] =
+  if target == "default" or isCrossTarget(target, root): return
+  let source = rootfsProfileForTarget("default", root)
+  let desired = rootfsProfileForTarget(target, root)
+  let desiredIdentity = rootfsProfile.sourceProfileRoots(desired)
+  if desiredIdentity.anyIt(it in exclusions): return @[]
+  rootfsPlan.makeRootfsPlan(desired, rootfsTypes.rmSeeded, source,
+      exclusions).remove
 
 proc green*(s: string): string = "\e[32m" & s & "\e[0m"
 proc blue*(s: string): string = "\e[34m" & s & "\e[0m"
