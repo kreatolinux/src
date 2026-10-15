@@ -190,6 +190,41 @@ proc kpkgTarget*(root: string, customTarget = "",
   return system&"-"&conf.getSectionValue("Core",
           "init")&"-"&conf.getSectionValue("Core", "tlsLibrary")
 
+proc targetSystem*(target: string, root = "/"): string =
+  ## Return the architecture/OS/libc part of a build target.
+  ## Init and TLS variants do not make a build a cross-compilation.
+  if target == "default":
+    return systemTarget(root)
+  let parts = target.split("-")
+  if parts.len == 5:
+    return parts[0 .. 2].join("-")
+  return target
+
+proc targetInit*(target: string, root = "/"): string =
+  ## Return the requested init variant, falling back to the root's init.
+  let parts = target.split("-")
+  if target != "default" and parts.len == 5:
+    return parts[3]
+  return getInit(root)
+
+proc isCrossTarget*(target: string, root = "/"): bool =
+  ## A different package variant is native when its system triplet matches.
+  target != "default" and targetSystem(target, root) != systemTarget(root)
+
+proc targetSandboxPackages*(target: string, root = "/"): seq[string] =
+  ## Extra base packages required by an explicit native init variant.
+  if target == "default" or isCrossTarget(target, root):
+    return
+  let requestedInit = targetInit(target, root)
+  if requestedInit != getInit(root):
+    if requestedInit == "systemd":
+      result.add("dbus")
+    result.add(requestedInit)
+  let parts = target.split("-")
+  if parts.len == 5 and parts[4] != resolveRelease(root).getSectionValue(
+      "Core", "tlsLibrary"):
+    result.add(parts[4])
+
 proc green*(s: string): string = "\e[32m" & s & "\e[0m"
 proc blue*(s: string): string = "\e[34m" & s & "\e[0m"
 

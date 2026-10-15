@@ -29,14 +29,7 @@ proc initBuildEnvVars*(cfg: BuildConfig): Table[string, string] =
   let cxx = getConfigValue("Options", "cxx", "c++")
 
   # Determine actual target
-  var actTarget: string
-  let tSplit = cfg.target.split("-")
-  if tSplit.len >= 4:
-    actTarget = tSplit[0] & "-" & tSplit[1] & "-" & tSplit[2]
-  elif cfg.target == "default":
-    actTarget = systemTarget(cfg.actualRoot)
-  else:
-    actTarget = cfg.target
+  let actTarget = targetSystem(cfg.target, cfg.actualRoot)
 
   # Bootstrap flag
   if cfg.isBootstrap:

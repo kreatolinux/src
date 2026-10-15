@@ -89,7 +89,35 @@ proc buildPackageInSandboxImpl(pkgName: string, depGraph: dependencyGraph,
     debug "noSandbox: skipping sandbox env creation for " & pkgName
   else:
     createOrUpgradeEnv(sandboxCfg.root,
-        deferPostInstall = sandboxCfg.deferPostInstall)
+        deferPostInstall = sandboxCfg.deferPostInstall,
+        target = sandboxCfg.target)
+    # createEnv copies packages installed in the host root. A requested native
+    # init variant may not be installed there, so complete the persistent
+    # sandbox from that target's binary repository.
+    let targetPackages = targetSandboxPackages(sandboxCfg.target,
+        sandboxCfg.root)
+    if targetPackages.len > 0:
+      # Resolve runtime dependencies as well: installPkg only extracts a cached
+      # archive and neither downloads it nor installs its dependency closure.
+      let variantDeps = dephandler(targetPackages, root = kpkgEnvPath)
+      for targetPackage in variantDeps:
+        if isEmptyOrWhitespace(targetPackage) or
+            packageExists(targetPackage, kpkgEnvPath):
+          continue
+        down_bin(targetPackage,
+            getConfigValue("Repositories", "binRepos").split(" "),
+            kpkgEnvPath, offline = false, kTarget = sandboxCfg.target)
+        installPkgProc(InstallConfig(
+          repo: findPkgRepo(targetPackage),
+          package: targetPackage,
+          root: kpkgEnvPath,
+          isUpgrade: false,
+          kTarget: sandboxCfg.target,
+          manualInstallList: @[],
+          disablePkgInfo: false,
+          ignorePostInstall: true,
+          deferPostInstall: sandboxCfg.deferPostInstall
+        ))
 
   let pkgTmp = parsePkgInfo(pkgName)
 
@@ -120,7 +148,7 @@ proc buildPackageInSandboxImpl(pkgName: string, depGraph: dependencyGraph,
     if prepareResult != 0:
       fatal("preparing overlay directories failed")
 
-    if sandboxCfg.target != "default" and sandboxCfg.target != kpkgTarget("/"):
+    if isCrossTarget(sandboxCfg.target, sandboxCfg.root):
       for d in sandboxDeps:
         if isEmptyOrWhitespace(d):
           continue
@@ -196,7 +224,7 @@ proc buildPackageInSandboxImpl(pkgName: string, depGraph: dependencyGraph,
     # Run postinstall scripts in merged overlay
     if shouldRunSandboxPostInstall(sandboxCfg.deferPostInstall,
         sandboxCfg.ignorePostInstall) and
-        (sandboxCfg.target == "default" or sandboxCfg.target == kpkgTarget("/")):
+        not isCrossTarget(sandboxCfg.target, sandboxCfg.root):
       debug "builder-ng: postinstall is running"
       for d in deduplicate(allInstalledDeps):
         if not isEmptyOrWhitespace(d):

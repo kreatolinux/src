@@ -51,6 +51,9 @@ proc builderImpl(cfg: var BuildConfig): bool =
   debug "builder ran, package: '" & cfg.package & "', destdir: '" & cfg.destdir & "' root: '" & kpkgSrcDir & "', useCacheIfAvailable: '" & (
           $cfg.useCacheIfAvailable) & "'"
 
+  # The default source root is the host even for an explicit native variant.
+  if cfg.actualRoot == "default" and not isCrossTarget(cfg.target, "/"):
+    cfg.actualRoot = "/"
   preliminaryChecks(cfg.target, cfg.actualRoot)
 
   # Resolve paths (repo, path, actualPackage)
@@ -285,8 +288,8 @@ proc build*(no = false, yes = false, root = "/",
   if deferPostInstall:
     warn "postinstall hooks deferred for repair; reinstall affected packages without deferPostInstall after repair"
 
-  let init = getInit(root)
   let fullRootPath = expandFilename(root)
+  let init = targetInit(target, fullRootPath)
   let ignoreInit = false
 
   withCommitContext(packages):

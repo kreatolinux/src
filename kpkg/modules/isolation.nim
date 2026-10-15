@@ -195,7 +195,7 @@ proc checkEnvPackageUpdates*(name, root: string, envRoot = kpkgEnvPath): bool =
 
 
 proc createEnv(root: string, ignorePostInstall = false,
-               deferPostInstall = false) =
+               deferPostInstall = false, target = "default") =
   # TODO: cross-compilation support
   info "initializing sandbox, this might take a while..."
   setControlCHook(createEnvCtrlC)
@@ -206,7 +206,14 @@ proc createEnv(root: string, ignorePostInstall = false,
   # it back out of kpkgEnvPath while a build is running. On a real Kreato host we
   # copy the host file, and on a foreign host we write the synthesized one so the
   # env is self-describing either way.
-  let dict = resolveRelease(root)
+  var dict = resolveRelease(root)
+  let rootInit = dict.getSectionValue("Core", "init")
+  let rootTls = dict.getSectionValue("Core", "tlsLibrary")
+  if target != "default" and not isCrossTarget(target, root):
+    let parts = target.split("-")
+    if parts.len == 5:
+      dict.setSectionKey("Core", "init", parts[3])
+      dict.setSectionKey("Core", "tlsLibrary", parts[4])
   createDir(kpkgEnvPath & "/etc")
   dict.writeConfig(kpkgEnvPath / kreatoReleaseName)
 
@@ -223,11 +230,14 @@ proc createEnv(root: string, ignorePostInstall = false,
     of "busybox":
       envRoots.add("busybox")
 
-  envRoots.add(dict.getSectionValue("Core", "tlsLibrary"))
-  let init = dict.getSectionValue("Core", "init")
-  envRoots.add(init)
-  if init == "systemd":
-    envRoots.add("dbus")
+  envRoots.add(rootTls)
+  # Do not copy the host init when an explicit native target requests another
+  # one. The requested variant is installed from its target archive after this
+  # base environment exists, avoiding conflicting init files in the sandbox.
+  if isCrossTarget(target, root) or targetInit(target, root) == rootInit:
+    envRoots.add(rootInit)
+    if rootInit == "systemd":
+      envRoots.add("dbus")
   envRoots.add("kreato-fs-essentials git kpkg ca-certificates python python-pip gmake".split(" "))
 
   let depsTotal = installFromRoot(envRoots, root, kpkgEnvPath,
@@ -339,17 +349,24 @@ proc umountOverlay*(error = "none", silentMode = false, merged = kpkgMergedPath,
 
 
 proc createOrUpgradeEnv*(root: string, ignorePostInstall = false,
-                         deferPostInstall = false) =
+                         deferPostInstall = false, target = "default") =
   ## Creates and upgrades environment (if needed).
   ## Deferred or incomplete environments are never reused by normal builds.
 
   if canReuseEnv(kpkgEnvPath, deferPostInstall, ignorePostInstall):
     try:
-      var needsReinit = false
+      let desiredEnvTarget = if target != "default" and
+          not isCrossTarget(target, root) and target.split("-").len == 5:
+        target
+      else:
+        kpkgTarget(root)
+      var needsReinit = kpkgTarget(kpkgEnvPath) != desiredEnvTarget
       let envPkgList = getListPackages(kpkgEnvPath)
+      let variantPackages = targetSandboxPackages(target, root)
 
       for pkg in envPkgList:
-        if checkEnvPackageUpdates(pkg, root):
+        # Explicit target variants can be absent from the host by design.
+        if pkg notin variantPackages and checkEnvPackageUpdates(pkg, root):
           debug "upgradeEnv: base package '"&pkg&"' is mismatching with the system, reinitializing environment"
           needsReinit = true
 
@@ -367,7 +384,7 @@ proc createOrUpgradeEnv*(root: string, ignorePostInstall = false,
   if umountExit != 0:
     fatal("createOrUpgradeEnv: umountOverlay failed, exit code " & $umountExit)
   removeDir(kpkgEnvPath)
-  createEnv(root, ignorePostInstall, deferPostInstall)
+  createEnv(root, ignorePostInstall, deferPostInstall, target)
 
 
 proc prepareOverlayDirs*(upperDir = kpkgOverlayPath&"/upperDir",
