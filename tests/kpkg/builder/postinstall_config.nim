@@ -10,6 +10,31 @@ proc sandboxConfig(deferPostInstall = false): SandboxConfig =
     ignoreUseCacheIfAvailable = @[], root = "/",
     pkgPaths = initTable[string, string](), deferPostInstall = deferPostInstall)
 
+suite "sandbox target selection":
+  test "normal builds initialize the requested target sandbox":
+    let cfg = initSandboxConfig(fullRootPath = "/", target =
+      "x86_64-linux-gnu-systemd-openssl", bootstrap = false,
+      forceInstallAll = false, isInstallDir = false, ignoreInit = false,
+      dontInstall = false, useCacheIfAvailable = true, tests = true,
+      isUpgrade = false, ignorePostInstall = false, manualInstallList = @[],
+      ignoreUseCacheIfAvailable = @[], root = "/",
+      pkgPaths = initTable[string, string]())
+
+    check cfg.target == "x86_64-linux-gnu-systemd-openssl"
+    check cfg.sandboxTarget == cfg.target
+
+  test "rootfs bootstrap builds target artifacts in a host sandbox":
+    let cfg = initSandboxConfig(fullRootPath = "/", target =
+      "x86_64-linux-gnu-systemd-openssl", bootstrap = false,
+      forceInstallAll = true, isInstallDir = false, ignoreInit = false,
+      dontInstall = true, useCacheIfAvailable = true, tests = true,
+      isUpgrade = false, ignorePostInstall = false, manualInstallList = @[],
+      ignoreUseCacheIfAvailable = @[], root = "/",
+      pkgPaths = initTable[string, string](), sandboxTarget = "default")
+
+    check cfg.target == "x86_64-linux-gnu-systemd-openssl"
+    check cfg.sandboxTarget == "default"
+
 suite "explicit postinstall deferral config":
   test "build defaults run hooks with sandbox enabled":
     let cfg = initBuildConfig("test", "/")

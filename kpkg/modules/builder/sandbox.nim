@@ -98,12 +98,12 @@ proc buildPackageInSandboxImpl(pkgName: string, depGraph: dependencyGraph,
   else:
     createOrUpgradeEnv(sandboxCfg.root,
         deferPostInstall = sandboxCfg.deferPostInstall,
-        target = sandboxCfg.target)
+        target = sandboxCfg.sandboxTarget)
     # createEnv copies packages installed in the host root. A requested native
     # init variant may not be installed there, so complete the persistent
     # sandbox from that target's binary repository.
     let profileExclusions = @[pkgTmp.name]
-    let targetPackages = targetSandboxPackages(sandboxCfg.target,
+    let targetPackages = targetSandboxPackages(sandboxCfg.sandboxTarget,
         sandboxCfg.root, profileExclusions)
     if targetPackages.len > 0:
       # Resolve runtime dependencies as well: installPkg only extracts a cached
@@ -115,11 +115,11 @@ proc buildPackageInSandboxImpl(pkgName: string, depGraph: dependencyGraph,
         # Do not publish a partly converted sandbox as reusable. Source-profile
         # packages are removed only after every target archive is available.
         invalidateEnvSetup(kpkgEnvPath)
-        let desiredProfile = sandboxProfileForTarget(sandboxCfg.target,
+        let desiredProfile = sandboxProfileForTarget(sandboxCfg.sandboxTarget,
             sandboxCfg.root)
         let conversion = RootfsPlan(profile: desiredProfile,
           mode: rmSeeded, acquire: missingVariantDeps,
-          remove: targetSandboxReplacedPackages(sandboxCfg.target,
+          remove: targetSandboxReplacedPackages(sandboxCfg.sandboxTarget,
             sandboxCfg.root, profileExclusions),
           install: missingVariantDeps, exclusions: profileExclusions)
         try:
@@ -134,7 +134,7 @@ proc buildPackageInSandboxImpl(pkgName: string, depGraph: dependencyGraph,
             proc(package: string) =
               installPkgProc(InstallConfig(repo: findPkgRepo(package),
                 package: package, root: kpkgEnvPath, isUpgrade: false,
-                kTarget: sandboxCfg.target, manualInstallList: @[],
+                kTarget: sandboxCfg.sandboxTarget, manualInstallList: @[],
                 disablePkgInfo: false, ignorePostInstall: true,
                 deferPostInstall: sandboxCfg.deferPostInstall)),
             proc(phase: ProvisionPhase, pending, completed: seq[string]) =
@@ -147,7 +147,7 @@ proc buildPackageInSandboxImpl(pkgName: string, depGraph: dependencyGraph,
       if sandboxCfg.deferPostInstall:
         markEnvDeferred(kpkgEnvPath)
       else:
-        let desiredProfile = sandboxProfileForTarget(sandboxCfg.target,
+        let desiredProfile = sandboxProfileForTarget(sandboxCfg.sandboxTarget,
             sandboxCfg.root)
         let excludedIdentity = profileExclusions.anyIt(it in
             rootfsProfile.sourceProfileRoots(desiredProfile))

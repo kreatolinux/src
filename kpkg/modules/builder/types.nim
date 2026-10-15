@@ -93,7 +93,8 @@ type
     ## Configuration for sandbox build operations.
     ## Used by build() to set up isolated build environments.
     fullRootPath*: string ## Full path to root directory
-    target*: string ## Build target triplet or "default"
+    target*: string ## Target triplet produced by the build
+    sandboxTarget*: string ## Target profile used to initialize the sandbox
     bootstrap*: bool ## Whether this is a bootstrap build
     forceInstallAll*: bool ## Force install all dependencies
     isInstallDir*: bool ## Whether building from local directory
@@ -196,11 +197,13 @@ proc initSandboxConfig*(fullRootPath: string, target: string,
                         commit = "", commitRepo = "",
                         headRunfileCache = initTable[string, runFile](),
                         noSandbox = false,
-                        deferPostInstall = false): SandboxConfig =
+                        deferPostInstall = false,
+                        sandboxTarget = ""): SandboxConfig =
   ## Creates a SandboxConfig from individual parameters.
   SandboxConfig(
     fullRootPath: fullRootPath,
     target: target,
+    sandboxTarget: if sandboxTarget == "": target else: sandboxTarget,
     bootstrap: bootstrap,
     forceInstallAll: forceInstallAll,
     isInstallDir: isInstallDir,

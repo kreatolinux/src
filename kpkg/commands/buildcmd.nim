@@ -261,7 +261,9 @@ proc build*(no = false, yes = false, root = "/",
                             ignorePostInstall = false, isInstallDir = false,
                             isUpgrade = false, target = "default",
                             bootstrap = false, noSandbox = false,
-                            deferPostInstall = false): int =
+                            deferPostInstall = false,
+                            bootstrapRootfs = false,
+                            sandboxTarget = ""): int =
   ## Build and install packages.
   ##
   ## Use package#commit to build a specific repository revision.
@@ -276,6 +278,9 @@ proc build*(no = false, yes = false, root = "/",
   ##
   ## Circular dependencies with bootstrap dependencies (bsdeps) are
   ## bootstrapped automatically.
+  ##
+  ## bootstrapRootfs first builds the requested native target variant from a
+  ## host-target sandbox, then recreates the sandbox from those local archives.
 
   createLockfile()
   defer: removeLockfile()
@@ -291,6 +296,40 @@ proc build*(no = false, yes = false, root = "/",
   let fullRootPath = expandFilename(root)
   let init = targetInit(target, fullRootPath)
   let ignoreInit = false
+
+  if bootstrapRootfs:
+    if target == "default":
+      error("--bootstrapRootfs requires an explicit target")
+      return 1
+    if isCrossTarget(target, fullRootPath):
+      error("--bootstrapRootfs currently supports only native target variants")
+      return 1
+    if noSandbox:
+      error("--bootstrapRootfs requires the build sandbox")
+      return 1
+
+    let bootstrapPackages = targetSandboxPackages(target, fullRootPath)
+    if bootstrapPackages.len > 0:
+      info "Bootstrapping rootfs target packages from source: " &
+          bootstrapPackages.join(", ")
+      let bootstrapResult = build(no = no, yes = yes, root = root,
+        packages = bootstrapPackages, useCacheIfAvailable = useCacheIfAvailable,
+        # The complete target initialization closure must exist locally before
+        # the target sandbox can be provisioned.
+        forceInstallAll = true, dontInstall = true, tests = tests,
+        ignorePostInstall = ignorePostInstall,
+        deferPostInstall = deferPostInstall, isInstallDir = false,
+        isUpgrade = false, target = target, bootstrap = false,
+        noSandbox = false, bootstrapRootfs = false,
+        sandboxTarget = "default")
+      if bootstrapResult != 0:
+        return bootstrapResult
+
+      # The bootstrap phase deliberately used the host profile. Recreate the
+      # environment so normal setup installs the target archives built above.
+      removeDir(kpkgEnvPath)
+    else:
+      debug "bootstrapRootfs: target sandbox profile is already native"
 
   withCommitContext(packages):
     # Build dependency context for resolveBuildOrder
@@ -358,7 +397,8 @@ proc build*(no = false, yes = false, root = "/",
           isUpgrade = isUpgrade,
           target = target,
           bootstrap = true,
-          noSandbox = noSandbox
+          noSandbox = noSandbox,
+          sandboxTarget = sandboxTarget
         )
         if bootstrapResult != 0:
           fatal "Bootstrap build failed for '" & pkg & "'"
@@ -444,7 +484,8 @@ proc build*(no = false, yes = false, root = "/",
       commit = commitCtx.commit,
       commitRepo = commitCtx.commitRepo,
       headRunfileCache = commitCtx.headRunfileCache,
-      noSandbox = noSandbox
+      noSandbox = noSandbox,
+      sandboxTarget = sandboxTarget
     )
 
     # Build all packages in sandbox
