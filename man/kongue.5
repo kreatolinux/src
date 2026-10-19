@@ -140,6 +140,135 @@ echo $test1
 # Result: true
 \f[R]
 .fi
+.SS STRUCTURED HEADER VALUES
+.PP
+Kongue headers can contain nested mappings, sequences, and sequences of
+mappings.
+Nesting is determined by spaces.
+Tabs in header indentation and inconsistent indentation are errors;
+function bodies are not header text, so tabs there are allowed.
+Keys in the same mapping must be unique.
+Continuation keys in a sequence item align with the first key after
+\f[V]-\f[R]; a block nested under an item\[cq]s key must be indented
+further than that column.
+.IP
+.nf
+\f[C]
+supervisor:
+    executable: \[dq]bin/example-supervisor\[dq]
+
+supported_ops:
+    - name: \[dq]service.start\[dq]
+      backend: \[dq]exec\[dq]
+      options:
+          executable: \[dq]bin/example-adapter\[dq]
+          mode: \[dq]persistent\[dq]
+          timeout: \[dq]90s\[dq]
+      writable_paths:
+          - \[dq]/run/example\[dq]
+\f[R]
+.fi
+.PP
+Header data is declarative: interpolation and expression evaluation are
+not performed in header values.
+Existing flat headers and lists retain their ordinary Kongue behavior.
+.PP
+The structured-header grammar is:
+.IP
+.nf
+\f[C]
+header       = *( field / comment-line / NL )
+field        = key \[dq]:\[dq] SP value [ comment ] NL
+             / key \[dq]:\[dq] [ comment ] NL [ INDENT block DEDENT ]
+block        = mapping / sequence
+mapping      = 1*( key \[dq]:\[dq] ( SP value [ comment ] NL
+                           / [ comment ] NL [ INDENT block DEDENT ] ) )
+sequence     = 1*( \[dq]-\[dq] SP ( value [ comment ] NL / inline-map ) )
+inline-map   = key \[dq]:\[dq] ( SP value [ comment ] NL
+                       / [ comment ] NL [ INDENT block DEDENT ] )
+               *( ALIGN key \[dq]:\[dq] ( SP value [ comment ] NL
+                                 / [ comment ] NL [ INDENT block DEDENT ] ) )
+value        = quoted-string / \[dq]true\[dq] / \[dq]false\[dq] / 1*DIGIT
+key          = ALPHA *( ALPHA / DIGIT / \[dq]_\[dq] )
+comment      = SP \[dq]#\[dq] *( any character except NL )
+comment-line = *SP \[dq]#\[dq] *( any character except NL ) NL
+\f[R]
+.fi
+.PP
+\f[V]INDENT\f[R] and \f[V]DEDENT\f[R] are increases and decreases in
+leading spaces.
+\f[V]ALIGN\f[R] returns to the column of the first key after
+\f[V]-\f[R].
+The typed \f[V]value\f[R] alternatives shown above apply in manifest
+mode; ordinary mode continues to interpret values such as \f[V]true\f[R]
+and \f[V]42\f[R] as strings.
+.PP
+A key followed by neither a value nor a nested block has an empty value.
+The application reading the header treats it as an empty sequence or an
+empty mapping, whichever the key expects; for example
+\f[V]subsystems:\f[R] on its own line is an empty list.
+.SS MANIFEST MODE
+.PP
+Manifest mode is a strict parser mode selected by the application
+loading a document, such as Jumpstart when it loads a core\[cq]s
+\f[V]init.kg\f[R].
+It is not enabled by a declaration inside the document.
+In manifest mode:
+.IP "1." 3
+Header keys at every nesting level are exact and case-sensitive.
+Name-style folding is disabled.
+.IP "2." 3
+An underscore is part of a key, not a qualifier separator.
+For example, \f[V]core_version\f[R] is one key.
+.IP "3." 3
+Header modifiers \f[V]+:\f[R] and \f[V]-:\f[R] are rejected.
+.IP "4." 3
+Strings must be quoted.
+The only unquoted header scalars are \f[V]true\f[R], \f[V]false\f[R],
+and non-negative decimal integers; these have boolean and integer types
+rather than string types.
+.IP "5." 3
+Function names are exact and case-sensitive.
+\f[V]init\f[R] and \f[V]shutdown\f[R] cannot be qualified, and other
+function names cannot begin with \f[V]init_\f[R] or \f[V]shutdown_\f[R].
+Defining both a qualified function and the equivalent underscore form,
+such as \f[V]start_unit mount\f[R] and \f[V]func start_unit_mount\f[R],
+is an error.
+.IP "6." 3
+Variable references, including \f[V]$name\f[R], \f[V]${name}\f[R],
+\f[V]${name.key}\f[R], and bare names in conditions, are exact and
+case-sensitive.
+.IP "7." 3
+Comments beginning with \f[V]#\f[R] are accepted on their own lines and
+after header values.
+.IP "8." 3
+Function and method names in expressions must be literal; computed call
+names are rejected.
+.IP "9." 3
+The header ends at the first function block.
+Header fields after it, and any other text outside a function block, are
+errors rather than being ignored.
+.PP
+Manifest mode also supports a multi-argument \f[V]spawn\f[R] expression:
+.IP
+.nf
+\f[C]
+init {
+    if \[dq]${spawn(\[rs]\[dq]/usr/bin/test\[rs]\[dq], \[rs]\[dq]-x\[rs]\[dq], \[rs]\[dq]/usr/bin/example\[rs]\[dq]).exit()}\[dq] == \[dq]0\[dq] {
+        print \[dq]example is installed\[dq]
+    }
+}
+\f[R]
+.fi
+.PP
+The arguments are a comma-separated list of quoted strings and are
+stored as separate parse-tree tokens.
+Inside a double-quoted string, as in the example, each argument\[cq]s
+quotes are written escaped (\f[V]\[rs]\[dq]\f[R]).
+An argument may contain interpolations such as \f[V]${op.unit}\f[R];
+each is expanded within its own argument.
+Commas or quotes produced by interpolation cannot create additional
+arguments.
 .PP
 List variables can be filtered using \f[V][start:end]\f[R] and can be
 indexed using \f[V][index]\f[R].

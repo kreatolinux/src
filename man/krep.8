@@ -74,14 +74,6 @@ This is not repository cleanup.
 The default cache is \f[V]/var/cache/kpkg/archives/arch/amd64\f[R].
 Requires root privileges.
 .TP
-\f[B]disk\f[R]
-Build a GPT disk image (\f[V]NAME.img\f[R]) whose single partition
-holds a read-only EROFS root, plus \f[V]NAME.vmlinuz\f[R],
-\f[V]NAME.initramfs.img\f[R] and \f[V]NAME.cmdline\f[R] (kernel
-command line using \f[V]root=PARTLABEL=... init=...\f[R]) beside it.
-Same requirements as \f[B]iso\f[R], plus \f[V]mkfs.erofs\f[R],
-\f[V]sgdisk\f[R] and \f[V]dd\f[R].
-.TP
 \f[B]lint\f[R]
 Check run3 files selected by \f[B]\[en]path\f[R], without rewriting
 them.
@@ -109,6 +101,14 @@ Build a live ISO from a trusted rootfs directory or tar archive.
 Requires Linux, root privileges, and preinstalled host build tools.
 Uses no mounts, loop devices, host kernel assets, or host package
 installs.
+.TP
+\f[B]disk\f[R]
+Build a GPT disk image (\f[V]NAME.img\f[R]) whose single partition holds
+a read-only EROFS root, plus \f[V]NAME.vmlinuz\f[R],
+\f[V]NAME.initramfs.img\f[R] and \f[V]NAME.cmdline\f[R] (kernel command
+line using \f[V]root=PARTLABEL=... init=...\f[R]) beside it.
+Same requirements as \f[B]iso\f[R], plus \f[V]mkfs.erofs\f[R],
+\f[V]sgdisk\f[R] and \f[V]dd\f[R].
 .TP
 \f[B]generate matrix\f[R]
 Generate a JSON build matrix.
@@ -242,36 +242,36 @@ The template must contain \f[V]\[at]INIT\[at]\f[R].
 \f[B]\[en]initramfsGenerator=dracut|booster\f[R]
 Initramfs generator.
 Default: dracut.
-\f[V]booster\f[R] is rejected for \f[B]iso\f[R] (it cannot assemble
-the live squashfs-on-ISO root); it is valid for \f[B]disk\f[R].
+\f[V]booster\f[R] is rejected for \f[B]iso\f[R] (it cannot assemble the
+live squashfs-on-ISO root); it is valid for \f[B]disk\f[R].
 .SS disk
+.PP
 Accepts \f[B]\[en]rootfs\f[R], \f[B]\[en]output\f[R],
 \f[B]\[en]init\f[R], \f[B]\[en]kernelVersion\f[R],
 \f[B]\[en]kernelImage\f[R], \f[B]\[en]initramfs\f[R],
 \f[B]\[en]workDir\f[R], \f[B]\[en]clearRootPassword\f[R],
 \f[B]\[en]name\f[R] (must end in \f[V].img\f[R]),
-\f[B]\[en]overwrite\f[R] and \f[B]\[en]initramfsGenerator\f[R] as
-for \f[B]iso\f[R], plus:
+\f[B]\[en]overwrite\f[R] and \f[B]\[en]initramfsGenerator\f[R] as for
+\f[B]iso\f[R], plus:
 .TP
 \f[B]\[en]partLabel=LABEL\f[R]
 GPT PARTLABEL of the root partition and EROFS volume label.
 Default: \f[V]jsroot\f[R].
 .TP
 \f[B]\[en]writableMounts\f[R]
-Append tmpfs mounts for \f[V]/var\f[R], \f[V]/tmp\f[R],
-\f[V]/root\f[R] and \f[V]/home\f[R] to the staged
-\f[V]/etc/fstab\f[R] (the EROFS root is read-only).
+Append tmpfs mounts for \f[V]/var\f[R], \f[V]/tmp\f[R], \f[V]/root\f[R]
+and \f[V]/home\f[R] to the staged \f[V]/etc/fstab\f[R] (the EROFS root
+is read-only).
 Default: true; the init must mount them.
 Never replaces existing fstab content.
 .TP
 \f[B]\[en]bootloader=none|grub\f[R]
 Default \f[V]none\f[R].
 \f[V]grub\f[R] makes the image UEFI-bootable: partition 1 is a FAT32 ESP
-(type EF00, \f[V]JSESP\f[R]) with
-\f[V]/boot/vmlinuz-VERSION\f[R], \f[V]/boot/initramfs-VERSION.img\f[R],
-\f[V]/boot/grub/grub.cfg\f[R] and a removable-media GRUB at
-\f[V]/EFI/BOOT/BOOTAA64.EFI\f[R] (aarch64) or \f[V]BOOTX64.EFI\f[R]
-(x86_64); partition 2 is the EROFS root.
+(type EF00, \f[V]JSESP\f[R]) with \f[V]/boot/vmlinuz-VERSION\f[R],
+\f[V]/boot/initramfs-VERSION.img\f[R], \f[V]/boot/grub/grub.cfg\f[R] and
+a removable-media GRUB at \f[V]/EFI/BOOT/BOOTAA64.EFI\f[R] (aarch64) or
+\f[V]BOOTX64.EFI\f[R] (x86_64); partition 2 is the EROFS root.
 The kernel command line is the usual
 \f[V]root=PARTLABEL=... rootfstype=erofs ro init=...\f[R] plus
 \f[B]\[en]console\f[R] and \f[B]\[en]kernelArgs\f[R].
@@ -291,7 +291,7 @@ It must hold the kernel, initramfs and GRUB.
 \f[B]\[en]console=TOKENS\f[R]
 Space separated console devices, each passed as \f[V]console=TOKEN\f[R],
 e.g.
-\f[V]"tty0 ttyAMA0,115200"\f[R].
+\f[V]\[dq]tty0 ttyAMA0,115200\[dq]\f[R].
 A \f[V]ttyS<N>\f[R] token also enables the GRUB serial terminal.
 Default: none.
 .TP

@@ -100,12 +100,20 @@ or timers).
 \f[V]timer\f[R]: A timer that triggers a service at specified intervals.
 .IP \[bu] 2
 \f[V]mount\f[R]: A filesystem mount unit.
+.IP \[bu] 2
+\f[V]target\f[R]: A group of native units.
+A target has no function block.
 .RE
 .SS DEPENDENCY VARIABLES
 .IP \[bu] 2
-\f[B]depends\f[R]: Runtime dependencies of your unit.
-The unit will start after the specified units have started and will fail
-if any dependency is not running.
+\f[B]depends\f[R]: Hard dependencies of your unit.
+When a target starts (including the boot target), every unit in the
+\f[V]depends\f[R] closure of its members is started too, whether or not
+it is enabled, and before the units that depend on it.
+A unit whose dependency is unknown or failed to start is not started and
+is reported as failed.
+Starting a single non-target unit with \f[V]jumpctl start\f[R] starts
+only that unit.
 .RS 2
 .IP \[bu] 2
 Can also depend on a specific sub-unit using
@@ -127,9 +135,10 @@ dependencies completely
 .RE
 .SS ORDERING VARIABLES
 .IP \[bu] 2
-\f[B]after\f[R]: Start this unit after the specified units have started.
-Unlike \f[V]depends\f[R], the unit will not fail if the specified units
-are not present or not running.
+\f[B]after\f[R]: Start this unit after the specified units when both are
+started together.
+Unlike \f[V]depends\f[R], \f[V]after\f[R] never pulls a unit in and
+ignores units that are not present.
 .IP \[bu] 2
 \f[B]after subunitname\f[R]: Specify ordering for a specific sub-unit.
 Can be modified using:
@@ -164,6 +173,27 @@ See \f[B]MOUNTS\f[R] below.
 For \f[V]multi\f[R] type units, at least one named function block is
 required (e.g., \f[V]service_name\f[R], \f[V]timer_name\f[R], or
 \f[V]mount_name\f[R]).
+.SS COMMAND ARGUMENTS
+.PP
+Arguments of the commands inside function blocks are literal values.
+A quoted argument such as \f[V]from \[dq]tmpfs\[dq]\f[R] is the string
+between the quotes, with Kongue escapes (\f[V]\[rs]\[dq]\f[R],
+\f[V]\[rs]\[rs]\f[R], \f[V]\[rs]n\f[R], \f[V]\[rs]t\f[R],
+\f[V]\[rs]r\f[R]) decoded.
+Bare words and numbers (\f[V]interval 3600\f[R],
+\f[V]terminal true\f[R]) are taken as written.
+.SS VALIDATION
+.PP
+\f[V]jumpctl units validate UNIT\f[R] and \f[V]jumpctl units load\f[R]
+report a missing \f[V]description\f[R] or \f[V]type\f[R], an unknown
+\f[V]type\f[R], a function block in a target, a \f[V]simple\f[R],
+\f[V]oneshot\f[R], \f[V]mount\f[R], or \f[V]timer\f[R] unit without
+exactly one block of its kind, a service without \f[V]exec\f[R], a mount
+without \f[V]from\f[R], \f[V]to\f[R], or \f[V]fstype\f[R], a timer
+without a positive \f[V]interval\f[R] or a \f[V]service\f[R], duplicate
+sub-unit names, unknown target members, and target cycles.
+Parsing stays tolerant for compatibility: a unit with such problems is
+still loaded, but an unknown \f[V]type\f[R] is not a valid declaration.
 .SS OPTIONAL FUNCTIONS
 .IP \[bu] 2
 \f[B]service name\f[R]: Defines a named sub-service for \f[V]multi\f[R]
@@ -190,12 +220,61 @@ those):
 .IP \[bu] 2
 \f[B]exec\f[R]: Execute a command as the service process.
 Required.
+The command is split into words without a shell (quotes group words) and
+the program is looked up in the unit environment\[cq]s \f[V]PATH\f[R].
+.IP \[bu] 2
+\f[B]exec_pre\f[R]: A command run to completion before \f[V]exec\f[R].
+A non-zero exit is logged and the service still starts.
+A command still running after 90 seconds is killed and the start fails.
+.IP \[bu] 2
+\f[B]exec_post\f[R]: A command run after the service exits with status
+0.
+The status becomes \f[V]stopped\f[R] once it has finished.
 .IP \[bu] 2
 \f[B]terminal\f[R]: Set to \f[V]true\f[R] for interactive services such
 as getty.
 The service inherits init\[cq]s terminal and remains in its foreground
 process group.
 Defaults to \f[V]false\f[R].
+Other services run in their own session with standard input from
+\f[V]/dev/null\f[R]; their output is discarded.
+.SS SERVICE PROCESSES
+.PP
+Service processes start with the environment Jumpstart builds for its
+mode (in system mode
+\f[V]PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\f[R]
+and \f[V]LANG=C.UTF-8\f[R]), not with init\[cq]s own environment, in the
+working directory \f[V]/\f[R].
+When cgroup v2 is available, every process of a native unit runs in the
+cgroup \f[V]cores/serviceHandler/units/UNIT.unit/\f[R] below
+Jumpstart\[cq]s hierarchy.
+Without cgroup v2 services run without cgroups.
+.PP
+Stopping a service sends \f[V]SIGTERM\f[R] to its main process, waits up
+to 10 seconds, sends \f[V]SIGKILL\f[R], and then kills the unit\[cq]s
+cgroup, which reaches every remaining process of the service.
+\f[V]jumpctl kill UNIT [--signal S]\f[R] signals every process in the
+unit\[cq]s cgroup, or only the main process without cgroup v2; it never
+signals a process group.
+\f[V]jumpctl restart UNIT\f[R] is a stop followed by a start.
+Native services have no reload command.
+.SS STATUS
+.PP
+\f[V]jumpctl status UNIT\f[R] prints the native status text.
+Services write it to their runtime state; Jumpstart maps it to a unit
+state:
+.IP \[bu] 2
+\f[V]running\f[R] (service or timer) and \f[V]mounted\f[R] (mount):
+\f[V]active\f[R].
+.IP \[bu] 2
+\f[V]stopped\f[R], or no status at all: \f[V]inactive\f[R].
+.IP \[bu] 2
+\f[V]stopped with an exit code N\f[R]: \f[V]inactive\f[R] when the exit
+followed a stop that Jumpstart requested (usually \f[V]N\f[R] is 143,
+from \f[V]SIGTERM\f[R]), otherwise \f[V]failed\f[R].
+The status text stays after a stop; it never prevents the next start.
+.IP \[bu] 2
+Anything else: \f[V]unknown\f[R].
 .SS Example Service
 .IP
 .nf
@@ -288,12 +367,13 @@ Required.
 stop, detaching the filesystem immediately and cleaning up references
 later.
 Default is \f[V]false\f[R].
+A stop request with \f[V]lazy\f[R] set does the same for one stop.
 .IP \[bu] 2
 \f[B]chmod\f[R]: Set permissions on the mount point after mounting
 (e.g., \f[V]755\f[R]).
 .IP \[bu] 2
-\f[B]extra_args\f[R]: Additional arguments to pass to the mount command
-(e.g., \f[V]\[dq]-o size=512M\[dq]\f[R]).
+\f[B]extra_args\f[R]: The filesystem-specific data string passed to
+mount(2) (e.g., \f[V]\[dq]size=512M\[dq]\f[R]).
 .SS Example Mount
 .IP
 .nf
@@ -310,6 +390,101 @@ mount {
 }
 \f[R]
 .fi
+.SH TARGETS
+.PP
+A decfile with \f[V]type: \[dq]target\[dq]\f[R] groups native Jumpstart
+units.
+It has no function block.
+Its optional \f[V]wants\f[R] variable lists decfile names and may name
+sub-units with \f[V]::\f[R]; target names are also valid members.
+.IP
+.nf
+\f[C]
+description: \[dq]Multi-user system\[dq]
+type: \[dq]target\[dq]
+wants:
+    - \[dq]sshd\[dq]
+    - \[dq]network\[dq]
+    - \[dq]getty::tty1\[dq]
+\f[R]
+.fi
+.PP
+The members of target \f[V]T\f[R] are its \f[V]wants\f[R] plus units
+enabled into it.
+\f[V]jumpctl enable UNIT --target T\f[R] creates
+\f[V]/etc/jumpstart/targets/T/UNIT.kg\f[R]; the corresponding
+\f[V]disable\f[R] command removes that link.
+Enabling without \f[V]--target\f[R] continues to create
+\f[V]/etc/jumpstart/enabled/UNIT.kg\f[R] and makes the unit a member of
+the built-in \f[V]default\f[R] target.
+\f[V]--now\f[R] also starts (for \f[V]enable\f[R]) or stops (for
+\f[V]disable\f[R]) the unit.
+A sub-unit cannot be enabled or disabled separately (the request fails
+with \f[V]E_UNSUPPORTED\f[R], naming its decfile); list it in
+\f[V]wants\f[R] instead.
+User-mode daemons use the same layout below
+\f[V]\[ti]/.config/jumpstart\f[R].
+.PP
+Cycles through target \f[V]wants\f[R] or target enablement links are
+validation and load errors, and a target in a cycle cannot be started.
+Starting a target starts its transitive members and their
+\f[V]depends\f[R] closure, ordered by \f[V]depends\f[R] and
+\f[V]after\f[R]; if any of them fails to start, the others still start
+and the request reports the failures (\f[V]E_PARTIAL\f[R]).
+Stopping a target stops its active transitive members in reverse start
+order.
+An unqualified \f[V]multi\f[R] decfile acts as a target whose members
+are its sub-units: \f[V]jumpctl start foo\f[R] starts its mounts, then
+its services, then its timers (subject to \f[V]depends\f[R] and
+\f[V]after\f[R]), and \f[V]jumpctl stop foo\f[R] stops them in reverse
+order.
+Each sub-unit (\f[V]foo::bar\f[R]) is a service, mount, or timer of its
+own.
+.PP
+A native unit is \f[V]enabled\f[R] when linked in \f[V]enabled/\f[R] or
+any \f[V]targets/*/\f[R] directory, \f[V]static\f[R] when only named by
+a target\[cq]s \f[V]wants\f[R], and \f[V]disabled\f[R] otherwise.
+Native units do not report \f[V]indirect\f[R], \f[V]masked\f[R], or
+\f[V]generated\f[R].
+.PP
+Native activation starts the boot target.
+Deactivation stops every active native unit, including units started
+individually with \f[V]jumpctl start\f[R], in reverse start order.
+\f[V]jumpctl isolate T\f[R] starts \f[V]T\f[R] and then stops every
+active native unit that \f[V]T\f[R] does not require, that is, every
+unit that is neither a transitive member of \f[V]T\f[R] nor in its
+members\[cq] \f[V]depends\f[R] closure.
+.PP
+Target status reports the transitive members.
+A member is satisfied when it is active, or when it is a
+\f[V]oneshot\f[R] service whose last run, started since the target last
+started, exited with status 0.
+The target is \f[V]failed\f[R] if any member is failed (or failed to
+start), otherwise \f[V]active\f[R] if every member is satisfied (a
+started target without members is active), otherwise \f[V]inactive\f[R]
+if the target has not been started since boot or was stopped, or no
+member is satisfied, and otherwise \f[V]activating\f[R].
+\f[V]jumpctl status\f[R] prints these as \f[V]failed\f[R],
+\f[V]running\f[R], \f[V]stopped\f[R], and \f[V]starting\f[R].
+Targets and multi-unit decfiles have no status file.
+.SS DEFAULT AND BOOT TARGETS
+.PP
+The native \f[V]default\f[R] target always exists and consists of units
+linked in \f[V]enabled/\f[R].
+The boot target is read from \f[V]/etc/jumpstart/default-target\f[R],
+which contains one native target name followed by a newline.
+If that file does not exist, \f[V]default\f[R] is used.
+\f[V]target.set-default\f[R] updates the file atomically and
+\f[V]target.get-default\f[R] reads it.
+.PP
+The name \f[V]default.kg\f[R] is reserved and such a decfile is
+rejected.
+\f[B]Migration:\f[R] an installation with an existing
+\f[V]/etc/jumpstart/default.kg\f[R] continues booting other units, but
+\f[V]default.kg\f[R] is reported as an error at daemon startup and by
+unit loading, is not loaded, and never starts.
+Rename that decfile and its link in \f[V]/etc/jumpstart/enabled/\f[R]
+(and any target links) to restore the unit.
 .SH AUTHOR
 .PP
 Written by Kreato.
