@@ -1,72 +1,81 @@
-import std/times
-import std/net
+## Native timer units: arming, and timer status.
+import std/[json, net, os, strutils, times]
 import ../../../common/logging
-import strutils
-include ../../commonImports
-import ../globalVariables
 import ../../configParser
+import jumpstartcore/errors
+import ../globalVariables
+import ../start
+import ../status_text
+import ../status
 
-type TimerArgs = ref object
-  timerName: string
-  interval: int
-  serviceName: string
-  onMissed: string
-  stopFlag: ptr bool
+const TimerSliceMs = 20
 
-proc loadPersistedRemaining(timerName: string, interval: int): tuple[
+proc loadPersistedRemaining(stateDir: string, interval: int): tuple[
     remaining: int, lastRun: int64] =
-  let timerStatePath = serviceHandlerPath&"/timers/"&timerName
-
   try:
-    if fileExists(timerStatePath&"/remaining"):
-      let remaining = parseInt(readFile(timerStatePath&"/remaining"))
+    if fileExists(stateDir / "remaining"):
+      let remaining = parseInt(readFile(stateDir / "remaining"))
       var lastRun: int64 = 0
-      if fileExists(timerStatePath&"/last_run"):
-        lastRun = parseBiggestInt(readFile(timerStatePath&"/last_run"))
+      if fileExists(stateDir / "last_run"):
+        lastRun = parseBiggestInt(readFile(stateDir / "last_run"))
       return (remaining: remaining, lastRun: lastRun)
   except CatchableError:
     discard
+  return (remaining: interval, lastRun: 0'i64)
 
-  return (remaining: interval, lastRun: 0)
-
-proc persistState(timerName: string, remaining: int, lastRun: int64 = 0) =
-  let timerStatePath = serviceHandlerPath&"/timers/"&timerName
-  discard existsOrCreateDir(timerStatePath)
+proc persistState(stateDir: string, remaining: int, lastRun: int64 = 0) =
+  discard existsOrCreateDir(stateDir)
   try:
-    writeFile(timerStatePath&"/remaining", $remaining)
-    writeFile(timerStatePath&"/status", "running")
+    writeFile(stateDir / "remaining", $remaining)
+    writeFile(stateDir / "status", "running")
     if lastRun > 0:
-      writeFile(timerStatePath&"/last_run", $lastRun)
+      writeFile(stateDir / "last_run", $lastRun)
   except CatchableError:
-    stderr.writeLine("jumpstart: Failed to persist state for timer "&timerName)
+    stderr.writeLine("jumpstart: Failed to persist state for timer " & stateDir)
     stderr.flushFile()
 
-proc triggerService(serviceName: string) =
+proc triggerService(args: TimerArgs) =
+  ## Ask the daemon to start the timer's service, so the start runs on the
+  ## daemon thread like any other request. The reference is qualified because
+  ## a timer triggers a unit of its own core.
   let socket = newSocket(AF_UNIX, SOCK_STREAM, IPPROTO_IP)
   try:
-    socket.connectUnix(sockPath)
-    socket.send("""{ "client": { "name": "Jumpstart Timer", "version": """"&jumpstartVersion&"""" }, "service": { "name": """"&serviceName&"""", "action": "start", "now": "false" }}"""&"\c\l")
-    socket.close()
+    socket.connectUnix(args.socketPath)
+    let message = %* {"client": {"name": "Jumpstart Timer",
+                                 "version": args.clientVersion},
+                      "service": {"name": "serviceHandler/" & args.serviceName,
+                                  "action": "start"}}
+    socket.send($message & "\c\l")
+    # Read the response so the daemon never writes to a closed socket, but
+    # give up early when the timer is being stopped (the daemon thread may be
+    # the one waiting for this thread).
+    for _ in 1 .. 600:
+      try:
+        discard socket.recvLine(timeout = 100)
+        break
+      except TimeoutError:
+        if args.stopFlag[]: break
   except CatchableError as e:
-    stderr.writeLine("jumpstart: Failed to trigger service "&serviceName&": "&e.msg)
+    stderr.writeLine("jumpstart: Failed to trigger service " & args.serviceName &
+      ": " & e.msg)
     stderr.flushFile()
+  finally:
+    socket.close()
 
-proc timerThread(argsPtr: pointer) {.thread.} =
-  let args = cast[TimerArgs](argsPtr)
+proc timerThread(args: TimerArgs) {.thread.} =
   let currentTime = epochTime().int64
-
-  var (remaining, lastRun) = loadPersistedRemaining(args.timerName, args.interval)
+  var (remaining, lastRun) = loadPersistedRemaining(args.stateDir, args.interval)
 
   if lastRun > 0:
     let timeSinceLastRun = currentTime - lastRun
     if timeSinceLastRun >= args.interval:
       if args.onMissed == "run":
-        triggerService(args.serviceName)
+        triggerService(args)
         lastRun = currentTime
         remaining = args.interval
-        persistState(args.timerName, remaining, lastRun)
+        persistState(args.stateDir, remaining, lastRun)
       else:
-        remaining = args.interval - (timeSinceLastRun mod args.interval)
+        remaining = args.interval - int(timeSinceLastRun mod args.interval)
         if remaining < 0:
           remaining = args.interval
     else:
@@ -74,102 +83,95 @@ proc timerThread(argsPtr: pointer) {.thread.} =
       if remaining < 0:
         remaining = 0
 
-  persistState(args.timerName, remaining, lastRun)
+  persistState(args.stateDir, remaining, lastRun)
 
   var counter = 0
   while not args.stopFlag[]:
     if remaining <= 0:
-      triggerService(args.serviceName)
+      triggerService(args)
       let lastRun = epochTime().int64
       remaining = args.interval
-      persistState(args.timerName, remaining, lastRun)
+      persistState(args.stateDir, remaining, lastRun)
 
-    sleep(1000)
+    # One second in short slices, so stopping the timer is noticed within
+    # TimerSliceMs instead of waiting out the second (stopTimer joins this
+    # thread on the daemon thread).
+    var slices = 0
+    while slices < 1000 div TimerSliceMs and not args.stopFlag[]:
+      sleep(TimerSliceMs)
+      inc slices
+    if args.stopFlag[]: break
     remaining -= 1
     counter += 1
 
     if counter >= 60:
-      persistState(args.timerName, remaining)
+      persistState(args.stateDir, remaining)
       counter = 0
 
-proc startTimer*(timerName: string) =
-  ## Start a timer.
-  ## timerName can be either:
-  ##   - A simple name like "cleanup" (looks for cleanup.kg with type: timer)
-  ##   - A qualified name like "example::cleanup" (looks for example.kg, timer "cleanup")
-
-  var unitName = timerName
-  var subTimerName = "main"
-
-  # Check for qualified name (unit::subunit)
-  if "::" in timerName:
-    let parts = timerName.split("::", 1)
-    unitName = parts[0]
-    subTimerName = parts[1]
-
-  # Check if already running
-  if dirExists(serviceHandlerPath&"/timers/"&timerName):
-    warn "Timer "&timerName&" is already running"
-    return
-
-  # Load and parse the unit configuration
+proc findTimerConfig*(ctx: NativeContext; timerName: string): TimerConfig =
+  ## `cleanup` (cleanup.kg with type timer) or `example::cleanup`.
+  let (definition, sub) = splitUnitName(timerName)
   var config: UnitConfig
   try:
-    config = parseUnit(configPath, unitName)
+    config = parseUnit(ctx.configRoot, definition)
   except CatchableError as e:
-    warn "Timer "&timerName&" couldn't be started: "&e.msg
-    return
-
-  # Validate unit type for non-multi units
+    nativeFail(ecNotFound, "timer " & timerName & " couldn't be loaded: " & e.msg)
   if config.unitType notin {utTimer, utMulti}:
-    warn "Timer "&timerName&" has an incorrect type: "&($config.unitType)
-    return
-
-  # Find the matching timer config
-  var timerConfig: TimerConfig
-  var found = false
+    nativeFail(ecNotFound, "timer " & timerName & " has an incorrect type: " &
+      $config.unitType)
   for tmr in config.timers:
-    if tmr.name == subTimerName:
-      timerConfig = tmr
-      found = true
-      break
+    if tmr.name == sub: return tmr
+  if "::" notin timerName and config.timers.len == 1:
+    return config.timers[0]
+  nativeFail(ecNotFound, "timer " & timerName & " not found in unit configuration")
 
-  if not found:
-    # For timer type units, there should be a single unnamed timer
-    if config.timers.len == 1:
-      timerConfig = config.timers[0]
-      found = true
-    else:
-      warn "Timer "&timerName&" not found in unit configuration"
-      return
-
-  # Validate configuration
+proc startTimer*(ctx: NativeContext; timerName: string;
+                 clientVersion = "jumpstart") =
+  ## Arm a timer. Arming an armed timer is a success.
+  if ctx.findTimerIndex(timerName) >= 0:
+    info "Timer " & timerName & " is already running"
+    return
+  let timerConfig = ctx.findTimerConfig(timerName)
   if timerConfig.interval <= 0:
-    warn "Timer "&timerName&" has invalid interval: "&($(timerConfig.interval))
-    return
-
+    nativeFail(ecBackend, "timer " & timerName & " has invalid interval: " &
+      $timerConfig.interval)
   if isEmptyOrWhitespace(timerConfig.service):
-    warn "Timer "&timerName&" has no Service specified"
-    return
+    nativeFail(ecBackend, "timer " & timerName & " has no service specified")
 
-  createDir(serviceHandlerPath&"/timers/"&timerName)
-
+  let stateDir = ctx.timerStateDir(timerName)
+  try: createDir(stateDir)
+  except CatchableError as e:
+    nativeFail(ecIo, "cannot create runtime state of " & timerName & ": " & e.msg)
   let stopFlag = cast[ptr bool](allocShared0(sizeof(bool)))
-
   let onMissedStr = case timerConfig.onMissed
     of omRun: "run"
     of omSkip: "skip"
+  let args = TimerArgs(timerName: timerName, interval: timerConfig.interval,
+    serviceName: timerConfig.service, onMissed: onMissedStr, stateDir: stateDir,
+    socketPath: ctx.socketPath, clientVersion: clientVersion, stopFlag: stopFlag)
+  # The status file exists before start returns, so status is immediately
+  # `running`.
+  persistState(stateDir, loadPersistedRemaining(stateDir, timerConfig.interval).remaining)
+  let thread = cast[ptr Thread[TimerArgs]](allocShared0(sizeof(Thread[TimerArgs])))
+  createThread(thread[], timerThread, args)
+  ctx.timers.add(TimerRecord(timerName: timerName, thread: thread, stopFlag: stopFlag))
+  ok "Started timer " & timerName
 
-  let args = TimerArgs(
-    timerName: timerName,
-    interval: timerConfig.interval,
-    serviceName: timerConfig.service,
-    onMissed: onMissedStr,
-    stopFlag: stopFlag
-  )
+proc rfc3339(epoch: int64): string =
+  fromUnix(epoch).utc.format("yyyy-MM-dd'T'HH:mm:ss'Z'")
 
-  var thread = cast[ptr Thread[pointer]](allocShared0(sizeof(Thread[pointer])))
-  createThread(thread[], timerThread, cast[pointer](args))
-
-  timers.add((timerName: timerName, thread: thread, stopFlag: stopFlag))
-  ok "Started timer "&timerName
+proc timerStatus*(ctx: NativeContext; timerName: string): JsonNode =
+  ## `timer.status` without `enablement`.
+  let stateDir = ctx.timerStateDir(timerName)
+  var text = ""
+  let present = readStatusFile(stateDir / "status", text)
+  let mapping = mapNativeStatus(text, present, false)
+  result = %* {"state": mapping.state,
+               "detail": (if present: text else: MissingStatusText)}
+  try:
+    if fileExists(stateDir / "last_run"):
+      result["last_run"] = %rfc3339(parseBiggestInt(readFile(stateDir / "last_run").strip))
+    if mapping.state == "active" and fileExists(stateDir / "remaining"):
+      let remaining = parseBiggestInt(readFile(stateDir / "remaining").strip)
+      result["next_run"] = %rfc3339(epochTime().int64 + max(remaining, 0))
+  except CatchableError: discard

@@ -2,6 +2,31 @@
 ## This module defines the structure of parsed Kongue scripts
 
 type
+  ManifestCall* = object
+    ## Literal expression call captured by strict manifest parsing.
+    name*: string
+    args*: seq[string]
+    line*: int
+
+  HeaderValueKind* = enum
+    hvString, hvBool, hvInt, hvList, hvMap
+
+  HeaderEntry* = object
+    key*: string
+    value*: HeaderValue
+    line*: int
+
+  HeaderValue* = ref object
+    ## Declarative, recursively typed header value used by manifest mode.
+    kind*: HeaderValueKind
+    line*: int
+    stringVal*: string
+    boolVal*: bool
+    intVal*: BiggestInt
+    listVal*: seq[HeaderValue]
+    mapVal*: seq[HeaderEntry]
+    emptyBlock*: bool ## `key:` with no nested block: an empty list or mapping
+
   NodeKind* = enum
     ## Types of nodes in the AST
     nkVariable,     # name: "value"
@@ -119,6 +144,8 @@ type
     variables*: seq[AstNode]   # Variable declarations (header)
     functions*: seq[AstNode]   # Function definitions
     customFuncs*: seq[AstNode] # Custom function definitions
+    manifestHeader*: HeaderValue # nil for ordinary Kongue documents
+    manifestCalls*: seq[ManifestCall] # strict expression calls, separate argv
 
 proc newVariableNode*(name, value: string, op: VarOp = opSet,
         line: int = 0, qualifier: string = ""): AstNode =

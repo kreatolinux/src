@@ -1,0 +1,6 @@
+# krep erofs layout: the EROFS root is read-only, so these paths are provided
+# by the booted system. Taken from the verified Booster/EROFS experiment.
+tmpfs /var tmpfs mode=755 0 0
+tmpfs /tmp tmpfs mode=1777 0 0
+tmpfs /root tmpfs mode=700 0 0
+tmpfs /home tmpfs mode=755 0 0

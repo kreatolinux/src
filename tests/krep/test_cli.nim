@@ -77,7 +77,7 @@ suite "krep native CLI (offline)":
     let lockBefore = snapshot("/tmp/kpkg.lock")
     let response = expectExit(work, ["--help"], 0)
     for command in ["check", "update", "clean", "lint", "fmt", "convert",
-                    "generate", "rootfs", "iso"]:
+                    "generate", "rootfs", "iso", "disk"]:
       check command in response.output
     check snapshot("/etc/kpkg/kpkg.conf") == configBefore
     check snapshot("/tmp/kpkg.lock") == lockBefore
@@ -85,7 +85,7 @@ suite "krep native CLI (offline)":
   test "every command and generation subcommand has side-effect-free help":
     let commands = @[@["check"], @["update"], @["clean"], @["lint"],
                      @["fmt"], @["convert"], @["generate"], @["rootfs"],
-                     @["iso"], @["generate", "matrix"],
+                     @["iso"], @["disk"], @["generate", "matrix"],
                      @["generate", "markdown"], @["generate", "manpage"]]
     for command in commands:
       let configBefore = snapshot("/etc/kpkg/kpkg.conf")

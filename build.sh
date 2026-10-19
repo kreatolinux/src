@@ -10,6 +10,13 @@ target=""
 args=""
 platform=""
 testProject=""
+# Jumpstart's compile-time library directory.  The daemon derives the system
+# core root ($JUMPSTART_LIBDIR/jumpstart/cores) and the Kongue runner
+# ($JUMPSTART_LIBDIR/jumpstart/kongue-runner) from it (spec §7.2, §16.1).
+# `make install_jumpstart` passes its LIBDIR so built and installed paths agree.
+JUMPSTART_LIBDIR="${JUMPSTART_LIBDIR:-/usr/lib}"
+# Build OS; overridable only so the packaging test can exercise both branches.
+buildOS="${JUMPSTART_BUILD_OS:-$(uname -s)}"
 
 err() {
 	echo "error: $@"
@@ -75,12 +82,28 @@ buildNim() {
 	[ -n "$useDeepcopy" ] && set -- "$@" --deepcopy:on
 	[ -n "$useBranchSsl" ] && set -- "$@" -d:branch=$branch -d:ssl
 	set -- "$@" --threads:$threads -o:"$outputPath"
-	[ -n "$extraFlags" ] && set -- "$@" $extraFlags
+	if [ -n "$extraFlags" ]; then
+		# The caller may have changed IFS (the project loop uses commas), so
+		# split extra flags explicitly on whitespace.
+		savedIFS="$IFS"
+		IFS=' '
+		for extraFlag in $extraFlags; do
+			set -- "$@" "$extraFlag"
+		done
+		IFS="$savedIFS"
+	fi
 	set -- "$@" "$sourcePath"
 
 	"$@" || err "building $project failed"
 
 	cd - > /dev/null
+}
+
+# pam_jumpstart.so (spec §7.6, §25).  It is a shared library without a Nim main;
+# PAM itself is resolved dynamically, so no PAM headers are needed to build it.
+buildPamModule() {
+	buildNim "jumpstart" "pam_jumpstart.nim" "$prefix/pam_jumpstart.so" "off" \
+		"--app:lib --noMain:on -d:pamJumpstartModule" "1" ""
 }
 
 # Keep the build-tree layout identical to the installed share/krep layout.
@@ -145,8 +168,17 @@ runTests() {
 		# Ensure output directory exists
 		mkdir -p "$(dirname "$testBinary")"
 
-		# Build the test
-		set -- nim c -d:debug -d:ssl -d:run3NoLibArchive -d:kpkgInstallChannelTest
+		# Keep project-specific features isolated: Jumpstart does not use TLS or
+		# kpkg's libarchive/install-channel test hooks.
+		set -- nim c -d:debug
+		case "$project" in
+			kpkg)
+				set -- "$@" -d:ssl -d:run3NoLibArchive -d:kpkgInstallChannelTest
+				;;
+			krep)
+				set -- "$@" -d:ssl -d:run3NoLibArchive
+				;;
+		esac
 		[ -n "$passC" ] && set -- "$@" "$passC"
 		[ -n "$passL" ] && set -- "$@" "$passL"
 		set -- "$@" --threads:on --deepcopy:on -o:"$testBinary" "$testFile"
@@ -185,8 +217,9 @@ Options:
 	-d, --debug: Enable debug on built projects
 	-t, --target [ARCHITECTURE]: Set architecture for built binary
 	-p, --projects [PROJECTS]: Enable projects, separate by comma
+	   (kpkg, krep, jumpstart, pam_jumpstart, install_klinstaller)
 	-P, --platform [PLATFORM]: Set platform for library paths (e.g., darwin for macOS)
-	-T, --test [PROJECT]: Run tests for a project (e.g., kpkg)
+	-T, --test [PROJECT]: Run tests for a project (kpkg, krep, jumpstart, jumpstartcore, kongue)
 	-i, --installDeps: Install dependencies before continuing
 	-c, --clean: Clean binaries
 	-b, --branch [BRANCH]: Set default branch for repositories. 'master' by default.
@@ -259,27 +292,70 @@ fi
 
 # Run tests if requested
 if [ -n "$testProject" ]; then
-	setupPlatform
+	case "$testProject" in
+		kpkg|krep) setupPlatform ;;
+	esac
 	runTests "$testProject"
 	exit 0
 fi
 
 [ -z "$projects" ] && exit 0
 
-setupPlatform
+case "$JUMPSTART_LIBDIR" in
+	/*) ;;
+	*) err "JUMPSTART_LIBDIR must be an absolute path: $JUMPSTART_LIBDIR" ;;
+esac
+case "$JUMPSTART_LIBDIR" in
+	*[[:space:]]*) err "JUMPSTART_LIBDIR must not contain whitespace" ;;
+esac
+jumpstartDefines="-d:jumpstartLibDir=$JUMPSTART_LIBDIR"
 
 IFS=","
 for v in $projects; do
 	echo "building $v"
 	case $v in
 		kpkg)
+			setupPlatform
 			buildNim "$v" "$v.nim" "$prefix/$v" "on" "" "1" "1"
 			;;
 		jumpstart)
-			buildNim "jumpstart" "jumpstart.nim" "$prefix/jumpstart" "on" "--mm:refc" "1" ""
-			buildNim "jumpstart" "jumpctl.nim" "$prefix/jumpctl" "off" "" "1" ""
+			# Fail before building anything if a required artifact's source is
+			# missing (see the §25 note below).
+			[ -f "$srcdir/jumpstart/kongue_runner.nim" ] \
+				|| err "jumpstart/kongue_runner.nim is missing; kongue-runner is required"
+			if [ "$buildOS" = "Linux" ]; then
+				[ -f "$srcdir/jumpstart/pam_jumpstart.nim" ] \
+					|| err "jumpstart/pam_jumpstart.nim is missing; pam_jumpstart.so is required on Linux"
+			fi
+			mkdir -p "$srcdir/out" || err "Creating jumpstart output directory failed"
+			buildNim "jumpstart" "jumpstart.nim" "$prefix/jumpstart" "on" "--mm:refc $jumpstartDefines" "1" ""
+			buildNim "jumpstart" "jumpctl.nim" "$prefix/jumpctl" "off" "$jumpstartDefines" "1" ""
+
+			# §25: the package ships /usr/lib/jumpstart/kongue-runner and
+			# pam_jumpstart.so.  Both are required; a missing source is an error,
+			# never a silently smaller package.  The PAM module is Linux-only (PAM
+			# session stacks and pidfd peer checks, §7.6), so non-Linux development
+			# builds (macOS) produce everything except pam_jumpstart.so.
+			rm -f "$prefix/kongue-runner" "$prefix/pam_jumpstart.so"
+			# Nim module names cannot contain hyphens, so the runner is built from
+			# kongue_runner.nim and only the output carries the specified name.
+			buildNim "jumpstart" "kongue_runner.nim" "$prefix/kongue-runner" "off" "$jumpstartDefines" "1" ""
+			if [ "$buildOS" = "Linux" ]; then
+				buildPamModule
+			else
+				echo "skipping pam_jumpstart.so: the PAM module is Linux-only (build OS: $buildOS)"
+			fi
+			;;
+		pam_jumpstart)
+			# The PAM module alone, e.g. for the musl/Alpine validation stage.
+			[ -f "$srcdir/jumpstart/pam_jumpstart.nim" ] \
+				|| err "jumpstart/pam_jumpstart.nim is missing"
+			mkdir -p "$srcdir/out" || err "Creating jumpstart output directory failed"
+			rm -f "$prefix/pam_jumpstart.so"
+			buildPamModule
 			;;
 		krep)
+			setupPlatform
 			mkdir -p "$srcdir/out" || err "Creating krep output directory failed"
 			buildNim "krep" "krep.nim" "$srcdir/out/krep" "on" "" "1" "1"
 			stageKrepAssets

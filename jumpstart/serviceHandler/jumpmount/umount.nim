@@ -1,64 +1,25 @@
-import osproc
-import strutils
+## Native mount units: unmount.
+import std/os
 import ../../../common/logging
-include ../../commonImports
 import ../../configParser
-import ../../mounts
+import ../mount_syscalls
+import jumpstartcore/errors
+import ../globalVariables
+import ../start
+import main
 
-proc stopMount*(mountName: string) =
-  ## Stop a mount unit
-  ## mountName can be either:
-  ##   - A simple name like "data" (looks for data.kg with type: mount)
-  ##   - A qualified name like "example::data" (looks for example.kg, mount "data")
-
-  if not dirExists(serviceHandlerPath&"/mounts/"&mountName):
-    warn "Mount "&mountName&" is not running, no need to try stopping it"
+proc stopMount*(ctx: NativeContext; mountName: string; lazy = false) =
+  ## Unmount. Unmounting an inactive mount unit is a success. `lazy` (or the
+  ## decfile's `lazy_unmount`) detaches the filesystem (MNT_DETACH).
+  if not ctx.mountActive(mountName):
+    info "Mount " & mountName & " is not mounted, no need to try stopping it"
     return
-
-  var unitName = mountName
-  var subMountName = "main"
-
-  # Check for qualified name (unit::subunit)
-  if "::" in mountName:
-    let parts = mountName.split("::", 1)
-    unitName = parts[0]
-    subMountName = parts[1]
-
-  # Load and parse the unit configuration
-  var config: UnitConfig
-  try:
-    config = parseUnit(configPath, unitName)
-  except CatchableError as e:
-    warn "Mount "&mountName&" couldn't be loaded: "&e.msg
-    return
-
-  # Find the matching mount config
-  var mountConfig: MountConfig
-  var found = false
-  for mnt in config.mounts:
-    if mnt.name == subMountName:
-      mountConfig = mnt
-      found = true
-      break
-
-  if not found and config.mounts.len == 1:
-    mountConfig = config.mounts[0]
-    found = true
-
-  if not found:
-    warn "Mount "&mountName&" not found in unit configuration"
-    return
-
-  # Determine umount flags
-  var flags: cint = 0
-  if mountConfig.lazyUnmount:
-    flags = MNT_DETACH
-
-  # Perform umount using syscall
+  let mountConfig = ctx.findMountConfig(mountName)
+  let flags: cint = if lazy or mountConfig.lazyUnmount: MNT_DETACH else: 0
   let ret = umountFs(mountConfig.toPath, flags)
   if ret != 0:
-    warn "Unmounting " & mountName & " failed: " & mountErrorStr(ret)
-    # Continue to clean up state anyway
-
-  removeDir(serviceHandlerPath&"/mounts/"&mountName)
-  ok "Unmounted "&mountName
+    nativeFail(ecBackend, "unmounting " & mountName & " failed: " & mountErrorStr(ret))
+  try: removeDir(ctx.mountStateDir(mountName))
+  except CatchableError as e:
+    warn "Could not clear state of mount " & mountName & ": " & e.msg
+  ok "Unmounted " & mountName

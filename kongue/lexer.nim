@@ -60,6 +60,8 @@ type
     value*: string
     line*: int
     col*: int
+    raw*: string        ## exact source text of the token (set by `tokenize`)
+    spaceBefore*: bool  ## whitespace separates it from the previous token
 
   Lexer* = object
     ## Lexer state
@@ -443,7 +445,12 @@ proc tokenize*(input: string): seq[Token] =
   while true:
     if result.len > maxTokens:
       raise newException(ValueError, "Lexer exceeded maximum token count - file may be malformed")
-    let tok = lex.nextToken()
+    let before = lex.pos
+    var tok = lex.nextToken()
+    var start = before
+    while start < lex.pos and lex.input[start] in {' ', '\t', '\r'}: inc start
+    tok.spaceBefore = start > before
+    tok.raw = lex.input[start ..< lex.pos]
     result.add(tok)
     if tok.kind == tkEof:
       break

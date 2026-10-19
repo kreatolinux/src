@@ -30,6 +30,7 @@
 import ast
 import lexer
 import parser
+import manifest
 import variables
 import utils
 import context
@@ -40,6 +41,7 @@ import executor
 export ast
 export lexer
 export parser
+export manifest
 export variables
 export utils
 export context

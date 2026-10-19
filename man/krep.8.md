@@ -12,6 +12,8 @@ krep - maintain Kreato Linux repositories and build images
 
 **krep** **iso** **--rootfs=***directory-or-archive* **--output=***directory* [*options*]
 
+**krep** **disk** **--rootfs=***directory-or-archive* **--output=***directory* [*options*]
+
 **krep** **generate** **matrix**|**markdown**|**manpage** [*options*]
 
 # DESCRIPTION
@@ -59,6 +61,12 @@ kpkg internals. Requires Linux and root privileges.
 : Build a live ISO from a trusted rootfs directory or tar archive. Requires Linux,
 root privileges, and preinstalled host build tools. Uses no mounts, loop devices,
 host kernel assets, or host package installs.
+
+**disk**
+: Build a GPT disk image (`NAME.img`) whose single partition holds a read-only
+EROFS root, plus `NAME.vmlinuz`, `NAME.initramfs.img` and `NAME.cmdline` (kernel
+command line using `root=PARTLABEL=... init=...`) beside it. Same requirements
+as **iso**, plus `mkfs.erofs`, `sgdisk` and `dd`.
 
 **generate matrix**
 : Generate a JSON build matrix. Accepts **--repo**, **--output**, **--limit**,
@@ -155,6 +163,53 @@ bypass another build's output lock.
 **--grubConfig=FILE**
 : Use an explicit GRUB template instead of the selected resource directory's
 `grub.cfg`. The template must contain `@INIT@`.
+
+**--initramfsGenerator=dracut|booster**
+: Initramfs generator. Default: dracut. `booster` is rejected for **iso** (it
+cannot assemble the live squashfs-on-ISO root); it is valid for **disk**.
+
+## disk
+Accepts **--rootfs**, **--output**, **--init**, **--kernelVersion**,
+**--kernelImage**, **--initramfs**, **--workDir**, **--clearRootPassword**,
+**--name** (must end in `.img`), **--overwrite** and **--initramfsGenerator** as
+for **iso**, plus:
+
+**--partLabel=LABEL**
+: GPT PARTLABEL of the root partition and EROFS volume label. Default: `jsroot`.
+
+**--writableMounts**
+: Append tmpfs mounts for `/var`, `/tmp`, `/root` and `/home` to the staged
+`/etc/fstab` (the EROFS root is read-only). Default: true; the init must mount
+them. Never replaces existing fstab content.
+
+**--bootloader=none|grub**
+: Default `none`. `grub` makes the image UEFI-bootable: partition 1 is a FAT32
+ESP (type EF00, `JSESP`) with `/boot/vmlinuz-VERSION`, `/boot/initramfs-VERSION.img`,
+`/boot/grub/grub.cfg` and a removable-media GRUB at `/EFI/BOOT/BOOTAA64.EFI`
+(aarch64) or `BOOTX64.EFI` (x86_64); partition 2 is the EROFS root. The kernel
+command line is the usual `root=PARTLABEL=... rootfstype=erofs ro init=...` plus
+**--console** and **--kernelArgs**. Needs `mkfs.vfat`, `mcopy`,
+`grub-mkstandalone` and the GRUB EFI platform files. The following options
+require it.
+
+**--arch=aarch64|x86_64**
+: GRUB platform of the image. Default: detected from the ELF header of the init.
+
+**--espSizeMiB=N**
+: ESP size in MiB (at least 64). Default: 256. It must hold the kernel, initramfs
+and GRUB.
+
+**--console=TOKENS**
+: Space separated console devices, each passed as `console=TOKEN`, e.g.
+`"tty0 ttyAMA0,115200"`. A `ttyS<N>` token also enables the GRUB serial terminal.
+Default: none.
+
+**--kernelArgs=TOKENS**
+: Extra kernel command line tokens.
+
+With **--initramfsGenerator=booster**, Booster is run as `chroot ROOTFS booster
+build --force --universal --kernel-version VERSION`, so it must be installed in
+the rootfs for the same architecture; krep does not provide it. Needs `chroot`.
 
 ## Both image tasks
 **--dataDir=DIRECTORY**

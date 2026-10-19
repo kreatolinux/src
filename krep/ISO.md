@@ -167,3 +167,65 @@ Secure Boot, or physical hardware. Linux tests also checked mount-free ext4
 ACL/xattr/file-capability preservation and process cancellation. The opt-in
 `tests/krep/linux_iso_integration.nim` driver runs the real assembly pipeline;
 provide your own trusted rootfs and installed host tools.
+
+## Disk image with an EROFS root (`krep disk`)
+
+`krep disk` builds a GPT image whose partition 1 (PARTLABEL `--partLabel`,
+default `jsroot`) holds an EROFS root, next to `NAME.vmlinuz`,
+`NAME.initramfs.img` and `NAME.cmdline` (`root=PARTLABEL=jsroot
+rootfstype=erofs ro init=INIT`). There is no bootloader; load the kernel and
+initramfs directly (QEMU `-kernel/-initrd`, or copy them to an ESP/bootloader).
+It needs `mkfs.erofs`, `sgdisk`, `dd` and, when generating an initramfs,
+either `dracut` (default; non-live, `erofs` filesystem, untested for boot) or
+`--initramfsGenerator=booster`.
+
+Booster (verified with stock 0.13, `booster build --universal`) reads modules
+from `/usr/lib/modules/VERSION` of the machine it runs on and has no
+modules-dir flag, so krep runs it as `chroot STAGED_ROOTFS booster build ...`:
+install a same-architecture `booster` in the rootfs (and its
+`/usr/lib/booster/init`). krep mounts nothing, so it creates an empty
+`/sys/module` in the staged copy for Booster and removes it afterwards. Booster is not valid for `krep iso`: it cannot
+assemble the live squashfs-on-ISO root, which stays on dracut.
+
+The root is read-only. With `--writableMounts` (default) krep appends the block
+in `krep/data/erofs/writable-mounts.fstab` (tmpfs `/var /tmp /root /home`) to
+the staged `/etc/fstab`; the init must mount fstab (for Jumpstart set
+`mount_fstab = true`). Other writable needs (an `/etc` overlay, `/dev/fd`) are
+the rootfs's responsibility and are not shipped by krep.
+
+End-to-end check (Docker + QEMU, arm64): `sh tests/krep/docker/verify-erofs.sh
+ROOTFS.tar INIT`. It builds stock Booster 0.13 and krep's driver, adds a Debian
+kernel and Booster to a rootfs copy, runs the real pipeline and boots the result
+with `-kernel/-initrd`. Verified once with a Jumpstart/OpenRC rootfs: Booster
+detected `erofs` on `/dev/vda1`, mounted it, and Jumpstart reached the login prompt.
+
+### UEFI-bootable disk (`--bootloader=grub`)
+
+Opt-in; without it the image is unchanged. `--bootloader=grub` makes the image
+boot by itself through UEFI firmware (USB stick or disk): partition 1 is a FAT32
+ESP (GPT type EF00, PARTLABEL and volume label `JSESP`, `--espSizeMiB`, default
+256), partition 2 the unchanged EROFS root (`--partLabel`). The ESP holds
+`/boot/vmlinuz-VERSION`, `/boot/initramfs-VERSION.img` (Booster or dracut),
+`/boot/grub/grub.cfg` and a standalone GRUB at the removable-media path
+`/EFI/BOOT/BOOTAA64.EFI` (aarch64) or `BOOTX64.EFI` (x86_64), built with
+`grub-mkstandalone --format=arm64-efi|x86_64-efi` (no NVRAM entry, no mount, no
+loop device). The embedded config finds the ESP by label and loads `grub.cfg`,
+which uses the same command line as `NAME.cmdline`
+(`root=PARTLABEL=jsroot rootfstype=erofs ro init=INIT`) plus
+`--console="tty0 ttyAMA0,115200"` (each token becomes `console=`; a `ttyS<N>`
+token also puts the GRUB menu on that serial port) and `--kernelArgs`. The
+architecture is read from the ELF header of the rootfs init (or `--arch
+aarch64|x86_64`) and selects the GRUB platform. The root stays a separate
+partition: stock Booster cannot loop-mount a file.
+
+Extra tools: `mkfs.vfat` (dosfstools), `mcopy` (mtools), `grub-mkstandalone`
+and the GRUB platform files (`/usr/lib/grub/arm64-efi`, Debian
+`grub-efi-arm64-bin`; `grub-efi-amd64-bin` for x86_64). No Secure Boot signing.
+
+Verified (Debian trixie arm64, kernel 6.12.113, stock Booster 0.13, a
+Jumpstart/OpenRC EROFS rootfs): `sh tests/krep/docker/container-build-uefi.sh`
+builds the image, `tests/krep/docker/boot-uefi.sh` boots it with QEMU aarch64 and
+edk2 firmware without `-kernel/-initrd`, as USB mass storage and as virtio
+disk: firmware, GRUB, Booster mounts the EROFS partition, `login:`, root login,
+writes to `/etc /var /tmp`, `jumpctl poweroff`. The x86_64 path is covered by
+unit tests of the generated commands and `grub.cfg` only, not booted.

@@ -52,6 +52,7 @@ type
     ## Parser state
     tokens*: seq[Token]
     pos*: int
+    strict*: bool ## manifest mode: reject text outside function blocks
 
   ParseError* = object of CatchableError
     ## Parse error with line information
@@ -691,6 +692,25 @@ proc parseFuncCallStatement(p: var Parser, name: string, line: int): AstNode =
     if argCount > maxArgs:
       raiseParseError("Function call exceeded maximum arguments - possible parse error at token: " &
           $p.peek().kind, p.peek().line, p.peek().col)
+    if p.peek().kind == tkEquals and args.len > 0 and not p.peek().spaceBefore:
+      # A bare `KEY=VALUE` argument, such as `respond-item units name=x.y`
+      # (jumpstart-cores §16.3): `=` joins the word before it with the value
+      # written directly after it. The value is the exact source text of the
+      # tokens that follow without whitespace (quotes and `${…}` included),
+      # so it is split and interpolated like any other argument.
+      discard p.advance()
+      var value = ""
+      var braces = 0
+      while p.peek().kind notin {tkNewline, tkEof} and not p.peek().spaceBefore:
+        let tok = p.peek()
+        if tok.kind == tkRBrace:
+          if braces == 0: break
+          dec braces
+        elif tok.kind == tkLBrace: inc braces
+        value.add(tok.raw)
+        discard p.advance()
+      args[^1].add("=" & value)
+      continue
     let startPos = p.pos
     let expr = p.parseExpression()
     # If parseExpression didn't consume anything and returned empty, we're stuck
@@ -932,6 +952,14 @@ proc parse*(p: var Parser): ParsedScript =
     elif p.isFunctionDefinitionStart():
       debug "parse: parsing function '"&p.peek().value&"'"
       result.functions.add(p.parseFunction(isCustom = false))
+    elif p.strict:
+      # Ordinary Kongue skips stray top-level text; manifest mode must not
+      # silently drop it (kongue(5), MANIFEST MODE).
+      let tok = p.peek()
+      if p.isVariableDeclarationStart():
+        raiseParseError("header fields must precede the first function block",
+          tok.line, tok.col)
+      raiseParseError("unexpected text outside a function block", tok.line, tok.col)
     else:
       discard p.advance()
     p.skipCommentsAndNewlines()

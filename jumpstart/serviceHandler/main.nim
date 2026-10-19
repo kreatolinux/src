@@ -1,25 +1,59 @@
 # serviceHandler
 # JumpStart's service handler
-include ../commonImports
-import ../types
-import ../configParser
-import ../unitname
-import ../unitdispatch
-import ../dephandler
-import ../mounts
-import ../exec
-import enable, disable, start, stop
-import osproc
-import parsecfg
-import strutils
+#
+# The daemon imports this module. The native backend itself lives in
+# native_bridge.nim; this file holds the PID 1 duties (initSystem) and the
+# logging initialisation.
+import std/os, ../commonImports
+import mount_syscalls
+import jumpstartcore/[cgroups, reaper]
+import globalVariables, native_bridge
+import std/[parsecfg, strutils]
 import ../../common/logging
-import jumpmount/main
-import jumpmount/umount
-import jumptimer/main
-import jumptimer/stop
 
-# Initialize logging for jumpstart serviceHandler
-initLogger("jumpstart", "/etc/jumpstart/main.conf", "/var/log/jumpstart.log")
+export native_bridge, globalVariables
+
+proc initServiceHandlerLogging*(logPath: string;
+                                configFile = "/etc/jumpstart/main.conf") =
+  ## Initialise logging with the daemon log path of the selected mode (§7.2,
+  ## §19.2). The daemon calls this once it has chosen its mode; nothing is
+  ## initialised implicitly.
+  initLogger("jumpstart", configFile, logPath)
+
+type
+  SystemInitOptions* = object
+    configFile*: string       ## /etc/jumpstart/main.conf
+    cgroupMount*: string      ## /sys/fs/cgroup
+    fstabPath*: string        ## /etc/fstab
+    defaultHostname*: string
+
+  SystemInitResult* = object
+    mountFstab*: bool         ## [System] mount_fstab (default true, §20.2).
+    filesystemsReady*: bool   ## True once `mount -a` returned (§20.2).
+    cgroupAvailable*: bool    ## cgroup v2 is mounted at cgroupMount.
+    cgroupError*: string      ## Why it is not, when it is not.
+
+proc defaultSystemInitOptions*(): SystemInitOptions =
+  SystemInitOptions(configFile: "/etc/jumpstart/main.conf",
+    cgroupMount: "/sys/fs/cgroup", fstabPath: "/etc/fstab",
+    defaultHostname: "klinux")
+
+proc readMountFstab*(configFile: string): bool =
+  ## `mount_fstab` in [System] of main.conf. Absent means true (§20.2). Any
+  ## other value than true/false is logged and treated as the default.
+  result = true
+  if not fileExists(configFile): return
+  try:
+    let value = loadConfig(configFile).getSectionValue("System", "mount_fstab", "")
+    case value.strip.toLowerAscii
+    of "": discard
+    of "true", "yes", "1", "on": result = true
+    of "false", "no", "0", "off": result = false
+    else:
+      warn "Invalid mount_fstab value '" & value & "' in " & configFile &
+        "; using the default (true)"
+  except CatchableError as e:
+    warn "Couldn't read " & configFile & ": " & e.msg
 
 proc mountWithLog(source, target, fstype: string, flags: culong = 0,
     data: string = "") =
@@ -34,156 +68,67 @@ proc mountWithLog(source, target, fstype: string, flags: culong = 0,
   if ret != 0:
     fatal "Couldn't mount " & target & ": " & mountErrorStr(ret)
 
-proc initSystem() =
-  ## Initialize system such as mounting /proc, /dev, putting the hostname, etc.
-  ## Uses direct mount syscalls instead of shell commands.
-  info "Mounting filesystems..."
+when defined(linux):
+  const RbDisableCad = cint(0)
+  proc linuxReboot(command: cint): cint {.importc: "reboot", header: "<sys/reboot.h>".}
 
-  # Mount essential filesystems using syscalls
+proc initSystem*(reaper: Reaper;
+                 options = defaultSystemInitOptions()): SystemInitResult =
+  ## Native PID 1 duties (§20.2 step 1): API filesystems, cgroup2, the
+  ## optional fstab stage, hostname, and Ctrl-Alt-Del as SIGINT. `mount -a`
+  ## runs through the spawn layer and is waited for through `reaper`.
+  info "Mounting filesystems..."
   mountWithLog("proc", "/proc", "proc")
   mountWithLog("none", "/dev", "devtmpfs")
   mountWithLog("devpts", "/dev/pts", "devpts")
   mountWithLog("sysfs", "/sys", "sysfs")
   mountWithLog("none", "/run", "tmpfs")
 
-  # Remount root as read-write
-  let ret = mountFs("", "/", "", MS_REMOUNT, "")
-  if ret != 0:
-    warn "Couldn't remount root as read-write: " & mountErrorStr(ret)
+  try:
+    ensureCgroupV2(options.cgroupMount)
+    result.cgroupAvailable = true
+  except CatchableError as e:
+    result.cgroupError = e.msg
+    warn "cgroup v2 unavailable, serviceHandler runs without cgroups: " & e.msg
 
-  # Mount fstab entries using mount -a
-  if fileExists("/etc/fstab"):
-    let exitCode = execDirectWait("/bin/mount -a", {poUsePath})
-    if exitCode != 0:
-      warn "mount -a failed with exit code " & $exitCode
-
-  let defaultHostname = "klinux"
+  result.mountFstab = readMountFstab(options.configFile)
+  if result.mountFstab:
+    let ret = mountFs("", "/", "", MS_REMOUNT, "")
+    if ret != 0:
+      warn "Couldn't remount root as read-write: " & mountErrorStr(ret)
+    if fileExists(options.fstabPath):
+      try:
+        let ctx = newNativeContext("/", "/", reaper)
+        let status = ctx.runToCompletion("mount -a", "serviceHandler:mount-a")
+        if shellExitCode(status) != 0:
+          warn "mount -a failed with exit code " & $shellExitCode(status)
+      except CatchableError as e:
+        warn "mount -a could not run: " & e.msg
+    result.filesystemsReady = true
+  else:
+    info "mount_fstab is false: leaving / and /etc/fstab to the cores"
 
   try:
-    if fileExists("/etc/jumpstart/main.conf"):
+    if fileExists(options.configFile):
       info "Loading configuration..."
       # Note: main.conf is still INI format for system config, not unit definitions
-      let conf = loadConfig("/etc/jumpstart/main.conf")
+      let conf = loadConfig(options.configFile)
       writeFile("/proc/sys/kernel/hostname", conf.getSectionValue(
-              "System", "hostname", defaultHostname))
+              "System", "hostname", options.defaultHostname))
     else:
-      writeFile("/proc/sys/kernel/hostname", defaultHostname)
+      writeFile("/proc/sys/kernel/hostname", options.defaultHostname)
   except CatchableError:
     warn "Couldn't load configuration!"
 
-proc startUnit(config: UnitConfig, unitName: string) =
-  ## Start a unit based on its type and configuration
-  case config.unitType
-  of utSimple, utOneshot:
-    # Simple service unit
-    startService(unitName)
-  of utTimer:
-    # Timer unit
-    startTimer(unitName)
-  of utMount:
-    # Mount unit
-    startMount(unitName)
-  of utMulti:
-    # Multi-unit: start all sub-units in order
-    # Start mounts first
-    for mnt in config.mounts:
-      startMount(unitName & "::" & mnt.name)
-    # Then services
-    for svc in config.services:
-      startService(unitName & "::" & svc.name)
-    # Then timers
-    for tmr in config.timers:
-      startTimer(unitName & "::" & tmr.name)
+  when defined(linux):
+    if linuxReboot(RbDisableCad) != 0:
+      warn "Couldn't disable Ctrl-Alt-Del reboot: " & osErrorMsg(osLastError())
 
-proc startRequestedUnit*(requestedName: string) =
-  let normalized = normalizeUnitName(requestedName)
-  try:
-    let config = parseUnit(configPath, unitBaseName(normalized))
-    if "::" notin normalized:
-      startUnit(config, normalized)
-    else:
-      case requestedUnitKind(config, normalized)
-      of ukMount: startMount(normalized)
-      of ukTimer: startTimer(normalized)
-      of ukService: startService(normalized)
-  except CatchableError as e:
-    warn "Couldn't start unit " & normalized & ": " & e.msg
+# --- bridge construction ----------------------------------------------------
 
-proc stopUnit(config: UnitConfig, unitName: string) =
-  case config.unitType
-  of utSimple, utOneshot:
-    stopService(unitName)
-  of utTimer:
-    stopTimer(unitName)
-  of utMount:
-    stopMount(unitName)
-  of utMulti:
-    # Reverse startup order when stopping a complete multi-unit.
-    for i in countdown(config.timers.high, 0):
-      stopTimer(unitName & "::" & config.timers[i].name)
-    for i in countdown(config.services.high, 0):
-      stopService(unitName & "::" & config.services[i].name)
-    for i in countdown(config.mounts.high, 0):
-      stopMount(unitName & "::" & config.mounts[i].name)
-
-proc stopRequestedUnit*(requestedName: string) =
-  let normalized = normalizeUnitName(requestedName)
-  try:
-    let config = parseUnit(configPath, unitBaseName(normalized))
-    if "::" notin normalized:
-      stopUnit(config, normalized)
-    else:
-      case requestedUnitKind(config, normalized)
-      of ukMount: stopMount(normalized)
-      of ukTimer: stopTimer(normalized)
-      of ukService: stopService(normalized)
-  except CatchableError as e:
-    warn "Couldn't stop unit " & normalized & ": " & e.msg
-
-proc serviceHandlerInit() =
-  ## Initialize serviceHandler.
-  ## Uses dependency resolution to start units in correct order
-  discard existsOrCreateDir(configPath)
-  discard existsOrCreateDir(configPath & "/enabled")
-  removeDir(serviceHandlerPath)
-
-  # Collect all enabled units
-  var enabledUnits: seq[string] = @[]
-  let enabledDir = configPath & "/enabled"
-  if dirExists(enabledDir):
-    for kind, path in walkDir(enabledDir):
-      if kind in {pcFile, pcLinkToFile}:
-        let unitName = extractFilename(path).replace(".kg", "")
-        enabledUnits.add(unitName)
-
-  if enabledUnits.len == 0:
-    info "No enabled units found"
-    return
-
-  # Resolve dependency order
-  var startOrder: seq[string]
-  try:
-    startOrder = getStartOrder(enabledUnits)
-    info "Start order: " & startOrder.join(", ")
-  except DependencyError as e:
-    fatal "Dependency resolution failed: " & e.msg
-    return
-
-  # Start units in resolved order
-  for unitName in startOrder:
-    # Only start if it's in the enabled list (dependencies might be pulled in but not enabled)
-    if unitName notin enabledUnits:
-      continue
-
-    try:
-      let config = parseUnit(configPath, unitName)
-
-      # Validate hard dependencies are running
-      let (valid, missing) = validateDependencies(unitName)
-      if not valid:
-        warn "Unit " & unitName & " has missing dependencies: " & missing.join(", ")
-        continue
-
-      startUnit(config, unitName)
-    except CatchableError as e:
-      warn "Failed to start enabled unit " & unitName & ": " & e.msg
+proc configureServiceHandler*(ctx: NativeContext;
+                              clientVersion = jumpstartVersion): NativeBridge =
+  ## Create a bridge as the daemon's first serviceHandler load does: empties
+  ## the runtime directory and reports load errors (a reserved `default.kg`).
+  result = newNativeBridge(ctx, resetRuntime = true, clientVersion = clientVersion)
+  result.logLoadErrors()

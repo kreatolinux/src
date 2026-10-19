@@ -48,7 +48,25 @@ when isMainModule:
       "imageSizeMiB": "Ext4 image size in MiB, or 0 for automatic sizing",
       "clearRootPassword": "Explicitly clear the staged root password (insecure)",
       "name": "Output filename ending in .iso",
-      "overwrite": "Atomically replace an existing output ISO"}])
+      "overwrite": "Atomically replace an existing output ISO",
+      "initramfsGenerator": "Initramfs generator: dracut (booster is rejected for ISOs)"}],
+      [disk, help = {
+      "rootfs": "Input rootfs directory or trusted tar archive",
+      "kernelVersion": "Rootfs kernel version (required when ambiguous)",
+      "kernelImage": "Kernel image path inside the rootfs",
+      "initramfs": "Existing compatible initramfs; skips generation",
+      "workDir": "Existing workspace parent directory outside the input rootfs",
+      "clearRootPassword": "Explicitly clear the staged root password (insecure)",
+      "name": "Output filename ending in .img",
+      "overwrite": "Replace existing output files",
+      "initramfsGenerator": "Initramfs generator: dracut or booster",
+      "partLabel": "GPT PARTLABEL of the EROFS root partition",
+      "writableMounts": "Append tmpfs mounts for /var /tmp /root /home to /etc/fstab",
+      "bootloader": "none (default) or grub: add a FAT32 ESP (JSESP) with GRUB, kernel and initramfs so the image boots through UEFI",
+      "arch": "Target for --bootloader: aarch64 or x86_64 (default: detected from the rootfs)",
+      "espSizeMiB": "ESP size in MiB with --bootloader (default 256)",
+      "console": "Kernel consoles with --bootloader, e.g. 'tty0 ttyS0,115200'",
+      "kernelArgs": "Extra kernel command line tokens with --bootloader"}])
   except CatchableError as exc:
     error exc.msg
     quit(1)

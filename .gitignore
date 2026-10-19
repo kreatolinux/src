@@ -7,3 +7,9 @@ kpkg/modules/generated.nim
 kreato-linux*.tar.gz
 .direnv/
 krep/krep
+.DS_Store
+.isobuild/
+# compiled test binaries
+tests/**/test_*
+!tests/**/test_*.*
+!tests/**/test_*/

@@ -70,9 +70,10 @@ timer sync {
   - `multi`: A unit containing multiple sub-units (services, mounts, or timers).
   - `timer`: A timer that triggers a service at specified intervals.
   - `mount`: A filesystem mount unit.
+  - `target`: A group of native units. A target has no function block.
 
 ## DEPENDENCY VARIABLES
-* **depends**: Runtime dependencies of your unit. The unit will start after the specified units have started and will fail if any dependency is not running.
+* **depends**: Hard dependencies of your unit. When a target starts (including the boot target), every unit in the `depends` closure of its members is started too, whether or not it is enabled, and before the units that depend on it. A unit whose dependency is unknown or failed to start is not started and is reported as failed. Starting a single non-target unit with `jumpctl start` starts only that unit.
   - Can also depend on a specific sub-unit using `depends: "unitname::subunitname"`
 * **depends subunitname**: Specify dependencies for a specific sub-unit. Can be modified using:
   - `depends subunitname+: "unitname"` to add a dependency
@@ -80,7 +81,7 @@ timer sync {
   - `depends subunitname: "unitname"` to replace dependencies completely
 
 ## ORDERING VARIABLES
-* **after**: Start this unit after the specified units have started. Unlike `depends`, the unit will not fail if the specified units are not present or not running.
+* **after**: Start this unit after the specified units when both are started together. Unlike `depends`, `after` never pulls a unit in and ignores units that are not present.
 * **after subunitname**: Specify ordering for a specific sub-unit. Can be modified using:
   - `after subunitname+: "unitname"` to add an ordering
   - `after subunitname-: "unitname"` to remove an ordering
@@ -98,6 +99,12 @@ The required function depends on the unit `type`:
 
 For `multi` type units, at least one named function block is required (e.g., `service_name`, `timer_name`, or `mount_name`).
 
+## COMMAND ARGUMENTS
+Arguments of the commands inside function blocks are literal values. A quoted argument such as `from "tmpfs"` is the string between the quotes, with Kongue escapes (`\"`, `\\`, `\n`, `\t`, `\r`) decoded. Bare words and numbers (`interval 3600`, `terminal true`) are taken as written.
+
+## VALIDATION
+`jumpctl units validate UNIT` and `jumpctl units load` report a missing `description` or `type`, an unknown `type`, a function block in a target, a `simple`, `oneshot`, `mount`, or `timer` unit without exactly one block of its kind, a service without `exec`, a mount without `from`, `to`, or `fstype`, a timer without a positive `interval` or a `service`, duplicate sub-unit names, unknown target members, and target cycles. Parsing stays tolerant for compatibility: a unit with such problems is still loaded, but an unknown `type` is not a valid declaration.
+
 ## OPTIONAL FUNCTIONS
 * **service name**: Defines a named sub-service for `multi` type units. Replace `name` with the sub-service identifier.
 * **timer name**: Defines a named timer for `multi` type units. Replace `name` with the timer identifier.
@@ -109,8 +116,23 @@ Services are units that run processes. To create a service, set `type` to `simpl
 ## SERVICE COMMANDS
 The following commands are available inside `service` blocks, in addition to the default Kongue built-in commands (see kongue(5) for those):
 
-* **exec**: Execute a command as the service process. Required.
-* **terminal**: Set to `true` for interactive services such as getty. The service inherits init's terminal and remains in its foreground process group. Defaults to `false`.
+* **exec**: Execute a command as the service process. Required. The command is split into words without a shell (quotes group words) and the program is looked up in the unit environment's `PATH`.
+* **exec_pre**: A command run to completion before `exec`. A non-zero exit is logged and the service still starts. A command still running after 90 seconds is killed and the start fails.
+* **exec_post**: A command run after the service exits with status 0. The status becomes `stopped` once it has finished.
+* **terminal**: Set to `true` for interactive services such as getty. The service inherits init's terminal and remains in its foreground process group. Defaults to `false`. Other services run in their own session with standard input from `/dev/null`; their output is discarded.
+
+## SERVICE PROCESSES
+Service processes start with the environment Jumpstart builds for its mode (in system mode `PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin` and `LANG=C.UTF-8`), not with init's own environment, in the working directory `/`. When cgroup v2 is available, every process of a native unit runs in the cgroup `cores/serviceHandler/units/UNIT.unit/` below Jumpstart's hierarchy. Without cgroup v2 services run without cgroups.
+
+Stopping a service sends `SIGTERM` to its main process, waits up to 10 seconds, sends `SIGKILL`, and then kills the unit's cgroup, which reaches every remaining process of the service. `jumpctl kill UNIT [--signal S]` signals every process in the unit's cgroup, or only the main process without cgroup v2; it never signals a process group. `jumpctl restart UNIT` is a stop followed by a start. Native services have no reload command.
+
+## STATUS
+`jumpctl status UNIT` prints the native status text. Services write it to their runtime state; Jumpstart maps it to a unit state:
+
+* `running` (service or timer) and `mounted` (mount): `active`.
+* `stopped`, or no status at all: `inactive`.
+* `stopped with an exit code N`: `inactive` when the exit followed a stop that Jumpstart requested (usually `N` is 143, from `SIGTERM`), otherwise `failed`. The status text stays after a stop; it never prevents the next start.
+* Anything else: `unknown`.
 
 ## Example Service
 
@@ -170,9 +192,9 @@ The following commands are available inside `mount` blocks:
 * **to**: Target mount point directory. Required.
 * **fstype**: Filesystem type (e.g., `ext4`, `btrfs`, `tmpfs`). Required.
 * **timeout**: Maximum time to wait for the mount operation (e.g., `5s`, `1m`).
-* **lazy_unmount**: When `true`, perform a lazy unmount on stop, detaching the filesystem immediately and cleaning up references later. Default is `false`.
+* **lazy_unmount**: When `true`, perform a lazy unmount on stop, detaching the filesystem immediately and cleaning up references later. Default is `false`. A stop request with `lazy` set does the same for one stop.
 * **chmod**: Set permissions on the mount point after mounting (e.g., `755`).
-* **extra_args**: Additional arguments to pass to the mount command (e.g., `"-o size=512M"`).
+* **extra_args**: The filesystem-specific data string passed to mount(2) (e.g., `"size=512M"`).
 
 ## Example Mount
 
@@ -188,6 +210,33 @@ mount {
     chmod 755
 }
 ```
+
+# TARGETS
+A decfile with `type: "target"` groups native Jumpstart units. It has no function block. Its optional `wants` variable lists decfile names and may name sub-units with `::`; target names are also valid members.
+
+```bash
+description: "Multi-user system"
+type: "target"
+wants:
+    - "sshd"
+    - "network"
+    - "getty::tty1"
+```
+
+The members of target `T` are its `wants` plus units enabled into it. `jumpctl enable UNIT --target T` creates `/etc/jumpstart/targets/T/UNIT.kg`; the corresponding `disable` command removes that link. Enabling without `--target` continues to create `/etc/jumpstart/enabled/UNIT.kg` and makes the unit a member of the built-in `default` target. `--now` also starts (for `enable`) or stops (for `disable`) the unit. A sub-unit cannot be enabled or disabled separately (the request fails with `E_UNSUPPORTED`, naming its decfile); list it in `wants` instead. User-mode daemons use the same layout below `~/.config/jumpstart`.
+
+Cycles through target `wants` or target enablement links are validation and load errors, and a target in a cycle cannot be started. Starting a target starts its transitive members and their `depends` closure, ordered by `depends` and `after`; if any of them fails to start, the others still start and the request reports the failures (`E_PARTIAL`). Stopping a target stops its active transitive members in reverse start order. An unqualified `multi` decfile acts as a target whose members are its sub-units: `jumpctl start foo` starts its mounts, then its services, then its timers (subject to `depends` and `after`), and `jumpctl stop foo` stops them in reverse order. Each sub-unit (`foo::bar`) is a service, mount, or timer of its own.
+
+A native unit is `enabled` when linked in `enabled/` or any `targets/*/` directory, `static` when only named by a target's `wants`, and `disabled` otherwise. Native units do not report `indirect`, `masked`, or `generated`.
+
+Native activation starts the boot target. Deactivation stops every active native unit, including units started individually with `jumpctl start`, in reverse start order. `jumpctl isolate T` starts `T` and then stops every active native unit that `T` does not require, that is, every unit that is neither a transitive member of `T` nor in its members' `depends` closure.
+
+Target status reports the transitive members. A member is satisfied when it is active, or when it is a `oneshot` service whose last run, started since the target last started, exited with status 0. The target is `failed` if any member is failed (or failed to start), otherwise `active` if every member is satisfied (a started target without members is active), otherwise `inactive` if the target has not been started since boot or was stopped, or no member is satisfied, and otherwise `activating`. `jumpctl status` prints these as `failed`, `running`, `stopped`, and `starting`. Targets and multi-unit decfiles have no status file.
+
+## DEFAULT AND BOOT TARGETS
+The native `default` target always exists and consists of units linked in `enabled/`. The boot target is read from `/etc/jumpstart/default-target`, which contains one native target name followed by a newline. If that file does not exist, `default` is used. `target.set-default` updates the file atomically and `target.get-default` reads it.
+
+The name `default.kg` is reserved and such a decfile is rejected. **Migration:** an installation with an existing `/etc/jumpstart/default.kg` continues booting other units, but `default.kg` is reported as an error at daemon startup and by unit loading, is not loaded, and never starts. Rename that decfile and its link in `/etc/jumpstart/enabled/` (and any target links) to restore the unit.
 
 # AUTHOR
 Written by Kreato.

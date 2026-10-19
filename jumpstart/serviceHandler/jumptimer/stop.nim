@@ -1,49 +1,38 @@
+## Native timer units: disarming.
+import std/[os, strutils]
 import ../../../common/logging
-import strutils
-include ../../commonImports
 import ../globalVariables
 
-proc loadCurrentRemaining(timerName: string): int =
-  let timerStatePath = serviceHandlerPath&"/timers/"&timerName
+proc loadCurrentRemaining(stateDir: string): int =
   try:
-    if fileExists(timerStatePath&"/remaining"):
-      return parseInt(readFile(timerStatePath&"/remaining"))
+    if fileExists(stateDir / "remaining"):
+      return parseInt(readFile(stateDir / "remaining"))
   except CatchableError:
     discard
   return 0
 
-proc stopTimer*(timerName: string) =
-  if not dirExists(serviceHandlerPath&"/timers/"&timerName):
-    info "Timer "&timerName&" is already not running"
-    return
-
-  var timerIndex = -1
-
-  for i in 0 ..< timers.len:
-    if timers[i].timerName == timerName:
-      timerIndex = i
-      break
-
+proc stopTimer*(ctx: NativeContext; timerName: string) =
+  ## Disarm a timer. Does not stop a unit it already triggered. Disarming a
+  ## timer that is not armed is a success.
+  let timerIndex = ctx.findTimerIndex(timerName)
   if timerIndex == -1:
-    warn "Timer "&timerName&" not found in running timers"
+    info "Timer " & timerName & " is already not running"
     return
 
-  info "Stopping timer "&timerName
+  info "Stopping timer " & timerName
+  let record = ctx.timers[timerIndex]
+  record.stopFlag[] = true
+  joinThread(record.thread[])
 
-  timers[timerIndex].stopFlag[] = true
-  joinThread(timers[timerIndex].thread[])
-
-  let remaining = loadCurrentRemaining(timerName)
-  let timerStatePath = serviceHandlerPath&"/timers/"&timerName
-
+  let stateDir = ctx.timerStateDir(timerName)
+  let remaining = loadCurrentRemaining(stateDir)
   try:
-    writeFile(timerStatePath&"/remaining", $remaining)
-    writeFile(timerStatePath&"/status", "stopped")
+    writeFile(stateDir / "remaining", $remaining)
+    writeFile(stateDir / "status", "stopped")
   except CatchableError:
-    warn "Failed to persist state for stopped timer "&timerName
+    warn "Failed to persist state for stopped timer " & timerName
 
-  deallocShared(timers[timerIndex].stopFlag)
-  deallocShared(timers[timerIndex].thread)
-  timers.del(timerIndex)
-
-  ok "Stopped timer "&timerName
+  deallocShared(record.stopFlag)
+  deallocShared(record.thread)
+  ctx.timers.del(timerIndex)
+  ok "Stopped timer " & timerName

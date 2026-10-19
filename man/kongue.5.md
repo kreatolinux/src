@@ -97,6 +97,75 @@ echo $test1
 # Result: true
 ```
 
+## STRUCTURED HEADER VALUES
+Kongue headers can contain nested mappings, sequences, and sequences of mappings. Nesting is determined by spaces. Tabs in header indentation and inconsistent indentation are errors; function bodies are not header text, so tabs there are allowed. Keys in the same mapping must be unique. Continuation keys in a sequence item align with the first key after `- `; a block nested under an item's key must be indented further than that column.
+
+```yaml
+supervisor:
+    executable: "bin/example-supervisor"
+
+supported_ops:
+    - name: "service.start"
+      backend: "exec"
+      options:
+          executable: "bin/example-adapter"
+          mode: "persistent"
+          timeout: "90s"
+      writable_paths:
+          - "/run/example"
+```
+
+Header data is declarative: interpolation and expression evaluation are not performed in header values. Existing flat headers and lists retain their ordinary Kongue behavior.
+
+The structured-header grammar is:
+
+```text
+header       = *( field / comment-line / NL )
+field        = key ":" SP value [ comment ] NL
+             / key ":" [ comment ] NL [ INDENT block DEDENT ]
+block        = mapping / sequence
+mapping      = 1*( key ":" ( SP value [ comment ] NL
+                           / [ comment ] NL [ INDENT block DEDENT ] ) )
+sequence     = 1*( "-" SP ( value [ comment ] NL / inline-map ) )
+inline-map   = key ":" ( SP value [ comment ] NL
+                       / [ comment ] NL [ INDENT block DEDENT ] )
+               *( ALIGN key ":" ( SP value [ comment ] NL
+                                 / [ comment ] NL [ INDENT block DEDENT ] ) )
+value        = quoted-string / "true" / "false" / 1*DIGIT
+key          = ALPHA *( ALPHA / DIGIT / "_" )
+comment      = SP "#" *( any character except NL )
+comment-line = *SP "#" *( any character except NL ) NL
+```
+
+`INDENT` and `DEDENT` are increases and decreases in leading spaces. `ALIGN` returns to the column of the first key after `- `. The typed `value` alternatives shown above apply in manifest mode; ordinary mode continues to interpret values such as `true` and `42` as strings.
+
+A key followed by neither a value nor a nested block has an empty value. The application reading the header treats it as an empty sequence or an empty mapping, whichever the key expects; for example `subsystems:` on its own line is an empty list.
+
+## MANIFEST MODE
+Manifest mode is a strict parser mode selected by the application loading a document, such as Jumpstart when it loads a core's `init.kg`. It is not enabled by a declaration inside the document. In manifest mode:
+
+1. Header keys at every nesting level are exact and case-sensitive. Name-style folding is disabled.
+2. An underscore is part of a key, not a qualifier separator. For example, `core_version` is one key.
+3. Header modifiers `+:` and `-:` are rejected.
+4. Strings must be quoted. The only unquoted header scalars are `true`, `false`, and non-negative decimal integers; these have boolean and integer types rather than string types.
+5. Function names are exact and case-sensitive. `init` and `shutdown` cannot be qualified, and other function names cannot begin with `init_` or `shutdown_`. Defining both a qualified function and the equivalent underscore form, such as `start_unit mount` and `func start_unit_mount`, is an error.
+6. Variable references, including `$name`, `${name}`, `${name.key}`, and bare names in conditions, are exact and case-sensitive.
+7. Comments beginning with `#` are accepted on their own lines and after header values.
+8. Function and method names in expressions must be literal; computed call names are rejected.
+9. The header ends at the first function block. Header fields after it, and any other text outside a function block, are errors rather than being ignored.
+
+Manifest mode also supports a multi-argument `spawn` expression:
+
+```bash
+init {
+    if "${spawn(\"/usr/bin/test\", \"-x\", \"/usr/bin/example\").exit()}" == "0" {
+        print "example is installed"
+    }
+}
+```
+
+The arguments are a comma-separated list of quoted strings and are stored as separate parse-tree tokens. Inside a double-quoted string, as in the example, each argument's quotes are written escaped (`\"`). An argument may contain interpolations such as `${op.unit}`; each is expanded within its own argument. Commas or quotes produced by interpolation cannot create additional arguments.
+
 List variables can be filtered using `[start:end]` and can be indexed using `[index]`. Note that this cannot be used with the `$variable` syntax, only inside `${variable}`. See the example below.
 
 ```yaml
