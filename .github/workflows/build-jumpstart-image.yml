@@ -161,9 +161,17 @@ jobs:
           echo "=== free inodes ==="
           df -i / | tail -1
 
+          # krep builds the intermediate EROFS and disk.img under its
+          # workspace, which defaults to /tmp. Keep everything on the large
+          # runner disk instead: dd failed with ENOSPC while df / showed
+          # 107 GB free, because the work happened on a different filesystem.
+          WORK="${{ github.workspace }}/.krep-work"
+          mkdir -p "$WORK"
+
           ./out/krep disk \
             --rootfs="/out" \
             --output="$OUT" \
+            --workDir="$WORK" \
             --bootloader=grub \
             --arch="$ARCH" \
             --espSizeMiB=256 \
