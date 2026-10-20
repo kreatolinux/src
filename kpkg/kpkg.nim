@@ -123,7 +123,8 @@ dispatchMulti(
     "deferPostInstall": "Repair only: skip postinstall hooks and sandbox CA setup. Rebuild normally after repair; reinstall affected packages to run skipped hooks.",
     "bootstrap": "Perform bootstrap build",
     "bootstrapRootfs": "Build target rootfs packages in a native sandbox, then recreate the target sandbox",
-    "noSandbox": "Build directly in root without the bwrap/overlay sandbox (for chroot/seed builds)"
+    "noSandbox": "Build directly in root without the bwrap/overlay sandbox (for chroot/seed builds)",
+    "binCache": "Use published binaries from the binary repositories for dependencies when an exact version match exists, building only the rest from source"
   },
     suppress = @["isUpgrade", "sandboxTarget"] # Internal build plumbing
   ],

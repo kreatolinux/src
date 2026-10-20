@@ -35,6 +35,7 @@ type
     offline*: bool ## Don't download sources
     dontInstall*: bool ## Build but don't install
     useCacheIfAvailable*: bool ## Use cached tarballs if available
+    binCache*: bool ## Prefer dependency binaries from the binary repository
     tests*: bool ## Run test suite
     noSandbox*: bool ## Disable sandbox/overlay
     isBootstrap*: bool ## Bootstrap build mode
@@ -101,6 +102,7 @@ type
     ignoreInit*: bool ## Whether to ignore init system packages
     dontInstall*: bool ## Skip installation after build
     useCacheIfAvailable*: bool ## Use cached tarballs if available
+    binCache*: bool ## Prefer dependency binaries from the binary repository
     tests*: bool ## Run test suite
     isUpgrade*: bool ## Whether this is an upgrade
     ignorePostInstall*: bool ## Ignore postinstall failures (still runs hooks)
@@ -198,6 +200,7 @@ proc initSandboxConfig*(fullRootPath: string, target: string,
                         headRunfileCache = initTable[string, runFile](),
                         noSandbox = false,
                         deferPostInstall = false,
+                        binCache = false,
                         sandboxTarget = ""): SandboxConfig =
   ## Creates a SandboxConfig from individual parameters.
   SandboxConfig(
@@ -210,6 +213,7 @@ proc initSandboxConfig*(fullRootPath: string, target: string,
     ignoreInit: ignoreInit,
     dontInstall: dontInstall,
     useCacheIfAvailable: useCacheIfAvailable,
+    binCache: binCache,
     tests: tests,
     isUpgrade: isUpgrade,
     ignorePostInstall: ignorePostInstall,

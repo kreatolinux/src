@@ -263,6 +263,7 @@ proc build*(no = false, yes = false, root = "/",
                             bootstrap = false, noSandbox = false,
                             deferPostInstall = false,
                             bootstrapRootfs = false,
+                            binCache = false,
                             sandboxTarget = ""): int =
   ## Build and install packages.
   ##
@@ -281,6 +282,12 @@ proc build*(no = false, yes = false, root = "/",
   ##
   ## bootstrapRootfs first builds the requested native target variant from a
   ## host-target sandbox, then recreates the sandbox from those local archives.
+  ##
+  ## binCache makes dependencies prefer a published binary from the binary
+  ## repositories over a source build. Binaries are fetched into the local
+  ## archive cache only when the exact version-release is available; anything
+  ## missing (including the requested package itself) is still built from
+  ## source.
 
   createLockfile()
   defer: removeLockfile()
@@ -473,6 +480,7 @@ proc build*(no = false, yes = false, root = "/",
       ignoreInit = ignoreInit,
       dontInstall = dontInstall,
       useCacheIfAvailable = useCacheIfAvailable,
+      binCache = binCache,
       tests = tests,
       isUpgrade = isUpgrade,
       ignorePostInstall = ignorePostInstall,
