@@ -8,6 +8,7 @@
 
 import os
 import strutils
+import std/httpclient
 import ./types
 import ../runparser
 import ../commonPaths
@@ -56,6 +57,19 @@ proc cleanupAfterCacheInstall*() =
   removeDir(kpkgBuildRoot)
   removeDir(kpkgSrcDir)
 
+proc binaryExists(url: string): bool =
+  ## Cheap existence probe so a missing archive can fall back to a source
+  ## build instead of reaching download(), whose failure path is fatal.
+  try:
+    var client = newHttpClient(timeout = 10000, userAgent = "kpkg")
+    defer: client.close()
+    return client.request(url, HttpHead).code.is2xx
+  except CatchableError:
+    debug "binaryExists: HEAD failed for " & url & ": " &
+        getCurrentExceptionMsg()
+    return false
+
+
 proc seedBinaryArchive*(pkg: runFile, kTarget: string): bool =
   ## Populate the local archive cache for `pkg` from a binary repository.
   ##
@@ -83,10 +97,19 @@ proc seedBinaryArchive*(pkg: runFile, kTarget: string): bool =
     if isEmptyOrWhitespace(binrepo):
       continue
     let url = "https://" & binrepo & "/archives/system/" & kTarget & "/" & tarball
+    # download() calls fatal() when raiseWhenFail is false, which exits the
+    # whole process. That is fine for a download the user asked for, but a
+    # binCache miss must degrade to a source build, so probe first and only
+    # download when the archive is actually there.
+    if not binaryExists(url):
+      debug "binCache: no binary at " & url
+      continue
     try:
-      download(url, dest, raiseWhenFail = false)
+      download(url, dest, raiseWhenFail = true)
     except CatchableError:
-      debug "binCache: download failed for " & tarball & ": " &
+      # A mirror that advertised the archive but failed mid-transfer must not
+      # abort the build; fall back to compiling from source instead.
+      warn "binCache: download failed for " & tarball & ": " &
           getCurrentExceptionMsg()
       continue
 
