@@ -14,7 +14,7 @@ import ../commonPaths
 import ../config
 import ../checksums
 import ../downloader
-import ../../common/logging
+import ../../../common/logging
 
 proc cacheArchivePath*(actualPackage: string, pkg: runFile,
                        kTarget: string, isBootstrap = false): string =

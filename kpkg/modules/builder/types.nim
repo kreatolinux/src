@@ -89,6 +89,7 @@ type
     dontInstall*: bool
     ignoreUseCacheIfAvailable*: seq[string]
     isBootstrap*: bool ## Use the private cycle-seed cache namespace
+    binCache*: bool ## Allow a binary fetched by --binCache to satisfy the cache
 
   SandboxConfig* = object
     ## Configuration for sandbox build operations.
@@ -238,5 +239,6 @@ proc toCacheConfig*(cfg: BuildConfig): CacheConfig =
     useCacheIfAvailable: cfg.useCacheIfAvailable,
     dontInstall: cfg.dontInstall,
     ignoreUseCacheIfAvailable: cfg.ignoreUseCacheIfAvailable,
-    isBootstrap: cfg.isBootstrap
+    isBootstrap: cfg.isBootstrap,
+    binCache: cfg.binCache
   )
