@@ -51,25 +51,41 @@ jobs:
       - name: Get latest workflow run
         id: get-run-id
         run: |
-          # kpkg comes from build.yml; the same lookup ci.yml uses.
+          # kpkg comes from build.yml. Use the default job token: GH_PAT is a
+          # kpkg-repo secret and is not defined in this repository, so the
+          # request would be unauthenticated and fail every retry.
           for i in 1 2 3 4 5; do
-            LATEST_RUN_ID=$(curl -s --fail -H "Authorization: Bearer ${{ secrets.GH_PAT }}" \
+            LATEST_RUN_ID=$(curl -s --fail -H "Authorization: Bearer ${{ github.token }}" \
               "https://api.github.com/repos/kreatolinux/src/actions/workflows/build.yml/runs?per_page=20" \
               | awk '/"id":/ { match($0, /[0-9]+/); lastid=substr($0, RSTART, RLENGTH) }
                      /"conclusion": "success"/ { print lastid; exit }') && [ -n "$LATEST_RUN_ID" ] && break
             echo "lookup attempt $i failed, retrying..."
             sleep 5
           done
-          test -n "${LATEST_RUN_ID:-}"
+          if [ -z "${LATEST_RUN_ID:-}" ]; then
+            echo "::warning::no successful build.yml run found; kpkg will be built from source"
+            echo "run_id=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           echo "run_id=$LATEST_RUN_ID" >> "$GITHUB_OUTPUT"
 
       - uses: actions/download-artifact@v8
+        if: steps.get-run-id.outputs.run_id != ''
         with:
           name: kpkg-amd64-linux-release
           path: /tmp/kpkg-bin
-          github-token: ${{ secrets.GH_PAT }}
+          github-token: ${{ github.token }}
           repository: kreatolinux/src
           run-id: ${{ steps.get-run-id.outputs.run_id }}
+
+      - name: Build kpkg from source if no artifact was available
+        if: steps.get-run-id.outputs.run_id == ''
+        run: |
+          set -euo pipefail
+          nimble install -y cligen fuzzy nimcrypto norm regex || true
+          mkdir -p /tmp/kpkg-bin
+          nim c --deepcopy:on -d:release -d:useDist --passL:-larchive \
+            --threads:on -d:ver=8.0.0 -d:ssl -o=/tmp/kpkg-bin/kpkg kpkg/kpkg.nim
 
       - name: Point the repositories at this checkout
         run: |
