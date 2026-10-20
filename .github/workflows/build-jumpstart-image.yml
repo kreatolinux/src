@@ -100,6 +100,16 @@ jobs:
             exit 1
           }
 
+          # krep's rootfs installer writes downloaded archives under
+          # /var/cache/kpkg/archives, which does not exist on a clean runner.
+          # A bare `kpkg` call initializes the config and cache directories;
+          # build-rootfs.yml relies on the same behaviour.
+          if command -v kpkg >/dev/null 2>&1; then
+            kpkg >/dev/null 2>&1 || true
+          fi
+          sudo mkdir -p /var/cache/kpkg/archives /var/cache/kpkg/sources
+          sudo chmod -R 0777 /var/cache/kpkg
+
           sudo ./out/krep rootfs \
             --buildType="$PROFILE" \
             --arch="$ARCH" \
