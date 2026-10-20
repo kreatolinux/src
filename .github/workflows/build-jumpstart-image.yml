@@ -97,8 +97,8 @@ jobs:
           #   with bootloader: mkfs.vfat mcopy grub-mkstandalone
           # plus an initramfs generator.
           "$KPKG" install -y erofs-utils gptfdisk dosfstools mtools grub \
-            e2fsprogs util-linux kmod dracut libzstd
-          for t in mkfs.erofs sgdisk mkfs.vfat mcopy grub-mkstandalone depmod dracut; do
+            e2fsprogs util-linux kmod booster libzstd
+          for t in mkfs.erofs sgdisk mkfs.vfat mcopy grub-mkstandalone depmod booster; do
             printf '%-18s' "$t"
             command -v "$t" || { echo "MISSING after install"; exit 1; }
           done
@@ -175,6 +175,7 @@ jobs:
             --bootloader=grub \
             --arch="$ARCH" \
             --espSizeMiB=256 \
+            --initramfsGenerator=booster \
             --overwrite
 
           ls -lh "$OUT"
