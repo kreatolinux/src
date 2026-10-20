@@ -27,10 +27,6 @@ on:
         required: false
         default: false
         type: boolean
-      imageSizeMiB:
-        description: 'Root filesystem size in MiB (0 = automatic)'
-        required: false
-        default: '0'
   schedule:
     - cron: '0 4 * * MON'
 
@@ -130,7 +126,6 @@ jobs:
             --bootloader=grub \
             --arch="$ARCH" \
             --espSizeMiB=256 \
-            --imageSizeMiB="${{ inputs.imageSizeMiB }}" \
             --overwrite
 
           sudo chown -R "$(id -u):$(id -g)" "$OUT"
