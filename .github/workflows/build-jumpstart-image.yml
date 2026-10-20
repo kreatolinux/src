@@ -43,6 +43,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
+      - name: Free disk space
+        run: |
+          set -euo pipefail
+          # dd failed with ENOSPC assembling the image: the staged rootfs and
+          # the final .img are each a few GiB, on top of the apt toolchain and
+          # the Nim toolchain. The runners ship large preinstalled SDK
+          # directories that this job never uses.
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android \
+                      /opt/ghc /usr/local/share/boost \
+                      /usr/local/share/chromium /usr/share/swift || true
+          sudo apt-get clean
+          df -h /
+
       - name: Install image and build tooling
         run: |
           set -euo pipefail
@@ -116,6 +129,8 @@ jobs:
       - name: Assemble bootable disk image
         run: |
           set -euo pipefail
+          df -h /
+          du -sh /out || true
           ARCH="${{ matrix.arch }}"
           OUT="${{ github.workspace }}/images"
           mkdir -p "$OUT"
