@@ -1,13 +1,15 @@
 name: Build Jumpstart USB image
 
-# Produces a bootable disk image (.img) that can be written to a USB stick with
-# `dd`, using krep's `disk --bootloader=grub` path (GPT + EROFS root + FAT32 ESP
-# containing GRUB, the kernel and the initramfs, so the image boots via UEFI).
+# Assembles a bootable disk image (.img) with krep: a GPT layout containing a
+# read-only EROFS root partition plus a FAT32 ESP holding GRUB, the kernel and
+# the initramfs, so the image boots via UEFI and can be written to a USB stick
+# with dd.
 #
-# Two stages are required because the image assembly needs host tools that the
-# Kreato builder container does not ship (mkfs.erofs, sgdisk, mtools, grub), and
-# krep itself must be compiled on the runner: the container ships glibc 2.43,
-# which is newer than the runner's, so a container-built binary will not run here.
+# This runs inside the Kreato builder image, the same environment every other
+# CI job uses, and gets kpkg from the artifacts published by build.yml. The
+# image toolchain (erofs-utils, gptfdisk, dosfstools, mtools, grub) is installed
+# as Kreato packages rather than through the host distribution, so the build
+# exercises the same stack a Kreato system would use.
 
 on:
   workflow_dispatch:
@@ -35,6 +37,9 @@ jobs:
     name: image (${{ matrix.arch }})
     runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-26.04-arm' || 'ubuntu-latest' }}
     timeout-minutes: 350
+    container:
+      image: ${{ matrix.arch == 'arm64' && 'ghcr.io/kreatolinux/builder:aarch64' || 'ghcr.io/kreatolinux/builder:latest' }}
+      options: --privileged
     strategy:
       fail-fast: false
       matrix:
@@ -43,99 +48,104 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Free disk space
+      - name: Get latest workflow run
+        id: get-run-id
         run: |
-          set -euo pipefail
-          # dd failed with ENOSPC assembling the image: the staged rootfs and
-          # the final .img are each a few GiB, on top of the apt toolchain and
-          # the Nim toolchain. The runners ship large preinstalled SDK
-          # directories that this job never uses.
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android \
-                      /opt/ghc /usr/local/share/boost \
-                      /usr/local/share/chromium /usr/share/swift || true
-          sudo apt-get clean
-          df -h /
+          # kpkg comes from build.yml; the same lookup ci.yml uses.
+          for i in 1 2 3 4 5; do
+            LATEST_RUN_ID=$(curl -s --fail -H "Authorization: Bearer ${{ secrets.GH_PAT }}" \
+              "https://api.github.com/repos/kreatolinux/src/actions/workflows/build.yml/runs?per_page=20" \
+              | awk '/"id":/ { match($0, /[0-9]+/); lastid=substr($0, RSTART, RLENGTH) }
+                     /"conclusion": "success"/ { print lastid; exit }') && [ -n "$LATEST_RUN_ID" ] && break
+            echo "lookup attempt $i failed, retrying..."
+            sleep 5
+          done
+          test -n "${LATEST_RUN_ID:-}"
+          echo "run_id=$LATEST_RUN_ID" >> "$GITHUB_OUTPUT"
 
-      - name: Install image and build tooling
-        run: |
-          set -euo pipefail
-          sudo apt-get update
-          # krep build deps
-          sudo apt-get install -y --no-install-recommends \
-            nim libarchive-dev libssl-dev zlib1g-dev git ca-certificates \
-            build-essential pkg-config
-          # image assembly deps required by krep's disk command
-          sudo apt-get install -y --no-install-recommends \
-            erofs-utils gdisk mtools dosfstools e2fsprogs util-linux \
-            cpio zstd
-          # GRUB platform modules for the selected architecture only
-          if [ "${{ matrix.arch }}" = "arm64" ]; then
-            sudo apt-get install -y --no-install-recommends grub-efi-arm64-bin
-          else
-            sudo apt-get install -y --no-install-recommends grub-efi-amd64-bin grub-pc-bin
-          fi
+      - uses: actions/download-artifact@v8
+        with:
+          name: kpkg-amd64-linux-release
+          path: /tmp/kpkg-bin
+          github-token: ${{ secrets.GH_PAT }}
+          repository: kreatolinux/src
+          run-id: ${{ steps.get-run-id.outputs.run_id }}
 
-      - name: Build krep on the runner
+      - name: Point the repositories at this checkout
         run: |
           set -euo pipefail
-          # krep links against the system libarchive and reads its vendor deps
-          # through nimble; install them the same way the in-tree build does.
+          chmod +x /tmp/kpkg-bin/kpkg
+          KPKG=/tmp/kpkg-bin/kpkg
+
+          # The builder image ships a config pointing at the published
+          # repositories. Use the tree under test so the workflow validates
+          # the recipes in this commit.
+          mkdir -p /etc/kpkg/repos
+          rm -rf /etc/kpkg/repos/main
+          ln -sfn "$GITHUB_WORKSPACE" /etc/kpkg/repos/main
+          "$KPKG" repl -a "set config.Repositories.repoDirs /etc/kpkg/repos/main"
+          "$KPKG" repl -a "set config.Upgrade.buildByDefault no"
+          "$KPKG" update || true
+          "$KPKG" --version
+
+      - name: Install the image toolchain as Kreato packages
+        run: |
+          set -euo pipefail
+          KPKG=/tmp/kpkg-bin/kpkg
+          # krep disk needs:
+          #   base:            cp truncate mkfs.erofs sgdisk dd
+          #   with bootloader: mkfs.vfat mcopy grub-mkstandalone
+          # plus an initramfs generator.
+          "$KPKG" install -y erofs-utils gptfdisk dosfstools mtools grub \
+            e2fsprogs util-linux kmod dracut libzstd
+          for t in mkfs.erofs sgdisk mkfs.vfat mcopy grub-mkstandalone depmod dracut; do
+            printf '%-18s' "$t"
+            command -v "$t" || { echo "MISSING after install"; exit 1; }
+          done
+
+      - name: Build krep
+        run: |
+          set -euo pipefail
           nimble install -y cligen fuzzy nimcrypto norm regex || true
           mkdir -p out
           nim c -d:branch=master --deepcopy:on --passL:-larchive \
-            --threads:on -d:ssl -o=out/krep krep/krep.nim
-          ./out/krep --version || ./out/krep disk --help >/dev/null
+            --threads=on -d:ssl -o=out/krep krep/krep.nim
+          ./out/krep disk --help >/dev/null
 
       - name: Stage rootfs with kernel and initramfs
         id: rootfs
         run: |
           set -euo pipefail
-          # The stock profiles do not include a kernel, but the disk builder
-          # requires /boot/vmlinuz-<version> plus /usr/lib/modules/<version>.
-          # Build the image profile with linux and an initramfs generator added.
           ARCH="${{ matrix.arch }}"
           PROFILE="${{ inputs.buildType }}"
           CFG="krep/data/rootfs/arch/${ARCH}/configs/${PROFILE}.kg"
 
           if [ ! -f "$CFG" ]; then
-            echo "::error::profile $CFG not found; expected a live profile that installs linux and dracut/booster"
+            echo "::error::profile $CFG not found"
             exit 1
           fi
-
-          # Fail early with a clear message instead of a kernel lookup failure
-          # deep inside the disk builder.
+          # The stock profiles carry no kernel, but the disk builder requires
+          # /boot/vmlinuz-<version> and /usr/lib/modules/<version>.
           grep -q '"linux"' "$CFG" || {
             echo "::error::$CFG must list \"linux\" in extra_packages to be bootable"
             exit 1
           }
 
-          # krep's rootfs installer writes downloaded archives under
-          # /var/cache/kpkg/archives, which does not exist on a clean runner.
-          # A bare `kpkg` call initializes the config and cache directories;
-          # build-rootfs.yml relies on the same behaviour.
-          if command -v kpkg >/dev/null 2>&1; then
-            kpkg >/dev/null 2>&1 || true
-          fi
-          sudo mkdir -p /var/cache/kpkg/archives /var/cache/kpkg/sources
-          sudo chmod -R 0777 /var/cache/kpkg
-
-          sudo ./out/krep rootfs \
+          mkdir -p /var/cache/kpkg/archives /var/cache/kpkg/sources
+          ./out/krep rootfs \
             --buildType="$PROFILE" \
             --arch="$ARCH" \
             --dataDir="krep/data"
 
-          echo "rootfs staged"
-
       - name: Assemble bootable disk image
         run: |
           set -euo pipefail
-          df -h /
-          du -sh /out || true
           ARCH="${{ matrix.arch }}"
           OUT="${{ github.workspace }}/images"
           mkdir -p "$OUT"
+          df -h /
 
-          sudo ./out/krep disk \
+          ./out/krep disk \
             --rootfs="/out" \
             --output="$OUT" \
             --bootloader=grub \
@@ -143,7 +153,6 @@ jobs:
             --espSizeMiB=256 \
             --overwrite
 
-          sudo chown -R "$(id -u):$(id -g)" "$OUT"
           ls -lh "$OUT"
 
       - name: Verify the image has an ESP and a root partition
@@ -151,22 +160,11 @@ jobs:
           set -euo pipefail
           IMG=$(ls "${{ github.workspace }}"/images/*.img | head -1)
           echo "image: $IMG"
-          # A bootable image must expose a FAT ESP with GRUB and a root
-          # partition; refuse to publish something that would not boot.
-          sudo sgdisk -p "$IMG"
-          sudo sgdisk -p "$IMG" | grep -qiE 'EF00|efi' || {
-            echo "::error::no EFI system partition found in $IMG"; exit 1; }
-          sudo sgdisk -p "$IMG" | grep -qiE 'jsroot|8300' || {
-            echo "::error::no root partition found in $IMG"; exit 1; }
-          # The ESP must actually contain an EFI binary.
-          MNT=$(mktemp -d)
-          sudo mount -o loop,ro,offset=$((2048*512)) "$IMG" "$MNT" 2>/dev/null || true
-          if mountpoint -q "$MNT"; then
-            ls -R "$MNT" | head -40
-            sudo test -e "$MNT/EFI/BOOT" || echo "::warning::EFI/BOOT not found on ESP"
-            sudo umount "$MNT"
-          fi
-          rmdir "$MNT"
+          sgdisk -p "$IMG"
+          sgdisk -p "$IMG" | grep -qiE 'EF00|efi' || {
+            echo "::error::no EFI system partition in $IMG"; exit 1; }
+          sgdisk -p "$IMG" | grep -qiE 'jsroot' || {
+            echo "::error::no root partition in $IMG"; exit 1; }
 
       - name: Compress
         run: |
