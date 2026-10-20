@@ -258,6 +258,13 @@ proc buildPackageInSandboxImpl(pkgName: string, depGraph: dependencyGraph,
     if mountResult != 0:
       fatal("mounting overlay filesystem failed")
 
+    # Rebuild the loader cache before any postinstall hook runs. Dependencies
+    # were just copied into the overlay upper dir, so the cache inherited from
+    # the env lower dir does not list them yet: a postinstall that executes a
+    # freshly-installed binary fails with "cannot open shared object file"
+    # (e.g. json-glib runs glib-compile-schemas, which needs libgio).
+    discard runLdconfig(kpkgMergedPath, silentMode = true)
+
     # Run postinstall scripts in merged overlay
     if shouldRunSandboxPostInstall(sandboxCfg.deferPostInstall,
         sandboxCfg.ignorePostInstall) and
@@ -267,6 +274,8 @@ proc buildPackageInSandboxImpl(pkgName: string, depGraph: dependencyGraph,
         if not isEmptyOrWhitespace(d):
           runPostInstall(d)
 
+    # Postinstall hooks can install further libraries; refresh once more so the
+    # package's own build steps and the final root see a consistent cache.
     discard runLdconfig(kpkgMergedPath, silentMode = true)
     overlayMounted = true
   else:
