@@ -330,6 +330,7 @@ proc buildPackageInSandboxImpl(pkgName: string, depGraph: dependencyGraph,
     offline: false,
     dontInstall: sandboxCfg.dontInstall,
     useCacheIfAvailable: sandboxCfg.useCacheIfAvailable,
+    binCache: sandboxCfg.binCache,
     tests: sandboxCfg.tests,
     manualInstallList: sandboxCfg.manualInstallList,
     customRepo: customRepo,
@@ -432,6 +433,16 @@ proc buildAllPackagesInSandbox*(deps: var seq[string], depGraph: dependencyGraph
   while i < deps.len:
     let pkg = deps[i]
     try:
+      if sandboxCfg.binCache and not sandboxCfg.isInstallDir:
+        # Prefer a published binary for this dependency. seedBinaryArchive
+        # populates the local archive cache that builderImpl() consults, so a
+        # hit skips the source build entirely; a miss falls through unchanged.
+        try:
+          let rf = parseRunfile(findPkgRepo(pkg) & "/" & pkg)
+          discard seedBinaryArchive(rf, sandboxKTarget)
+        except CatchableError:
+          debug "binCache: could not seed binary for " & pkg & ": " &
+              getCurrentExceptionMsg()
       sandboxCfg.sonameChangedPackage = sonameSourceMap.getOrDefault(pkg, "")
       if sandboxCfg.sonameChangedPackage != "":
         debug "buildAll: " & pkg & " is SONAME consumer of " &
