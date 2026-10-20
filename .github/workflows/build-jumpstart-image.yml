@@ -72,7 +72,10 @@ jobs:
       - uses: actions/download-artifact@v8
         if: steps.get-run-id.outputs.run_id != ''
         with:
-          name: kpkg-amd64-linux-release
+          # Match the job's architecture: build.yml publishes separate
+          # amd64 and arm64 binaries, and an arm64 job cannot execute an
+          # x86_64 one (it fails as a shell syntax error).
+          name: kpkg-${{ matrix.arch == 'arm64' && 'arm64' || 'amd64' }}-linux-release
           path: /tmp/kpkg-bin
           github-token: ${{ github.token }}
           repository: kreatolinux/src
