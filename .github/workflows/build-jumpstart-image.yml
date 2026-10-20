@@ -97,14 +97,13 @@ jobs:
           KPKG=/tmp/kpkg-bin/kpkg
 
           # The builder image ships a config pointing at the published
-          # repositories. Use the tree under test so the workflow validates
-          # the recipes in this commit.
+          # repositories. This workflow builds an *image from* packages, not
+          # the packages themselves, so use the published repositories rather
+          # than the checkout: $GITHUB_WORKSPACE is this source tree and holds
+          # no package recipes.
           mkdir -p /etc/kpkg/repos
-          rm -rf /etc/kpkg/repos/main
-          ln -sfn "$GITHUB_WORKSPACE" /etc/kpkg/repos/main
-          "$KPKG" repl -a "set config.Repositories.repoDirs /etc/kpkg/repos/main"
           "$KPKG" repl -a "set config.Upgrade.buildByDefault no"
-          "$KPKG" update || true
+          "$KPKG" update
           "$KPKG" --version
 
       - name: Install the image toolchain as Kreato packages
@@ -116,7 +115,7 @@ jobs:
           #   with bootloader: mkfs.vfat mcopy grub-mkstandalone
           # plus an initramfs generator.
           "$KPKG" install -y erofs-utils gptfdisk dosfstools mtools grub \
-            e2fsprogs util-linux kmod booster libzstd
+            e2fsprogs util-linux kmod booster
           for t in mkfs.erofs sgdisk mkfs.vfat mcopy grub-mkstandalone depmod booster; do
             printf '%-18s' "$t"
             command -v "$t" || { echo "MISSING after install"; exit 1; }
