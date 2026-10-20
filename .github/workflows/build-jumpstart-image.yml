@@ -132,10 +132,21 @@ jobs:
           }
 
           mkdir -p /var/cache/kpkg/archives /var/cache/kpkg/sources
+          # The profile's build_directory is /out; make sure it exists on a
+          # real filesystem before staging rather than relying on krep to
+          # create it implicitly.
+          mkdir -p /out
+
           ./out/krep rootfs \
             --buildType="$PROFILE" \
             --arch="$ARCH" \
             --dataDir="krep/data"
+
+          # Fail here with a clear message instead of a confusing kernel lookup
+          # failure in the disk builder.
+          test -d /out || { echo "::error::krep did not create /out"; exit 1; }
+          test -n "$(ls -A /out)" || { echo "::error::/out is empty after staging"; exit 1; }
+          echo "staged rootfs: $(du -sh /out | cut -f1)"
 
       - name: Assemble bootable disk image
         run: |
@@ -143,7 +154,12 @@ jobs:
           ARCH="${{ matrix.arch }}"
           OUT="${{ github.workspace }}/images"
           mkdir -p "$OUT"
-          df -h /
+          echo "=== filesystems ==="
+          df -h / "$OUT" /tmp /out 2>/dev/null || true
+          echo "=== rootfs size ==="
+          du -sh /out 2>/dev/null || echo "/out missing"
+          echo "=== free inodes ==="
+          df -i / | tail -1
 
           ./out/krep disk \
             --rootfs="/out" \
