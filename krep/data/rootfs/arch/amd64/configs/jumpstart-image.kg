@@ -1,0 +1,24 @@
+schema_version: "1"
+build_directory: "/out"
+package_mode: "binary"
+use_overlay: "true"
+
+arch: "x86_64"
+os: "linux"
+libc: "glibc"
+compiler: "no"
+coreutils: "busybox"
+init: "jumpstart"
+tls_library: "openssl"
+
+# Live image profile: unlike the builder profiles this one must be bootable
+# standalone. krep disk requires /boot/vmlinuz-<version> and
+# /usr/lib/modules/<version>, and generates the initramfs with booster unless
+# an existing one is supplied, so the kernel and firmware are explicit here.
+extra_packages:
+  - "linux"
+  - "linux-firmware"
+  - "booster"
+  - "kmod"
+  - "e2fsprogs"
+  - "util-linux"

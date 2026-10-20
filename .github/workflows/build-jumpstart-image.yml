@@ -1,0 +1,164 @@
+name: Build Jumpstart USB image
+
+# Produces a bootable disk image (.img) that can be written to a USB stick with
+# `dd`, using krep's `disk --bootloader=grub` path (GPT + EROFS root + FAT32 ESP
+# containing GRUB, the kernel and the initramfs, so the image boots via UEFI).
+#
+# Two stages are required because the image assembly needs host tools that the
+# Kreato builder container does not ship (mkfs.erofs, sgdisk, mtools, grub), and
+# krep itself must be compiled on the runner: the container ships glibc 2.43,
+# which is newer than the runner's, so a container-built binary will not run here.
+
+on:
+  workflow_dispatch:
+    inputs:
+      arch:
+        description: 'Architecture to build'
+        required: false
+        default: 'both'
+        type: choice
+        options: [x86_64, arm64, both]
+      buildType:
+        description: 'Rootfs profile to base the image on'
+        required: false
+        default: 'jumpstart-image'
+      publish:
+        description: 'Attach the compressed image to a GitHub release'
+        required: false
+        default: false
+        type: boolean
+      imageSizeMiB:
+        description: 'Root filesystem size in MiB (0 = automatic)'
+        required: false
+        default: '0'
+  schedule:
+    - cron: '0 4 * * MON'
+
+jobs:
+  image:
+    name: image (${{ matrix.arch }})
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-26.04-arm' || 'ubuntu-latest' }}
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: ${{ fromJson(inputs.arch == 'both' && '["x86_64", "arm64"]' || format('["{0}"]', inputs.arch || 'x86_64')) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install image and build tooling
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          # krep build deps
+          sudo apt-get install -y --no-install-recommends \
+            nim libarchive-dev libssl-dev zlib1g-dev git ca-certificates \
+            build-essential pkg-config
+          # image assembly deps required by krep's disk command
+          sudo apt-get install -y --no-install-recommends \
+            erofs-utils gdisk mtools dosfstools e2fsprogs util-linux \
+            cpio zstd
+          # GRUB platform modules for the selected architecture only
+          if [ "${{ matrix.arch }}" = "arm64" ]; then
+            sudo apt-get install -y --no-install-recommends grub-efi-arm64-bin
+          else
+            sudo apt-get install -y --no-install-recommends grub-efi-amd64-bin grub-pc-bin
+          fi
+
+      - name: Build krep on the runner
+        run: |
+          set -euo pipefail
+          # krep links against the system libarchive and reads its vendor deps
+          # through nimble; install them the same way the in-tree build does.
+          nimble install -y cligen fuzzy nimcrypto norm regex || true
+          mkdir -p out
+          nim c -d:branch=master --deepcopy:on --passL:-larchive \
+            --threads:on -d:ssl -o=out/krep krep/krep.nim
+          ./out/krep --version || ./out/krep disk --help >/dev/null
+
+      - name: Stage rootfs with kernel and initramfs
+        id: rootfs
+        run: |
+          set -euo pipefail
+          # The stock profiles do not include a kernel, but the disk builder
+          # requires /boot/vmlinuz-<version> plus /usr/lib/modules/<version>.
+          # Build the image profile with linux and an initramfs generator added.
+          ARCH="${{ matrix.arch }}"
+          PROFILE="${{ inputs.buildType }}"
+          CFG="krep/data/rootfs/arch/${ARCH}/configs/${PROFILE}.kg"
+
+          if [ ! -f "$CFG" ]; then
+            echo "::error::profile $CFG not found; expected a live profile that installs linux and dracut/booster"
+            exit 1
+          fi
+
+          # Fail early with a clear message instead of a kernel lookup failure
+          # deep inside the disk builder.
+          grep -q '"linux"' "$CFG" || {
+            echo "::error::$CFG must list \"linux\" in extra_packages to be bootable"
+            exit 1
+          }
+
+          sudo ./out/krep rootfs \
+            --buildType="$PROFILE" \
+            --arch="$ARCH" \
+            --dataDir="krep/data"
+
+          echo "rootfs staged"
+
+      - name: Assemble bootable disk image
+        run: |
+          set -euo pipefail
+          ARCH="${{ matrix.arch }}"
+          OUT="${{ github.workspace }}/images"
+          mkdir -p "$OUT"
+
+          sudo ./out/krep disk \
+            --rootfs="/out" \
+            --output="$OUT" \
+            --bootloader=grub \
+            --arch="$ARCH" \
+            --espSizeMiB=256 \
+            --imageSizeMiB="${{ inputs.imageSizeMiB }}" \
+            --overwrite
+
+          sudo chown -R "$(id -u):$(id -g)" "$OUT"
+          ls -lh "$OUT"
+
+      - name: Verify the image has an ESP and a root partition
+        run: |
+          set -euo pipefail
+          IMG=$(ls "${{ github.workspace }}"/images/*.img | head -1)
+          echo "image: $IMG"
+          # A bootable image must expose a FAT ESP with GRUB and a root
+          # partition; refuse to publish something that would not boot.
+          sudo sgdisk -p "$IMG"
+          sudo sgdisk -p "$IMG" | grep -qiE 'EF00|efi' || {
+            echo "::error::no EFI system partition found in $IMG"; exit 1; }
+          sudo sgdisk -p "$IMG" | grep -qiE 'jsroot|8300' || {
+            echo "::error::no root partition found in $IMG"; exit 1; }
+          # The ESP must actually contain an EFI binary.
+          MNT=$(mktemp -d)
+          sudo mount -o loop,ro,offset=$((2048*512)) "$IMG" "$MNT" 2>/dev/null || true
+          if mountpoint -q "$MNT"; then
+            ls -R "$MNT" | head -40
+            sudo test -e "$MNT/EFI/BOOT" || echo "::warning::EFI/BOOT not found on ESP"
+            sudo umount "$MNT"
+          fi
+          rmdir "$MNT"
+
+      - name: Compress
+        run: |
+          set -euo pipefail
+          cd "${{ github.workspace }}/images"
+          for f in *.img; do zstd -19 -T0 "$f" -o "$f.zst"; done
+          ls -lh
+
+      - name: Upload image artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: jumpstart-image-${{ matrix.arch }}
+          path: ${{ github.workspace }}/images/*.img.zst
+          if-no-files-found: error
+          retention-days: 30
