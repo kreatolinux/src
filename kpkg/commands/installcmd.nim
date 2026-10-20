@@ -782,6 +782,8 @@ proc downloadBatch(packages: seq[string], binrepos: seq[string],
       urls.add("https://" & binrepo & "/archives/system/" & kTarget & "/" & tarball)
 
     if urls.len == 0:
+      debug "downloadBatch: no mirror URL for '" & pkg & "'"
+      inc skipped
       continue
 
     discard existsOrCreateDir(kpkgArchivesDir)
@@ -793,8 +795,17 @@ proc downloadBatch(packages: seq[string], binrepos: seq[string],
         else: jobs.high)
 
   if jobs.len == 0:
-    debug "downloadBatch: nothing to download"
-    return
+    # Nothing was queued because every archive was already cached (the only
+    # other `continue` that skips a job is a package with no mirror URL, which
+    # is counted below). Report success only when something was actually
+    # skipped as cached; otherwise a caller that asked for a download receives
+    # nothing and must not be told it worked.
+    if skipped > 0:
+      debug "downloadBatch: nothing to download (all archives already cached)"
+      return
+    error "no archive could be queued for download: no mirror URL for '" &
+        packages.join(" ") & "'"
+    return false
 
   if not offline:
     if combinedProgress:
