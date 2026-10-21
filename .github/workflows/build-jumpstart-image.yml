@@ -192,6 +192,10 @@ jobs:
           WORK="$GITHUB_WORKSPACE/.krep-work"
           mkdir -p "$WORK"
 
+          # --clearRootPassword: this is a throwaway live image, so root
+          # logs in with no password on purpose. Without the flag the image
+          # ships whatever hash the base rootfs carries, which is not a
+          # usable one (the overlay's /etc/passwd placeholder).
           ./out/krep disk \
             --rootfs="/out" \
             --output="$OUT" \
@@ -200,6 +204,7 @@ jobs:
             --arch="$ARCH" \
             --espSizeMiB=256 \
             --initramfsGenerator=booster \
+            --clearRootPassword \
             --overwrite
 
           ls -lh "$OUT"
