@@ -176,7 +176,7 @@ jobs:
         run: |
           set -euo pipefail
           ARCH="${{ matrix.arch }}"
-          OUT="${{ github.workspace }}/images"
+          OUT="$GITHUB_WORKSPACE/images"
           mkdir -p "$OUT"
           echo "=== filesystems ==="
           df -h / "$OUT" /tmp /out 2>/dev/null || true
@@ -189,7 +189,7 @@ jobs:
           # workspace, which defaults to /tmp. Keep everything on the large
           # runner disk instead: dd failed with ENOSPC while df / showed
           # 107 GB free, because the work happened on a different filesystem.
-          WORK="${{ github.workspace }}/.krep-work"
+          WORK="$GITHUB_WORKSPACE/.krep-work"
           mkdir -p "$WORK"
 
           ./out/krep disk \
@@ -207,7 +207,7 @@ jobs:
       - name: Verify the image has an ESP and a root partition
         run: |
           set -euo pipefail
-          IMG=$(ls "${{ github.workspace }}"/images/*.img | head -1)
+          IMG=$(ls "$GITHUB_WORKSPACE"/images/*.img | head -1)
           echo "image: $IMG"
           sgdisk -p "$IMG"
           sgdisk -p "$IMG" | grep -qiE 'EF00|efi' || {
@@ -218,7 +218,7 @@ jobs:
       - name: Compress
         run: |
           set -euo pipefail
-          cd "${{ github.workspace }}/images"
+          cd "$GITHUB_WORKSPACE/images"
           for f in *.img; do zstd -19 -T0 "$f" -o "$f.zst"; done
           ls -lh
 
@@ -226,6 +226,9 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: jumpstart-image-${{ matrix.arch }}
-          path: ${{ github.workspace }}/images/*.img.zst
+          # Relative: in container jobs github.workspace is the *host* path
+          # (/home/runner/...) while the action resolves against the container
+          # mount (/__w/...), so an absolute path matches nothing.
+          path: images/*.img.zst
           if-no-files-found: error
           retention-days: 30
