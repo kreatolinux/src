@@ -192,6 +192,16 @@ jobs:
           WORK="$GITHUB_WORKSPACE/.krep-work"
           mkdir -p "$WORK"
 
+          # Keep a serial console so the image is usable headless (QEMU
+          # -nographic, IPMI, serial-over-LAN). Without this the kernel falls
+          # back to the framebuffer and fbcon takes the console away from
+          # ttyAMA0/ttyS0; with it, the serial getty from kreato-fs-essentials
+          # gets a login prompt. The device name differs per architecture.
+          case "$ARCH" in
+            arm64|aarch64) CONSOLE="ttyAMA0" ;;
+            *)             CONSOLE="ttyS0" ;;
+          esac
+
           # --clearRootPassword: this is a throwaway live image, so root
           # logs in with no password on purpose. Without the flag the image
           # ships whatever hash the base rootfs carries, which is not a
@@ -205,6 +215,7 @@ jobs:
             --espSizeMiB=256 \
             --initramfsGenerator=booster \
             --clearRootPassword \
+            --console="$CONSOLE" \
             --overwrite
 
           ls -lh "$OUT"
