@@ -224,7 +224,16 @@ jobs:
         run: |
           set -euo pipefail
           cd "$GITHUB_WORKSPACE/images"
-          for f in *.img; do zstd -19 -T0 "$f" -o "$f.zst"; done
+          # krep also writes NAME.vmlinuz, NAME.initramfs.img and NAME.cmdline
+          # beside the disk image. The initramfs is already inside the ESP, so
+          # shipping a second copy just bloats the artifact (and costs a few
+          # minutes of zstd -19). Skip the sidecars; only the disk is uploaded.
+          for f in *.img; do
+            case "$f" in
+              *.initramfs.img) echo "skipping sidecar: $f"; continue ;;
+            esac
+            zstd -19 -T0 "$f" -o "$f.zst"
+          done
           ls -lh
 
       - name: Upload image artifact
@@ -234,6 +243,8 @@ jobs:
           # Relative: in container jobs github.workspace is the *host* path
           # (/home/runner/...) while the action resolves against the container
           # mount (/__w/...), so an absolute path matches nothing.
-          path: images/*.img.zst
+          path: |
+            images/*.img.zst
+            !images/*.initramfs.img.zst
           if-no-files-found: error
           retention-days: 30
