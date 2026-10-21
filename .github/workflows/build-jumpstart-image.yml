@@ -102,6 +102,12 @@ jobs:
           # than the checkout: $GITHUB_WORKSPACE is this source tree and holds
           # no package recipes.
           mkdir -p /etc/kpkg/repos
+          # bin.krea.to serves the same layout as mirror.krea.to but with no
+          # CDN in front. The mirror caches negative responses, so a package
+          # uploaded minutes ago (or just rebuilt) can 404 for up to an hour
+          # even though the object is present. That produced several bogus
+          # "package does not exist" failures here.
+          "$KPKG" repl -a "set config.Repositories.binRepos bin.krea.to"
           "$KPKG" repl -a "set config.Upgrade.buildByDefault no"
           "$KPKG" update
           "$KPKG" --version
