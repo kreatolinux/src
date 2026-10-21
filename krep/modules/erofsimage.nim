@@ -203,8 +203,10 @@ proc sgdiskArgs*(image, partLabel: string): seq[string] =
   @["-o", "-n", "1:2048:0", "-t", "1:8300", "-c", "1:" & partLabel, image]
 
 proc ddArgs*(source, image: string, seekSectors = 2048): seq[string] =
+  # No status=none: BusyBox dd rejects it. GNU dd prints a summary to stderr,
+  # which is harmless.
   @["if=" & source, "of=" & image, "bs=512", "seek=" & $seekSectors,
-    "conv=notrunc", "status=none"]
+    "conv=notrunc"]
 
 proc espSectors*(espMiB: int): int = espMiB * 2048
 
@@ -407,15 +409,15 @@ proc assembleErofsImage*(options: ErofsOptions, run: IsoRunner,
       raise newException(ValueError, "ESP of " & $espMiB & " MiB is too small for " &
           "kernel, initramfs and GRUB (need about " & $needed & " MiB); raise --espSizeMiB")
     let espImage = workspace.path / "esp.img"
-    run("truncate", @["--size", $(int64(espMiB) * 1048576), "--", espImage])
+    run("truncate", @["-s", $(int64(espMiB) * 1048576), espImage])
     run("mkfs.vfat", mkfsVfatArgs(espImage))
     run("mcopy", mcopyArgs(espImage, @[esp / "EFI", esp / "boot"]))
-    run("truncate", @["--size", $diskSizeBytes(getFileSize(erofs), espMiB), "--", disk])
+    run("truncate", @["-s", $diskSizeBytes(getFileSize(erofs), espMiB), disk])
     run("sgdisk", sgdiskBootableArgs(disk, options.partLabel, espMiB))
     run("dd", ddArgs(espImage, disk))
     run("dd", ddArgs(erofs, disk, rootStartSector(espMiB)))
   else:
-    run("truncate", @["--size", $diskSizeBytes(getFileSize(erofs)), "--", disk])
+    run("truncate", @["-s", $diskSizeBytes(getFileSize(erofs)), disk])
     run("sgdisk", sgdiskArgs(disk, options.partLabel))
     run("dd", ddArgs(erofs, disk))
   publishIso(disk, outputLock, options.overwrite, checkCancelled)

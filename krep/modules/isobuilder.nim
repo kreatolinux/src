@@ -166,7 +166,7 @@ proc assembleIso*(options: IsoOptions, run: IsoRunner,
   let size = if options.imageSizeMiB > 0: int64(options.imageSizeMiB)
              else: rootfsImageSizeMiB(staged)
   let image = squash / "LiveOS/rootfs.img"
-  run("truncate", @["--size", $size & "M", "--", image])
+  run("truncate", @["-s", $size & "M", image])
   # mke2fs -d populates the filesystem without mounting it. Disable lazy init
   # so data/metadata are complete before the image is compressed.
   run("mkfs.ext4", @["-F", "-q", "-m", "0", "-E",
