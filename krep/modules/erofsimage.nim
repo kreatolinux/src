@@ -362,6 +362,16 @@ proc assembleErofsImage*(options: ErofsOptions, run: IsoRunner,
       let madeSysModule = not dirExists(sysModule)
       createDir(sysModule)
       try:
+        # Booster resolves libraries through /etc/ld.so.cache, and the glibc
+        # package removes the cache it built (it would describe the build host,
+        # not the target). Nothing regenerates it for a staged rootfs, so booster
+        # aborted with "unable to find path to library libresolv.so.2".
+        # Rebuild the cache against the staged tree before running anything in it.
+        # Use an absolute path: /sbin is often absent from the inherited PATH.
+        for candidate in ["/sbin/ldconfig", "/usr/sbin/ldconfig"]:
+          if fileExists(resolveRootfsPath(staged, candidate)):
+            run("chroot", @[staged, candidate])
+            break
         run("chroot", boosterChrootArgs(staged, kernel.version, inRoot))
       finally:
         if madeSysModule: removeDir(sysModule)
