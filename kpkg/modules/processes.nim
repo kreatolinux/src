@@ -57,9 +57,30 @@ proc getPidKpkg(): string =
   # Gets current pid from /proc/self.
   return lastPathPart(expandSymlink("/proc/self"))
 
+proc isZombie(procPath: string): bool =
+  ## True when the /proc entry is a process that has already exited but whose
+  ## parent has not reaped it.  Field 3 of /proc/<pid>/stat is the state, but
+  ## field 2 (comm) is parenthesised and may itself contain spaces or ')', so
+  ## parse from the last ')' rather than splitting on whitespace.
+  try:
+    let stat = readFile(procPath & "/stat")
+    let closeParen = stat.rfind(')')
+    if closeParen < 0: return false
+    let rest = stat[closeParen + 1 .. ^1].strip()
+    return rest.len > 0 and rest[0] in {'Z', 'X'}
+  except CatchableError:
+    # Entry vanished while we were looking at it; treat as not running.
+    return true
+
 proc isRunningFromName(name: string): bool =
   # Allows you to check if it is running from name.
   # Ignores the current process.
+  #
+  # Zombies must be skipped.  Containers frequently run with a PID 1 that does
+  # not reap (the builder image uses `sleep infinity`), so a killed kpkg stays
+  # in /proc/<pid>/comm as a zombie forever.  Counting those made every later
+  # run abort with "another instance of kpkg is running" until the container
+  # was restarted.
   setCurrentDir("/proc")
   for i in walkDir("."):
     try:
@@ -71,6 +92,9 @@ proc isRunningFromName(name: string): bool =
         if symlinkExists(i.path):
           if lastPathPart(expandSymlink(i.path)) == getPidKpkg():
             continue
+        if isZombie(i.path):
+          debug "ignoring zombie: "&lastPathPart(i.path)
+          continue
         debug "returning true"
         return true
     except Exception:
