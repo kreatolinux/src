@@ -172,6 +172,18 @@ jobs:
           test -n "$(ls -A /out)" || { echo "::error::/out is empty after staging"; exit 1; }
           echo "staged rootfs: $(du -sh /out | cut -f1)"
 
+          # Set a known root password. An empty hash is not enough: pam_unix is
+          # configured without `nullok`, so an empty password is rejected and
+          # login fails with "password check failed for user (root)". Setting a
+          # real hash keeps PAM policy alone.
+          ROOT_PASSWORD="kreato"
+          HASH=$(openssl passwd -6 -salt klinux "$ROOT_PASSWORD")
+          [ -n "$HASH" ] || { echo "::error::failed to hash root password"; exit 1; }
+          sed -i "s|^root:[^:]*:|root:$HASH:|" /out/etc/shadow
+          grep -q "^root:$HASH:" /out/etc/shadow || {
+            echo "::error::failed to set root password in /out/etc/shadow"; exit 1; }
+          echo "root password set"
+
       - name: Assemble bootable disk image
         run: |
           set -euo pipefail
@@ -202,10 +214,8 @@ jobs:
             *)             CONSOLE="ttyS0" ;;
           esac
 
-          # --clearRootPassword: this is a throwaway live image, so root
-          # logs in with no password on purpose. Without the flag the image
-          # ships whatever hash the base rootfs carries, which is not a
-          # usable one (the overlay's /etc/passwd placeholder).
+          # No --clearRootPassword: an empty hash is rejected by pam_unix,
+          # which has no `nullok`. The staging step writes a real hash instead.
           ./out/krep disk \
             --rootfs="/out" \
             --output="$OUT" \
@@ -214,7 +224,6 @@ jobs:
             --arch="$ARCH" \
             --espSizeMiB=256 \
             --initramfsGenerator=booster \
-            --clearRootPassword \
             --console="$CONSOLE" \
             --overwrite
 
