@@ -1,0 +1,327 @@
+name: Build Jumpstart live ISO
+
+# Assembles a bootable live ISO with krep using kickoff as the initramfs
+# generator, then boots it under QEMU.
+#
+# Unlike the disk image workflow this exercises the kickoff path: the staged
+# rootfs is squashfs'd straight to LiveOS/rootfs.squashfs (no ext4 layer, no
+# dmsquash-live), and the initramfs carries a small init that loop-mounts that
+# image, lays a tmpfs-backed overlay on top, and execs init= from the kernel
+# command line. No dracut, udev, depmod or switch_root is needed on the builder.
+#
+# Runs inside the Kreato builder image like every other job, and installs the
+# ISO toolchain as Kreato packages rather than through the host distribution.
+
+on:
+  workflow_dispatch:
+    inputs:
+      arch:
+        description: 'Architecture to build'
+        required: false
+        default: 'both'
+        type: choice
+        options: [x86_64, arm64, both]
+      buildType:
+        description: 'Rootfs profile to base the ISO on'
+        required: false
+        default: 'jumpstart-image'
+      publish:
+        description: 'Attach the ISO to a GitHub release'
+        required: false
+        default: false
+        type: boolean
+  schedule:
+    - cron: '0 5 * * MON'
+
+jobs:
+  iso:
+    name: iso (${{ matrix.arch }})
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-26.04-arm' || 'ubuntu-latest' }}
+    timeout-minutes: 350
+    container:
+      image: ${{ matrix.arch == 'arm64' && 'ghcr.io/kreatolinux/builder:aarch64' || 'ghcr.io/kreatolinux/builder:latest' }}
+      options: --privileged
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: ${{ fromJson(inputs.arch == 'both' && '["x86_64", "arm64"]' || format('["{0}"]', inputs.arch || 'x86_64')) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Get latest workflow run
+        id: get-run-id
+        run: |
+          # kpkg comes from build.yml. Use the default job token: GH_PAT is a
+          # kpkg-repo secret and is not defined in this repository.
+          for i in 1 2 3 4 5; do
+            LATEST_RUN_ID=$(curl -s --fail -H "Authorization: Bearer ${{ github.token }}" \
+              "https://api.github.com/repos/kreatolinux/src/actions/workflows/build.yml/runs?per_page=20" \
+              | awk '/"id":/ { match($0, /[0-9]+/); lastid=substr($0, RSTART, RLENGTH) }
+                     /"conclusion": "success"/ { print lastid; exit }') && [ -n "$LATEST_RUN_ID" ] && break
+            echo "lookup attempt $i failed, retrying..."
+            sleep 5
+          done
+          if [ -z "${LATEST_RUN_ID:-}" ]; then
+            echo "::warning::no successful build.yml run found; kpkg will be built from source"
+            echo "run_id=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "run_id=$LATEST_RUN_ID" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/download-artifact@v8
+        if: steps.get-run-id.outputs.run_id != ''
+        with:
+          name: kpkg-${{ matrix.arch == 'arm64' && 'arm64' || 'amd64' }}-linux-release
+          path: /tmp/kpkg-bin
+          github-token: ${{ github.token }}
+          repository: kreatolinux/src
+          run-id: ${{ steps.get-run-id.outputs.run_id }}
+
+      - name: Build kpkg from source if no artifact was available
+        if: steps.get-run-id.outputs.run_id == ''
+        run: |
+          set -euo pipefail
+          nimble install -y cligen fuzzy nimcrypto norm regex || true
+          mkdir -p /tmp/kpkg-bin
+          nim c --deepcopy:on -d:release -d:useDist --passL:-larchive \
+            --threads:on -d:ver=8.0.0 -d:ssl -o=/tmp/kpkg-bin/kpkg kpkg/kpkg.nim
+
+      - name: Point the repositories at the published packages
+        run: |
+          set -euo pipefail
+          chmod +x /tmp/kpkg-bin/kpkg
+          KPKG=/tmp/kpkg-bin/kpkg
+
+          # The builder image ships a config pointing at the published
+          # repositories. This workflow builds an ISO from packages, not the
+          # packages themselves, so use them rather than the checkout.
+          mkdir -p /etc/kpkg/repos
+          # bin.krea.to has no CDN in front; the mirror caches negative
+          # responses, which cost whole CI cycles when a package had just been
+          # rebuilt.
+          "$KPKG" repl -a "set config.Repositories.binRepos bin.krea.to"
+          "$KPKG" repl -a "set config.Upgrade.buildByDefault no"
+          "$KPKG" update
+          "$KPKG" --version
+
+      - name: Install the ISO toolchain as Kreato packages
+        run: |
+          set -euo pipefail
+          KPKG=/tmp/kpkg-bin/kpkg
+          # krep iso with --initramfsGenerator=kickoff needs:
+          #   mksquashfs      squashfs-tools  (the root filesystem)
+          #   grub-mkrescue   grub            (El Torito + EFI boot)
+          #   xorriso         xorriso         (ISO mastering, also used to inspect)
+          #   mcopy           mtools          (grub-mkrescue's EFI image)
+          # Deliberately absent: dracut, e2fsprogs, util-linux. The kickoff path
+          # has no ext4 layer and does not use dmsquash-live.
+          "$KPKG" install -y squashfs-tools grub xorriso mtools
+          for t in mksquashfs grub-mkrescue xorriso mcopy; do
+            printf '%-18s' "$t"
+            command -v "$t" || { echo "MISSING after install"; exit 1; }
+          done
+
+      - name: Build krep and kickoff
+        run: |
+          set -euo pipefail
+          nimble install -y cligen fuzzy nimcrypto norm regex || true
+          mkdir -p out
+          nim c -d:branch=master --deepcopy:on --passL:-larchive \
+            --threads:on -d:ssl -o=out/krep krep/krep.nim
+          ./out/krep iso --help >/dev/null
+
+          # kickoff is the initramfs generator. Both binaries land in out/, and
+          # krep finds them by name, so out/ has to be on PATH.
+          nim c --deepcopy:on -d:release -o=out/kickoff kickoff/kickoff.nim
+          nim c --deepcopy:on -d:release -o=out/kickoff-init \
+            kickoff/init/kickoff_init.nim
+          ./out/kickoff build --help >/dev/null
+          ls -l out/kickoff out/kickoff-init
+
+      - name: Stage rootfs with kernel and initramfs
+        run: |
+          set -euo pipefail
+          ARCH="${{ matrix.arch }}"
+          PROFILE="${{ inputs.buildType }}"
+          CFG="krep/data/rootfs/arch/${ARCH}/configs/${PROFILE}.kg"
+
+          if [ ! -f "$CFG" ]; then
+            echo "::error::profile $CFG not found"
+            exit 1
+          fi
+          # krep iso requires a kernel and an indexed module tree in the staged
+          # rootfs; the profile has to list "linux" to provide them.
+          grep -q '"linux"' "$CFG" || {
+            echo "::error::$CFG must list \"linux\" in extra_packages to be bootable"
+            exit 1
+          }
+
+          mkdir -p /var/cache/kpkg/archives /var/cache/kpkg/sources
+          mkdir -p /out
+
+          ./out/krep rootfs \
+            --buildType="$PROFILE" \
+            --arch="$ARCH" \
+            --dataDir="krep/data"
+
+          test -d /out || { echo "::error::krep did not create /out"; exit 1; }
+          test -n "$(ls -A /out)" || { echo "::error::/out is empty after staging"; exit 1; }
+          echo "staged rootfs: $(du -sh /out | cut -f1)"
+
+          # pam_unix has no `nullok`, so an empty hash is rejected outright
+          # rather than meaning "no password". Set a real one: a live medium
+          # needs a way in.
+          ROOT_PASSWORD="kreato"
+          HASH=$(openssl passwd -6 -salt klinux "$ROOT_PASSWORD")
+          [ -n "$HASH" ] || { echo "::error::failed to hash root password"; exit 1; }
+          sed -i "s|^root:[^:]*:|root:$HASH:|" /out/etc/shadow
+          grep -q "^root:$HASH:" /out/etc/shadow || {
+            echo "::error::failed to set root password in /out/etc/shadow"; exit 1; }
+          echo "root password set"
+
+      - name: Build the live ISO
+        id: iso
+        run: |
+          set -euo pipefail
+          ARCH="${{ matrix.arch }}"
+          OUT="$GITHUB_WORKSPACE/images"
+          WORK="$GITHUB_WORKSPACE/.krep-work"
+          mkdir -p "$OUT" "$WORK"
+
+          # krep shells out to kickoff/kickoff-init by name.
+          export PATH="$GITHUB_WORKSPACE/out:$PATH"
+
+          ./out/krep iso \
+            --rootfs=/out \
+            --output="$OUT" \
+            --workDir="$WORK" \
+            --initramfsGenerator=kickoff \
+            --name="kreatolinux-live-${ARCH}.iso" \
+            --overwrite
+
+          ls -lh "$OUT"
+          echo "iso=$(ls "$OUT"/*.iso | head -1)" >> "$GITHUB_OUTPUT"
+
+      - name: Verify the ISO layout
+        run: |
+          set -euo pipefail
+          ISO="${{ steps.iso.outputs.iso }}"
+          test -f "$ISO" || { echo "::error::no ISO produced"; exit 1; }
+
+          # The volume identifier is what the init matches on, since there is no
+          # udev to create /dev/disk/by-label at boot.
+          xorriso -indev "$ISO" -pvd_info 2>/dev/null | grep -qi 'ISOIMAGE' || {
+            echo "::error::ISO volume identifier is not ISOIMAGE"; exit 1; }
+          # El Torito info lives in -report_el_torito, not -pvd_info. On a
+          # non-bootable image this prints nothing mentioning El Torito, so the
+          # grep is a real discriminator rather than always true.
+          xorriso -indev "$ISO" -report_el_torito plain 2>/dev/null \
+            | grep -qi 'el torito' || {
+            echo "::error::ISO is not El Torito bootable"; exit 1; }
+
+          # The kickoff layout: a bare squashfs root, not dracut's ext4-in-squashfs.
+          xorriso -indev "$ISO" -ls /LiveOS 2>/dev/null | grep -q 'rootfs.squashfs' || {
+            echo "::error::no LiveOS/rootfs.squashfs in the ISO"; exit 1; }
+          if xorriso -indev "$ISO" -ls /LiveOS 2>/dev/null | grep -q 'squashfs.img'; then
+            echo "::error::found dracut's LiveOS/squashfs.img; wrong generator?"
+            exit 1
+          fi
+
+          for f in /boot/vmlinuz /boot/initramfs.img /boot/grub/grub.cfg; do
+            xorriso -indev "$ISO" -ls "$(dirname "$f")" 2>/dev/null \
+              | grep -q "$(basename "$f")" || { echo "::error::missing $f in the ISO"; exit 1; }
+          done
+          echo "ISO layout ok"
+
+      - name: Boot the ISO under QEMU
+        run: |
+          set -euo pipefail
+          ARCH="${{ matrix.arch }}"
+          ISO="${{ steps.iso.outputs.iso }}"
+
+          case "$ARCH" in
+            arm64) QEMU=qemu-system-aarch64; MACH=virt;       CONSOLE=ttyAMA0 ;;
+            *)     QEMU=qemu-system-x86_64;  MACH=q35;        CONSOLE=ttyS0 ;;
+          esac
+          if ! command -v "$QEMU" >/dev/null 2>&1; then
+            echo "::warning::$QEMU is not in the builder image; skipping the boot test"
+            exit 0
+          fi
+
+          # Extract kernel and initramfs and boot them directly instead of going
+          # through GRUB. GRUB is already covered by the disk image workflow, and
+          # this avoids needing UEFI firmware in the image. What is under test
+          # here is the initramfs: mount the ISO, loop-mount the squashfs, build
+          # the overlay, switch_root.
+          rm -rf /tmp/boot && mkdir -p /tmp/boot
+          xorriso -osirrox on -indev "$ISO" \
+            -extract /boot/vmlinuz /tmp/boot/vmlinuz \
+            -extract /boot/initramfs.img /tmp/boot/initramfs.img
+          chmod -R u+w /tmp/boot
+
+          # The ISO is attached as a plain virtio block device rather than a
+          # CD-ROM: that is the "dd it to a USB stick" case, it avoids needing
+          # an optical driver in the initramfs, and virtio_blk is built into the
+          # Kreato kernel so nothing has to be loaded to see it.
+          #
+          # init=/bin/sh rather than the real init: this proves userspace was
+          # reached on the mounted root without needing an interactive login.
+          set +e
+          timeout 600 "$QEMU" -M "$MACH" -cpu max -m 2048 -smp 2 -nographic \
+            -kernel /tmp/boot/vmlinuz -initrd /tmp/boot/initramfs.img \
+            -append "root=LABEL=ISOIMAGE console=$CONSOLE init=/bin/sh" \
+            -drive file="$ISO",format=raw,if=none,id=medium,readonly=on \
+            -device virtio-blk-pci,drive=medium \
+            > /tmp/boot/serial.log 2>&1
+          status=$?
+          set -e
+          # 124 is the timeout expiring, which is expected: the shell does not
+          # exit on its own.
+          if [ "$status" -ne 0 ] && [ "$status" -ne 124 ]; then
+            echo "::error::qemu exited with $status"
+            tail -40 /tmp/boot/serial.log
+            exit 1
+          fi
+
+          echo "=== serial log (tail) ==="
+          tail -30 /tmp/boot/serial.log
+
+          grep -q 'kickoff-init: fatal' /tmp/boot/serial.log && {
+            echo "::error::kickoff-init failed:"; grep 'kickoff-init: fatal' /tmp/boot/serial.log; exit 1; }
+          grep -q 'kickoff-init: overlay enabled' /tmp/boot/serial.log || {
+            echo "::error::the overlay was not set up"; exit 1; }
+          grep -q 'kickoff-init: switching to /bin/sh' /tmp/boot/serial.log || {
+            echo "::error::switch_root did not complete"; exit 1; }
+          echo "boot test ok"
+
+      - name: Compress
+        run: |
+          set -euo pipefail
+          cd "$GITHUB_WORKSPACE/images"
+          # Only the ISO is uploaded; keep the name exact so the artifact path
+          # cannot accidentally match something else.
+          for f in *.iso; do zstd -19 -T0 "$f" -o "$f.zst"; done
+          ls -lh
+
+      - name: Upload ISO artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: jumpstart-iso-${{ matrix.arch }}
+          path: |
+            images/*.iso.zst
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Attach the ISO to a release
+        if: inputs.publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          ISO="${{ steps.iso.outputs.iso }}"
+          gh release create "iso-$(date -u +%Y-%m-%d)" "$ISO" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "Jumpstart live ISO $(date -u +%Y-%m-%d)" \
+            --notes "Built from $GITHUB_SHA with --initramfsGenerator=kickoff." \
+            || gh release upload "iso-$(date -u +%Y-%m-%d)" "$ISO" --clobber
