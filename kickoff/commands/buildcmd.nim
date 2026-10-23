@@ -14,7 +14,7 @@ import ../modules/modules as modulesmod
 
 proc build*(rootfs: string, init: string, kernelVersion: string, output: string,
             layout = "erofs", compress = "gzip",
-            module: seq[string] = @[], mtime = -1): int =
+            module: seq[string] = @[], mtime = -1, isoLabel = ""): int =
   ## Build an initramfs for a staged rootfs.
   ##
   ## `rootfs` supplies the kernel modules and the shared libraries the init needs.
@@ -33,7 +33,8 @@ proc build*(rootfs: string, init: string, kernelVersion: string, output: string,
     layout: modulesmod.parseLayout(layout),
     compression: compressionmod.parseCompression(compress),
     extraModules: module,
-    mtime: resolvedMtime)
+    mtime: resolvedMtime,
+    isoLabel: isoLabel)
 
   let result = writeInitramfs(options, output)
 

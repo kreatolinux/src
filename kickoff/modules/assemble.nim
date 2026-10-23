@@ -22,6 +22,7 @@ const
   configDir* = "/etc/kickoff"
   loadOrderPath* = configDir & "/modules"
   rootfsTypePath* = configDir & "/rootfstype"
+  isoLabelPath* = configDir & "/isolabel"
 
 type
   InitramfsOptions* = object
@@ -32,6 +33,7 @@ type
     compression*: Compression
     extraModules*: seq[string]  ## additional module names to include
     mtime*: uint32              ## archive timestamp, 0 for reproducible
+    isoLabel*: string           ## default ISO9660 volume label for squashfs-iso
 
   InitramfsResult* = object
     entries*: seq[CpioEntry]
@@ -146,6 +148,8 @@ proc buildInitramfs*(options: InitramfsOptions): InitramfsResult =
   entries.addData(loadOrderPath, result.modules.join("\n") & (if result.modules.len > 0: "\n" else: ""),
                   options.mtime)
   entries.addData(rootfsTypePath, rootfsTypeName(options.layout) & "\n", options.mtime)
+  if options.isoLabel.len > 0:
+    entries.addData(isoLabelPath, options.isoLabel & "\n", options.mtime)
 
   result.entries = dedupeDirectories(entries)
   result.archive = buildArchive(result.entries)

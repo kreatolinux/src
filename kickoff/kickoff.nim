@@ -26,7 +26,8 @@ when isMainModule:
         "layout": "Root filesystem: erofs (default), squashfs, or squashfs-iso",
         "compress": "Compression: gzip (default), zstd, or none",
         "module": "Extra kernel module to include (repeatable)",
-        "mtime": "Archive timestamp; default is SOURCE_DATE_EPOCH, else 0"}],
+        "mtime": "Archive timestamp; default is SOURCE_DATE_EPOCH, else 0",
+        "isoLabel": "Default ISO9660 volume label for --layout=squashfs-iso"}],
       [versionCommand, cmdName = "version"])
   except CatchableError as exc:
     stderr.writeLine("kickoff: error: " & exc.msg)

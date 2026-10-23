@@ -23,6 +23,7 @@ type
     deps*: Table[string, seq[string]]        ## module path -> dependency paths
     byName*: Table[string, seq[string]]      ## "erofs.ko" -> paths
     builtin*: HashSet[string]                ## module paths compiled into the kernel
+    builtinNames*: HashSet[string]           ## basenames of those paths ("virtio_blk.ko")
 
 proc parseLayout*(value: string): RootfsLayout =
   case value.toLowerAscii
@@ -34,16 +35,22 @@ proc parseLayout*(value: string): RootfsLayout =
         "Unknown root filesystem '" & value & "' (use erofs, squashfs or squashfs-iso)")
 
 proc requiredModuleNames*(layout: RootfsLayout): seq[string] =
-  ## The modules that must be present for each layout. Block and CD-ROM drivers
-  ## are deliberately absent: virtio_blk, sr_mod and cdrom are built into the
-  ## Kreato kernel (verified by booting), so requesting them would add nothing.
+  ## The modules needed to reach the root for each layout.
+  ##
+  ## Storage and optical drivers are included even though the Kreato kernel has
+  ## them built in: collectModules() skips built-in modules automatically, so
+  ## listing them costs nothing here and means the same layout also works on a
+  ## kernel where they are loadable. Without them a live medium would not be
+  ## found at all on such a kernel, and the failure looks like "no root".
   case layout
   of rlErofsDisk:
-    @["erofs", "overlay"]
+    @["erofs", "overlay", "virtio_blk"]
   of rlSquashfsDisk:
-    @["squashfs", "loop", "overlay"]
+    @["squashfs", "loop", "overlay", "virtio_blk"]
   of rlSquashfsIso:
-    @["squashfs", "loop", "isofs", "overlay"]
+    # The medium may be a CD-ROM or, once written to a USB stick, a plain block
+    # device, so both paths are covered.
+    @["squashfs", "loop", "isofs", "overlay", "virtio_blk", "sr_mod", "cdrom"]
 
 proc parseModulesDep*(content: string): Table[string, seq[string]] =
   ## Parse modules.dep. Lines are "path: dep dep ..."; continuation lines
@@ -97,6 +104,8 @@ proc loadModuleIndex*(rootfs, kernelVersion: string): ModuleIndex =
   let builtinPath = result.root / "modules.builtin"
   if fileExists(builtinPath):
     result.builtin = parseModulesBuiltin(readFile(builtinPath))
+    for path in result.builtin:
+      result.builtinNames.incl path.extractFilename()
 
 proc lookupByName*(index: ModuleIndex, name: string): seq[string] =
   ## Accept either a bare name ("erofs") or a filename ("erofs.ko").
@@ -105,7 +114,16 @@ proc lookupByName*(index: ModuleIndex, name: string): seq[string] =
   result.sort()          # deterministic: prefer the lowest path
 
 proc isBuiltin*(index: ModuleIndex, name: string): bool =
-  ## True when every path for this module is compiled into the kernel.
+  ## True when the module is compiled into the kernel.
+  ##
+  ## A built-in module has no .ko, so it appears in modules.builtin and not in
+  ## modules.dep. Checking the built-in list by basename first is therefore
+  ## required: looking only at modules.dep paths would classify every built-in
+  ## module as missing and fail the build.
+  let fileName = if name.endsWith(".ko"): name else: name & ".ko"
+  if fileName in index.builtinNames: return true
+  # Fall back to the path-based test for a tree whose modules.builtin lists
+  # entries we cannot match by basename.
   let paths = index.lookupByName(name)
   if paths.len == 0: return false
   for path in paths:
@@ -127,8 +145,9 @@ proc collectModules*(index: ModuleIndex, names: seq[string]):
       continue
     let paths = index.lookupByName(name)
     if paths.len == 0:
-      # Not a module and not listed as built in: either the kernel calls it
-      # something else or the tree is incomplete. Report it.
+      # No .ko and not listed as built in: the kernel calls it something else or
+      # the tree is incomplete. Report it rather than silently shipping a
+      # rootfs the init cannot mount.
       if index.builtin.len == 0:
         result.skippedBuiltin.add name   # cannot tell; assume built in
       else:

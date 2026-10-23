@@ -69,7 +69,12 @@ proc fixture(base: string): string =
             "kernel/drivers/block/loop.ko", "kernel/fs/isofs/isofs.ko"]:
     writeFile(modRoot / m, "fake module " & m)
   writeFile(modRoot / "modules.dep", depFile)
-  writeFile(modRoot / "modules.builtin", "kernel/drivers/block/virtio_blk.ko\n")
+  # Same built-ins the Kreato kernel has: these have no .ko, so they are absent
+  # from modules.dep and must be recognised from modules.builtin.
+  writeFile(modRoot / "modules.builtin",
+      "kernel/drivers/block/virtio_blk.ko\n" &
+      "kernel/drivers/scsi/sr_mod.ko\n" &
+      "kernel/drivers/scsi/cdrom.ko\n")
 
   createDir(base / "lib64")
   writeFile(base / "lib64/ld-linux-aarch64.so.1", "fake loader")
@@ -102,7 +107,8 @@ suite "initramfs assembly":
     check "modules/kernel/lib/lz4/lz4hc.ko" in names
     # squashfs-only modules must not be pulled in
     check "modules/kernel/fs/squashfs/squashfs.ko" notin names
-    check r.skippedBuiltin.len == 0
+    # virtio_blk is requested for the layout but built in, so nothing is copied.
+    check "virtio_blk" in r.skippedBuiltin
 
   test "module load order puts dependencies first":
     let base = getTempDir() / "kickoff-assemble-order"

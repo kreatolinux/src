@@ -39,14 +39,18 @@ suite "module selection":
     check deps["d.ko"].len == 0
 
   test "layout selects the right module names":
-    check requiredModuleNames(rlErofsDisk) == @["erofs", "overlay"]
-    check requiredModuleNames(rlSquashfsDisk) == @["squashfs", "loop", "overlay"]
-    check requiredModuleNames(rlSquashfsIso) == @["squashfs", "loop", "isofs", "overlay"]
-    # Block and CD-ROM drivers are built into the Kreato kernel; asking for them
-    # would add nothing to the archive.
-    for name in requiredModuleNames(rlSquashfsIso):
-      check not name.startsWith("virtio")
-      check name != "sr_mod"
+    check requiredModuleNames(rlErofsDisk) == @["erofs", "overlay", "virtio_blk"]
+    check requiredModuleNames(rlSquashfsDisk) ==
+      @["squashfs", "loop", "overlay", "virtio_blk"]
+    check requiredModuleNames(rlSquashfsIso) ==
+      @["squashfs", "loop", "isofs", "overlay", "virtio_blk", "sr_mod", "cdrom"]
+
+  test "block and optical drivers are listed but skipped when built in":
+    # They are built into the Kreato kernel, so nothing is copied for them --
+    # but listing them keeps the same layout working where they are modules.
+    let idx = sampleIndex()
+    let r = collectModules(idx, requiredModuleNames(rlSquashfsIso))
+    check "virtio_blk" in r.skippedBuiltin
 
   test "parseLayout accepts aliases and rejects nonsense":
     check parseLayout("") == rlErofsDisk

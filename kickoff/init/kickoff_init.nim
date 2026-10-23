@@ -13,6 +13,7 @@
 import std/[os, posix, strutils, tables]
 
 import jumpstartcore/mounts
+import ../modules/iso9660
 
 # Not declared by Nim's posix module, and needed here: chroot(2) for the switch,
 # and the raw syscall(2) entry point for finit_module(2), which has no libc
@@ -26,6 +27,7 @@ const
   cmdlinePath = "/proc/cmdline"
   loadOrderPath = "/etc/kickoff/modules"
   layoutPath = "/etc/kickoff/rootfstype"
+  isoLabelPath = "/etc/kickoff/isolabel"
   lowerDir = "/lower"          ## where the real root is mounted
   overlayDir = "/overlay"      ## tmpfs holding the writable upper layer
   mergedDir = "/sysroot"       ## overlay result, becomes /
@@ -95,6 +97,60 @@ proc findPartitionByLabel(label: string): string =
     if name.len > 0 and partName == label:
       return "/dev/" & name
   ""
+
+proc readSector(device: string, sectorIndex: int): string =
+  ## Read one 2048-byte sector without seeking the shared file offset (pread),
+  ## so this can be called for several devices without reopening.
+  result = newString(sectorSize)
+  let fd = posix.open(device.cstring, O_RDONLY)
+  if fd < 0: return ""
+  try:
+    let n = posix.pread(fd, addr result[0], sectorSize, posix.Off(sectorIndex * sectorSize))
+    if n != sectorSize: result = ""
+  finally:
+    discard posix.close(fd)
+
+proc findIsoDevice(label: string): string =
+  ## Find a block device carrying an ISO9660 filesystem. With `label` non-empty
+  ## only a matching volume identifier is accepted; otherwise the first ISO9660
+  ## device wins, which is what a live medium wants.
+  ##
+  ## The whole device and its partitions are both candidates: an ISO written to a
+  ## USB stick may appear either way depending on how it was partitioned.
+  for kind, entry in walkDir("/sys/class/block"):
+    let devName = "/dev/" & entry.extractFilename()
+    if not fileExists(devName): continue
+    let pvd = readSector(devName, pvdSector)
+    if pvd.len == 0: continue
+    let found = isoVolumeId(pvd)
+    if found.len == 0: continue
+    if label.len == 0 or found == label:
+      return devName
+  ""
+
+proc resolveRootDevice(spec, layout, isoLabelOverride: string): string =
+  ## Turn the kernel's root= value into a device node.
+  ##
+  ## Supported forms:
+  ##   PARTLABEL=name   GPT partition label, read from sysfs
+  ##   LABEL=name       ISO9660 volume identifier (no udev, so read from the PVD)
+  ##   CDLABEL=name     as LABEL, for familiarity with dracut's live syntax
+  ##   live:LABEL=name  dracut's live-media form, accepted for compatibility
+  ##   /dev/...         taken as-is
+  ## An empty spec on a squashfs-iso layout means "the live medium": any ISO9660
+  ## device will do.
+  if spec.len == 0:
+    if layout == "squashfs-iso": return findIsoDevice(isoLabelOverride)
+    return ""
+  var value = spec
+  if value.startsWith("live:"): value = value[5 .. ^1]
+  if value.startsWith("PARTLABEL="):
+    return findPartitionByLabel(value[11 .. ^1])
+  for prefix in ["CDLABEL=", "LABEL="]:
+    if value.startsWith(prefix):
+      let label = value[prefix.len .. ^1]
+      return findIsoDevice(label)
+  return value
 
 proc waitForDevice(path: string, timeoutMs = deviceWaitMs): bool =
   var waited = 0
@@ -181,35 +237,39 @@ proc main() {.used.} =
   let cmdline = readCmdline()
   let layout = readLayout()
 
-  # root= is either PARTLABEL=NAME or an explicit device path.
+  # Resolve root= to a device. Retry until the timeout: a device can appear
+  # slightly after the module that drives it has been loaded.
+  let rootSpec = cmdline.getOrDefault("root", "")
+  # Command line wins; otherwise fall back to the label baked in at build time.
+  var isoLabelOverride = cmdline.getOrDefault("kickoff.isolabel", "")
+  if isoLabelOverride.len == 0:
+    isoLabelOverride = readTrimmed(isoLabelPath)
   var device = ""
-  if cmdline.hasKey("root"):
-    let spec = cmdline["root"]
-    if spec.startsWith("PARTLABEL="):
-      let label = spec[11 .. ^1]
-      device = findPartitionByLabel(label)
-      if device.len == 0:
-        die("no partition labelled " & label & " (is the disk module loaded?)")
-    else:
-      device = spec
-  else:
-    die("no root= on the kernel command line")
-
-  if not waitForDevice(device):
-    die("root device did not appear: " & device)
+  var waited = 0
+  while waited < deviceWaitMs:
+    device = resolveRootDevice(rootSpec, layout, isoLabelOverride)
+    if device.len > 0 and fileExists(device): break
+    discard posix.usleep(200_000)
+    waited += 200
+  if device.len == 0 or not fileExists(device):
+    die("could not find a root device for root='" & rootSpec &
+        "' (layout " & layout & ", modules loaded?)")
   say("kickoff-init: root device " & device & " (" & layout & ")")
 
   ensureDir(lowerDir)
   case layout
   of "squashfs-iso":
-    # Device holds an ISO; the root is a squashfs image inside it.
+    # The device holds an ISO9660 image; the root is a squashfs file inside it.
+    # kickoff's ISO layout puts the rootfs at LiveOS/rootfs.squashfs directly.
+    # It deliberately does not support a squashfs-wrapped ext4 rootfs.img: that
+    # needs a second mount and dm-snapshot, which is the dracut path's job, and
+    # silently mounting the wrong layer would be worse than failing.
     ensureDir(isoDir)
     mountOrDie(device, isoDir, "iso9660", MS_RDONLY)
-    let image = isoDir / "LiveOS/rootfs.squashfs"
-    let alt = isoDir / "LiveOS/squashfs.img"
-    let source = if fileExists(image): image else: alt
+    let source = isoDir / "LiveOS/rootfs.squashfs"
     if not fileExists(source):
-      die("no squashfs image under " & isoDir & "/LiveOS")
+      die("no LiveOS/rootfs.squashfs on " & device &
+          " (is this an ISO built with --initramfsGenerator=kickoff?)")
     let loop = setupLoopDevice(source)
     mountOrDie(loop, lowerDir, "squashfs", MS_RDONLY)
   of "squashfs":
