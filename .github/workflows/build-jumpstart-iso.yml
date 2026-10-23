@@ -199,13 +199,27 @@ jobs:
           # krep shells out to kickoff/kickoff-init by name.
           export PATH="$GITHUB_WORKSPACE/out:$PATH"
 
-          ./out/krep iso \
+          # set -x so the log shows each command as it is reached. A previous
+          # attempt sat with no output at all for over an hour, which gave
+          # nothing to diagnose; with this, a hang is obvious at a glance.
+          set -x
+          # Bound it: squashfs'ing a few GB is slow but not unbounded, and a
+          # wedged step should fail in twenty minutes rather than hold a runner
+          # for the whole job timeout.
+          timeout 1200 ./out/krep iso \
             --rootfs=/out \
             --output="$OUT" \
             --workDir="$WORK" \
             --initramfsGenerator=kickoff \
             --name="kreatolinux-live-${ARCH}.iso" \
             --overwrite
+          status=$?
+          set +x
+          if [ "$status" -eq 124 ]; then
+            echo "::error::krep iso timed out after 20 minutes"
+            exit 1
+          fi
+          [ "$status" -eq 0 ] || exit "$status"
 
           ls -lh "$OUT"
           echo "iso=$(ls "$OUT"/*.iso | head -1)" >> "$GITHUB_OUTPUT"
