@@ -98,6 +98,17 @@ proc findPartitionByLabel(label: string): string =
       return "/dev/" & name
   ""
 
+proc exists(path: string): bool =
+  ## True for any object, including block and character devices.
+  ##
+  ## Nim's fileExists() is documented as "exists and is a regular file or
+  ## symlink. Directories, device files, named pipes and sockets return false",
+  ## which makes it the wrong test for /dev/vda and friends. This init checks for
+  ## device nodes in several places, and using fileExists() there silently
+  ## reported every block device as absent.
+  var st: Stat
+  posix.stat(path.cstring, st) == 0
+
 proc readSector(device: string, sectorIndex: int): string =
   ## Read one 2048-byte sector without seeking the shared file offset (pread),
   ## so this can be called for several devices without reopening.
@@ -119,7 +130,7 @@ proc findIsoDevice(label: string): string =
   ## USB stick may appear either way depending on how it was partitioned.
   for kind, entry in walkDir("/sys/class/block"):
     let devName = "/dev/" & entry.extractFilename()
-    if not fileExists(devName): continue
+    if not exists(devName): continue
     let pvd = readSector(devName, pvdSector)
     if pvd.len == 0: continue
     let found = isoVolumeId(pvd)
@@ -155,10 +166,10 @@ proc resolveRootDevice(spec, layout, isoLabelOverride: string): string =
 proc waitForDevice(path: string, timeoutMs = deviceWaitMs): bool =
   var waited = 0
   while waited < timeoutMs:
-    if fileExists(path): return true
+    if exists(path): return true
     discard posix.usleep(100_000)
     waited += 100
-  fileExists(path)
+  exists(path)
 
 proc loadModules() =
   ## Load every module listed in the build-time order. Dependencies come first,
@@ -191,7 +202,7 @@ proc setupLoopDevice(filePath: string): string =
   if fd < 0: die("cannot open squashfs image: " & filePath)
   for i in 0 ..< 8:
     let loop = "/dev/loop" & $i
-    if not fileExists(loop): continue
+    if not exists(loop): continue
     let lfd = posix.open(loop.cstring, O_RDWR)
     if lfd < 0: continue
     if ioctl(lfd, LOOP_SET_FD, fd) == 0:
@@ -248,10 +259,10 @@ proc main() {.used.} =
   var waited = 0
   while waited < deviceWaitMs:
     device = resolveRootDevice(rootSpec, layout, isoLabelOverride)
-    if device.len > 0 and fileExists(device): break
+    if device.len > 0 and exists(device): break
     discard posix.usleep(200_000)
     waited += 200
-  if device.len == 0 or not fileExists(device):
+  if device.len == 0 or not exists(device):
     die("could not find a root device for root='" & rootSpec &
         "' (layout " & layout & ", modules loaded?)")
   say("kickoff-init: root device " & device & " (" & layout & ")")
