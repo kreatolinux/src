@@ -360,6 +360,17 @@ for v in $projects; do
 			buildNim "krep" "krep.nim" "$srcdir/out/krep" "on" "" "1" "1"
 			stageKrepAssets
 			;;
+		kickoff)
+			setupPlatform
+			mkdir -p "$srcdir/out" || err "Creating kickoff output directory failed"
+			# The builder is an ordinary host program.
+			buildNim "kickoff" "kickoff.nim" "$srcdir/out/kickoff" "off" "" "1" ""
+			# The initramfs init ends up inside an archive that has no dynamic
+			# linker of its own beyond the one kickoff copies in, so it is built
+			# exactly like the other freestanding pieces: no threads, no ssl.
+			buildNim "kickoff" "init/kickoff_init.nim" "$srcdir/out/kickoff-init" \
+				"off" "" "1" ""
+			;;
 		install_klinstaller)
 			[ ! -d "$DESTDIR" ] && mkdir -p "$DESTDIR"
 			cp "$srcdir/installer/klinstaller" "$DESTDIR/bin/klinstaller"
