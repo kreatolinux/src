@@ -114,10 +114,17 @@ jobs:
           #   grub-mkrescue   grub            (El Torito + EFI boot)
           #   xorriso         xorriso         (ISO mastering, also used to inspect)
           #   mcopy           mtools          (grub-mkrescue's EFI image)
+          # kmod matters more than it looks: staging the rootfs runs the
+          # `linux` package's postinstall, which is `depmod -b "$ROOT"` so the
+          # module index describes the target rather than the build host. The
+          # builder image's depmod is BusyBox's, which has no -b and fails with
+          # "can't change directory to '/lib/modules'". Installing kmod puts a
+          # real depmod on PATH before anything is staged.
+          #
           # Deliberately absent: dracut, e2fsprogs, util-linux. The kickoff path
           # has no ext4 layer and does not use dmsquash-live.
-          "$KPKG" install -y squashfs-tools grub xorriso mtools
-          for t in mksquashfs grub-mkrescue xorriso mcopy; do
+          "$KPKG" install -y squashfs-tools grub xorriso mtools kmod
+          for t in mksquashfs grub-mkrescue xorriso mcopy depmod; do
             printf '%-18s' "$t"
             command -v "$t" || { echo "MISSING after install"; exit 1; }
           done
