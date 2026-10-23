@@ -49,7 +49,7 @@ when isMainModule:
       "clearRootPassword": "Explicitly clear the staged root password (insecure)",
       "name": "Output filename ending in .iso",
       "overwrite": "Atomically replace an existing output ISO",
-      "initramfsGenerator": "Initramfs generator: dracut (booster is rejected for ISOs)"}],
+      "initramfsGenerator": "Initramfs generator: dracut (default) or kickoff; booster is rejected for ISOs"}],
       [disk, help = {
       "rootfs": "Input rootfs directory or trusted tar archive",
       "kernelVersion": "Rootfs kernel version (required when ambiguous)",

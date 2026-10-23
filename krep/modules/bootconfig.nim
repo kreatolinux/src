@@ -112,3 +112,49 @@ proc liveGrubConfig*(templateText, init: string): string =
   if "@INIT@" notin templateText:
     raise newException(ValueError, "GRUB template is missing @INIT@")
   result = templateText.replace("@INIT@", init)
+
+type
+  InitramfsGenerator* = enum
+    ## Which program produces the initramfs. Lives here, not in erofsimage,
+    ## because the ISO builder needs it too and erofsimage imports isobuilder.
+    igDracut = "dracut", igBooster = "booster", igKickoff = "kickoff"
+
+proc parseGenerator*(value: string): InitramfsGenerator =
+  case value.toLowerAscii
+  of "", "dracut": igDracut
+  of "booster": igBooster
+  of "kickoff": igKickoff
+  else:
+    raise newException(ValueError,
+        "Unknown initramfs generator '" & value &
+        "' (use dracut, booster or kickoff)")
+
+proc resolveKickoffTools*(): tuple[builder, init: string] =
+  ## Locate the kickoff binaries. They are a pair: the builder writes the archive
+  ## and the init goes inside it, so they must come from the same build. The init
+  ## is looked for next to the builder first, then on PATH on its own.
+  result.builder = findExe("kickoff")
+  if result.builder.len == 0:
+    raise newException(IOError,
+        "kickoff not found on PATH (build it with build.sh -p kickoff, or install it)")
+  let sibling = result.builder.parentDir / "kickoff-init"
+  if fileExists(sibling):
+    result.init = sibling
+  else:
+    result.init = findExe("kickoff-init")
+  if result.init.len == 0:
+    raise newException(IOError,
+        "kickoff-init not found next to " & result.builder & " or on PATH")
+
+proc kickoffArgs*(rootfs, initBinary, kernelVersion, output, layout: string,
+                  isoLabel = ""): seq[string] =
+  ## Arguments for `kickoff build`. Kept in one place so the disk and ISO paths
+  ## cannot drift.
+  result = @["build",
+    "--rootfs=" & rootfs,
+    "--init=" & initBinary,
+    "--kernelVersion=" & kernelVersion,
+    "--output=" & output,
+    "--layout=" & layout]
+  if isoLabel.len > 0:
+    result.add("--isoLabel=" & isoLabel)

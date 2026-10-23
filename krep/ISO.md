@@ -57,11 +57,15 @@ its enabled services. Other init systems need their own working configuration.
 Install tools before invoking `krep`; it does not install them for ISO builds.
 The command checks that these executables are on `PATH`:
 
-- Always: `cp`, `truncate`, `mkfs.ext4`, `mksquashfs`, `grub-mkrescue`, `xorriso`.
+- Always: `cp`, `mksquashfs`, `grub-mkrescue`, `xorriso`.
 - Archive input: GNU-compatible `tar` with ownership, permissions, extended
   attribute (`--xattrs`, `--xattrs-include=*`), and ACL (`--acls`) support.
-- When generating an initramfs: `dracut`, `udevadm`, `depmod`, `modprobe`,
-  `dmsetup`, `switch_root`.
+- Generating an initramfs with dracut (the default): `mkfs.ext4`, plus
+  `dracut`, `udevadm`, `depmod`, `modprobe`, `dmsetup`, `switch_root`.
+- Generating an initramfs with `--initramfsGenerator=kickoff`: `kickoff`, whose
+  companion `kickoff-init` is looked for beside it (then on `PATH`). No
+  `mkfs.ext4`, dracut or udev is needed, because the rootfs is squashfs'd
+  directly.
 
 Executable checks are not a complete dependency or boot check. Use tools that
 support the invoked options, including `mkfs.ext4 -d` for mount-free population.
@@ -87,6 +91,42 @@ isolation.
 requirements. It does not bypass the other tools or rootfs kernel checks. The
 supplied file must match the selected kernel and the live layout below. The
 builder copies it without validating its contents.
+
+## kickoff live layout
+
+Selecting `--initramfsGenerator=kickoff` replaces both the initramfs and the
+root layout. It is the alternative to dracut's `dmsquash-live` stack and needs no
+dracut toolchain, no host udev and no `switch_root` on the build host.
+
+The staged rootfs is squashfs'd directly to `LiveOS/rootfs.squashfs`. There is no
+ext4 layer, so `mkfs.ext4`, `truncate` and dm-snapshot are not involved:
+
+```
+ISO9660 (volid ISOIMAGE)
+├── boot/vmlinuz
+├── boot/initramfs.img      built by kickoff: init + libs + iso9660/loop/squashfs/overlay modules
+├── boot/grub/...
+└── LiveOS/rootfs.squashfs  the whole rootfs, loop-mounted at boot
+```
+
+The kernel command line comes from `grub-kickoff.cfg`:
+
+```
+linux /boot/vmlinuz root=LABEL=ISOIMAGE init=@INIT@
+```
+
+`LABEL=` is the ISO9660 volume identifier, not a partition label. The init reads
+the Primary Volume Descriptor directly, because `/dev/disk/by-label` is udev's and
+udev does not run before the real root exists. The label is also baked into the
+initramfs, so `root=` may be omitted entirely and the first ISO9660 device used.
+
+At boot the init mounts the ISO, loop-mounts `LiveOS/rootfs.squashfs`, lays a
+tmpfs-backed overlay on top so the root is writable, and execs `init=`. It has no
+knowledge of jumpstart or systemd: whatever absolute path is named runs.
+
+Not supported on this path: a squashfs-wrapped ext4 `rootfs.img` (dracut's
+layout), LUKS, LVM, RAID and network root. Those need layers this initramfs does
+not carry.
 
 ## Live layout and overlays
 

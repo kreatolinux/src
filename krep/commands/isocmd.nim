@@ -1,6 +1,6 @@
 ## Live ISO command. All assembly runs in a private workspace without mounts.
 import std/[os, strutils]
-import ../modules/[resources, isobuilder, isoprocess, erofsimage]
+import ../modules/[resources, isobuilder, isoprocess, erofsimage, bootconfig]
 import ../../common/logging
 
 proc runIso*(rootfs: string, output: string, init = "/sbin/init",
@@ -22,7 +22,8 @@ proc runIso*(rootfs: string, output: string, init = "/sbin/init",
       initramfs: (if initramfs.len > 0: absolutePath(initramfs) else: ""),
       workDir: (if workDir.len > 0: absolutePath(workDir) else: ""),
       imageSizeMiB: imageSizeMiB, clearRootPassword: clearRootPassword,
-      name: name, overwrite: overwrite)
+      name: name, overwrite: overwrite,
+      initramfsGenerator: parseGenerator(initramfsGenerator))
   validateIsoOptions(options)
   var missing: seq[string]
   for tool in requiredIsoTools(options):

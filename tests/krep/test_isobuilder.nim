@@ -1,5 +1,5 @@
 import std/[os, strutils, tempfiles, unittest, sequtils]
-import ../../krep/modules/[isobuilder, isoworkspace]
+import ../../krep/modules/[isobuilder, isoworkspace, bootconfig]
 
 const templateText = "linux /boot/vmlinuz init=@INIT@\ninitrd /boot/initramfs.img\n"
 proc fixture(base: string): IsoOptions =
@@ -152,3 +152,66 @@ suite "safe ISO assembly":
     options.workDir = base / "work"
     options.output = options.rootfs / "out"
     expect ValueError: validateIsoOptions(options)
+
+suite "kickoff ISO layout":
+  test "tool preflight drops the dracut and ext4 toolchain":
+    let base = createTempDir("krep-iso-kickoff-tools-", "")
+    var options = fixture(base)
+    options.initramfs = ""                    # so an initramfs would be generated
+    options.initramfsGenerator = igDracut
+    let dracutTools = requiredIsoTools(options)
+    check "mkfs.ext4" in dracutTools
+    check "dracut" in dracutTools
+    check "kickoff" notin dracutTools
+
+    options.initramfsGenerator = igKickoff
+    let kickoffTools = requiredIsoTools(options)
+    check "kickoff" in kickoffTools
+    # The kickoff path writes squashfs directly: no ext4 layer, no dracut.
+    check "mkfs.ext4" notin kickoffTools
+    check "dracut" notin kickoffTools
+    check "udevadm" notin kickoffTools
+    # Whatever the generator, these are always needed.
+    for tool in ["cp", "mksquashfs", "grub-mkrescue", "xorriso"]:
+      check tool in kickoffTools
+
+  test "the kickoff GRUB template matches what the init expects":
+    let path = "krep/data/iso/grub-kickoff.cfg"
+    check fileExists(path)
+    let text = readFile(path)
+    # The init finds the medium by ISO9660 volume label, not a partition label.
+    check "root=LABEL=ISOIMAGE" in text
+    check "init=@INIT@" in text
+    check "initrd /boot/initramfs.img" in text
+    # dracut's live setup does not run on this path, so the kernel line must not
+    # ask for it (the word appears in a comment, which is why the check is
+    # scoped to the linux line rather than the whole file).
+    var linuxLine = ""
+    for line in text.splitLines():
+      if line.strip().startsWith("linux "): linuxLine = line
+    check linuxLine.len > 0
+    check "rd.live.image" notin linuxLine
+    # liveGrubConfig must be able to substitute the init.
+    let rendered = liveGrubConfig(text, "/sbin/init")
+    check "init=/sbin/init" in rendered
+    check "@INIT@" notin rendered
+
+  test "the dracut template is untouched":
+    let text = readFile("krep/data/iso/grub.cfg")
+    check "root=live:LABEL=ISOIMAGE" in text
+    check "rd.live.image" in text
+
+  test "kickoffArgs names the layout and label":
+    let args = kickoffArgs("/out", "/usr/bin/kickoff-init", "6.18.3",
+        "/tmp/initramfs.img", "squashfs-iso", "ISOIMAGE")
+    check args[0] == "build"
+    check "--rootfs=/out" in args
+    check "--init=/usr/bin/kickoff-init" in args
+    check "--kernelVersion=6.18.3" in args
+    check "--output=/tmp/initramfs.img" in args
+    check "--layout=squashfs-iso" in args
+    check "--isoLabel=ISOIMAGE" in args
+    # No label means no flag, rather than an empty one.
+    let bare = kickoffArgs("/out", "/i", "6.18.3", "/o", "erofs")
+    for a in bare:
+      check not a.startsWith("--isoLabel")

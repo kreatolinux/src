@@ -11,14 +11,30 @@ type
     clearRootPassword*, overwrite*: bool
     imageSizeMiB*: int
     name*: string
+    initramfsGenerator*: InitramfsGenerator
   IsoRunner* = proc(exe: string, args: seq[string]) {.closure.}
 
+const isoTemplateLabel* = "ISOIMAGE"
+  ## ISO9660 volume identifier of the produced image. grub-mkrescue is given this
+  ## as -volid, the GRUB templates reference it, and kickoff bakes it into the
+  ## initramfs so the init can find the medium without udev.
+
 proc requiredIsoTools*(options: IsoOptions): seq[string] =
-  result = @["cp", "truncate", "mkfs.ext4", "mksquashfs", "grub-mkrescue", "xorriso"]
+  result = @["cp", "mksquashfs", "grub-mkrescue", "xorriso"]
   if not dirExists(options.rootfs): result.add("tar")
-  if options.initramfs.len == 0:
-    result.add(@["dracut", "udevadm", "depmod", "modprobe", "dmsetup",
-        "switch_root"])
+  case options.initramfsGenerator
+  of igKickoff:
+    # kickoff writes the squashfs root directly, so no ext4 layer and no dracut
+    # toolchain: mkfs.ext4 is not needed at all on this path.
+    if options.initramfs.len == 0: result.add("kickoff")
+  of igBooster:
+    # Rejected for ISOs by validateIsoGenerator; listed so the case is explicit.
+    discard
+  of igDracut:
+    result.add("mkfs.ext4")
+    if options.initramfs.len == 0:
+      result.add(@["dracut", "udevadm", "depmod", "modprobe", "dmsetup",
+          "switch_root"])
 
 proc canonicalFuturePath(path: string): string =
   ## Resolve existing parent aliases even when the final output does not exist.
@@ -108,8 +124,10 @@ proc assembleIso*(options: IsoOptions, run: IsoRunner,
   ## Input archives/directories and custom overlays must be trusted.
   validateIsoOptions(options)
   if checkCancelled != nil: checkCancelled()
-  let templatePath = if options.grubConfig.len > 0: options.grubConfig
-                     else: options.resources / "grub.cfg"
+  let templatePath =
+    if options.grubConfig.len > 0: options.grubConfig
+    elif options.initramfsGenerator == igKickoff: options.resources / "grub-kickoff.cfg"
+    else: options.resources / "grub.cfg"
   let grubText = liveGrubConfig(readFile(templatePath), options.init)
   createDir(options.output)
   let workspace = createWorkspace(options.workDir)
@@ -155,6 +173,12 @@ proc assembleIso*(options: IsoOptions, run: IsoRunner,
   copyFile(kernel.image, imageTree / "boot/vmlinuz")
   if options.initramfs.len > 0:
     copyFile(options.initramfs, imageTree / "boot/initramfs.img")
+  elif options.initramfsGenerator == igKickoff:
+    let tools = resolveKickoffTools()
+    # layout=squashfs-iso makes kickoff ship the ISO and loop modules and bake
+    # the volume label, so the init can find the medium without udev.
+    run(tools.builder, kickoffArgs(staged, tools.init, kernel.version,
+        imageTree / "boot/initramfs.img", "squashfs-iso", isoTemplateLabel))
   else:
     let emptyConfig = workspace.path / "dracut.conf.d"
     createDir(emptyConfig)
@@ -163,18 +187,23 @@ proc assembleIso*(options: IsoOptions, run: IsoRunner,
   if not fileExists(imageTree / "boot/initramfs.img"):
     raise newException(IOError, "No initramfs was generated")
 
-  let size = if options.imageSizeMiB > 0: int64(options.imageSizeMiB)
-             else: rootfsImageSizeMiB(staged)
-  let image = squash / "LiveOS/rootfs.img"
-  run("truncate", @["-s", $size & "M", image])
-  # mke2fs -d populates the filesystem without mounting it. Disable lazy init
-  # so data/metadata are complete before the image is compressed.
-  run("mkfs.ext4", @["-F", "-q", "-m", "0", "-E",
-      "lazy_itable_init=0,lazy_journal_init=0", "-d", staged, image])
-  run("mksquashfs", @[squash, imageTree / "LiveOS/squashfs.img", "-noappend"])
+  if options.initramfsGenerator == igKickoff:
+    # No ext4 layer: the staged rootfs is squashfs'd directly, and the init
+    # loop-mounts it. One filesystem, one mount, no dm-snapshot.
+    run("mksquashfs", @[staged, imageTree / "LiveOS/rootfs.squashfs", "-noappend"])
+  else:
+    let size = if options.imageSizeMiB > 0: int64(options.imageSizeMiB)
+               else: rootfsImageSizeMiB(staged)
+    let image = squash / "LiveOS/rootfs.img"
+    run("truncate", @["-s", $size & "M", image])
+    # mke2fs -d populates the filesystem without mounting it. Disable lazy init
+    # so data/metadata are complete before the image is compressed.
+    run("mkfs.ext4", @["-F", "-q", "-m", "0", "-E",
+        "lazy_itable_init=0,lazy_journal_init=0", "-d", staged, image])
+    run("mksquashfs", @[squash, imageTree / "LiveOS/squashfs.img", "-noappend"])
   writeFile(imageTree / "boot/grub/grub.cfg", grubText)
   let stagedIso = workspace.path / "result.iso"
-  run("grub-mkrescue", @["-o", stagedIso, imageTree, "-volid", "ISOIMAGE"])
+  run("grub-mkrescue", @["-o", stagedIso, imageTree, "-volid", isoTemplateLabel])
   if not fileExists(stagedIso):
     raise newException(IOError, "grub-mkrescue did not produce an ISO")
   publishIso(stagedIso, outputLock, options.overwrite, checkCancelled)

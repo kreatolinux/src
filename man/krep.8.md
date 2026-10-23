@@ -164,9 +164,19 @@ bypass another build's output lock.
 : Use an explicit GRUB template instead of the selected resource directory's
 `grub.cfg`. The template must contain `@INIT@`.
 
-**--initramfsGenerator=dracut|booster**
+**--initramfsGenerator=dracut|booster|kickoff**
 : Initramfs generator. Default: dracut. `booster` is rejected for **iso** (it
 cannot assemble the live squashfs-on-ISO root); it is valid for **disk**.
+`kickoff` is valid for both.
+
+: With `kickoff` the rootfs is squashfs'd directly to `LiveOS/rootfs.squashfs`
+and loop-mounted by the generated init, with no ext4 layer, no `dmsquash-live`
+and no dracut toolchain. The init writes a tmpfs-backed overlay so the running
+root is writable, finds the medium by its ISO9660 volume label (`ISOIMAGE`)
+rather than a partition label, and execs whatever `init=` names, so it does not
+assume an init system. No host udev, `depmod` or `switch_root` is needed; the
+preflight then requires only `kickoff` (its companion `kickoff-init` is looked
+for beside it).
 
 ## disk
 Accepts **--rootfs**, **--output**, **--init**, **--kernelVersion**,
