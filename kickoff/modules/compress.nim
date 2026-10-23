@@ -9,7 +9,7 @@
 ## build host is a Kreato system that already has gzip, and zstd is already a
 ## dependency of the image pipeline.
 
-import std/[os, osproc, streams, strutils]
+import std/[os, osproc, sequtils, strutils, tempfiles]
 
 type
   Compression* = enum
@@ -48,23 +48,37 @@ proc requireTool*(c: Compression) =
         "Compression tool not found: " & commandFor(c)[0] &
         " (pass --compress none or install it)")
 
-proc compress*(c: Compression, data: string): string =
-  ## Compress `data`, returning the compressed bytes as a string.
-  if c == cmNone: return data
+proc compressFile*(c: Compression, source, destination: string) =
+  ## Compress `source` into `destination`.
+  ##
+  ## The child's stdin and stdout are connected to files by the shell, not to
+  ## pipes bridged from this process. Bridging two pipes from one thread
+  ## deadlocks as soon as the child fills its stdout buffer while we are still
+  ## writing stdin: gzip's buffer is 64 KiB and an initramfs carrying kernel
+  ## modules is far larger than that, so the first real build hung until it was
+  ## killed. File redirection has no such buffer to fill.
+  if c == cmNone:
+    copyFile(source, destination)
+    return
   let argv = commandFor(c)
-  let p = startProcess(argv[0], args = argv[1 .. ^1], options = {poUsePath})
+  var command = argv.map(quoteShell).join(" ")
+  command.add " < " & quoteShell(source) & " > " & quoteShell(destination)
+  let status = execCmd(command)
+  if status != 0:
+    raise newException(IOError,
+        argv[0] & " exited with " & $status & " while compressing " & source)
+
+proc compress*(c: Compression, data: string): string =
+  ## Compress `data`, returning the compressed bytes. Convenience wrapper for
+  ## callers that already hold the archive in memory and for tests; the build
+  ## path uses compressFile to avoid a second copy.
+  if c == cmNone: return data
+  let directory = createTempDir("kickoff-compress-", "")
   try:
-    let input = p.inputStream
-    let output = p.outputStream
-    # Write in the same call as reading: both pipes are small, but a large input
-    # would deadlock if we waited for exit before draining stdout.
-    var reader = ""
-    input.write(data)
-    input.close()
-    reader = output.readAll()
-    let code = p.waitForExit()
-    if code != 0:
-      raise newException(IOError, argv[0] & " exited with " & $code)
-    result = reader
+    let source = directory / "input"
+    let destination = directory / "output"
+    writeFile(source, data)
+    compressFile(c, source, destination)
+    result = readFile(destination)
   finally:
-    p.close()
+    removeDir(directory)

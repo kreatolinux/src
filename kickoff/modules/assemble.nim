@@ -13,7 +13,7 @@
 ## finit_module, in the order computed at build time. That removes any need for
 ## modprobe, modules.dep or a module tree layout inside the archive.
 
-import std/[algorithm, os, sets, strutils]
+import std/[algorithm, os, sets, strutils, tempfiles]
 
 import ./[compress, cpio, libs, modules]
 
@@ -156,9 +156,18 @@ proc buildInitramfs*(options: InitramfsOptions): InitramfsResult =
 
 proc writeInitramfs*(options: InitramfsOptions, outputPath: string): InitramfsResult =
   ## Build and write the (compressed) archive, returning what went into it.
+  ##
+  ## The archive is written to a temporary file and compressed from there, so
+  ## the compressor reads and writes files rather than being piped through this
+  ## process. See compressFile for why that matters.
   requireTool(options.compression)
   result = buildInitramfs(options)
-  let packed = compress(options.compression, cast[string](result.archive))
   let parent = outputPath.parentDir
   if parent.len > 0: createDir(parent)
-  writeFile(outputPath, packed)
+  let workDir = createTempDir("kickoff-write-", "")
+  try:
+    let rawArchive = workDir / "initramfs.cpio"
+    writeFile(rawArchive, cast[string](result.archive))
+    compressFile(options.compression, rawArchive, outputPath)
+  finally:
+    removeDir(workDir)

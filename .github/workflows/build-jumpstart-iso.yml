@@ -203,10 +203,11 @@ jobs:
           # attempt sat with no output at all for over an hour, which gave
           # nothing to diagnose; with this, a hang is obvious at a glance.
           set -x
-          # Bound it: squashfs'ing a few GB is slow but not unbounded, and a
-          # wedged step should fail in twenty minutes rather than hold a runner
-          # for the whole job timeout.
-          timeout 1200 ./out/krep iso \
+          # Bound it so a wedge fails the job rather than holding a runner for
+          # hours. Forty-five minutes is generous for cp + mksquashfs +
+          # grub-mkrescue on a few GB, and still catches a hang: the deadlock
+          # this replaced sat for over an hour without producing anything.
+          timeout 2700 ./out/krep iso \
             --rootfs=/out \
             --output="$OUT" \
             --workDir="$WORK" \
@@ -216,7 +217,7 @@ jobs:
           status=$?
           set +x
           if [ "$status" -eq 124 ]; then
-            echo "::error::krep iso timed out after 20 minutes"
+            echo "::error::krep iso timed out after 45 minutes"
             exit 1
           fi
           [ "$status" -eq 0 ] || exit "$status"
