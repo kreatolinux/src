@@ -167,10 +167,27 @@ jobs:
           mkdir -p /var/cache/kpkg/archives /var/cache/kpkg/sources
           mkdir -p /out
 
-          ./out/krep rootfs \
-            --buildType="$PROFILE" \
-            --arch="$ARCH" \
-            --dataDir="krep/data"
+          # linux-firmware alone is ~965 MiB, and a transfer that size is
+          # occasionally dropped even though kpkg retries three times per
+          # mirror. Retry the whole staging step: completed archives stay in
+          # /var/cache/kpkg, so a second attempt resumes rather than starting
+          # from nothing.
+          attempt=1
+          while :; do
+            if ./out/krep rootfs \
+                 --buildType="$PROFILE" \
+                 --arch="$ARCH" \
+                 --dataDir="krep/data"; then
+              break
+            fi
+            if [ "$attempt" -ge 3 ]; then
+              echo "::error::krep rootfs failed after 3 attempts"
+              exit 1
+            fi
+            echo "::warning::krep rootfs failed (attempt $attempt), retrying in 30s"
+            attempt=$((attempt + 1))
+            sleep 30
+          done
 
           test -d /out || { echo "::error::krep did not create /out"; exit 1; }
           test -n "$(ls -A /out)" || { echo "::error::/out is empty after staging"; exit 1; }
