@@ -3,15 +3,15 @@
 #
 #   ./scripts/boot-iso-qemu.sh path/to/kreatolinux-live-arm64.iso
 #   ./scripts/boot-iso-qemu.sh image.iso --headless
-#   ./scripts/boot-iso-qemu.sh image.iso --serial-only -h
+#   ./scripts/boot-iso-qemu.sh image.iso --mem 4096 --cpus 4
 #
 # The ISO is attached as a plain block device, which is the "dd it onto a USB
 # stick" case: kickoff-init looks for an ISO9660 filesystem with the volume
-# label the ISO was built with (ISOIMAGE) and probes the whole device as well as
-# any partitions. UEFI firmware is used because that is what the ISO's GRUB
-# image is built for (`grub-mkrescue` produces an El Torito EFI image).
+# label baked into the ISO (ISOIMAGE) and probes the whole device as well as any
+# partitions. UEFI firmware is used because that is what the ISO's GRUB image is
+# built for -- grub-mkrescue emits an El Torito EFI image.
 #
-# Defaults to a graphical window. `--headless` gives a serial console instead,
+# Defaults to a graphical window; --headless gives a serial console instead,
 # which is what CI uses.
 #
 # Login: root / kreato (the ISO workflow bakes this in; see
@@ -57,8 +57,8 @@ done
 
 [ -f "$ISO" ] || { echo "no such ISO: $ISO" >&2; exit 1; }
 
-# Acceleration: KVM on Linux, HVF on macOS (aarch64 host assumed, since this is
-# an aarch64 guest and full emulation is unusably slow).
+# KVM on Linux, HVF on macOS. This is an aarch64 guest, so TCG would be far too
+# slow to be useful; warn rather than silently crawl.
 if [ -e /dev/kvm ]; then
   ACCEL=kvm
 elif [ "$(uname -s)" = Darwin ]; then
@@ -68,7 +68,7 @@ else
   echo "warning: no KVM, falling back to TCG; this will be slow" >&2
 fi
 
-# UEFI firmware. QEMU resolves bare names against its data directory, so this
+# UEFI firmware. QEMU resolves a bare name against its data directory, so this
 # works without an absolute path as long as the firmware ships with QEMU.
 FW=edk2-aarch64-code.fd
 
@@ -76,22 +76,32 @@ if [ "$HEADLESS" = 1 ]; then
   DISPLAY_ARGS="-nographic -monitor none -serial stdio"
   GUI_ARGS=""
 else
-  # ramfb gives the firmware and GRUB a framebuffer before the kernel's DRM
-  # driver loads; virtio-gpu takes over once Linux boots. Serial still goes to a
-  # file so the kickoff-init messages are readable even with a window open.
+  # ramfb only. QEMU exposes it to the guest as an ACPI simple-framebuffer, which
+  # the kernel picks up through simpledrm, so firmware, GRUB and the Linux
+  # console all render on one surface.
+  #
+  # Do not add -device virtio-gpu-pci to this list. The firmware in QEMU's
+  # edk2-aarch64-code.fd does not drive it, and nothing in the guest autoloads
+  # virtio_gpu, so it never scans out anything. With both devices present the
+  # window binds to virtio-gpu and shows QEMU's "Display output is not active"
+  # placeholder instead of the console.
+  #
+  # Serial still goes to a file so kickoff-init's messages stay readable while a
+  # window is open.
   DISPLAY_ARGS="-serial file:$SERIAL"
-  GUI_ARGS="-device virtio-gpu-pci -device ramfb     -device virtio-keyboard-pci -device virtio-tablet-pci"
+  GUI_ARGS="-device ramfb -device virtio-keyboard-pci"
 fi
 
+set -- qemu-system-aarch64
+set -- "$@" -machine "virt,accel=$ACCEL"
+set -- "$@" -cpu host
+set -- "$@" -m "$MEM" -smp "$CPUS"
+set -- "$@" -bios "$FW"
+set -- "$@" -drive "file=$ISO,format=raw,if=none,id=medium,$READONLY"
+set -- "$@" -device virtio-blk-pci,drive=medium
+# Word splitting of the option strings is intended.
 # shellcheck disable=SC2086
-set -- qemu-system-aarch64 \
-  -machine "virt,accel=$ACCEL" \
-  -cpu host \
-  -m "$MEM" -smp "$CPUS" \
-  -bios "$FW" \
-  -drive "file=$ISO,format=raw,if=none,id=medium,$READONLY" \
-  -device virtio-blk-pci,drive=medium \
-  $DISPLAY_ARGS $GUI_ARGS
+set -- "$@" $DISPLAY_ARGS $GUI_ARGS
 
 if [ "$DRY" = 1 ]; then
   printf '%s ' "$@"; echo
