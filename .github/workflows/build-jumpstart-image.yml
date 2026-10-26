@@ -141,8 +141,16 @@ jobs:
         run: |
           set -euo pipefail
           ARCH="${{ matrix.arch }}"
-          PROFILE="${{ inputs.buildType }}"
-          CFG="krep/data/rootfs/arch/${ARCH}/configs/${PROFILE}.kg"
+          # krep keeps rootfs configs under amd64/arm64; the matrix uses the
+          # GitHub runner spelling.
+          case "$ARCH" in
+            x86_64) KREP_ARCH=amd64 ;;
+            *)      KREP_ARCH="$ARCH" ;;
+          esac
+          # Input defaults only apply to workflow_dispatch, so a scheduled run
+          # would otherwise stage with an empty profile name.
+          PROFILE="${{ inputs.buildType || 'jumpstart-image' }}"
+          CFG="krep/data/rootfs/arch/${KREP_ARCH}/configs/${PROFILE}.kg"
 
           if [ ! -f "$CFG" ]; then
             echo "::error::profile $CFG not found"
@@ -163,7 +171,7 @@ jobs:
 
           ./out/krep rootfs \
             --buildType="$PROFILE" \
-            --arch="$ARCH" \
+            --arch="$KREP_ARCH" \
             --dataDir="krep/data"
 
           # Fail here with a clear message instead of a confusing kernel lookup
@@ -221,7 +229,7 @@ jobs:
             --output="$OUT" \
             --workDir="$WORK" \
             --bootloader=grub \
-            --arch="$ARCH" \
+            --arch="$KREP_ARCH" \
             --espSizeMiB=256 \
             --initramfsGenerator=booster \
             --console="$CONSOLE" \
