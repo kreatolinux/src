@@ -192,21 +192,47 @@ proc loadModules() =
       say("kickoff-init: warning: finit_module failed for " & path)
     discard posix.close(fd)
 
+proc loopControlDevice(): string =
+  ## Ask the loop driver for a free device.
+  ##
+  ## Since Linux 5.x the driver creates devices on demand and the module's
+  ## max_loop default is 0, so /dev/loop0..N do not exist until somebody asks
+  ## for one. Scanning for a node that already exists therefore finds nothing on
+  ## a modern kernel, which is exactly what the first live boot hit.
+  const LOOP_CTL_GET_FREE = 0x4C82'u64
+  let ctl = posix.open("/dev/loop-control".cstring, O_RDWR)
+  if ctl < 0: return ""
+  try:
+    let index = ioctl(ctl, LOOP_CTL_GET_FREE, 0)
+    if index < 0: return ""
+    let device = "/dev/loop" & $index
+    # devtmpfs creates the node, but not necessarily before we look.
+    for _ in 0 ..< 50:
+      if exists(device): return device
+      discard posix.usleep(100_000)
+    ""
+  finally:
+    discard posix.close(ctl)
+
 proc setupLoopDevice(filePath: string): string =
-  ## Attach `filePath` to a free loop device and return its path. Done with
-  ## ioctls because there is no losetup in the archive.
-  const
-    LOOP_SET_FD = 0x4C00'u64
-    LOOP_CLR_FD = 0x4C01'u64
+  ## Attach `filePath` to a loop device and return its path. Done with ioctls
+  ## because there is no losetup in the archive.
+  const LOOP_SET_FD = 0x4C00'u64
   let fd = posix.open(filePath.cstring, O_RDONLY)
   if fd < 0: die("cannot open squashfs image: " & filePath)
-  for i in 0 ..< 8:
+  var candidates: seq[string] = @[]
+  let allocated = loopControlDevice()
+  if allocated.len > 0: candidates.add allocated
+  # Keep the scan as a fallback for kernels that pre-create the nodes.
+  for i in 0 ..< 16:
     let loop = "/dev/loop" & $i
-    if not exists(loop): continue
+    if exists(loop) and loop notin candidates: candidates.add loop
+  for loop in candidates:
     let lfd = posix.open(loop.cstring, O_RDWR)
     if lfd < 0: continue
     if ioctl(lfd, LOOP_SET_FD, fd) == 0:
       discard posix.close(lfd)
+      discard posix.close(fd)
       return loop
     discard posix.close(lfd)
   discard posix.close(fd)
@@ -226,6 +252,9 @@ proc switchRoot(newRoot, initPath: string) {.noreturn.} =
   if rc != 0: die("mount --move " & newRoot & " -> /: " & mountErrorStr(rc))
   if chroot(".".cstring) != 0: die("chroot")
   if chdir("/".cstring) != 0: die("chdir /")
+  # Now that / is the new root, an absolute symlink resolves inside it.
+  if not exists(initPath):
+    die("init not found in the root filesystem: " & initPath)
   say("kickoff-init: switching to " & initPath)
   let argv = allocCStringArray([initPath])
   discard execv(initPath.cstring, argv)
@@ -309,10 +338,10 @@ proc main() {.used.} =
   if initPath.len == 0: initPath = defaultInit
   if initPath[0] != '/':
     die("init= must be an absolute path: " & initPath)
-  let resolved = targetRoot & initPath
-  if not fileExists(resolved):
-    die("init not found in the root filesystem: " & initPath)
-
+  # Do not check for initPath here: it is usually a symlink whose target is
+  # absolute (/sbin/init -> /bin/jumpstart), so resolving it from outside the
+  # new root looks it up in the initramfs and fails. switchRoot checks it after
+  # chroot, where the links mean what they were built to mean.
   switchRoot(targetRoot, initPath)
 
 when isMainModule:
