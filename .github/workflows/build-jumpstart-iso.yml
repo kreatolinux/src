@@ -123,6 +123,12 @@ jobs:
           #
           # Deliberately absent: dracut, e2fsprogs, util-linux. The kickoff path
           # has no ext4 layer and does not use dmsquash-live.
+          # Refresh the package index first. The builder image carries a cached
+          # copy, so without this the install below resolves against whatever
+          # was current when the image was built -- which silently reinstalls
+          # the version already present instead of the rebuilt one just
+          # published.
+          "$KPKG" update
           "$KPKG" install -y squashfs-tools grub xorriso mtools kmod
           for t in mksquashfs grub-mkrescue xorriso mcopy depmod; do
             printf '%-18s' "$t"
