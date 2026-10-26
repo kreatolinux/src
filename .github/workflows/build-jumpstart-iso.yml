@@ -134,6 +134,10 @@ jobs:
             printf '%-18s' "$t"
             command -v "$t" || { echo "MISSING after install"; exit 1; }
           done
+          # Record which grub actually got installed. A stale index silently
+          # keeps the old build, and that failure looks identical to a broken
+          # package, so name the version in the log.
+          ls -1 /var/cache/kpkg/archives/grub-*.kpkg 2>/dev/null || true
 
       - name: Build krep and kickoff
         run: |
