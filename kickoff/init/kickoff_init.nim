@@ -238,6 +238,69 @@ proc setupLoopDevice(filePath: string): string =
   discard posix.close(fd)
   die("no free loop device for " & filePath)
 
+proc collectModaliases(limit = 400): seq[string] =
+  ## Every device the kernel knows about advertises a modalias, and modules.alias
+  ## maps those to driver modules.
+  var pending = @["/sys/devices"]
+  while pending.len > 0 and result.len < limit:
+    let directory = pending.pop()
+    for kind, path in walkDir(directory):
+      if result.len >= limit: break
+      case kind
+      of pcDir: pending.add path
+      else:
+        if path.endsWith("modalias"):
+          let alias = readTrimmed(path)
+          if alias.len > 0 and alias notin result:
+            result.add alias
+
+proc coldplugModules(root: string) =
+  ## Load drivers for the hardware that is actually present.
+  ##
+  ## A live system has no udev, and a driver built as a module never binds on its
+  ## own: the kernel asks for one when the device is probed, which is long before
+  ## the real root exists, and it does not ask again. The symptom is a machine
+  ## that boots perfectly on the serial console with a dead screen, or a dead
+  ## network card, or no disk -- depending on what hardware it is.
+  ##
+  ## Naming drivers here would only ever cover the machines the list was written
+  ## on. Instead ask modprobe about everything: every device has a modalias and
+  ## modules.alias maps those to modules, which is the same job `mdev -s` and
+  ## udev's coldplug do.
+  let busybox = root & "/bin/busybox"
+  if not exists(busybox):
+    say("kickoff-init: no busybox in the root, skipping driver coldplug")
+    return
+  let aliases = collectModaliases()
+  if aliases.len == 0: return
+
+  # modprobe resolves /lib/modules against the filesystem root, so bind sysfs
+  # into the new root and let a chrooted child do the looking. The child is
+  # separate so its chroot cannot affect this process, and the bind mount is
+  # detached afterwards so jumpstart finds an empty /sys to mount sysfs onto.
+  let sysInRoot = root / "sys"
+  ensureDir(sysInRoot)
+  if mountFs("/sys", sysInRoot, "", MS_BIND) != 0: return
+  let pid = posix.fork()
+  if pid == 0:
+    discard chdir(root.cstring)
+    discard chroot(".")
+    discard chdir("/".cstring)
+    # BusyBox modprobe takes one module per call (no -a), so let its shell do
+    # the looping. The aliases are passed as arguments rather than pasted into
+    # the script so nothing in them can be interpreted.
+    var argv = @["/bin/busybox", "sh", "-c",
+      "for a in \"$@\"; do /bin/busybox modprobe -q \"$a\" || :; done", "--"]
+    argv.add aliases
+    discard execv("/bin/busybox".cstring, allocCStringArray(argv))
+    quit(127)
+  var status: cint
+  discard waitpid(pid, status, 0)
+  discard umountFs(sysInRoot, MNT_DETACH)
+  if status != 0:
+    say("kickoff-init: coldplug exited with status " & $status)
+  say("kickoff-init: coldplug asked modprobe about " & $aliases.len & " devices")
+
 proc readLayout(): string =
   ## The build-time layout. "squashfs-iso" means the device holds an ISO with a
   ## squashfs image inside it rather than a squashfs filesystem directly.
@@ -338,6 +401,10 @@ proc main() {.used.} =
   if initPath.len == 0: initPath = defaultInit
   if initPath[0] != '/':
     die("init= must be an absolute path: " & initPath)
+  # Load drivers for whatever hardware this is before handing over, so a
+  # module-only display/network/storage driver is up while we still have /sys.
+  coldplugModules(targetRoot)
+
   # Do not check for initPath here: it is usually a symlink whose target is
   # absolute (/sbin/init -> /bin/jumpstart), so resolving it from outside the
   # new root looks it up in the initramfs and fails. switchRoot checks it after

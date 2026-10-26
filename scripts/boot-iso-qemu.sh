@@ -80,11 +80,12 @@ else
   # the kernel picks up through simpledrm, so firmware, GRUB and the Linux
   # console all render on one surface.
   #
-  # Do not add -device virtio-gpu-pci to this list. The firmware in QEMU's
-  # edk2-aarch64-code.fd does not drive it, and nothing in the guest autoloads
-  # virtio_gpu, so it never scans out anything. With both devices present the
-  # window binds to virtio-gpu and shows QEMU's "Display output is not active"
-  # placeholder instead of the console.
+  # virtio-gpu also works now -- kickoff-init coldplugs drivers by modalias, so
+  # virtio_gpu loads on its own when the device is present. ramfb stays the
+  # default here because it needs no driver at all, which means this script also
+  # displays correctly for images built before that. Do not attach both: the
+  # window binds to whichever comes first, and a device the guest has not driven
+  # yet just shows QEMU's "Display output is not active" placeholder.
   #
   # Serial still goes to a file so kickoff-init's messages stay readable while a
   # window is open.
